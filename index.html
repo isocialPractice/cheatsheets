@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Show Output</title>
+<style>
+ select, label {
+  display: block;
+  margin: 20px;
+ }
+</style>
+</head>
+
+<body>
+
+ <h1>Example Outputs</h1><hr> 
+ <p>Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
+ <br>
+ <h3>Instructions</h3>
+ <ol>
+  <li>Select Cheatsheat from dropdown.</li>
+  <li>Select the example from next dropdown.</li>
+ </ol>
+<br>
+<label for="category">Select Cheatsheet</label>
+<select name="category" id="category"
+ onchange="selectCheatsheet(this)">
+ <option value="" style="display:none"></option>
+ <option value="javaScriptArrays">JavaScript Arrays</option>
+</select>
+
+<div style="display:none">
+ <label for="example">Select Example</label>
+ <select name="example" id="example"
+  onchange="selectExample(this)">
+  <option value=""></option>
+  <optgroup id="javaScriptArrays" label="JavaScript Arrays" style="display:none">
+   <option value="Shift And Unshift">Shift And Unshift</option>
+  </optgroup>
+ </select>
+ <br>
+ <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
+</div>
+
+<script>
+// GLOBAL VARIABLES
+var selectCategory, selectedExample;
+var showFootNote = document.getElementById("showFootNote");
+ 
+// APPLICATION FUNCTIONS
+// Select the appropriate js to load.
+function selectCheatsheet(category) {
+ let selectedCategory = category.value;
+ let nextStep = category.nextElementSibling;
+ let nextStepOptions = nextStep.getElementsByTagName("optgroup");
+ let nextStepOptionsLen = nextStepOptions.length;
+ let nextStepOptionsMatch, nextStepOptionsMatchID;
+ 
+ nextStep.style.display = "";
+ for (i = 0; i < nextStepOptionsLen; i++) {
+  nextStepOptionsMatch = nextStepOptions[i];
+  nextStepOptionsMatchID = nextStepOptionsMatch.id;
+  if (nextStepOptionsMatchID == selectedCategory) {
+   nextStepOptionsMatch.style.display = "";
+   break;
+  }  
+ }
+ selectCategory = selectedCategory;
+}
+function selectExample(example) {
+ selectedExample = removeSpaceInVariable(example.value);
+ let curScriptLocation = 
+  selectCategory + "/" + selectedExample + ".js";
+ 
+ let exampleScriptTag = document.createElement("script");
+ exampleScriptTag.src = curScriptLocation;
+ document.body.appendChild(exampleScriptTag);
+ 
+ showFootNote.style.display = "";
+}
+
+// SUPORT FUNCTION
+// Below function also in "general" repository.
+function removeSpaceInVariable(variableWhereSpaceIs, changeCase) {
+ if (changeCase == undefined) changeCase = 0;
+ 
+ let theVariableWhereSpaceIs = variableWhereSpaceIs; 
+ let spaceIsPresent = 1;
+ if (theVariableWhereSpaceIs) {
+  while (spaceIsPresent == 1) {
+   if (theVariableWhereSpaceIs.indexOf(" ") > -1) {
+    theVariableWhereSpaceIs = theVariableWhereSpaceIs.replace(" ", "");
+   } else {
+    spaceIsPresent = 0;
+   }
+  }
+ }
+ if (changeCase == "u") {
+  theVariableWhereSpaceIs = changeToUpperCase(theVariableWhereSpaceIs);
+ } else if (changeCase == "l") {
+  theVariableWhereSpaceIs = changeToLowerCase(theVariableWhereSpaceIs);
+ }
+ return theVariableWhereSpaceIs;
+}
+</script>
+</body>
+</html>
