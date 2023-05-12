@@ -66,10 +66,16 @@ function selectCheatsheet(category) {
  }
  selectCategory = selectedCategory;
 }
+var checkPreview = location.href;
 function selectExample(example) {
  selectedExample = removeSpaceInVariable(example.value);
- let curScriptLocation = 
-  selectCategory + "/" + selectedExample + ".js";
+ let curScriptLocation = "";
+ if (checkPreview.indexOf("htmlpreview") > -1) {        
+  curScriptLocation = "https://github.com/isocialPractice/cheatsheets/tree/main/" + selectCategory + "/" + selectedExample + ".js";
+ } else {
+  curScriptLocation = selectCategory + "/" + selectedExample + ".js";
+ }
+ 
  
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
