@@ -1,7 +1,7 @@
 # Cheat Sheet Practical Use Example Output
 
 **Preview in Browser**<br>
-Click the link below to preview in browser: **NOTE** \- *opens in current tab*.
+Click the link below to preview in browser: **NOTE** \- *opens in current tab*. <br>
 Preview [Cheat Sheet Examples](https://htmlpreview.github.io/?https://github.com/isocialPractice/cheatsheets/blob/main/index.html)
 
 **Download and Preview**<br>
