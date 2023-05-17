@@ -6,7 +6,22 @@
 <style>
  select, label {
   display: block;
-  margin: 20px;
+  margin: 10px 20px;
+ }
+ div, div.row, div.col {
+  display: inline-block;
+  position: relative;
+  top: 0px;
+ }
+ div.tools {
+  display: block;
+  position: fixed;
+  top: 130px;
+  z-index: 1;
+}
+ div.col img {
+  margin-left: 500px;
+  max-width: 600px;
  }
 </style>
 </head>
@@ -15,36 +30,48 @@
  <h1>Example Outputs</h1><hr> 
  <p>Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
  <br>
- <h3>Instructions</h3>
- <ol>
-  <li>Select Cheatsheat from dropdown.</li>
-  <li>Select the example from next dropdown.</li>
- </ol>
-<br>
-<label for="category">Select Cheatsheet</label>
-<select name="category" id="category"
- onchange="selectCheatsheet(this)">
- <option value="" style="display:none"></option>
- <option value="javaScriptArrays">JavaScript Arrays</option>
-</select>
+ 
+ <div class="row">
+  <div class="col">
+  <div class="tools">
+   <h3>Instructions</h3>
+    <ol>
+     <li>Select Cheatsheat from dropdown.</li>
+     <li>Select the example from next dropdown.</li>
+     <li>Press "F12" and select console tab to see results.</li>
+    </ol>    
+    <label for="category">Select Cheatsheet</label>
+    <select name="category" id="category"
+     onchange="selectCheatsheet(this)">
+     <option value="" style="display:none"></option>
+     <option value="javaScriptArrays">JavaScript Arrays</option>
+    </select>
 
-<div style="display:none">
- <label for="example">Select Example</label>
- <select name="example" id="example"
-  onchange="selectExample(this)">
-  <option value=""></option>
-  <optgroup id="javaScriptArrays" label="JavaScript Arrays" style="display:none">
-   <option value="shift And Unshift">Shift And Unshift</option>
-   <option value="Changing Elements">Changing Elements</option>
-  </optgroup>
- </select>
- <br>
- <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
+    <div style="display:none">
+     <label for="example">Select Example</label>
+     <select name="example" id="example"
+      onchange="selectExample(this)">
+      <option value=""></option>
+      <optgroup id="javaScriptArrays" label="JavaScript Arrays" style="display:none">
+       <option value="shift And Unshift">Shift And Unshift</option>
+       <option value="Changing Elements">Changing Elements</option>
+      </optgroup>
+     </select>
+    </div> 
+  </div>
+  </div>
+  <div class="col">
+   <img style="display: none" id="curCheatSheetImg"
+    src="javaScriptArrays/.jpg" alt="cheat sheet image">
+  </div>
 </div>
+<br>
+<br>
+<p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
 
 <script>
 // GLOBAL VARIABLES
-var selectCategory, selectedExample;
+var selectCategory, selectedExample, curCheatSheetImg;
 var showFootNote = document.getElementById("showFootNote");
  
 // APPLICATION FUNCTIONS
@@ -61,7 +88,7 @@ function selectCheatsheet(category) {
   nextStepOptionsMatch = nextStepOptions[i];
   nextStepOptionsMatchID = nextStepOptionsMatch.id;
   if (nextStepOptionsMatchID == selectedCategory) {
-   nextStepOptionsMatch.style.display = "";
+   nextStepOptionsMatch.style.display = "block";
    break;
   }  
  }
@@ -70,20 +97,28 @@ function selectCheatsheet(category) {
 var checkPreview = location.href;
 function selectExample(example) {
  selectedExample = removeSpaceInVariable(example.value);
- let curScriptLocation = "";
+ curCheatSheetImg = document.getElementById("curCheatSheetImg");
+ let curScriptLocation = "", curScriptImageLocation = "";
  if (checkPreview.indexOf("htmlpreview") > -1) {        
   // curScriptLocation = "https://practicing.xyz/gitHub/cheatsheets/" + selectCategory + "/" + selectedExample + ".js";
   curScriptLocation = "https://cdn.jsdelivr.net/gh/isocialPractice/cheatsheets/" + selectCategory + "/" + selectedExample + ".js";
+  curScriptImageLocation = "https://cdn.jsdelivr.net/gh/isocialPractice/cheatsheets/" + selectCategory + "/" + selectedExample + ".jpg";
  } else {
   curScriptLocation = selectCategory + "/" + selectedExample + ".js";
+  curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
  }
- 
- 
+ console.clear();
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
  document.body.appendChild(exampleScriptTag);
+ curCheatSheetImg.src = curScriptImageLocation;
+ curCheatSheetImg.style.display = "block";
  
- showFootNote.style.display = "";
+ if (curCheatSheetImg.src.replace(curCheatSheetImg.src.substr(0,curCheatSheetImg.src.lastIndexOf("/") + 1), "").length > 4)  {
+ showFootNote.style.display = "block"; 
+ } else {
+  showFootNote.style.display = "none"; 
+ }
 }
 
 // SUPORT FUNCTION
