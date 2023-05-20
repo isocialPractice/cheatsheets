@@ -55,6 +55,7 @@
       <optgroup id="javaScriptArrays" label="JavaScript Arrays" style="display:none">
        <option value="shift And Unshift">Shift And Unshift</option>
        <option value="Changing Elements">Changing Elements</option>
+       <option value="Splicing Arrays">Splicing Arrays</option>
       </optgroup>
      </select>
     </div> 
@@ -111,8 +112,23 @@ function selectExample(example) {
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
  document.body.appendChild(exampleScriptTag);
- curCheatSheetImg.src = curScriptImageLocation;
- curCheatSheetImg.style.display = "block";
+ var imgDisplay = ""; var checkImg;
+ 
+ let xhttp = new XMLHttpRequest();
+ xhttp.onload = function() {  
+  checkImg = this.statusText;  
+  if (checkImg == "Not Found") {
+   curScriptImageLocation = "";
+   imgDisplay = "none";  
+   showFootNote.style.display = "none"; 
+  } else {
+   imgDisplay = "block";
+  }    
+  curCheatSheetImg.src = curScriptImageLocation;  
+  curCheatSheetImg.style.display = imgDisplay;
+ };
+ xhttp.open("GET", curScriptImageLocation, true);
+ xhttp.send();  
  
  if (curCheatSheetImg.src.replace(curCheatSheetImg.src.substr(0,curCheatSheetImg.src.lastIndexOf("/") + 1), "").length > 4)  {
  showFootNote.style.display = "block"; 
