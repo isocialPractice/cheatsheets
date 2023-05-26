@@ -47,7 +47,7 @@
      <option value="javaScriptArrays">JavaScript Arrays</option>
     </select>
 
-    <div style="display:none">
+    <div id="selectExample" style="display:none">
      <label for="example">Select Example</label>
      <select name="example" id="example"
       onchange="selectExample(this)">
@@ -56,6 +56,7 @@
        <option value="shift And Unshift">Shift And Unshift</option>
        <option value="Changing Elements">Changing Elements</option>
        <option value="Splicing Arrays">Splicing Arrays</option>
+       <option value="Concating Arrays">Concating Arrays</option>
       </optgroup>
      </select>
     </div> 
@@ -71,6 +72,14 @@
 <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
 
 <script>
+// CONGIF TEST ENVIRONMENT - 1 = testing, 0 = production
+var testEnvironment = 0;
+if (testEnvironment == 1) {
+  document.getElementById("selectExample").style.display = "";
+  document.getElementById("category").value = "javaScriptArrays"; // CHANGE AS NEEDED
+  selectCheatsheet(document.getElementById("category")); // CHANGE AS NEEDED  
+  document.getElementById("example").value = "Splicing Arrays"; // CHANGE AS NEEDED - best if value of one above test
+}
 // GLOBAL VARIABLES
 var selectCategory, selectedExample, curCheatSheetImg;
 var showFootNote = document.getElementById("showFootNote");
