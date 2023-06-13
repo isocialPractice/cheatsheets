@@ -23,12 +23,16 @@
   margin-left: 500px;
   max-width: 600px;
  }
+ 
 </style>
+
+
 </head>
 
 <body>
- <h1>Example Outputs</h1><hr> 
+ <h1>Example Outputs</h1><hr>  
  <p>Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
+ 
  <br>
  
  <div class="row">
@@ -60,6 +64,7 @@
        <option value="Slicing Arrays">Slicing Arrays</option>
        <option value="Sorting Arrays">Sorting Arrays</option>
        <option value="Sort Numbers Array">Sort Numbers Array</option>
+       <option value="Compare Array Function">Compare Array Function</option>
       </optgroup>
      </select>
     </div> 
@@ -81,7 +86,7 @@ if (testEnvironment == 1) {
   document.getElementById("selectExample").style.display = "";
   document.getElementById("category").value = "javaScriptArrays"; // CHANGE AS NEEDED
   selectCheatsheet(document.getElementById("category")); // CHANGE AS NEEDED  
-  document.getElementById("example").value = "Sorting Arrays"; // CHANGE AS NEEDED - best if value of one above test
+  document.getElementById("example").value = "Sort Numbers Array"; // CHANGE AS NEEDED - best if value of one above test
 } else {
   document.getElementById("selectExample").style.display = "";
   document.getElementById("category").value = "javaScriptArrays"; // CHANGE AS NEEDED
@@ -186,6 +191,7 @@ function changeToLowerCase(variableToChange) {
  return theVariableToLowerCase;
 }
 
-</script>
+</script> 
+
 </body>
 </html>
