@@ -11,5 +11,5 @@ Download repo, start a localhost (php -S localhost:8000) and open in browser, fo
 **Source for Examples**
 The examples used are based on examples from:
 1. Javascript Arrays:
-   a. w3schools - [JS Array Methods](https://www.w3schools.com/js/js_array_methods.asp)
-   b. MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
+     - w3schools - [JS Array Methods](https://www.w3schools.com/js/js_array_methods.asp)
+     - MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
