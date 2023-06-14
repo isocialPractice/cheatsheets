@@ -13,3 +13,5 @@ The examples used are based on examples from:
 1. Javascript Arrays:
      - w3schools - [JS Array Methods](https://www.w3schools.com/js/js_array_methods.asp)
      - MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
+     
+** It worked
