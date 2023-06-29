@@ -2,7 +2,7 @@
 
 **Preview in Browser**<br> 
 Click the link below to preview in browser: **NOTE** \- *opens in current tab*. <br>
-[Preview Cheat Sheet Examples](https://nobedee.github.io/htmlpreview.github.com/?https://github.com/isocialPractice/cheatsheets/blob/main/index.html)
+[Preview Cheat Sheet Examples](https://jhauga.github.io/htmlpreview.github.com/?https://github.com/isocialPractice/cheatsheets/blob/main/index.html)
 
 **Download and Preview**<br>
 The terminal will output the examples illustrated from the social media cheat sheet posts.
