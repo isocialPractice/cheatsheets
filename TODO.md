@@ -4,26 +4,24 @@ Planned work for this cheatsheet example repository. `## Current` holds the
 next items to complete, in order; the level 2 sections below it are the
 roadmap those items are drawn from.
 
-This project is in **dated mode**. It has no `CHANGELOG.md`, no releases and
-no tags, its source is browser based, and it exists to hold and demonstrate
-learning examples. No section applies a version, so each states its intent
-instead.
+This project is in **dated mode**. It has no releases and no tags, its source
+is browser based, and it exists to hold and demonstrate learning examples. No
+section applies a version, so each states its intent instead. `CHANGELOG.md`
+keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Create `.github/workflows/pages.yml` deploying the repository root on push to the default branch and on `workflow_dispatch`
+- [ ] Verify the documentation site deployed
+  - The workflow runs on GitHub after this run's push, so its outcome is not knowable here. See `.claude/agent-note.md` for the check
   - From: GitHub Pages Deployment
-- [ ] Enable GitHub Pages for the repository with its source set to GitHub Actions
-  - From: GitHub Pages Deployment
-- [ ] Add a `.nojekyll` file at the published root
-  - From: GitHub Pages Deployment
-- [ ] Force add both `.github/workflows/pages.yml` and `.nojekyll` when they are committed
-  - Both paths match `.*` in this machine's global ignore file, so a plain `git add <path>` exits 1 and `git add -A` skips them without a word. Neither file reaches GitHub without `git add -f`, and the two items above are checked off either way
-  - From: GitHub Pages Deployment
-- [ ] Replace the `htmlpreview` link in `README.md` with the repository's own GitHub Pages URL
-  - From: Preview Links and Example Loading
-- [ ] Remove the `htmlpreview` and CDN branch from `selectExample()` in `index.html` so examples load by relative path
-  - From: Preview Links and Example Loading
+- [ ] Add `lang="en"` to the `<html>` element
+  - From: Page Structure and Responsiveness
+- [ ] Add a `<meta name="viewport" content="width=device-width, initial-scale=1">` tag
+  - From: Page Structure and Responsiveness
+- [ ] Link `favicon.ico` from the document head
+  - From: Page Structure and Responsiveness
+- [ ] Replace the fixed `margin-left` offset and pinned tools panel with a layout that reflows to a single column on narrow screens
+  - From: Page Structure and Responsiveness
 
 ## GitHub Pages Deployment
 
@@ -36,16 +34,6 @@ site work however it was raised.
 
 **Intent**: stand up the deployment that the repository has never had.
 
-- [ ] Create `.github/workflows/pages.yml` deploying the repository root on push to the default branch and on `workflow_dispatch`
-  - Resolve the default branch from the repository rather than assuming it
-- [ ] Give the workflow `contents: read`, `pages: write`, and `id-token: write` permissions, and a concurrency group so overlapping deploys cannot race
-- [ ] Use the Pages action sequence: configure the environment, upload the site directory as the Pages artifact, then deploy it in a job bound to the `github-pages` environment
-- [ ] Enable GitHub Pages for the repository with its source set to GitHub Actions
-  - Resolve the owner from the repository itself, not from the signed in account, and report rather than work around a missing permission
-- [ ] Add a `.nojekyll` file at the published root
-  - The site is not built by Jekyll, so without it any path beginning with an underscore is dropped silently
-- [ ] Force add both `.github/workflows/pages.yml` and `.nojekyll` when they are committed
-  - A global ignore rule on this machine matches every dotted path, so both files are ignored here and neither would be tracked without `git add -f`. Only `.gitignore` escapes it, because it was committed before the rule applied. An untracked workflow means the site never builds, and an untracked `.nojekyll` means it builds wrong
 - [ ] Exclude the 20 MB of cheatsheet images from the published artifact, or confirm they are small enough to publish, once the image work below lands
 
 ## Preview Links and Example Loading
@@ -58,13 +46,10 @@ so relative paths resolve on their own.
 
 **Intent**: replace the preview workaround with the real site.
 
-- [ ] Replace the `htmlpreview` link in `README.md` with the repository's own GitHub Pages URL
-  - Take the URL from the repository rather than building one by hand, and lower case the owner in the host
 - [ ] Add the site link directly beneath the README's level 1 heading
-- [ ] Remove the `htmlpreview` and CDN branch from `selectExample()` in `index.html` so examples load by relative path
-- [ ] Confirm every asset path resolves under the project site base path rather than the domain root
 - [ ] Replace the `XMLHttpRequest` probe that compares `statusText` against `"Not Found"` with an `img.onerror` handler or a `fetch` response check
   - The current test depends on a status text the server is free to change, and it fires a second request for an image the page then loads again
+  - The probe also downloads each image twice, once here and once through the `<img>` element, which is roughly 4 MB per selection at current image sizes
 
 ## Page Structure and Responsiveness
 
@@ -95,11 +80,38 @@ at all, one of which is the image element's initial `src`.
 **Intent**: let the page carry more than one cheatsheet without hand editing
 the configuration block for each.
 
+The manifest pipeline below is the one prerequisite for every item in **New
+Cheatsheets**. Until it is in place, adding a category means hand editing
+`index.html` again, which is the thing this section exists to remove.
+
+### The Manifest Pipeline
+
+- [ ] Write `tools/build-manifest.mjs`, a dependency free Node script that walks the cheatsheet tree and emits `cheatsheets.json` at the repository root
+  - Treat any folder holding `sheet.webp` as a cheatsheet, read the `meta.json` at each level for its title and order, detect the payload by extension, and record each image's width, height and byte size
+  - Commit `cheatsheets.json` rather than building it at deploy time, so the local `php -S localhost:8000` workflow keeps working without Node
+- [ ] Add a `--check` mode to the same script that exits non zero on a broken tree
+  - Fail on: a missing `sheet.webp` or title; a `kind` that contradicts what is on disk; a path segment that is not lower case kebab ASCII, or whose on disk casing differs byte for byte; depth greater than three; a duplicate id; a `sheet.webp` over the image budget; an unreferenced file in a cheatsheet folder; and a committed `cheatsheets.json` that differs from freshly generated output
+  - The casing check is the one that matters most: Pages serves from a case sensitive filesystem while the work happens on Windows, so a casing mismatch passes locally and 404s only in production
+- [ ] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
+  - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
+- [ ] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
+  - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
+  - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
+- [ ] Hide the previously shown `optgroup` when the category changes
+  - `selectCheatsheet()` only ever sets one to `display: block`, so with more than one category the example dropdown accumulates stale groups
+- [ ] Remove the injected `script` element from the previous selection before appending the next one, and inject with `type="module"`
+  - Each selection currently appends another `script` and never removes the last, so globals leak and collide between examples. `console.clear()` hides the symptom rather than the cause
+- [ ] Add hash routing so a cheatsheet has a shareable link and preselects on load
+
+### Catalog Cleanup
+
 - [ ] Select the category automatically only while exactly one exists, rather than naming it in the script
 - [ ] Remove the `testEnvironment` block, or reduce it to the one behavior that differs between its branches
 - [ ] Replace the empty basename `javaScriptArrays/.js` and `javaScriptArrays/.jpg` placeholders, leaving the image with no `src` until one is chosen
-- [ ] Build the example dropdown from the files present rather than from a hand maintained `optgroup`
-- [ ] Add a second cheatsheet category alongside the array examples
+- [ ] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
+  - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
+- [ ] Migrate the eleven array examples to `javascript/arrays/` under the new convention, as the acceptance test for the manifest pipeline
+  - The existing eleven must render with no hand edited HTML before any new category is added
 
 ## Example Script Quality
 
@@ -126,22 +138,348 @@ page weight, paid for on every example a reader selects.
 
 **Intent**: cut the page weight the site will otherwise carry.
 
-- [ ] Serve the images at the width the page displays them rather than at full capture resolution
-- [ ] Compress the images, keeping the code in each screenshot legible
+The budget matters more once **New Cheatsheets** lands. At the current
+average, the roughly 120 planned cheatsheets would come to about 250 MB,
+which is a quarter of the 1 GB GitHub Pages limit and unreadable on a
+phone connection.
+
+- [ ] Set the image budget and record it where a contributor will read it: WebP, quality 80, 1400 pixel maximum long edge, 200 KB target, 300 KB hard cap, one `sheet.webp` per cheatsheet
+  - WebP rather than JPEG specifically because these are text dense code screenshots, where WebP holds small glyph edges better at the same weight
+  - Raise an individual sheet to quality 90 when its code is not legible, rather than raising its dimensions past 1400 pixels
+- [ ] Enforce the budget from the manifest `--check` mode, so an oversize image fails the build rather than relying on a guideline
+- [ ] Convert the eleven existing JPEG screenshots to WebP within the budget and delete the JPEGs
+  - The original blobs stay in git history, so `git clone` stays large. That is not worth a history rewrite for 20 MB, and the published site is unaffected
+- [ ] Raise the displayed image cap from 600 pixels to `min(100%, 900px)` and make the image open the full file when clicked
+  - 600 pixels is too small to read code in, which is the whole purpose of the screenshot
 - [ ] Load the image only when an example is selected, rather than probing for it on every change
+  - Ship the `img` with no `src`, set `width` and `height` from the manifest to stop layout shift, add `decoding="async"`, and give `alt` the cheatsheet title
 - [ ] Add a `graphic-designer` collaborator when any replacement image is created
-  - Required by the collaborators constant in the user note
+  - Required by the collaborators constant in `.claude/constants.md`
 
 ## Repository Records
 
-The repository has no changelog and no contributing guidance, and the README
-describes the local preview but not the published site. The LICENSE is CC0
-1.0 and is not mentioned anywhere in the README.
+The repository has no contributing guidance, and the README describes the
+local preview but not the published site. The LICENSE is CC0 1.0 and is not
+mentioned anywhere in the README.
 
 **Intent**: give the repository the records the automation and a reader both
 expect to find.
 
-- [ ] Create `CHANGELOG.md` declaring dated release mode on the line beneath its title
 - [ ] Note the CC0 1.0 license in `README.md`
 - [ ] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
+  - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
 - [ ] Record how a new cheatsheet category is added, once the catalog work settles the shape
+
+## New Cheatsheets
+
+Ten new cheatsheet categories, queued from the user note. Each level 3
+section below is one category and becomes one folder at the repository root.
+Today the repository holds a single category, so this section is the bulk of
+its future content.
+
+**Intent**: grow the catalog from one category to ten without hand editing
+the page for each addition.
+
+### Conventions for every item in this section
+
+These hold for every item below, and are repeated on each item only where an
+item would otherwise be ambiguous once it is copied into `## Current`.
+
+- **The prerequisite**: the manifest pipeline under **Cheatsheet Catalog**
+  must be working before any item here is started. Until then, adding a
+  cheatsheet means hand editing `index.html`.
+- **Paths** are lower case kebab ASCII, at most three levels deep:
+  `<category>/<cheatsheet>/` or `<category>/<group>/<cheatsheet>/`. The human
+  readable title lives in `meta.json` and is never derived from a path, which
+  is why `HTML/CSS` becomes `html-css` and `C++` becomes `c-plus-plus`.
+- **Every cheatsheet folder holds a `sheet.webp`**, within the image budget
+  set under **Cheatsheet Images**. The graphic is required; the demo payload
+  is not.
+- **`kind`** selects what the page does with the payload: `run` injects a
+  browser script, `read` renders the source as text, `embed` loads
+  `demo/index.html` in a sandboxed frame, `none` is graphic only.
+- **`graphic-designer` is added as a collaborator** on any commit that
+  creates or converts an image, per the collaborators constant in
+  `.claude/constants.md`.
+- **Build order**: JavaScript first, because it absorbs the existing eleven
+  array examples and proves the pipeline on `kind: run` alone. Then HTML/CSS,
+  which forces `embed` and the first sub group. Then Programming, which
+  forces `read` and the second sub group. After those three every structural
+  unknown is settled and the remaining seven are content only.
+
+### HTML/CSS
+
+The `html-css/` category. Forces the first `embed` payloads and the first sub
+group, so it is built second.
+
+- [ ] Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **HTML APIs** group at `html-css/html-apis/` with its own `meta.json`
+  - [ ] Add the **Common Browser Built-in APIs** cheatsheet at `html-css/html-apis/common-browser-apis/`, `kind: embed`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **Google Maps APIs** cheatsheet at `html-css/html-apis/google-maps-apis/`, `kind: embed`
+    - Graphic: `sheet.webp` required, to the image budget
+    - The demo must not ship an API key. Show the call shapes and let a reader supply their own
+  - [ ] Propose 4 new API cheatsheet ideas and queue one item per accepted idea
+    - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **HTML/CSS Draw SVG** cheatsheet at `html-css/draw-svg/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **HTML/CSS Use Canvas** cheatsheet at `html-css/use-canvas/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Advanced HTML** cheatsheet at `html-css/advanced-html/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Advanced CSS** cheatsheet at `html-css/advanced-css/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 3 new HTML/CSS cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the two master cheatsheets for this category
+  - This category is the one that needs two, because it covers two languages
+  - [ ] Add the **Master Cheatsheet: HTML** at `html-css/master-html/`, `kind: none`, carrying the imperative takeaways from every HTML item in this section
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **Master Cheatsheet: CSS** at `html-css/master-css/`, `kind: none`, carrying the imperative takeaways from every CSS item in this section
+    - Graphic: `sheet.webp` required, to the image budget
+
+### JavaScript
+
+The `javascript/` category. Built first: the existing eleven array examples
+migrate into it as the `arrays` sub group, so building this category is the
+migration and the pipeline's acceptance test.
+
+- [ ] Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS DOM** cheatsheet at `javascript/dom/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JS Versions** cheatsheet at `javascript/versions/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - A version comparison is a table rather than a runnable script, which is why it reads rather than runs
+- [ ] Propose 5 new JavaScript cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: JavaScript** at `javascript/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Miscellaneous
+
+The `miscellaneous/` category. The heaviest `embed` work in the roadmap, since
+four of its items are complete small applications rather than snippets. Build
+it once `embed` is proven elsewhere.
+
+- [ ] Add the **Rotating Clock** cheatsheet at `miscellaneous/rotating-clock/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Tic-Tac-Toe** cheatsheet at `miscellaneous/tic-tac-toe/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Canvas Platformer Game** cheatsheet at `miscellaneous/canvas-platformer/`, `kind: embed`, built on `canvas` in vanilla HTML, CSS and JavaScript
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Interactive Chart and Data Tool** cheatsheet at `miscellaneous/interactive-chart-tool/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript with a graph library
+  - Graphic: `sheet.webp` required, to the image budget
+  - Vendor the graph library into the demo folder rather than loading it from a CDN, so the site keeps its no third party guarantee
+- [ ] Add the **VS Code Extension Essentials** cheatsheet at `miscellaneous/vs-code-extension/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **MCP Essentials** group at `miscellaneous/mcp/` with its own `meta.json`
+  - [ ] Add the **MCP Server** cheatsheet at `miscellaneous/mcp/server/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **MCP Client** cheatsheet at `miscellaneous/mcp/client/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **MCP Host** cheatsheet at `miscellaneous/mcp/host/`, `kind: read`, covering the host or wrapper role
+    - Graphic: `sheet.webp` required, to the image budget
+
+### XML
+
+The `xml/` category. Content only once the pipeline is proven.
+
+- [ ] Add the **General XML Overview** cheatsheet at `xml/general-xml-overview/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **XML AJAX** cheatsheet at `xml/ajax/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **XML DOM** cheatsheet at `xml/dom/`, `kind: run`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **XML Languages** cheatsheet at `xml/languages/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **XML Data** cheatsheet at `xml/data/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 2 new XML cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: XML** at `xml/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Web Templates
+
+The `web-templates/` category. Every item is a static site generator, so each
+payload is configuration and templating read as text rather than run.
+
+- [ ] Add the **Hugo** cheatsheet at `web-templates/hugo/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Eleventy** cheatsheet at `web-templates/eleventy/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Astro** cheatsheet at `web-templates/astro/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Jekyll** cheatsheet at `web-templates/jekyll/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - Jekyll template syntax in a payload can be eaten by a site generator. The repository publishes with `.nojekyll`, so this is safe here, but keep the sample fenced
+- [ ] Add the **Wordpress** cheatsheet at `web-templates/wordpress/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 2 new web template cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: Web Templates** at `web-templates/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Electronics
+
+The `electronics/` category. Mostly `none` and `read`: a breadboard cannot be
+embedded, so the graphic carries nearly all the value here. Build it late,
+since it blocks nothing.
+
+- [ ] Add the **Electronic Components** cheatsheet at `electronics/components/`, `kind: none`
+  - Graphic: `sheet.webp` required, to the image budget. This item is graphic only, so the sheet is the entire deliverable
+- [ ] Add the **555 Timer** cheatsheet at `electronics/555-timer/`, `kind: none`
+  - Graphic: `sheet.webp` required, to the image budget. This item is graphic only, so the sheet is the entire deliverable
+- [ ] Add the **Arduino** cheatsheet at `electronics/arduino/`, `kind: read`, with a `demo.ino` payload
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Arduino Command Line Tool** cheatsheet at `electronics/arduino-cli/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 4 new electronics cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: Electronics** at `electronics/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Hardware
+
+The `hardware/` category. The smallest section, and like Electronics it is
+`read` and `none` only, so it blocks nothing and is built last.
+
+- [ ] Add the **Chip: 65c02** cheatsheet at `hardware/65c02/`, `kind: read`, with an assembly payload
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Dev Board: ESP32** cheatsheet at `hardware/esp32/`, `kind: read`, with a `demo.ino` payload
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 2 new hardware cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: Hardware** at `hardware/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+  - The source list named a master cheatsheet twice for this category. It is written once here, which is what two identical entries can only have meant
+
+### Server
+
+The `server/` category. Every item is a language that does not run in a
+browser, so all of them read their payload as text.
+
+- [ ] Add the **PHP** cheatsheet at `server/php/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Java** cheatsheet at `server/java/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Python** cheatsheet at `server/python/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **SQL** cheatsheet at `server/sql/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **JSON** cheatsheet at `server/json/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **NodeJS** cheatsheet at `server/nodejs/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - Node runs JavaScript but not in the browser, so this reads rather than runs. Anything that genuinely runs in the page belongs under the JavaScript category
+- [ ] Add the **Perl** cheatsheet at `server/perl/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **TypeScript** cheatsheet at `server/typescript/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 6 new server cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: Server** at `server/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Frameworks
+
+The `frameworks/` category. The largest by item count once its twelve
+proposed ideas land. Mostly `embed`, since a framework is best shown running.
+
+- [ ] Add the **Bootstrap CSS** cheatsheet at `frameworks/bootstrap/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **jQuery** cheatsheet at `frameworks/jquery/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **React** cheatsheet at `frameworks/react/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+  - Vendor the library into the demo folder and use a build free form, so the site keeps working with no toolchain
+- [ ] Add the **AngularJS** cheatsheet at `frameworks/angularjs/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **AppML** cheatsheet at `frameworks/appml/`, `kind: embed`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Sass for CSS** cheatsheet at `frameworks/sass/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - Sass compiles before it reaches a browser, so this reads rather than embeds. Show the source beside the CSS it produces
+- [ ] Add the **Django** cheatsheet at `frameworks/django/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 12 new framework cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+  - Twelve is the largest batch in this roadmap. Queue them in groups rather than all at once, so the category stays reviewable
+- [ ] Add the **Master Cheatsheet: Frameworks** at `frameworks/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+### Programming
+
+The `programming/` category. Built third, because it forces the `read` payload
+across compiled languages and the second sub group.
+
+- [ ] Add the **C++** cheatsheet at `programming/c-plus-plus/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - The folder name spells the operator out, because `+` in a path is decoded as a space by some servers. The title in `meta.json` stays `C++`
+- [ ] Add the **C#** cheatsheet at `programming/c-sharp/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+  - The folder name spells the symbol out, because `#` in a path starts a URL fragment. The title in `meta.json` stays `C#`
+- [ ] Add the **Kotlin** cheatsheet at `programming/kotlin/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Go** cheatsheet at `programming/go/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **R** cheatsheet at `programming/r/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **git Command Line Tool** cheatsheet at `programming/git/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Add the **Command Line** group at `programming/command-line/` with its own `meta.json`
+  - [ ] Add the **Linux Command Line** cheatsheet at `programming/command-line/linux/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **Windows DOS Command Line** cheatsheet at `programming/command-line/windows-dos/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **Windows PowerShell Command Line** cheatsheet at `programming/command-line/powershell/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Add the **MacOS Command Line** cheatsheet at `programming/command-line/macos/`, `kind: read`
+    - Graphic: `sheet.webp` required, to the image budget
+  - [ ] Propose 1 new command line cheatsheet idea and queue an item for it if accepted
+    - Graphic: the accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **curl Command Line Tool** cheatsheet at `programming/curl/`, `kind: read`
+  - Graphic: `sheet.webp` required, to the image budget
+- [ ] Propose 9 new programming cheatsheet ideas and queue one item per accepted idea
+  - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
+- [ ] Add the **Master Cheatsheet: Programming** at `programming/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
+  - Graphic: `sheet.webp` required, to the image budget
+
+## Complete
+
+- [x] Create `.github/workflows/pages.yml` deploying the repository root on push to the default branch and on `workflow_dispatch`
+  - From: GitHub Pages Deployment
+- [x] Enable GitHub Pages for the repository with its source set to GitHub Actions
+  - From: GitHub Pages Deployment
+- [x] Add a `.nojekyll` file at the published root
+  - From: GitHub Pages Deployment
+- [x] Force add both `.github/workflows/pages.yml` and `.nojekyll` when they are committed
+  - Both paths match `.*` in this machine's global ignore file, so a plain `git add <path>` exits 1 and `git add -A` skips them without a word. Neither file reaches GitHub without `git add -f`, and the two items above are checked off either way
+  - From: GitHub Pages Deployment
+- [x] Replace the `htmlpreview` link in `README.md` with the repository's own GitHub Pages URL
+  - From: Preview Links and Example Loading
+- [x] Remove the `htmlpreview` and CDN branch from `selectExample()` in `index.html` so examples load by relative path
+  - From: Preview Links and Example Loading
+- [x] Give the workflow `contents: read`, `pages: write`, and `id-token: write` permissions, and a concurrency group so overlapping deploys cannot race
+  - From: GitHub Pages Deployment
+- [x] Use the Pages action sequence: configure the environment, upload the site directory as the Pages artifact, then deploy it in a job bound to the `github-pages` environment
+  - From: GitHub Pages Deployment
+- [x] Confirm every asset path resolves under the project site base path rather than the domain root
+  - Verified by serving the tracked site under a `/cheatsheets/` prefix: `index.html`, the example `.js` and `.jpg`, `.nojekyll` and `favicon.ico` all answered 200 under the prefix, and the same example path answered 404 at the domain root
+  - From: Preview Links and Example Loading
+- [x] Create `CHANGELOG.md` declaring dated release mode on the line beneath its title
+  - From: Repository Records

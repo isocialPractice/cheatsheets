@@ -119,19 +119,12 @@ function selectCheatsheet(category) {
  }
  selectCategory = selectedCategory;
 }
-var checkPreview = location.href;
 function selectExample(example) {
  selectedExample = removeSpaceInVariable(example.value);
  curCheatSheetImg = document.getElementById("curCheatSheetImg");
- let curScriptLocation = "", curScriptImageLocation = "";
- if (checkPreview.indexOf("htmlpreview") > -1) {        
-  // curScriptLocation = "https://practicing.xyz/gitHub/cheatsheets/" + selectCategory + "/" + selectedExample + ".js";
-  curScriptLocation = "https://cdn.jsdelivr.net/gh/isocialPractice/cheatsheets/" + selectCategory + "/" + selectedExample + ".js";
-  curScriptImageLocation = "https://cdn.jsdelivr.net/gh/isocialPractice/cheatsheets/" + selectCategory + "/" + selectedExample + ".jpg";
- } else {
-  curScriptLocation = selectCategory + "/" + selectedExample + ".js";
-  curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
- }
+ // The page is served from the repository, so the examples sit beside it.
+ let curScriptLocation = selectCategory + "/" + selectedExample + ".js";
+ let curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
  console.clear();
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;

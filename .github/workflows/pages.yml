@@ -1,0 +1,46 @@
+name: Deploy GitHub Pages
+
+# The site is the repository root: index.html is a single hand written page
+# that loads its examples by relative path, so there is nothing to build.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let one deploy finish before the next starts, so overlapping pushes cannot
+# race each other to publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Configure the Pages environment
+        uses: actions/configure-pages@v5
+
+      - name: Upload the repository root as the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the artifact to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
