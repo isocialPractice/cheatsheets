@@ -9,10 +9,14 @@ either **sampled** from the mark or **derived** from one that was, and the
 Source section says which it is and where it came from. Nothing here is
 invented.
 
-> **Status**: this file records the target. The stylesheet in `index.html`
-> is still the original fixed width desktop layout and does not implement
-> these values yet. The **Page Structure and Responsiveness** section of
-> `TODO.md` holds the work that applies them.
+> **Status**: the **Layout** section below is implemented. `index.html`
+> declares its language, carries a viewport tag, links the favicon, and lays
+> its columns out as a wrapping flex row that collapses to one column below
+> 768px. The palette and the type scale are still the target rather than the
+> stylesheet. **Apply what the extraction settles to the site's own
+> stylesheet**, under **Cheatsheet Composition Language** in `TODO.md`, is the
+> work that applies them; the contrast audit under **Page Structure and
+> Responsiveness** measures them once they are there.
 
 ## Source
 
@@ -128,12 +132,15 @@ rounded interface would read as belonging to something else.
 ## Layout
 
 - **Responsive is a constant.** The site must read from a phone to a wide
-  desktop. The current `margin-left: 500px` offset on the image and the
-  `position: fixed` tools panel are what the queued work replaces.
-- Two columns on wide screens: the controls beside the cheatsheet image.
+  desktop. The `margin-left: 500px` offset on the image and the
+  `position: fixed` tools panel that made this a desktop only page are gone.
+- Two columns on wide screens: the controls beside the cheatsheet image, as
+  a flex row wrapping at a `space-4` gap.
 - One column below 768px, controls first, image beneath at full width.
 - The image is capped at 600px wide on desktop, which is the width the page
-  has always displayed it at.
+  has always displayed it at, and scales down with its column below that.
+- The page is centred at the 1200px maximum content width, with a `space-2`
+  gutter so nothing meets the edge of a phone screen.
 
 ## Graphics
 

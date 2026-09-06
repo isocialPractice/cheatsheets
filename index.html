@@ -1,29 +1,54 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Show Output</title>
+<link rel="icon" href="favicon.ico" sizes="any">
 <style>
+ body {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 16px;
+ }
  select, label {
   display: block;
-  margin: 10px 20px;
+  margin: 8px 0;
+  max-width: 100%;
  }
- div, div.row, div.col {
-  display: inline-block;
-  position: relative;
-  top: 0px;
+ div.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px;
  }
- div.tools {
-  display: block;
-  position: fixed;
-  top: 130px;
-  z-index: 1;
-}
+ div.row > div.col:first-child {
+  flex: 0 1 360px;
+ }
+ div.row > div.col:last-child {
+  flex: 1 1 320px;
+  min-width: 0;
+ }
  div.col img {
-  margin-left: 500px;
+  display: block;
+  width: 100%;
   max-width: 600px;
+  height: auto;
  }
- 
+ @media (max-width: 767px) {
+  div.row {
+   flex-direction: column;
+   gap: 16px;
+  }
+  div.row > div.col:first-child,
+  div.row > div.col:last-child {
+   flex: 1 1 auto;
+   width: 100%;
+  }
+  div.col img {
+   max-width: 100%;
+  }
+ }
 </style>
 
 

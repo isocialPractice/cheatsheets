@@ -4,6 +4,40 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.06]
+
+### Added
+
+- A viewport meta tag, a `lang="en"` declaration and a `favicon.ico` link in
+  the document head of `index.html`, so the page states its language, scales
+  to the device it is opened on, and shows the mark the repository already
+  carried.
+- `tools/test-page-structure.mjs`, dependency free checks over the document
+  head and the responsive stylesheet, run with `node --test`.
+- Six roadmap sections in `TODO.md`: **Cheatsheet Composition Language**,
+  covering the design language to be read out of the existing cheatsheet
+  images and the composition, SVG and conversion algorithms drawn from it;
+  **Implement Cheatsheet API**; **Dedicated cheatsheet website**; **AI Helper
+  API**; **Cliche Tutorial/Documentation Site to Test Cheatsheet API and
+  Script**; and **Create New Ideas**, which closes the roadmap with one item
+  for each of the other thirteen sections.
+
+### Changed
+
+- The layout in `index.html` reflows. The two columns are a wrapping flex row
+  that becomes a single column below 768px, and the image scales with its
+  column to a 600px cap. The `position: fixed` tools panel and the
+  `margin-left: 500px` offset that pushed the image clear of it are gone, so
+  the image no longer sits off screen on a phone.
+- `DESIGN_LANGUAGE.md` records the layout as implemented rather than as a
+  target, and notes that the palette and type scale are still the target.
+
+### Verified
+
+- The GitHub Pages deployment first published on 2026.09.05. The
+  `Deploy GitHub Pages` run for that commit concluded `success`, and the site
+  answers at <https://isocialpractice.github.io/cheatsheets/>.
+
 ## [2026.09.05]
 
 ### Added
