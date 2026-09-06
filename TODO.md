@@ -11,17 +11,32 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Verify the documentation site deployed
-  - The workflow runs on GitHub after this run's push, so its outcome is not knowable here. See `.claude/agent-note.md` for the check
-  - From: GitHub Pages Deployment
-- [ ] Add `lang="en"` to the `<html>` element
-  - From: Page Structure and Responsiveness
-- [ ] Add a `<meta name="viewport" content="width=device-width, initial-scale=1">` tag
-  - From: Page Structure and Responsiveness
-- [ ] Link `favicon.ico` from the document head
-  - From: Page Structure and Responsiveness
-- [ ] Replace the fixed `margin-left` offset and pinned tools panel with a layout that reflows to a single column on narrow screens
-  - From: Page Structure and Responsiveness
+- [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
+  - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `favicon.ico`
+  - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [ ] Extract the text placement from the images and record which composition region each run of text falls into
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [ ] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
+  - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+
+### UI/UX Override - page reflow
+
+#### Found Issues
+
+- [ ] The footnote beneath the columns stays hidden until the second selection
+  - **Issue**: Selecting **JavaScript Arrays** then **Sorting Arrays** on a freshly loaded page leaves `#showFootNote` at `display: none`, at both 1280x900 and 390x844. It appears only from the second selection onward. `selectExample()` decides the footnote from `curCheatSheetImg.src`, which still holds the previous selection when the check runs; on a fresh load that is the `javaScriptArrays/.jpg` placeholder, whose basename `.jpg` is exactly 4 characters, so the `.length > 4` test is false. The `XMLHttpRequest` handler that sets the new `src` afterwards never re-shows it. The pre-change page behaves identically, so this predates the reflow work rather than regressing from it
+  - **Goal**: Decide the footnote from the selection being made rather than from the image element's stale `src`, setting it where the new image location is already known
+  - From: UI/UX Override - page reflow
+- [ ] `favicon.ico` carries a PNG payload rather than an icon
+  - **Issue**: The file answers 200 and Chromium decodes and displays it, so the head link works, but the bytes begin `\x89PNG` while the name and the served `image/vnd.microsoft.icon` type both claim ICO. It also decodes at 417x418, neither square nor a standard favicon size, so every browser rescales it for the tab
+  - **Goal**: Either convert it to a real ICO carrying 16, 32 and 48 pixel square frames, or rename it to `favicon.png` and link it with `type="image/png"`; a replacement image is a new image for this repository, so add `graphic-designer` as a collaborator per `.claude/constants.md`
+  - From: UI/UX Override - page reflow
 
 ## GitHub Pages Deployment
 
@@ -53,21 +68,22 @@ so relative paths resolve on their own.
 
 ## Page Structure and Responsiveness
 
-`index.html` is a fixed width desktop layout: the instructions panel is
-pinned with `position: fixed`, the image is pushed clear of it with a
-`margin-left` of 500 pixels, and there is no viewport meta tag. On a phone
-the image sits off screen. The document also declares no language, and the
-favicon the repository carries is never linked.
+`index.html` now declares its language, carries a viewport tag, links the
+repository favicon, and lays its two columns out as a wrapping flex row that
+becomes a single column below 768px. What is left is what the reader still
+meets on the page: the image announces itself as a generic `cheat sheet
+image` to a screen reader, and no text and background pair in the stylesheet
+has been measured against a contrast floor.
 
 **Intent**: make the published page readable on the devices that will reach
 it once it is public.
 
-- [ ] Add `lang="en"` to the `<html>` element
-- [ ] Add a `<meta name="viewport" content="width=device-width, initial-scale=1">` tag
-- [ ] Replace the fixed `margin-left` offset and pinned tools panel with a layout that reflows to a single column on narrow screens
-- [ ] Link `favicon.ico` from the document head
 - [ ] Give the cheatsheet image an `alt` value naming the selected example rather than the generic `cheat sheet image`
 - [ ] Check every text and background pair in the stylesheet reaches 4.5:1 contrast, or 3:1 for large headings
+- [ ] Decide whether a browser driven layout test belongs beside `tools/test-page-structure.mjs`, and add it if so
+  - That file reads the source text, so it confirms the rules are present but never what they render. The reflow was verified once by driving a browser, and nothing in the suite would catch a later regression
+  - It would assert: both column tops equal at 1280px with the image left edge within 40px of the panel column's right edge; exactly one two column to one column transition, at 768px to 767px, with the image inside its column at every width between 1280 and 360; `documentElement.scrollWidth` equal to `clientWidth` at 390px; and `div.tools` travelling the full scroll distance rather than staying pinned
+  - The decision to make first is the dependency: `tools/` is deliberately dependency free, and a browser test needs Playwright, which is currently installed only at user scope on one machine
 
 ## Cheatsheet Catalog
 
@@ -459,6 +475,228 @@ across compiled languages and the second sub group.
 - [ ] Add the **Master Cheatsheet: Programming** at `programming/master/`, `kind: none`, carrying the imperative takeaways from every sibling in this section
   - Graphic: `sheet.webp` required, to the image budget
 
+## Cheatsheet Composition Language
+
+The eleven cheatsheet images in `javaScriptArrays/` were composed by hand and
+share a look that has never been written down. `DESIGN_LANGUAGE.md` records
+the site's palette, sampled from `favicon.ico`, but nothing yet records the
+language of the sheets themselves. Reading it out of the images is what turns
+a hand composed sheet into a generated one.
+
+**Intent**: recover the design language from the existing sheets, then build
+the algorithms that draw new sheets to it.
+
+Everything below feeds `DESIGN_LANGUAGE.md`, which stays the single record of
+what the sheets and the site both look like.
+
+### Extracting the Language from the Images
+
+- [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
+  - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
+- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `favicon.ico`
+  - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
+- [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
+- [ ] Extract the text placement from the images and record which composition region each run of text falls into
+- [ ] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
+  - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
+- [ ] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
+
+### The Composition Algorithm
+
+- [ ] Write the composition algorithm: given a cheatsheet document and the extracted language, produce a composition variation
+- [ ] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
+- [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
+- [ ] Compose the sheets for new cheatsheets with the algorithm rather than capturing screenshots by hand
+
+### Rendering and Conversion
+
+- [ ] Write the SVG generation algorithm: reference content as raw character data, composition as layered shapes and design elements
+- [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
+- [ ] Write the conversion algorithm that renders a generated SVG to PNG, JPG, GIF and TIFF
+  - Take scale and background from the call rather than assuming one, since GIF and TIFF do not carry the same alpha as PNG
+- [ ] Record the algorithm each of the three steps above settles on, where the next run will read it
+  - The user note asks for this in `.claude/agent-note.md`. That file carries checks rather than work, so the algorithm itself belongs in `DESIGN_LANGUAGE.md` with an agent note section pointing at it, which keeps both the ask and the file's purpose intact
+
+## Implement Cheatsheet API
+
+A cheatsheet is currently a screenshot someone took. This section replaces
+that with an API: a caller describes the content and the design, and the API
+composes the sheet. It has to work outside this repository as well as inside
+it, so nothing in it may assume this page, this folder layout or this
+category.
+
+**Intent**: make a cheatsheet something a program composes rather than
+something a person captures.
+
+The composition and rendering algorithms under **Cheatsheet Composition
+Language** are this section's prerequisite. The API is the surface over them,
+and building the surface first would fix an interface around behavior that
+does not exist yet.
+
+### The Core Model
+
+- [ ] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
+- [ ] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
+- [ ] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
+- [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
+- [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
+
+### Configuration
+
+- [ ] Accept a partial theme and merge it over the default, so a caller overrides one color without restating the palette
+- [ ] Resolve every color role to a concrete value and reject any pairing below the contrast floor the design language sets
+- [ ] Accept a font family list with fallbacks, and record which family a rendered sheet actually used
+- [ ] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
+- [ ] Load a document from JSON and from a plain object, and assume no other input format
+
+### Renderers and Output
+
+- [ ] Render a document to SVG, as the one canonical output every other format is derived from
+- [ ] Render a document to an HTML fragment for embedding in a page
+- [ ] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
+- [ ] Convert the SVG to PNG, JPG, GIF and TIFF through the conversion algorithm, taking scale and background from the call
+- [ ] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
+
+### Embedding the API
+
+- [ ] Ship the API as an ES module with no runtime dependencies, so a browser can import it directly
+- [ ] Expose a command line entry point that reads a document file and writes an output file, with the graphics backend optional
+- [ ] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
+- [ ] Document the public API surface with one worked example per output format
+- [ ] Cover the API with tests that render a fixture document to every format and compare against committed output
+
+## Dedicated cheatsheet website
+
+A site that already carries code examples, tables and explanatory sections
+holds everything a cheatsheet needs; what it lacks is a way to say so. This
+section builds the tool that reads those markings and writes the cheatsheet
+pages, and the routes by which an existing site or a new one uses the API
+directly.
+
+**Intent**: let a site generate its own cheatsheet section from the content
+it already publishes.
+
+Two authoring methods are planned deliberately: a parent tag for the simple
+case, and a comment syntax for the case that needs options. Both feed one
+collector, so a page may use either and a site may use both.
+
+### The Scripted Tool
+
+- [ ] Write `tools/cheatsheet-site.mjs`, a dependency free Node script that crawls a site tree, collects marked content and writes cheatsheet pages
+- [ ] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
+- [ ] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
+- [ ] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
+- [ ] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
+
+### The Parent Tag Method
+
+- [ ] Collect every element carrying `data-cheatsheet` and take its content as that page's cheatsheet reference material
+- [ ] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
+- [ ] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
+- [ ] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
+- [ ] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
+- [ ] Skip a page carrying no marked element rather than emitting an empty section for it
+
+### The Comment Syntax Method
+
+- [ ] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
+- [ ] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
+- [ ] Accept more than one property per comment, as an array of property and value pairs
+- [ ] Report an unknown property with the file and line it appeared on rather than ignoring it
+- [ ] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
+- [ ] Document both methods side by side, with the trade-off between them stated plainly
+
+### The Menu Element
+
+- [ ] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
+- [ ] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
+- [ ] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
+- [ ] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
+- [ ] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
+
+### Building on the API
+
+- [ ] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
+- [ ] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
+- [ ] Generate a whole site - a menu and one page per entry - from a single JSON data file
+- [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
+- [ ] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
+- [ ] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
+
+## AI Helper API
+
+A wrapper that takes a URL or raw data and returns a cheatsheet, through a
+plugin exclusive to this tool. It is the shortest path from something a
+reader already has to something the API can compose, and it produces
+documents rather than pictures, so nothing here bypasses the models.
+
+**Intent**: let a source become a cheatsheet without anyone writing the
+document by hand.
+
+- [ ] Define the helper's single entry point: a source - a URL or raw data - and a requested output, returning a cheatsheet document
+- [ ] Fetch and extract readable content from a URL, and accept raw text, HTML and JSON as the same source type
+- [ ] Reduce an extracted source to the cheatsheet document model, so the helper's output is the API's input and nothing skips the model
+- [ ] Build the plugin the helper calls, exclusive to this tool, exposing the document, theme and layout models
+- [ ] Generate a media file as the first supported output, the shortest path from a source to something a reader can see
+- [ ] Generate a single webpage from the same document, once the media file output is settled
+- [ ] Generate a new section for an existing website, reusing the scripted tool's insertion points rather than a second mechanism
+- [ ] Generate a whole new site from one source, as the largest of the four outputs
+- [ ] Validate every generated document before rendering, so a malformed generation fails at the model rather than inside a renderer
+- [ ] Cache a fetched source by URL so repeated generations do not refetch it
+- [ ] State in the documentation what the helper does not do: it composes what the source carries, and does not invent reference content
+- [ ] Cover the helper with tests driven by recorded fixtures rather than live network calls
+
+## Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+
+A small fixture site, half tutorial and half tool documentation, existing
+only so the scripted tool and the API have something to run against. It is
+deliberately unremarkable: the point is to carry every page shape the tool
+has to handle, not to be interesting.
+
+**Intent**: give the site tooling a target that fails loudly when the tooling
+breaks.
+
+Its content is placeholder throughout - Acme Corp, `demo-app`,
+`jane.doe@example.com` - so nothing real can leak into a fixture that is read
+as an example of how to mark a site up.
+
+- [ ] Build the fixture site under `fixtures/site/`, half tutorial and half tool documentation, using placeholder content only
+- [ ] Give it the page shapes the scripted tool must handle: code examples, prose sections, tables and a chart
+- [ ] Mark one section with the parent tag method and another with the comment syntax, so both paths have a fixture
+- [ ] Include a nested folder of sibling pages, so the folder-to-one-page rule has something to exercise
+- [ ] Add a page carrying `data-cheatsheet-menu` in each of its two modes
+- [ ] Include a variant that already has a `cheatsheets/` folder, so the folder resolution fallback is exercised rather than assumed
+- [ ] Run the scripted tool and the API against the fixture in CI, comparing generated pages against committed expected output
+- [ ] Keep the fixture small enough that running it on every commit costs nothing
+
+## Create New Ideas
+
+One item per roadmap section, each asking for a stated number of new ideas
+for that section. It is the last section to be worked: an idea is only worth
+generating once the section it belongs to has been built far enough to show
+what it is missing.
+
+**Intent**: refill the roadmap from what the finished work reveals, rather
+than from what was imagined at the start.
+
+An accepted idea becomes an item in the section it was generated for, not in
+this one. This section carries no item for itself, which would only ever
+generate ideas about generating ideas.
+
+- [ ] Create 3 new ideas for **GitHub Pages Deployment**
+- [ ] Create 3 new ideas for **Preview Links and Example Loading**
+- [ ] Create 4 new ideas for **Page Structure and Responsiveness**
+- [ ] Create 5 new ideas for **Cheatsheet Catalog**
+- [ ] Create 4 new ideas for **Example Script Quality**
+- [ ] Create 4 new ideas for **Cheatsheet Images**
+- [ ] Create 2 new ideas for **Repository Records**
+- [ ] Create 9 new ideas for **New Cheatsheets**
+- [ ] Create 6 new ideas for **Cheatsheet Composition Language**
+- [ ] Create 7 new ideas for **Implement Cheatsheet API**
+- [ ] Create 8 new ideas for **Dedicated cheatsheet website**
+- [ ] Create 5 new ideas for **AI Helper API**
+- [ ] Create 3 new ideas for **Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script**
+
 ## Complete
 
 - [x] Create `.github/workflows/pages.yml` deploying the repository root on push to the default branch and on `workflow_dispatch`
@@ -483,3 +721,15 @@ across compiled languages and the second sub group.
   - From: Preview Links and Example Loading
 - [x] Create `CHANGELOG.md` declaring dated release mode on the line beneath its title
   - From: Repository Records
+- [x] Verify the documentation site deployed
+  - The `Deploy GitHub Pages` run for commit `3157813` concluded `success`, so the site published at <https://isocialpractice.github.io/cheatsheets/>
+  - From: GitHub Pages Deployment
+- [x] Add `lang="en"` to the `<html>` element
+  - From: Page Structure and Responsiveness
+- [x] Add a `<meta name="viewport" content="width=device-width, initial-scale=1">` tag
+  - From: Page Structure and Responsiveness
+- [x] Link `favicon.ico` from the document head
+  - From: Page Structure and Responsiveness
+- [x] Replace the fixed `margin-left` offset and pinned tools panel with a layout that reflows to a single column on narrow screens
+  - The two columns are a wrapping flex row that becomes one column below 768px, and the image scales to the column instead of sitting behind a 500 pixel offset
+  - From: Page Structure and Responsiveness
