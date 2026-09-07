@@ -84,6 +84,7 @@ it once it is public.
   - That file reads the source text, so it confirms the rules are present but never what they render. The reflow was verified once by driving a browser, and nothing in the suite would catch a later regression
   - It would assert: both column tops equal at 1280px with the image left edge within 40px of the panel column's right edge; exactly one two column to one column transition, at 768px to 767px, with the image inside its column at every width between 1280 and 360; `documentElement.scrollWidth` equal to `clientWidth` at 390px; and `div.tools` travelling the full scroll distance rather than staying pinned
   - The decision to make first is the dependency: `tools/` is deliberately dependency free, and a browser test needs Playwright, which is currently installed only at user scope on one machine
+  - Two further things the 2026.09.07 verification could only assert in a browser, if the decision goes that way: `#showFootNote` reaching computed `display: block` on the first selection of a freshly loaded page, which the stub DOM test covers as a style property but never as rendered state; and `favicon.ico` decoding square with the mark's green and navy halves in its pixels, which the byte level test cannot see because it parses the container rather than the image
 
 ## Cheatsheet Catalog
 
