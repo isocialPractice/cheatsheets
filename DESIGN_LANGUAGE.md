@@ -3,7 +3,7 @@
 The design language for the published site at
 <https://isocialpractice.github.io/cheatsheets/>.
 
-`favicon.ico` is the only mark the repository carries, so the palette comes
+`mark.png` is the only mark the repository carries, so the palette comes
 from it and the composition follows its geometry. Every value below is
 either **sampled** from the mark or **derived** from one that was, and the
 Source section says which it is and where it came from. Nothing here is
@@ -20,9 +20,13 @@ invented.
 
 ## Source
 
-`favicon.ico` is a 417x418 mark, 174,306 opaque pixels across 322 unique
+`mark.png` is a 417x418 mark, 174,306 opaque pixels across 322 unique
 colors. Three of those colors cover 97.72% of it: a deep navy ground, a mid
 green figure, and a white highlight.
+
+It is the artwork the counts below were taken over, kept in the repository so
+they stay checkable. `favicon.ico` is the icon derived from it and is not the
+same image: see **The icon** at the end of this document.
 
 ### Sampled from the mark
 
@@ -126,7 +130,7 @@ A single 8px step, because the mark is orthogonal and evenly weighted.
 | Radius | 4px |
 | Max content width | 1200px |
 
-The 4px radius is deliberately small. The favicon has square corners, so a
+The 4px radius is deliberately small. The mark has square corners, so a
 rounded interface would read as belonging to something else.
 
 ## Layout
@@ -147,3 +151,36 @@ rounded interface would read as belonging to something else.
 No stock imagery. The cheatsheet screenshots are the repository's own
 content, and any mark the site needs beyond them is drawn in SVG or CSS
 from the palette above.
+
+## The icon
+
+`favicon.ico` is a real ICO carrying three square frames - 16, 32 and 48
+pixels - at the sizes browsers ask for. It is derived from `mark.png` and
+nothing else.
+
+The derivation, so the icon can be rebuilt from the artwork:
+
+| Step | Value | Why |
+| --- | --- | --- |
+| Crop | `413x413+2+3` | The artwork carries a 2-3px white export margin. The mark inside it is exactly square, so the crop needs no distortion and no dropped row |
+| Bleed | Full | The mark is a filled square, so it fills the frame. A 16px icon cannot spare 12% of its width on a margin that was never part of the mark |
+| Filter | Box, in sRGB | Averaging over the source area cannot overshoot, so no halo appears along the N, and it leaves the three sampled colors **exactly** as counted above |
+| Frames | 16, 32, 48, 8-bit | Each frame holds under 256 colors, so the palette is lossless and the file is smaller than the artwork it came from |
+
+Two filters were rejected against the table above rather than by eye.
+Averaging in linear light washed the navy ground toward grey, because the
+white highlight dominates a linear average. Sigmoidal contrast and levels
+sharpened the 16px frame, but moved the figure green off `#4CAE50` - to
+`#44B549` and `#42B747` - and a palette this document calls sampled cannot
+be quietly resampled. Lanczos and an unsharp pass both rang along the
+navy edges.
+
+Holding the three sampled colors did not separate the candidates on its own.
+Every filter tried reproduces `#000133`, `#4CAE50` and `#FFFFFF` exactly at
+16px, apart from Lanczos in linear light, which drops the navy, and the
+sigmoidal and levels passes above. Box was chosen on the two rejections
+recorded here rather than on the palette.
+
+At 16px the N softens; that is inherent to a 26:1 reduction of a slab
+letterform, and what still reads at tab size is the green and navy split
+square, which is the mark's strongest signal.

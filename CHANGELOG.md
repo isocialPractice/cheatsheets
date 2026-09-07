@@ -4,6 +4,44 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.07]
+
+### Fixed
+
+- The footnote beneath the columns now appears on the first example selected
+  rather than from the second onward. `selectExample()` decided it by reading
+  the basename length back off `curCheatSheetImg.src`, which still held the
+  previous selection at that point - on a fresh page, the `.jpg` placeholder,
+  whose basename is exactly the 4 characters the test needed to exceed. The
+  footnote is now set from the selection being made, where the new image
+  location is already known.
+- `favicon.ico` is a real ICO carrying 16, 32 and 48 pixel square frames. The
+  file previously held a PNG payload: browsers decoded it, but the bytes
+  disagreed with both the name and the `image/vnd.microsoft.icon` type the
+  server sends, and its 417x418 dimensions were neither square nor a standard
+  icon size, so every browser rescaled it for the tab.
+
+### Added
+
+- `mark.png`, the 417x418 artwork `favicon.ico` is derived from, kept so the
+  palette counts in `DESIGN_LANGUAGE.md` stay checkable against the image they
+  were taken over.
+- `tools/test-example-selection.mjs`, which runs `index.html`'s own script in a
+  stub DOM and covers the footnote across a first selection, a missing image
+  and an empty selection.
+- `tools/test-favicon.mjs`, which parses the ICO container and checks its
+  frames, along with the icon link in the document head.
+
+### Changed
+
+- The icon link in `index.html` declares `type="image/vnd.microsoft.icon"` and
+  `sizes="16x16 32x32 48x48"`, replacing the `sizes="any"` that claimed a
+  scalable icon the file never was.
+- `DESIGN_LANGUAGE.md` names `mark.png` as the sampled source, and a new **The
+  icon** section records the crop, filter and frame sizes the icon is built
+  with, the filters rejected for moving the sampled colors, and which of the
+  filters tried held all three of them exactly.
+
 ## [2026.09.06]
 
 ### Added

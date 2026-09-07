@@ -14,7 +14,7 @@ keys its entries by date, written `YYYY.MM.DD`.
 - [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
   - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `favicon.ico`
+- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `mark.png`
   - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
 - [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
@@ -25,18 +25,19 @@ keys its entries by date, written `YYYY.MM.DD`.
   - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
 
-### UI/UX Override - page reflow
+### Code Review Override - the icon and footnote fix
+
+- [ ] The two items this run completed were archived in `## Complete` with their `**Issue**` and `**Goal**` properties instead of a result line
+  - Every other entry in that section reads `- [x] <item>` followed by a line saying what was done, so these two restate the defect in the present tense and read as though they are still open
+  - Replace both property blocks with the one line result the section already uses, keeping each item's `From:` line
+  - From: Code Review Override - the icon and footnote fix
 
 #### Found Issues
 
-- [ ] The footnote beneath the columns stays hidden until the second selection
-  - **Issue**: Selecting **JavaScript Arrays** then **Sorting Arrays** on a freshly loaded page leaves `#showFootNote` at `display: none`, at both 1280x900 and 390x844. It appears only from the second selection onward. `selectExample()` decides the footnote from `curCheatSheetImg.src`, which still holds the previous selection when the check runs; on a fresh load that is the `javaScriptArrays/.jpg` placeholder, whose basename `.jpg` is exactly 4 characters, so the `.length > 4` test is false. The `XMLHttpRequest` handler that sets the new `src` afterwards never re-shows it. The pre-change page behaves identically, so this predates the reflow work rather than regressing from it
-  - **Goal**: Decide the footnote from the selection being made rather than from the image element's stale `src`, setting it where the new image location is already known
-  - From: UI/UX Override - page reflow
-- [ ] `favicon.ico` carries a PNG payload rather than an icon
-  - **Issue**: The file answers 200 and Chromium decodes and displays it, so the head link works, but the bytes begin `\x89PNG` while the name and the served `image/vnd.microsoft.icon` type both claim ICO. It also decodes at 417x418, neither square nor a standard favicon size, so every browser rescales it for the tab
-  - **Goal**: Either convert it to a real ICO carrying 16, 32 and 48 pixel square frames, or rename it to `favicon.png` and link it with `type="image/png"`; a replacement image is a new image for this repository, so add `graphic-designer` as a collaborator per `.claude/constants.md`
-  - From: UI/UX Override - page reflow
+- [ ] `selectExample()` decides a missing cheatsheet image from the server's reason phrase, which the published site never sends
+  - **Issue**: The `xhttp.onload` handler branches on `this.statusText == "Not Found"`. The reason phrase is server chosen, and HTTP/2 has none, so Chromium returns `""` for every response on the published site and the branch never runs. Selecting the blank first option in **Select Example** requests `javaScriptArrays/.jpg`, which answers 404; the page then sets that path as the image `src` with `display: block`, so the reader gets a broken image icon rather than a hidden one. The PHP development server the page was verified against is HTTP/1.1 and does send `Not Found`, which is why the verification passed. `tools/test-example-selection.mjs` stubs `statusText` directly, so its missing image case asserts a contract the live server cannot produce
+  - **Goal**: Branch on the numeric `this.status` rather than the reason phrase, settling first what `status === 0` should mean for anyone opening `index.html` as a `file://` URL, and stub `status` alongside `statusText` in `tools/test-example-selection.mjs` so the test models an HTTP/2 response. **Load the image only when an example is selected, rather than probing for it on every change**, under **Cheatsheet Images**, deletes this probe outright, so decide whether that item absorbs this before patching the probe twice
+  - From: Code Review Override - the icon and footnote fix
 
 ## GitHub Pages Deployment
 
@@ -480,7 +481,7 @@ across compiled languages and the second sub group.
 
 The eleven cheatsheet images in `javaScriptArrays/` were composed by hand and
 share a look that has never been written down. `DESIGN_LANGUAGE.md` records
-the site's palette, sampled from `favicon.ico`, but nothing yet records the
+the site's palette, sampled from `mark.png`, but nothing yet records the
 language of the sheets themselves. Reading it out of the images is what turns
 a hand composed sheet into a generated one.
 
@@ -494,7 +495,7 @@ what the sheets and the site both look like.
 
 - [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
   - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
-- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `favicon.ico`
+- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `mark.png`
   - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
 - [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
 - [ ] Extract the text placement from the images and record which composition region each run of text falls into
@@ -734,3 +735,11 @@ generate ideas about generating ideas.
 - [x] Replace the fixed `margin-left` offset and pinned tools panel with a layout that reflows to a single column on narrow screens
   - The two columns are a wrapping flex row that becomes one column below 768px, and the image scales to the column instead of sitting behind a 500 pixel offset
   - From: Page Structure and Responsiveness
+- [x] The footnote beneath the columns stays hidden until the second selection
+  - **Issue**: Selecting **JavaScript Arrays** then **Sorting Arrays** on a freshly loaded page leaves `#showFootNote` at `display: none`, at both 1280x900 and 390x844. It appears only from the second selection onward. `selectExample()` decides the footnote from `curCheatSheetImg.src`, which still holds the previous selection when the check runs; on a fresh load that is the `javaScriptArrays/.jpg` placeholder, whose basename `.jpg` is exactly 4 characters, so the `.length > 4` test is false. The `XMLHttpRequest` handler that sets the new `src` afterwards never re-shows it. The pre-change page behaves identically, so this predates the reflow work rather than regressing from it
+  - **Goal**: Decide the footnote from the selection being made rather than from the image element's stale `src`, setting it where the new image location is already known
+  - From: UI/UX Override - page reflow
+- [x] `favicon.ico` carries a PNG payload rather than an icon
+  - **Issue**: The file answers 200 and Chromium decodes and displays it, so the head link works, but the bytes begin `\x89PNG` while the name and the served `image/vnd.microsoft.icon` type both claim ICO. It also decodes at 417x418, neither square nor a standard favicon size, so every browser rescales it for the tab
+  - **Goal**: Either convert it to a real ICO carrying 16, 32 and 48 pixel square frames, or rename it to `favicon.png` and link it with `type="image/png"`; a replacement image is a new image for this repository, so add `graphic-designer` as a collaborator per `.claude/constants.md`
+  - From: UI/UX Override - page reflow
