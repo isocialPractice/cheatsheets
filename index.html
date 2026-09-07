@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Show Output</title>
-<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
 <style>
  body {
   margin: 0 auto;
@@ -150,6 +150,10 @@ function selectExample(example) {
  // The page is served from the repository, so the examples sit beside it.
  let curScriptLocation = selectCategory + "/" + selectedExample + ".js";
  let curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
+ // The footnote belongs to the selection being made. Reading it back off
+ // curCheatSheetImg.src hid it on the first selection, because that src still
+ // holds the previous one - on a fresh load, the empty ".jpg" placeholder.
+ showFootNote.style.display = selectedExample ? "block" : "none";
  console.clear();
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
@@ -170,13 +174,7 @@ function selectExample(example) {
   curCheatSheetImg.style.display = imgDisplay;
  };
  xhttp.open("GET", curScriptImageLocation, true);
- xhttp.send();  
- 
- if (curCheatSheetImg.src.replace(curCheatSheetImg.src.substr(0,curCheatSheetImg.src.lastIndexOf("/") + 1), "").length > 4)  {
- showFootNote.style.display = "block"; 
- } else {
-  showFootNote.style.display = "none"; 
- }
+ xhttp.send();
 }
 
 // SUPORT FUNCTION
