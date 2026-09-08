@@ -25,6 +25,20 @@ keys its entries by date, written `YYYY.MM.DD`.
   - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
 
+### Code Review Override - the file scheme branch
+
+- [ ] The two source text tests in `tools/test-example-selection.mjs` each copy the same brittle slice instead of sharing one
+  - **Issue**: Both recompute `fn` by slicing the page script between `function selectExample` and the `// SUPORT FUNCTION` marker. Correcting the misspelled `SUPORT` marker in `index.html`, which nothing stops a later run doing, makes `indexOf` return `-1`, so `body.slice(0, -1)` widens both tests to almost the whole script. They keep passing while no longer reading the function they name
+  - **Goal**: Extract one helper returning the `selectExample()` source that throws when either marker is absent, and call it from both tests
+  - From: Code Review Override - the file scheme branch
+
+#### Resolve Issues
+
+- [ ] Status Probe 1: settle what a `file://` page actually does, then make the comments, the test names and the changelog agree with it
+  - **Issue**: The change describes the `file://` case two ways and only one can be true. The `onload` comment in `index.html` and the test `a file:// read reports no status and still counts as found` say the request completes with `status === 0`, so the sheet shows. The `onerror` comment three lines below it and the test `a request that fails outright hides the image and the footnote` say Chromium refuses a `file://` page its own request and `onload` never fires, so the sheet hides. The 2026.09.08 `CHANGELOG.md` entry states both in one paragraph. Under the second reading every selection on a `file://` page now reaches `onerror`, which hides `#showFootNote`: the example script still loads and logs to the console, but the line telling the reader to open the console is gone, where before this change it stayed visible because neither handler ran. That reading also rules out the same entry's claim that a `file://` page no longer "leaves the previous sheet on screen", since with no `onload` nothing ever set the image to `display: block` there in the first place
+  - **Goal**: Drive a browser against `index.html` on a `file://` URL and record which of the three it does: throw at `send()`, fire `onerror`, or deliver `onload` with `status === 0`. Keep the branch that case reaches, name the other for what it really covers, which is a dropped or blocked request over HTTP, and correct the comments and both test names to match. Settle at the same time whether a refused probe should hide `#showFootNote`, given the console output it points at does appear, and whether the sheet is renderable by the `<img>` element even when the probe cannot read it. Amend the 2026.09.08 `CHANGELOG.md` entry to the behavior the browser shows
+  - From: Code Review Override - the icon and footnote fix
+
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -734,6 +748,6 @@ generate ideas about generating ideas.
 - [x] The two items this run completed were archived in `## Complete` with their `**Issue**` and `**Goal**` properties instead of a result line
   - Both property blocks were replaced with the one line result the rest of `## Complete` uses, each keeping its `From:` line
   - From: Code Review Override - the icon and footnote fix
-- [x] `selectExample()` decides a missing cheatsheet image from the server's reason phrase, which the published site never sends
+- [x] **Status Probe**: `selectExample()` decides a missing cheatsheet image from the server's reason phrase, which the published site never sends
   - The handler now branches on the numeric `this.status`, treating `0` as found so a `file://` page still shows its sheet, and an `onerror` handler covers the blocked or dropped request that never reached `onload` at all. `tools/test-example-selection.mjs` stubs `status` with an empty phrase, as HTTP/2 sends, and adds cases for a phraseless 404, a 404 with a phrase, a `file://` read and a failed request
   - From: Code Review Override - the icon and footnote fix
