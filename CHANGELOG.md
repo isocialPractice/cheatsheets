@@ -4,6 +4,37 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.08]
+
+### Fixed
+
+- A cheatsheet with no image now hides the image on the published site instead
+  of showing a broken image icon. `selectExample()` decided a missing sheet by
+  comparing the response's reason phrase against `Not Found`. The phrase is
+  server chosen and HTTP/2 carries none, so the published site reported an
+  empty phrase for every response and the branch never ran; the page then set
+  the 404 path as the image `src` and displayed it. The check now reads the
+  numeric status. Only an HTTP/1.1 server sends the phrase, which is why the
+  local development server never showed the fault.
+- Selecting an example on a page opened as a `file://` URL no longer leaves the
+  previous sheet on screen. Chromium refuses such a page its own request, so
+  the handler that settled the image never ran at all. The request now has an
+  error handler, and a status of `0`, which a `file://` response carries in
+  place of a status line, counts as the sheet having been found.
+
+### Changed
+
+- `tools/test-example-selection.mjs` stubs `status` alongside `statusText`, and
+  leaves the phrase empty unless a case names one, so its missing image case
+  models the HTTP/2 response the published site returns rather than a contract
+  only the development server can satisfy. Four cases cover what the stub could
+  not reach before: a phraseless 404, a 404 carrying a phrase, a `file://` read,
+  and a request that fails outright.
+- The two entries archived in `TODO.md` on 2026.09.07 record what was done in
+  the one line form the rest of `## Complete` uses. They had kept the `Issue`
+  and `Goal` properties they were queued with, which state the defect in the
+  present tense and read as though the work is still open.
+
 ## [2026.09.07]
 
 ### Fixed

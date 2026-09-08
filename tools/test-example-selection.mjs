@@ -50,7 +50,10 @@ function loadPage() {
       body: { appendChild: (node) => appended.push(node) },
     },
     XMLHttpRequest: function () {
-      const request = { onload: null, statusText: "OK" };
+      // statusText is empty by default because that is what the published site
+      // sees: HTTP/2 carries no reason phrase, so Chromium reports "" whatever
+      // the status is. Only status says what happened.
+      const request = { onload: null, onerror: null, status: 200, statusText: "" };
       request.open = (method, url) => {
         request.url = url;
       };
@@ -65,11 +68,21 @@ function loadPage() {
   return { sandbox, showFootNote, curCheatSheetImg, appended, requests };
 }
 
-// Answer the pending image request the way a server would.
-function respond(page, statusText) {
+// Answer the pending image request the way a server would. statusText stays
+// empty unless a case names one, modelling the HTTP/2 responses the published
+// site actually returns.
+function respond(page, status, statusText = "") {
   const request = page.requests.pop();
+  request.status = status;
   request.statusText = statusText;
   request.onload.call(request);
+  return request;
+}
+
+// Fail the pending request outright, the way a blocked or dropped one does.
+function fail(page) {
+  const request = page.requests.pop();
+  request.onerror.call(request);
   return request;
 }
 
@@ -86,7 +99,7 @@ test("the footnote shows on the very first selection of a fresh page", () => {
 test("the footnote survives the image request completing", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
-  respond(page, "OK");
+  respond(page, 200);
 
   assert.equal(page.showFootNote.style.display, "block");
   assert.equal(page.curCheatSheetImg.style.display, "block");
@@ -102,7 +115,45 @@ test("the footnote stays hidden when no example is selected", () => {
 test("a missing cheatsheet image hides both the image and the footnote", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
-  respond(page, "Not Found");
+  // No reason phrase, as on the published site. Reading statusText here found
+  // "" rather than "Not Found", took the 404 for a hit, and set the missing
+  // path as the src - a broken image icon in place of a hidden one.
+  respond(page, 404);
+
+  assert.equal(page.showFootNote.style.display, "none");
+  assert.equal(page.curCheatSheetImg.style.display, "none");
+  assert.equal(page.curCheatSheetImg.src, "");
+});
+
+test("a 404 carrying a reason phrase is still a miss", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  // What the HTTP/1.1 development server sends, which is the only case the
+  // reason phrase branch ever handled.
+  respond(page, 404, "Not Found");
+
+  assert.equal(page.showFootNote.style.display, "none");
+  assert.equal(page.curCheatSheetImg.style.display, "none");
+});
+
+test("a file:// read reports no status and still counts as found", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  // A file:// response has no status line, so status is 0. onload firing at
+  // all means the file was read.
+  respond(page, 0);
+
+  assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
+  assert.equal(page.curCheatSheetImg.style.display, "block");
+  assert.equal(page.showFootNote.style.display, "block");
+});
+
+test("a request that fails outright hides the image and the footnote", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  // Chromium refuses a file:// page's own XHR under its CORS rules, so onload
+  // never fires. Without this the previous sheet stayed on screen.
+  fail(page);
 
   assert.equal(page.showFootNote.style.display, "none");
   assert.equal(page.curCheatSheetImg.style.display, "none");
@@ -123,4 +174,12 @@ test("the footnote is decided without reading the image element's src", () => {
 
   assert.doesNotMatch(fn, /curCheatSheetImg\.src\.replace/);
   assert.doesNotMatch(fn, /lastIndexOf\("\/"\)/);
+});
+
+test("the image request is judged by status rather than by reason phrase", () => {
+  const body = script.slice(script.indexOf("function selectExample"));
+  const fn = body.slice(0, body.indexOf("\n// SUPORT FUNCTION"));
+
+  assert.doesNotMatch(fn, /statusText/);
+  assert.match(fn, /this\.status/);
 });

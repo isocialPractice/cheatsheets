@@ -158,20 +158,28 @@ function selectExample(example) {
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
  document.body.appendChild(exampleScriptTag);
- var imgDisplay = ""; var checkImg;
- 
+ // Whether a sheet was found settles the image and the footnote together, from
+ // a response and from a failed request alike.
+ let settleImage = function(imageFound) {
+  curCheatSheetImg.src = imageFound ? curScriptImageLocation : "";
+  curCheatSheetImg.style.display = imageFound ? "block" : "none";
+  if (!imageFound) showFootNote.style.display = "none";
+ };
+
  let xhttp = new XMLHttpRequest();
- xhttp.onload = function() {  
-  checkImg = this.statusText;  
-  if (checkImg == "Not Found") {
-   curScriptImageLocation = "";
-   imgDisplay = "none";  
-   showFootNote.style.display = "none"; 
-  } else {
-   imgDisplay = "block";
-  }    
-  curCheatSheetImg.src = curScriptImageLocation;  
-  curCheatSheetImg.style.display = imgDisplay;
+ // Branch on the numeric status, never the reason phrase. The phrase is server
+ // chosen and HTTP/2 carries none at all, so the published site reports "" for
+ // every response and a "Not Found" test would never match - leaving a missing
+ // sheet to show as a broken image icon. A status of 0 means the response came
+ // over a scheme with no status line, which here is index.html opened as a
+ // file:// URL; onload firing at all means the file was read, so 0 is found.
+ xhttp.onload = function() {
+  settleImage(this.status === 0 || (this.status >= 200 && this.status < 300));
+ };
+ // A file:// page is refused by Chromium's CORS rules and never reaches onload,
+ // and a dropped connection does not either. Neither one found a sheet.
+ xhttp.onerror = function() {
+  settleImage(false);
  };
  xhttp.open("GET", curScriptImageLocation, true);
  xhttp.send();
