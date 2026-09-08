@@ -25,20 +25,6 @@ keys its entries by date, written `YYYY.MM.DD`.
   - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
 
-### Code Review Override - the icon and footnote fix
-
-- [ ] The two items this run completed were archived in `## Complete` with their `**Issue**` and `**Goal**` properties instead of a result line
-  - Every other entry in that section reads `- [x] <item>` followed by a line saying what was done, so these two restate the defect in the present tense and read as though they are still open
-  - Replace both property blocks with the one line result the section already uses, keeping each item's `From:` line
-  - From: Code Review Override - the icon and footnote fix
-
-#### Found Issues
-
-- [ ] `selectExample()` decides a missing cheatsheet image from the server's reason phrase, which the published site never sends
-  - **Issue**: The `xhttp.onload` handler branches on `this.statusText == "Not Found"`. The reason phrase is server chosen, and HTTP/2 has none, so Chromium returns `""` for every response on the published site and the branch never runs. Selecting the blank first option in **Select Example** requests `javaScriptArrays/.jpg`, which answers 404; the page then sets that path as the image `src` with `display: block`, so the reader gets a broken image icon rather than a hidden one. The PHP development server the page was verified against is HTTP/1.1 and does send `Not Found`, which is why the verification passed. `tools/test-example-selection.mjs` stubs `statusText` directly, so its missing image case asserts a contract the live server cannot produce
-  - **Goal**: Branch on the numeric `this.status` rather than the reason phrase, settling first what `status === 0` should mean for anyone opening `index.html` as a `file://` URL, and stub `status` alongside `statusText` in `tools/test-example-selection.mjs` so the test models an HTTP/2 response. **Load the image only when an example is selected, rather than probing for it on every change**, under **Cheatsheet Images**, deletes this probe outright, so decide whether that item absorbs this before patching the probe twice
-  - From: Code Review Override - the icon and footnote fix
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -63,9 +49,11 @@ so relative paths resolve on their own.
 **Intent**: replace the preview workaround with the real site.
 
 - [ ] Add the site link directly beneath the README's level 1 heading
-- [ ] Replace the `XMLHttpRequest` probe that compares `statusText` against `"Not Found"` with an `img.onerror` handler or a `fetch` response check
-  - The current test depends on a status text the server is free to change, and it fires a second request for an image the page then loads again
-  - The probe also downloads each image twice, once here and once through the `<img>` element, which is roughly 4 MB per selection at current image sizes
+- [ ] Replace the `XMLHttpRequest` probe that decides a missing image from the response status with an `img.onerror` handler or a `fetch` response check
+  - The probe was patched on 2026.09.08 to read `this.status` instead of the reason phrase, which fixed the broken image icon on the published site but left the probe itself in place. Deleting it is still the endpoint, and this item and **Load the image only when an example is selected** under **Cheatsheet Images** are the two that do it
+  - The probe downloads each image twice, once here and once through the `<img>` element, which is roughly 4 MB per selection at current image sizes
+  - Whatever replaces it has to keep what the patch settled: a missing sheet hides the image and the footnote rather than showing a broken icon, and a page opened as a `file://` URL still works. `tools/test-example-selection.mjs` holds those as tests
+  - The blank first option is not a missing sheet, which is worth knowing before the replacement treats it as one. It requests `javaScriptArrays/.jpg`, a committed 72x72 image of a single white pixel value that answers 200 both locally and on the published site, so the empty selection takes the found branch and leaves a 600x600 white square in the image column. Nothing shows because the square matches the page background. The 2026.09.08 verification measured this: no dropdown option, blank included, resolves to a 404, so the missing sheet branch cannot be reached by clicking the page at all
 
 ## Page Structure and Responsiveness
 
@@ -86,6 +74,7 @@ it once it is public.
   - It would assert: both column tops equal at 1280px with the image left edge within 40px of the panel column's right edge; exactly one two column to one column transition, at 768px to 767px, with the image inside its column at every width between 1280 and 360; `documentElement.scrollWidth` equal to `clientWidth` at 390px; and `div.tools` travelling the full scroll distance rather than staying pinned
   - The decision to make first is the dependency: `tools/` is deliberately dependency free, and a browser test needs Playwright, which is currently installed only at user scope on one machine
   - Two further things the 2026.09.07 verification could only assert in a browser, if the decision goes that way: `#showFootNote` reaching computed `display: block` on the first selection of a freshly loaded page, which the stub DOM test covers as a style property but never as rendered state; and `favicon.ico` decoding square with the mark's green and navy halves in its pixels, which the byte level test cannot see because it parses the container rather than the image
+  - One more from 2026.09.08, and the strongest case yet for the browser: a broken image icon is a rendered state with no property to read. The stub DOM proves the status branch chooses correctly, but only a browser shows that the element the branch produces is laid out at 0x0 with nothing decoded rather than at 600x18 with alt text. Asserting it needs the empty reason phrase, which no local server sends, so the test would have to reach the published origin over HTTP/2 or synthesise the response. The 2026.09.08 verification did the former: it served each version of `index.html` from the published origin so the image requests went out over the real `h2` connection, and read `naturalWidth` and the element's box back
 
 ## Cheatsheet Catalog
 
@@ -171,6 +160,7 @@ phone connection.
   - 600 pixels is too small to read code in, which is the whole purpose of the screenshot
 - [ ] Load the image only when an example is selected, rather than probing for it on every change
   - Ship the `img` with no `src`, set `width` and `height` from the manifest to stop layout shift, add `decoding="async"`, and give `alt` the cheatsheet title
+  - This deletes the probe that 2026.09.08 patched. It was patched rather than left for this item because the fault was live on the published site and this item waits on a manifest that does not exist yet
 - [ ] Add a `graphic-designer` collaborator when any replacement image is created
   - Required by the collaborators constant in `.claude/constants.md`
 
@@ -736,10 +726,14 @@ generate ideas about generating ideas.
   - The two columns are a wrapping flex row that becomes one column below 768px, and the image scales to the column instead of sitting behind a 500 pixel offset
   - From: Page Structure and Responsiveness
 - [x] The footnote beneath the columns stays hidden until the second selection
-  - **Issue**: Selecting **JavaScript Arrays** then **Sorting Arrays** on a freshly loaded page leaves `#showFootNote` at `display: none`, at both 1280x900 and 390x844. It appears only from the second selection onward. `selectExample()` decides the footnote from `curCheatSheetImg.src`, which still holds the previous selection when the check runs; on a fresh load that is the `javaScriptArrays/.jpg` placeholder, whose basename `.jpg` is exactly 4 characters, so the `.length > 4` test is false. The `XMLHttpRequest` handler that sets the new `src` afterwards never re-shows it. The pre-change page behaves identically, so this predates the reflow work rather than regressing from it
-  - **Goal**: Decide the footnote from the selection being made rather than from the image element's stale `src`, setting it where the new image location is already known
+  - The footnote is now set from the selection being made, where the new image location is already known, rather than read back off `curCheatSheetImg.src`, which still held the previous selection at that point
   - From: UI/UX Override - page reflow
 - [x] `favicon.ico` carries a PNG payload rather than an icon
-  - **Issue**: The file answers 200 and Chromium decodes and displays it, so the head link works, but the bytes begin `\x89PNG` while the name and the served `image/vnd.microsoft.icon` type both claim ICO. It also decodes at 417x418, neither square nor a standard favicon size, so every browser rescales it for the tab
-  - **Goal**: Either convert it to a real ICO carrying 16, 32 and 48 pixel square frames, or rename it to `favicon.png` and link it with `type="image/png"`; a replacement image is a new image for this repository, so add `graphic-designer` as a collaborator per `.claude/constants.md`
+  - `favicon.ico` is now a real ICO carrying 16, 32 and 48 pixel square frames, the head link declares the matching type and sizes, and `mark.png`, the artwork it is derived from, is kept beside it
   - From: UI/UX Override - page reflow
+- [x] The two items this run completed were archived in `## Complete` with their `**Issue**` and `**Goal**` properties instead of a result line
+  - Both property blocks were replaced with the one line result the rest of `## Complete` uses, each keeping its `From:` line
+  - From: Code Review Override - the icon and footnote fix
+- [x] `selectExample()` decides a missing cheatsheet image from the server's reason phrase, which the published site never sends
+  - The handler now branches on the numeric `this.status`, treating `0` as found so a `file://` page still shows its sheet, and an `onerror` handler covers the blocked or dropped request that never reached `onload` at all. `tools/test-example-selection.mjs` stubs `status` with an empty phrase, as HTTP/2 sends, and adds cases for a phraseless 404, a 404 with a phrase, a `file://` read and a failed request
+  - From: Code Review Override - the icon and footnote fix
