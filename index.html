@@ -158,28 +158,44 @@ function selectExample(example) {
  let exampleScriptTag = document.createElement("script");
  exampleScriptTag.src = curScriptLocation;
  document.body.appendChild(exampleScriptTag);
- // Whether a sheet was found settles the image and the footnote together, from
- // a response and from a failed request alike.
+ // A sheet the probe ruled out settles the image and the footnote together: a
+ // missing sheet means a missing example, so neither is worth showing.
  let settleImage = function(imageFound) {
   curCheatSheetImg.src = imageFound ? curScriptImageLocation : "";
   curCheatSheetImg.style.display = imageFound ? "block" : "none";
   if (!imageFound) showFootNote.style.display = "none";
  };
+ // The element reports what the probe could not. A sheet the probe let through
+ // that the browser then fails to decode is hidden here, so a request that went
+ // unanswered still cannot leave a broken icon on the page. The footnote stays:
+ // the example script is fetched on its own, and the console output the
+ // footnote points at does not depend on the image.
+ curCheatSheetImg.onerror = function() {
+  curCheatSheetImg.style.display = "none";
+ };
+ // The probe can only rule a sheet out, never rule one in. Its whole purpose is
+ // to keep a missing sheet from rendering as a broken icon, and only a definite
+ // non-2xx status establishes one. Never the reason phrase: the phrase is
+ // server chosen and HTTP/2 carries none at all, so the published site reports
+ // "" for every response and a "Not Found" test never matched anything. A
+ // status of 0 is not a ruling either, so it leaves the sheet alone.
+ let sheetRuledOut = function(status) {
+  return status > 0 && (status < 200 || status >= 300);
+ };
 
  let xhttp = new XMLHttpRequest();
- // Branch on the numeric status, never the reason phrase. The phrase is server
- // chosen and HTTP/2 carries none at all, so the published site reports "" for
- // every response and a "Not Found" test would never match - leaving a missing
- // sheet to show as a broken image icon. A status of 0 means the response came
- // over a scheme with no status line, which here is index.html opened as a
- // file:// URL; onload firing at all means the file was read, so 0 is found.
  xhttp.onload = function() {
-  settleImage(this.status === 0 || (this.status >= 200 && this.status < 300));
+  settleImage(!sheetRuledOut(this.status));
  };
- // A file:// page is refused by Chromium's CORS rules and never reaches onload,
- // and a dropped connection does not either. Neither one found a sheet.
+ // No answer at all, which is what a file:// page always gets: Chromium refuses
+ // such a page its own XMLHttpRequest under its CORS rules, so onerror is the
+ // only handler that ever runs there and onload never fires. The <img> element
+ // is not refused the same read and renders the sheet from disk, so an
+ // unanswered probe hands the decision to the element rather than hiding a
+ // sheet that is sitting right there. A dropped or blocked request over HTTP
+ // arrives here too, and the element's own onerror above hides that one.
  xhttp.onerror = function() {
-  settleImage(false);
+  settleImage(true);
  };
  xhttp.open("GET", curScriptImageLocation, true);
  xhttp.send();

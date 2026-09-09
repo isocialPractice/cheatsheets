@@ -15,6 +15,30 @@ const script = html.slice(
   html.lastIndexOf("</script>")
 );
 
+// The source text tests below both read selectExample() out of the page script.
+// One helper does it, and throws when either marker moves, so renaming the
+// function or correcting the misspelled "// SUPORT FUNCTION" heading fails the
+// tests outright instead of silently widening them to the whole script - which
+// is what a bare indexOf returning -1 does through slice(0, -1).
+function selectExampleSource() {
+  const start = script.indexOf("function selectExample");
+  if (start === -1) {
+    throw new Error(
+      "index.html no longer declares 'function selectExample'; " +
+        "update the marker this helper slices from"
+    );
+  }
+  const body = script.slice(start);
+  const end = body.indexOf("\n// SUPORT FUNCTION");
+  if (end === -1) {
+    throw new Error(
+      "index.html no longer carries the '// SUPORT FUNCTION' comment that ends " +
+        "selectExample(); update the marker this helper slices to"
+    );
+  }
+  return body.slice(0, end);
+}
+
 // A freshly loaded page: #curCheatSheetImg still carries the placeholder src
 // the markup ships with, and the footnote is hidden.
 function loadPage() {
@@ -136,11 +160,13 @@ test("a 404 carrying a reason phrase is still a miss", () => {
   assert.equal(page.curCheatSheetImg.style.display, "none");
 });
 
-test("a file:// read reports no status and still counts as found", () => {
+test("a response carrying no status line is not a ruling against the sheet", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
-  // A file:// response has no status line, so status is 0. onload firing at
-  // all means the file was read.
+  // Status 0 inside onload means a response arrived over a scheme that sends no
+  // status line. No scheme the page is opened over produces it - a file:// page
+  // never reaches onload at all, as the case below records - but a zero is
+  // still not a non-2xx, so the probe has ruled nothing out.
   respond(page, 0);
 
   assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
@@ -148,16 +174,35 @@ test("a file:// read reports no status and still counts as found", () => {
   assert.equal(page.showFootNote.style.display, "block");
 });
 
-test("a request that fails outright hides the image and the footnote", () => {
+test("an unanswered probe leaves the sheet to the image element", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
-  // Chromium refuses a file:// page's own XHR under its CORS rules, so onload
-  // never fires. Without this the previous sheet stayed on screen.
+  // What a file:// page does, measured in Chromium on 2026.09.09: the page's
+  // own XMLHttpRequest is refused by the CORS rules, onload never fires, and
+  // onerror runs at readyState 4 with status 0. The <img> element is not
+  // refused the same read and decodes the sheet from disk, so hiding it here
+  // would hide a sheet that is sitting right there. The footnote stays too: the
+  // example script loads on its own and logs the console output it points at.
   fail(page);
 
-  assert.equal(page.showFootNote.style.display, "none");
+  assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
+  assert.equal(page.curCheatSheetImg.style.display, "block");
+  assert.equal(page.showFootNote.style.display, "block");
+});
+
+test("the image element hides itself when it cannot decode what got through", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  fail(page);
+  // The other half of an unanswered probe: a dropped or blocked request over
+  // HTTP reaches the same branch, and there the element cannot load the sheet
+  // either. Its own onerror hides it, so no broken icon survives a probe that
+  // went unanswered. The footnote stays, because the example script is fetched
+  // separately from the image.
+  page.curCheatSheetImg.onerror.call(page.curCheatSheetImg);
+
   assert.equal(page.curCheatSheetImg.style.display, "none");
-  assert.equal(page.curCheatSheetImg.src, "");
+  assert.equal(page.showFootNote.style.display, "block");
 });
 
 test("the selection loads its script and image by relative path", () => {
@@ -169,17 +214,24 @@ test("the selection loads its script and image by relative path", () => {
 });
 
 test("the footnote is decided without reading the image element's src", () => {
-  const body = script.slice(script.indexOf("function selectExample"));
-  const fn = body.slice(0, body.indexOf("\n// SUPORT FUNCTION"));
+  const fn = selectExampleSource();
 
   assert.doesNotMatch(fn, /curCheatSheetImg\.src\.replace/);
   assert.doesNotMatch(fn, /lastIndexOf\("\/"\)/);
 });
 
 test("the image request is judged by status rather than by reason phrase", () => {
-  const body = script.slice(script.indexOf("function selectExample"));
-  const fn = body.slice(0, body.indexOf("\n// SUPORT FUNCTION"));
+  const fn = selectExampleSource();
 
   assert.doesNotMatch(fn, /statusText/);
   assert.match(fn, /this\.status/);
+});
+
+test("the source helper refuses to read a function it cannot find both ends of", () => {
+  // The failure the helper exists to stop: with either marker gone, indexOf
+  // returns -1 and slice(0, -1) hands back nearly the whole script, so both
+  // tests above keep passing while reading code they do not name.
+  assert.match(script, /function selectExample/);
+  assert.match(script, /\n\/\/ SUPORT FUNCTION/);
+  assert.doesNotMatch(selectExampleSource(), /function removeSpaceInVariable/);
 });

@@ -4,6 +4,49 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.09]
+
+### Fixed
+
+- A cheatsheet opened straight from disk shows its sheet again. `selectExample()`
+  probes for the image with an `XMLHttpRequest`, and Chromium refuses a `file://`
+  page that request under its CORS rules, so the probe's error handler is the
+  only one that ever runs there. That handler hid the image and the footnote, on
+  the reading that a refused probe meant a missing sheet. It does not: the `img`
+  element is not refused the same read and decodes the sheet from disk, and the
+  example script loads on its own and logs the console output the footnote points
+  at. An unanswered probe now hands the decision to the element and leaves the
+  footnote alone. Driving Chromium against the page as a `file://` URL, the sheet
+  renders 600x600 from a 3601x3601 image where it had been hidden, and the
+  example logs its 31 lines with the footnote showing.
+- A dropped or blocked request over HTTP reaches that same handler, where showing
+  the sheet would risk the broken icon the probe exists to prevent. The image
+  element now carries its own error handler, which hides it when the browser
+  cannot decode what the probe let through. Verified by aborting the image
+  request in flight: the element ends hidden at 0x0 with nothing decoded and no
+  broken icon, and the footnote stays.
+
+### Changed
+
+- The probe rules a sheet out rather than ruling one in. Only a definite non-2xx
+  status hides the image, so a status of `0` no longer needs a branch of its own
+  claiming to be the `file://` case, which it never was.
+- `tools/test-example-selection.mjs` names its cases after what the browser does.
+  `a file:// read reports no status and still counts as found` and `a request
+  that fails outright hides the image and the footnote` described one `file://`
+  page two contradictory ways, and neither matched it. A case for the image
+  element's own failure is added alongside them.
+- One helper in the same file slices `selectExample()` out of the page script for
+  both source text tests, and throws when either marker is absent. Both tests had
+  recomputed the slice themselves, so correcting the misspelled `// SUPORT
+  FUNCTION` heading in `index.html` would have made `indexOf` return `-1` and
+  `slice(0, -1)` widen them to nearly the whole script, passing while no longer
+  reading the function they name.
+- The 2026.09.08 entry below is amended where it said a `file://` response
+  reaches the load handler carrying a status of `0`. It does not.
+- `README.md` records that the page runs from a `file://` URL as well as from a
+  local server.
+
 ## [2026.09.08]
 
 ### Fixed
@@ -18,9 +61,12 @@ The date of the change is the version, written `YYYY.MM.DD`.
   local development server never showed the fault.
 - Selecting an example on a page opened as a `file://` URL no longer leaves the
   previous sheet on screen. Chromium refuses such a page its own request, so
-  the handler that settled the image never ran at all. The request now has an
-  error handler, and a status of `0`, which a `file://` response carries in
-  place of a status line, counts as the sheet having been found.
+  neither handler ran and nothing replaced what the previous selection had left
+  behind. The request now has an error handler, and a refused request is the one
+  case that reaches it. This entry first said a `file://` response instead
+  arrives at the load handler carrying a status of `0`. A browser was driven
+  against the page on 2026.09.09 and it does not, and what the error handler
+  should do about the refusal is settled in that day's entry.
 
 ### Changed
 
@@ -28,8 +74,9 @@ The date of the change is the version, written `YYYY.MM.DD`.
   leaves the phrase empty unless a case names one, so its missing image case
   models the HTTP/2 response the published site returns rather than a contract
   only the development server can satisfy. Four cases cover what the stub could
-  not reach before: a phraseless 404, a 404 carrying a phrase, a `file://` read,
-  and a request that fails outright.
+  not reach before: a phraseless 404, a 404 carrying a phrase, a response with
+  no status line, and a request that fails outright, which is the one a `file://`
+  page gets.
 - The two entries archived in `TODO.md` on 2026.09.07 record what was done in
   the one line form the rest of `## Complete` uses. They had kept the `Issue`
   and `Goal` properties they were queued with, which state the defect in the
