@@ -34,6 +34,22 @@ keys its entries by date, written `YYYY.MM.DD`.
   - **Goal**: Put the measured figure in both records - 17 lines from `SortingArrays.js`, which is every `console.log` in the file - rather than a session total the example did not produce. Nothing else in the entry changes: the behaviour it reports was verified and holds
   - From: Code Review Override - the icon and footnote fix
 
+### Code Review Override - the window before the element gives up
+
+#### Resolve Issues
+
+- [ ] Status Probe 3: an unanswered probe leaves the image element on screen for as long as its own request takes to fail
+  - **Issue**: `xhttp.onerror` now calls `settleImage(true)`, which sets `curCheatSheetImg.src` to the sheet path and `display: block` in the same breath, and the element's own `onerror` is the only thing that takes it back down. That handler runs only once the element's request has finished failing. Serve `index.html` over HTTP and stall the image request rather than dropping it - a throttled or offline network, a proxy holding the connection open, an extension blackholing the path - and the probe errors first while the element's request never completes, so `onerror` never fires and the image column sits at `display: block` showing the `cheat sheet image` alt text, with the footnote beside it. Before 2026.09.09 that state was hidden the instant the probe failed. The 2026.09.09 verification aborted the request in flight, which fails at once, so it measured the fast case only; even there the element is visible from the probe's failure until its own, which is the broken icon the probe exists to prevent shown briefly rather than not at all
+  - **Goal**: Show the element only once it has decoded something on the unanswered-probe path. Give `curCheatSheetImg` an `onload` handler that sets `display: block`, and have the `xhttp.onerror` branch set the `src` while leaving the element hidden, so nothing renders until there is a sheet to render. Keep what 2026.09.09 settled - the sheet still appears on a `file://` page and the footnote still stays - and verify it in a browser, since neither the pending state nor the broken icon is a property the stub DOM can read. Add the load handler to `tools/test-example-selection.mjs` beside the failure case already there
+  - From: Code Review Override - the icon and footnote fix
+
+#### Found Issues
+
+- [ ] The probe replacement item states a constraint the code no longer meets
+  - **Issue**: Under **Replace the `XMLHttpRequest` probe that decides a missing image from the response status** in **Preview Links and Example Loading**, the constraint bullet reads "a missing sheet hides the image and the footnote rather than showing a broken icon, and a page opened as a `file://` URL still works. `tools/test-example-selection.mjs` holds those as tests". As of 2026.09.09 the footnote half holds only when the probe answers. On the unanswered-probe path the footnote deliberately stays, and the test `an unanswered probe leaves the sheet to the image element` asserts exactly that. A run implementing the item from that bullet either recouples the footnote to the image, undoing this turn's fix, or reads the tests it cites and finds them contradicting the constraint they are said to hold
+  - **Goal**: Split the constraint by path: a probe that answers a non-2xx hides the image and the footnote together, while a probe that never answers hides neither, leaving the sheet to the element and the footnote to the example script that loads separately. Name the test holding each half
+  - From: Code Review Override - the window before the element gives up
+
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
