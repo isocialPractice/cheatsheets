@@ -193,6 +193,10 @@ phone connection.
 - [ ] Add a `graphic-designer` collaborator when any replacement image is created
   - Required by the collaborators constant in `.claude/constants.md`
 
+### User Use Only - `TODO` Items for User
+
+- [ ] **User todo**: When `napkin-sketch` has API ready, utilize it as a dependency to create new cheatsheets
+
 ## Repository Records
 
 The repository has no contributing guidance, and the README describes the
