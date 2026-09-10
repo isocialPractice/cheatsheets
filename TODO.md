@@ -25,30 +25,14 @@ keys its entries by date, written `YYYY.MM.DD`.
   - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
 
-### UI/UX Override - the unanswered probe
-
-#### Resolve Issues
-
-- [ ] Status Probe 2: the changelog credits the example script with 31 console lines it does not log
-  - **Issue**: The interface half of the item is right and was verified route by route. The record of it is not. The 2026.09.09 `CHANGELOG.md` entry closes "the example logs its 31 lines with the footnote showing", and the archived **Status Probe 1** item says "the example script still logs its 31 console lines". Driving Chromium against `index.html` as a `file://` URL and selecting **Sorting Arrays**, the example logs 17 lines - every one of the 17 `console.log` calls `javaScriptArrays/SortingArrays.js` contains, counted from the source and matched against the console. 31 is the whole console after a *second* selection: 25 logged lines from two different examples, plus 2 `console.clear` markers and the 4 errors Chromium writes when it refuses the probe. Eight of those lines belong to **Slicing Arrays** and six are not output at all, so the figure names neither the example nor a single selection
-  - **Goal**: Put the measured figure in both records - 17 lines from `SortingArrays.js`, which is every `console.log` in the file - rather than a session total the example did not produce. Nothing else in the entry changes: the behaviour it reports was verified and holds
-  - From: Code Review Override - the icon and footnote fix
-
-### Code Review Override - the window before the element gives up
-
-#### Resolve Issues
-
-- [ ] Status Probe 3: an unanswered probe leaves the image element on screen for as long as its own request takes to fail
-  - **Issue**: `xhttp.onerror` now calls `settleImage(true)`, which sets `curCheatSheetImg.src` to the sheet path and `display: block` in the same breath, and the element's own `onerror` is the only thing that takes it back down. That handler runs only once the element's request has finished failing. Serve `index.html` over HTTP and stall the image request rather than dropping it - a throttled or offline network, a proxy holding the connection open, an extension blackholing the path - and the probe errors first while the element's request never completes, so `onerror` never fires and the image column sits at `display: block` showing the `cheat sheet image` alt text, with the footnote beside it. Before 2026.09.09 that state was hidden the instant the probe failed. The 2026.09.09 verification aborted the request in flight, which fails at once, so it measured the fast case only; even there the element is visible from the probe's failure until its own, which is the broken icon the probe exists to prevent shown briefly rather than not at all
-  - **Goal**: Show the element only once it has decoded something on the unanswered-probe path. Give `curCheatSheetImg` an `onload` handler that sets `display: block`, and have the `xhttp.onerror` branch set the `src` while leaving the element hidden, so nothing renders until there is a sheet to render. Keep what 2026.09.09 settled - the sheet still appears on a `file://` page and the footnote still stays - and verify it in a browser, since neither the pending state nor the broken icon is a property the stub DOM can read. Add the load handler to `tools/test-example-selection.mjs` beside the failure case already there
-  - From: Code Review Override - the icon and footnote fix
+### UI/UX Override - the stalled sheet paints nothing
 
 #### Found Issues
 
-- [ ] The probe replacement item states a constraint the code no longer meets
-  - **Issue**: Under **Replace the `XMLHttpRequest` probe that decides a missing image from the response status** in **Preview Links and Example Loading**, the constraint bullet reads "a missing sheet hides the image and the footnote rather than showing a broken icon, and a page opened as a `file://` URL still works. `tools/test-example-selection.mjs` holds those as tests". As of 2026.09.09 the footnote half holds only when the probe answers. On the unanswered-probe path the footnote deliberately stays, and the test `an unanswered probe leaves the sheet to the image element` asserts exactly that. A run implementing the item from that bullet either recouples the footnote to the image, undoing this turn's fix, or reads the tests it cites and finds them contradicting the constraint they are said to hold
-  - **Goal**: Split the constraint by path: a probe that answers a non-2xx hides the image and the footnote together, while a probe that never answers hides neither, leaving the sheet to the element and the footnote to the example script that loads separately. Name the test holding each half
-  - From: Code Review Override - the window before the element gives up
+- [ ] The 2026.09.10 changelog entry credits the stall with a symptom only a finished failure produces
+  - **Issue**: The entry says the pre-change page left "the empty box and its `cheat sheet image` alt text ... on screen for as long as the stall lasted". Driving Chromium against a server that drops the probe and holds the image element's request open, the pre-change page paints nothing at all for the whole stall: `#curCheatSheetImg` sits at `display: block` in a 600x0 box, 358x0 at 390px wide, because `height: auto` on a request still in flight has no intrinsic size to resolve against. No alt text and no broken icon is drawn, and its column stays 0 tall, so full page captures of the pre and post change pages under the same stall are byte identical at 1280x900 and at 390x844. The 600x18 with alt text this describes is the state after the element's request has finished failing, which is the 2026.09.08 measurement recorded under **Page Structure and Responsiveness**, not the window the fix addresses. The same paragraph's own `display: block` at 600x0 is exact and contradicts its alt text sentence, since a 0 tall box has nothing to draw text in
+  - **Goal**: Rewrite that one sentence to the state that was measured - the element stayed shown having decoded nothing, holding a 600x0 box for as long as the stall lasted - and drop the claim that a reader saw alt text, keeping the rest of the entry as it stands
+  - From: UI/UX Override - the stalled sheet paints nothing
 
 ## GitHub Pages Deployment
 
@@ -77,7 +61,7 @@ so relative paths resolve on their own.
 - [ ] Replace the `XMLHttpRequest` probe that decides a missing image from the response status with an `img.onerror` handler or a `fetch` response check
   - The probe was patched on 2026.09.08 to read `this.status` instead of the reason phrase, which fixed the broken image icon on the published site but left the probe itself in place. Deleting it is still the endpoint, and this item and **Load the image only when an example is selected** under **Cheatsheet Images** are the two that do it
   - The probe downloads each image twice, once here and once through the `<img>` element, which is roughly 4 MB per selection at current image sizes
-  - Whatever replaces it has to keep what the patch settled: a missing sheet hides the image and the footnote rather than showing a broken icon, and a page opened as a `file://` URL still works. `tools/test-example-selection.mjs` holds those as tests
+  - Whatever replaces it has to keep what the patch settled, and that constraint splits by which branch the probe took, because since 2026.09.10 the two branches decide differently. A probe that answers a non-2xx hides the image and the footnote together, a missing sheet meaning a missing example: `a missing cheatsheet image hides both the image and the footnote` in `tools/test-example-selection.mjs` holds that half. A probe that never answers hides neither. It hands the sheet to the image element, which shows it from its own `onload` once it has decoded one, and leaves the footnote to the example script that is fetched separately - `an unanswered probe hands the sheet over without rendering it`, `the image element shows itself once it has decoded the sheet` and `the image element hides itself when it cannot decode what got through` hold that half between them. A page opened as a `file://` URL still works, and it is the only route that reaches the unanswered branch by ordinary use
   - The `fetch` half of this item is closed. The 2026.09.09 verification measured `fetch("javaScriptArrays/SortingArrays.jpg")` from a `file://` page and it throws `TypeError: Failed to fetch`, refused by the same CORS rule that refuses the `XMLHttpRequest`. A fetch response check would reintroduce the fault the 2026.09.09 entry fixed, so the `img.onerror` route is the only one of the two left
   - Half the `img.onerror` handler already exists, added on 2026.09.09 to hide the element when it cannot decode what the probe let through. Deleting the probe means giving that handler the footnote and the missing sheet decisions the probe still holds, not writing it from nothing
   - The blank first option is not a missing sheet, which is worth knowing before the replacement treats it as one. It requests `javaScriptArrays/.jpg`, a committed 72x72 image of a single white pixel value that answers 200 both locally and on the published site, so the empty selection takes the found branch and leaves a 600x600 white square in the image column. Nothing shows because the square matches the page background. The 2026.09.08 verification measured this: no dropdown option, blank included, resolves to a 404, so the missing sheet branch cannot be reached by clicking the page at all
@@ -104,6 +88,7 @@ it once it is public.
   - Two further things the 2026.09.07 verification could only assert in a browser, if the decision goes that way: `#showFootNote` reaching computed `display: block` on the first selection of a freshly loaded page, which the stub DOM test covers as a style property but never as rendered state; and `favicon.ico` decoding square with the mark's green and navy halves in its pixels, which the byte level test cannot see because it parses the container rather than the image
   - One more from 2026.09.08, and the strongest case yet for the browser: a broken image icon is a rendered state with no property to read. The stub DOM proves the status branch chooses correctly, but only a browser shows that the element the branch produces is laid out at 0x0 with nothing decoded rather than at 600x18 with alt text. Asserting it needs the empty reason phrase, which no local server sends, so the test would have to reach the published origin over HTTP/2 or synthesise the response. The 2026.09.08 verification did the former: it served each version of `index.html` from the published origin so the image requests went out over the real `h2` connection, and read `naturalWidth` and the element's box back
   - And one from 2026.09.09: a `file://` page is the second rendered state with no property to read. Chromium refuses that page its own `XMLHttpRequest`, and no stub DOM reproduces either the refusal or the separate read the `<img>` element is still allowed, so only a browser shows the sheet decoding 3601x3601 into a 600x600 box on a page whose probe was denied. The 2026.09.09 verification asserted it by driving the real `file://` URL, which needs no server at all and is the cheapest of the browser cases to keep
+  - And one from 2026.09.10: a stalled request is the third rendered state with no property to read, and only a browser tells it from a failed one. A request still in flight leaves the element no intrinsic size, so it lays out 600x0 and paints nothing; a request that has finished failing gives it the broken icon's 600x18 with alt text. The stub DOM reads the same `display` string for both, which is how a changelog entry came to describe one as the other. Asserting it needs a server that tells the probe from the element by the `Sec-Fetch-Dest` request header - `empty` is the `XMLHttpRequest`, `image` is the `<img>` - dropping the first and holding the second socket open, which is a dozen lines of `node:http` and no dependency
 
 ## Cheatsheet Catalog
 
@@ -236,6 +221,14 @@ item would otherwise be ambiguous once it is copied into `## Current`.
 - **Every cheatsheet folder holds a `sheet.webp`**, within the image budget
   set under **Cheatsheet Images**. The graphic is required; the demo payload
   is not.
+- **The sheet count** on an item says how many cheatsheets that subject
+  becomes, between 1 and 8, each taking a different area of focus. It is
+  scaled to the depth of the subject: a narrow one that documents in a page
+  gets 1, a language that documents in a book gets 8. Three kinds of item
+  carry no count - a master cheatsheet, which is one sheet by definition; a
+  group heading, which makes a folder rather than a cheatsheet; and a
+  `Propose` item, which already names its own number and gives each accepted
+  idea a count of its own when that idea is queued.
 - **`kind`** selects what the page does with the payload: `run` injects a
   browser script, `read` renders the source as text, `embed` loads
   `demo/index.html` in a sandboxed frame, `none` is graphic only.
@@ -254,24 +247,32 @@ The `html-css/` category. Forces the first `embed` payloads and the first sub
 group, so it is built second.
 
 - [ ] Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **HTML APIs** group at `html-css/html-apis/` with its own `meta.json`
   - [ ] Add the **Common Browser Built-in APIs** cheatsheet at `html-css/html-apis/common-browser-apis/`, `kind: embed`
+    - Create `5` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **Google Maps APIs** cheatsheet at `html-css/html-apis/google-maps-apis/`, `kind: embed`
+    - Create `3` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
     - The demo must not ship an API key. Show the call shapes and let a reader supply their own
   - [ ] Propose 4 new API cheatsheet ideas and queue one item per accepted idea
     - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
 - [ ] Add the **HTML/CSS Draw SVG** cheatsheet at `html-css/draw-svg/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **HTML/CSS Use Canvas** cheatsheet at `html-css/use-canvas/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Advanced HTML** cheatsheet at `html-css/advanced-html/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Advanced CSS** cheatsheet at `html-css/advanced-css/`, `kind: embed`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 3 new HTML/CSS cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -289,20 +290,28 @@ migrate into it as the `arrays` sub group, so building this category is the
 migration and the pipeline's acceptance test.
 
 - [ ] Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS DOM** cheatsheet at `javascript/dom/`, `kind: embed`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JS Versions** cheatsheet at `javascript/versions/`, `kind: read`
+  - Create `2` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - A version comparison is a table rather than a runnable script, which is why it reads rather than runs
 - [ ] Propose 5 new JavaScript cheatsheet ideas and queue one item per accepted idea
@@ -317,22 +326,30 @@ four of its items are complete small applications rather than snippets. Build
 it once `embed` is proven elsewhere.
 
 - [ ] Add the **Rotating Clock** cheatsheet at `miscellaneous/rotating-clock/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript
+  - Create `1` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Tic-Tac-Toe** cheatsheet at `miscellaneous/tic-tac-toe/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript
+  - Create `1` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Canvas Platformer Game** cheatsheet at `miscellaneous/canvas-platformer/`, `kind: embed`, built on `canvas` in vanilla HTML, CSS and JavaScript
+  - Create `2` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Interactive Chart and Data Tool** cheatsheet at `miscellaneous/interactive-chart-tool/`, `kind: embed`, built in vanilla HTML, CSS and JavaScript with a graph library
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - Vendor the graph library into the demo folder rather than loading it from a CDN, so the site keeps its no third party guarantee
 - [ ] Add the **VS Code Extension Essentials** cheatsheet at `miscellaneous/vs-code-extension/`, `kind: read`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **MCP Essentials** group at `miscellaneous/mcp/` with its own `meta.json`
   - [ ] Add the **MCP Server** cheatsheet at `miscellaneous/mcp/server/`, `kind: read`
+    - Create `3` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **MCP Client** cheatsheet at `miscellaneous/mcp/client/`, `kind: read`
+    - Create `3` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **MCP Host** cheatsheet at `miscellaneous/mcp/host/`, `kind: read`, covering the host or wrapper role
+    - Create `2` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
 
 ### XML
@@ -340,14 +357,19 @@ it once `embed` is proven elsewhere.
 The `xml/` category. Content only once the pipeline is proven.
 
 - [ ] Add the **General XML Overview** cheatsheet at `xml/general-xml-overview/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **XML AJAX** cheatsheet at `xml/ajax/`, `kind: embed`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **XML DOM** cheatsheet at `xml/dom/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **XML Languages** cheatsheet at `xml/languages/`, `kind: read`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **XML Data** cheatsheet at `xml/data/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 2 new XML cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -360,15 +382,20 @@ The `web-templates/` category. Every item is a static site generator, so each
 payload is configuration and templating read as text rather than run.
 
 - [ ] Add the **Hugo** cheatsheet at `web-templates/hugo/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Eleventy** cheatsheet at `web-templates/eleventy/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Astro** cheatsheet at `web-templates/astro/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Jekyll** cheatsheet at `web-templates/jekyll/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - Jekyll template syntax in a payload can be eaten by a site generator. The repository publishes with `.nojekyll`, so this is safe here, but keep the sample fenced
 - [ ] Add the **Wordpress** cheatsheet at `web-templates/wordpress/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 2 new web template cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -382,12 +409,16 @@ embedded, so the graphic carries nearly all the value here. Build it late,
 since it blocks nothing.
 
 - [ ] Add the **Electronic Components** cheatsheet at `electronics/components/`, `kind: none`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget. This item is graphic only, so the sheet is the entire deliverable
 - [ ] Add the **555 Timer** cheatsheet at `electronics/555-timer/`, `kind: none`
+  - Create `1` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget. This item is graphic only, so the sheet is the entire deliverable
 - [ ] Add the **Arduino** cheatsheet at `electronics/arduino/`, `kind: read`, with a `demo.ino` payload
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Arduino Command Line Tool** cheatsheet at `electronics/arduino-cli/`, `kind: read`
+  - Create `2` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 4 new electronics cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -400,8 +431,10 @@ The `hardware/` category. The smallest section, and like Electronics it is
 `read` and `none` only, so it blocks nothing and is built last.
 
 - [ ] Add the **Chip: 65c02** cheatsheet at `hardware/65c02/`, `kind: read`, with an assembly payload
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Dev Board: ESP32** cheatsheet at `hardware/esp32/`, `kind: read`, with a `demo.ino` payload
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 2 new hardware cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -415,21 +448,29 @@ The `server/` category. Every item is a language that does not run in a
 browser, so all of them read their payload as text.
 
 - [ ] Add the **PHP** cheatsheet at `server/php/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Java** cheatsheet at `server/java/`, `kind: read`
+  - Create `7` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Python** cheatsheet at `server/python/`, `kind: read`
+  - Create `7` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **SQL** cheatsheet at `server/sql/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **JSON** cheatsheet at `server/json/`, `kind: read`
+  - Create `2` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **NodeJS** cheatsheet at `server/nodejs/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - Node runs JavaScript but not in the browser, so this reads rather than runs. Anything that genuinely runs in the page belongs under the JavaScript category
 - [ ] Add the **Perl** cheatsheet at `server/perl/`, `kind: read`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **TypeScript** cheatsheet at `server/typescript/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 6 new server cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -442,20 +483,27 @@ The `frameworks/` category. The largest by item count once its twelve
 proposed ideas land. Mostly `embed`, since a framework is best shown running.
 
 - [ ] Add the **Bootstrap CSS** cheatsheet at `frameworks/bootstrap/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **jQuery** cheatsheet at `frameworks/jquery/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **React** cheatsheet at `frameworks/react/`, `kind: embed`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - Vendor the library into the demo folder and use a build free form, so the site keeps working with no toolchain
 - [ ] Add the **AngularJS** cheatsheet at `frameworks/angularjs/`, `kind: embed`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **AppML** cheatsheet at `frameworks/appml/`, `kind: embed`
+  - Create `1` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Sass for CSS** cheatsheet at `frameworks/sass/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - Sass compiles before it reaches a browser, so this reads rather than embeds. Show the source beside the CSS it produces
 - [ ] Add the **Django** cheatsheet at `frameworks/django/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 12 new framework cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -469,31 +517,42 @@ The `programming/` category. Built third, because it forces the `read` payload
 across compiled languages and the second sub group.
 
 - [ ] Add the **C++** cheatsheet at `programming/c-plus-plus/`, `kind: read`
+  - Create `8` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - The folder name spells the operator out, because `+` in a path is decoded as a space by some servers. The title in `meta.json` stays `C++`
 - [ ] Add the **C#** cheatsheet at `programming/c-sharp/`, `kind: read`
+  - Create `7` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
   - The folder name spells the symbol out, because `#` in a path starts a URL fragment. The title in `meta.json` stays `C#`
 - [ ] Add the **Kotlin** cheatsheet at `programming/kotlin/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Go** cheatsheet at `programming/go/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **R** cheatsheet at `programming/r/`, `kind: read`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **git Command Line Tool** cheatsheet at `programming/git/`, `kind: read`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Add the **Command Line** group at `programming/command-line/` with its own `meta.json`
   - [ ] Add the **Linux Command Line** cheatsheet at `programming/command-line/linux/`, `kind: read`
+    - Create `5` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **Windows DOS Command Line** cheatsheet at `programming/command-line/windows-dos/`, `kind: read`
+    - Create `4` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **Windows PowerShell Command Line** cheatsheet at `programming/command-line/powershell/`, `kind: read`
+    - Create `5` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Add the **MacOS Command Line** cheatsheet at `programming/command-line/macos/`, `kind: read`
+    - Create `3` new cheatsheets, each with a different area of focus for the subject
     - Graphic: `sheet.webp` required, to the image budget
   - [ ] Propose 1 new command line cheatsheet idea and queue an item for it if accepted
     - Graphic: the accepted idea carries its own `sheet.webp`, to the image budget
 - [ ] Add the **curl Command Line Tool** cheatsheet at `programming/curl/`, `kind: read`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.webp` required, to the image budget
 - [ ] Propose 9 new programming cheatsheet ideas and queue one item per accepted idea
   - Graphic: each accepted idea carries its own `sheet.webp`, to the image budget
@@ -774,5 +833,17 @@ generate ideas about generating ideas.
   - Both now call one `selectExampleSource()` helper, which throws naming the marker that moved when either `function selectExample` or the `// SUPORT FUNCTION` heading is absent, so correcting the misspelling fails the tests instead of widening them to the whole script. A third test holds that failure open, asserting both markers are present and that the slice stops short of `removeSpaceInVariable`
   - From: Code Review Override - the file scheme branch
 - [x] **Status Probe 1**: settle what a `file://` page actually does, then make the comments, the test names and the changelog agree with it
-  - Chromium was driven against `index.html` as a `file://` URL: `send()` does not throw, `onload` never fires, and `onerror` runs at `readyState` 4 with status 0, the console naming the CORS rule that refused it. So `onerror` is the branch that case reaches, and the `status === 0` clause inside `onload` was never the `file://` case at all. The `<img>` element is not refused the same read - it decodes the sheet from disk at 3601x3601 - and the example script still logs its 31 console lines, so a refused probe should hide neither the sheet nor the footnote. An unanswered probe now hands the sheet to the element, the element's own `onerror` hides it when it cannot decode one, the probe rules a sheet out only on a definite non-2xx status, and the comments, both test names and the 2026.09.08 `CHANGELOG.md` entry say all of that
+  - Chromium was driven against `index.html` as a `file://` URL: `send()` does not throw, `onload` never fires, and `onerror` runs at `readyState` 4 with status 0, the console naming the CORS rule that refused it. So `onerror` is the branch that case reaches, and the `status === 0` clause inside `onload` was never the `file://` case at all. The `<img>` element is not refused the same read - it decodes the sheet from disk at 3601x3601 - and the example script still logs its 17 console lines, one for every `console.log` call in `SortingArrays.js`, so a refused probe should hide neither the sheet nor the footnote. An unanswered probe now hands the sheet to the element, the element's own `onerror` hides it when it cannot decode one, the probe rules a sheet out only on a definite non-2xx status, and the comments, both test names and the 2026.09.08 `CHANGELOG.md` entry say all of that
   - From: Code Review Override - the icon and footnote fix
+- [x] Status Probe 2: the changelog credits the example script with 31 console lines it does not log
+  - **Issue**: The interface half of the item is right and was verified route by route. The record of it is not. The 2026.09.09 `CHANGELOG.md` entry closes "the example logs its 31 lines with the footnote showing", and the archived **Status Probe 1** item says "the example script still logs its 31 console lines". Driving Chromium against `index.html` as a `file://` URL and selecting **Sorting Arrays**, the example logs 17 lines - every one of the 17 `console.log` calls `javaScriptArrays/SortingArrays.js` contains, counted from the source and matched against the console. 31 is the whole console after a *second* selection: 25 logged lines from two different examples, plus 2 `console.clear` markers and the 4 errors Chromium writes when it refuses the probe. Eight of those lines belong to **Slicing Arrays** and six are not output at all, so the figure names neither the example nor a single selection
+  - **Goal**: Put the measured figure in both records - 17 lines from `SortingArrays.js`, which is every `console.log` in the file - rather than a session total the example did not produce. Nothing else in the entry changes: the behaviour it reports was verified and holds
+  - From: Code Review Override - the icon and footnote fix
+- [x] Status Probe 3: an unanswered probe leaves the image element on screen for as long as its own request takes to fail
+  - **Issue**: `xhttp.onerror` now calls `settleImage(true)`, which sets `curCheatSheetImg.src` to the sheet path and `display: block` in the same breath, and the element's own `onerror` is the only thing that takes it back down. That handler runs only once the element's request has finished failing. Serve `index.html` over HTTP and stall the image request rather than dropping it - a throttled or offline network, a proxy holding the connection open, an extension blackholing the path - and the probe errors first while the element's request never completes, so `onerror` never fires and the image column sits at `display: block` showing the `cheat sheet image` alt text, with the footnote beside it. Before 2026.09.09 that state was hidden the instant the probe failed. The 2026.09.09 verification aborted the request in flight, which fails at once, so it measured the fast case only; even there the element is visible from the probe's failure until its own, which is the broken icon the probe exists to prevent shown briefly rather than not at all
+  - **Goal**: Show the element only once it has decoded something on the unanswered-probe path. Give `curCheatSheetImg` an `onload` handler that sets `display: block`, and have the `xhttp.onerror` branch set the `src` while leaving the element hidden, so nothing renders until there is a sheet to render. Keep what 2026.09.09 settled - the sheet still appears on a `file://` page and the footnote still stays - and verify it in a browser, since neither the pending state nor the broken icon is a property the stub DOM can read. Add the load handler to `tools/test-example-selection.mjs` beside the failure case already there
+  - From: Code Review Override - the icon and footnote fix
+- [x] The probe replacement item states a constraint the code no longer meets
+  - **Issue**: Under **Replace the `XMLHttpRequest` probe that decides a missing image from the response status** in **Preview Links and Example Loading**, the constraint bullet reads "a missing sheet hides the image and the footnote rather than showing a broken icon, and a page opened as a `file://` URL still works. `tools/test-example-selection.mjs` holds those as tests". As of 2026.09.09 the footnote half holds only when the probe answers. On the unanswered-probe path the footnote deliberately stays, and the test `an unanswered probe leaves the sheet to the image element` asserts exactly that. A run implementing the item from that bullet either recouples the footnote to the image, undoing this turn's fix, or reads the tests it cites and finds them contradicting the constraint they are said to hold
+  - **Goal**: Split the constraint by path: a probe that answers a non-2xx hides the image and the footnote together, while a probe that never answers hides neither, leaving the sheet to the element and the footnote to the example script that loads separately. Name the test holding each half
+  - From: Code Review Override - the window before the element gives up
