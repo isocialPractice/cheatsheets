@@ -34,6 +34,20 @@ keys its entries by date, written `YYYY.MM.DD`.
   - **Goal**: Rewrite that one sentence to the state that was measured - the element stayed shown having decoded nothing, holding a 600x0 box for as long as the stall lasted - and drop the claim that a reader saw alt text, keeping the rest of the entry as it stands
   - From: UI/UX Override - the stalled sheet paints nothing
 
+### Code Review Override - the same symptom in the code comments
+
+- [ ] The test named for the image element hiding itself no longer has anything to hide
+  - **Issue**: `the image element hides itself when it cannot decode what got through` in `tools/test-example-selection.mjs` calls `fail(page)` and then the element's own `onerror`, and asserts `display` is `none`. Before 2026.09.10 `fail(page)` left the element at `block`, so the assertion measured the handler taking it down. It now leaves the element at `none`, so the same assertion holds whatever the handler does short of showing the element: emptying `curCheatSheetImg.onerror` to `function() {}` in `index.html` and running the file leaves all 13 cases passing, measured on 2026.09.10. The path where the handler still decides the outcome has no case at all - the probe answers 200, `settleImage(true)` shows the element before anything is decoded, and what arrives is not an image, which a truncated `.jpg` and the 200 HTML a single page host answers an unknown path with both produce
+  - **Goal**: Add a case that answers the probe with `respond(page, 200)`, asserts the element is shown, then calls its `onerror` and asserts it is hidden, so the handler is measured on the branch that still shows the element first. Keep the unanswered branch case, and give it an assertion that fails when the handler stops hiding rather than one the starting state already satisfies
+  - From: Code Review Override - the same symptom in the code comments
+
+#### Found Issues
+
+- [ ] The stall symptom the changelog is being corrected for was written into two code comments as well
+  - **Issue**: The queued **UI/UX Override - the stalled sheet paints nothing** corrects one sentence of the 2026.09.10 `CHANGELOG.md` entry, but the same claim went into the code in the same turn and no item reaches it. `index.html` says of the branch it replaced "Showing it here put the alt text on screen from the moment the probe failed until the element's own request finished failing", and `tools/test-example-selection.mjs` says "Showing it at this point left the alt text on screen for as long as the element's own request took to fail". Both describe the in flight window, and both name a symptom it does not produce: the run's own measurement in `.tmp/ui-ux/log-entry-0910.txt` is that a request still in flight leaves the element no intrinsic size, so `height: auto` resolves to 0 and the pre-change page held a 600x0 box that painted nothing - no alt text, no broken icon, the captures byte identical to the fixed page. Correcting the changelog alone leaves the claim standing in the two files a reader checks first, and the source comment is the one a later run copies from
+  - **Goal**: Rewrite both comments to the state that was measured - the element stayed shown having decoded nothing, holding a zero height box for as long as the stall lasted - in the same terms the changelog sentence is rewritten to, so the three records say one thing. Change nothing else in either comment: what each says about which branch shows the element, and when, was verified and holds
+  - From: Code Review Override - the same symptom in the code comments
+
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
