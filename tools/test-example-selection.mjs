@@ -174,16 +174,33 @@ test("a response carrying no status line is not a ruling against the sheet", () 
   assert.equal(page.showFootNote.style.display, "block");
 });
 
-test("an unanswered probe leaves the sheet to the image element", () => {
+test("an unanswered probe hands the sheet over without rendering it", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
   // What a file:// page does, measured in Chromium on 2026.09.09: the page's
   // own XMLHttpRequest is refused by the CORS rules, onload never fires, and
-  // onerror runs at readyState 4 with status 0. The <img> element is not
-  // refused the same read and decodes the sheet from disk, so hiding it here
-  // would hide a sheet that is sitting right there. The footnote stays too: the
-  // example script loads on its own and logs the console output it points at.
+  // onerror runs at readyState 4 with status 0. The element gets the src,
+  // because the sheet is sitting right there and the element is not refused the
+  // same read - but it gets it hidden. Showing it at this point left the alt
+  // text on screen for as long as the element's own request took to fail, which
+  // a stalled connection stretches from an instant to a timeout. The footnote
+  // stays: the example script loads on its own and logs the console output it
+  // points at.
   fail(page);
+
+  assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
+  assert.equal(page.curCheatSheetImg.style.display, "none");
+  assert.equal(page.showFootNote.style.display, "block");
+});
+
+test("the image element shows itself once it has decoded the sheet", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  fail(page);
+  // The file:// case carried through to the end: the element reads the sheet
+  // from disk and its own onload is what puts it on screen, so nothing renders
+  // before there is a sheet to render.
+  page.curCheatSheetImg.onload.call(page.curCheatSheetImg);
 
   assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
   assert.equal(page.curCheatSheetImg.style.display, "block");
@@ -196,9 +213,9 @@ test("the image element hides itself when it cannot decode what got through", ()
   fail(page);
   // The other half of an unanswered probe: a dropped or blocked request over
   // HTTP reaches the same branch, and there the element cannot load the sheet
-  // either. Its own onerror hides it, so no broken icon survives a probe that
-  // went unanswered. The footnote stays, because the example script is fetched
-  // separately from the image.
+  // either. It was never shown, and its own onerror keeps it that way, so no
+  // broken icon survives a probe that went unanswered. The footnote stays,
+  // because the example script is fetched separately from the image.
   page.curCheatSheetImg.onerror.call(page.curCheatSheetImg);
 
   assert.equal(page.curCheatSheetImg.style.display, "none");

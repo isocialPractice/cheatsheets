@@ -165,11 +165,25 @@ function selectExample(example) {
   curCheatSheetImg.style.display = imageFound ? "block" : "none";
   if (!imageFound) showFootNote.style.display = "none";
  };
- // The element reports what the probe could not. A sheet the probe let through
- // that the browser then fails to decode is hidden here, so a request that went
- // unanswered still cannot leave a broken icon on the page. The footnote stays:
- // the example script is fetched on its own, and the console output the
- // footnote points at does not depend on the image.
+ // A probe that never answered has ruled nothing out, so the element is asked
+ // rather than told: it takes the src and stays hidden until it has decoded
+ // something. Showing it here put the alt text on screen from the moment the
+ // probe failed until the element's own request finished failing, which on a
+ // stalled connection - throttled, proxied, blackholed - is until that request
+ // times out rather than at once.
+ let offerSheetToElement = function() {
+  curCheatSheetImg.style.display = "none";
+  curCheatSheetImg.src = curScriptImageLocation;
+ };
+ // The element reports what the probe could not, on both counts. It puts itself
+ // on screen once it has decoded a sheet, and takes itself back down when it
+ // cannot decode one, so a request that went unanswered leaves neither a broken
+ // icon nor an empty box behind. The footnote stays either way: the example
+ // script is fetched on its own, and the console output the footnote points at
+ // does not depend on the image.
+ curCheatSheetImg.onload = function() {
+  curCheatSheetImg.style.display = "block";
+ };
  curCheatSheetImg.onerror = function() {
   curCheatSheetImg.style.display = "none";
  };
@@ -192,10 +206,11 @@ function selectExample(example) {
  // only handler that ever runs there and onload never fires. The <img> element
  // is not refused the same read and renders the sheet from disk, so an
  // unanswered probe hands the decision to the element rather than hiding a
- // sheet that is sitting right there. A dropped or blocked request over HTTP
- // arrives here too, and the element's own onerror above hides that one.
+ // sheet that is sitting right there. A dropped, blocked or stalled request
+ // over HTTP arrives here too, and there the element decides the other way -
+ // nothing is shown unless it decodes a sheet.
  xhttp.onerror = function() {
-  settleImage(true);
+  offerSheetToElement();
  };
  xhttp.open("GET", curScriptImageLocation, true);
  xhttp.send();

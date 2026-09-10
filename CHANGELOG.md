@@ -4,6 +4,48 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.10]
+
+### Fixed
+
+- A cheatsheet image no longer occupies the page while it is still being fetched.
+  When the probe went unanswered it set the sheet path and `display: block` in
+  the same breath, and the image element's own error handler was the only thing
+  that could take it back down - which happens only once that element's request
+  has finished failing. A request that stalls rather than fails, on a throttled
+  connection or behind a proxy holding it open, never reaches that handler, so
+  the empty box and its `cheat sheet image` alt text stayed on screen for as
+  long as the stall lasted. The element is now handed the path while left
+  hidden, and shows itself from a new `onload` handler once it has decoded a
+  sheet. Driving Chromium against a server that drops the probe and stalls the
+  image request, the element ends at `display: none` and 0x0 where it had been
+  `display: block` at 600x0 with nothing decoded.
+
+### Changed
+
+- The 2026.09.09 entry and the archived **Status Probe 1** item both credited
+  the example script with 31 console lines. It logs 17, one for every
+  `console.log` call in `javaScriptArrays/SortingArrays.js`, counted from the
+  source and matched against the console. 31 was the whole console after a
+  second selection: 25 lines from two different examples, 2 `console.clear`
+  markers, and the 4 errors Chromium writes when it refuses a `file://` page its
+  own probe. Both records now carry the measured figure. Nothing else in the
+  entry changes - the behaviour it reports was verified and holds.
+- `tools/test-example-selection.mjs` follows the split. `an unanswered probe
+  leaves the sheet to the image element` becomes `an unanswered probe hands the
+  sheet over without rendering it`, which asserts the element is given the path
+  and left hidden, and `the image element shows itself once it has decoded the
+  sheet` is added beside it for the load handler.
+- `TODO.md` states the probe replacement constraint by branch rather than as one
+  rule. A probe that answers a non-2xx hides the image and the footnote
+  together; a probe that never answers hides neither, leaving the sheet to the
+  element and the footnote to the example script that is fetched separately. The
+  single rule it replaced had been contradicted by the tests it cited.
+- Every cheatsheet item under **New Cheatsheets** in `TODO.md` now states how
+  many sheets its subject becomes, between 1 and 8, scaled to how much the
+  subject documents. 66 items carry a count; master cheatsheets, group headings
+  and `Propose` items carry none, and the conventions for that section say why.
+
 ## [2026.09.09]
 
 ### Fixed
@@ -18,7 +60,8 @@ The date of the change is the version, written `YYYY.MM.DD`.
   at. An unanswered probe now hands the decision to the element and leaves the
   footnote alone. Driving Chromium against the page as a `file://` URL, the sheet
   renders 600x600 from a 3601x3601 image where it had been hidden, and the
-  example logs its 31 lines with the footnote showing.
+  example logs its 17 lines - every `console.log` call in `SortingArrays.js` -
+  with the footnote showing.
 - A dropped or blocked request over HTTP reaches that same handler, where showing
   the sheet would risk the broken icon the probe exists to prevent. The image
   element now carries its own error handler, which hides it when the browser
