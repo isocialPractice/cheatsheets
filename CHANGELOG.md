@@ -4,6 +4,39 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.11]
+
+### Added
+
+- `tools/test-example-selection.mjs` covers the branch where the image element's
+  error handler is still what decides the outcome. The probe answers 200, which
+  rules nothing out, so the element is shown before anything has been decoded -
+  the state a truncated `.jpg` and the 200 HTML a single page host answers an
+  unknown path with both arrive in - and only the element's own `onerror` takes
+  the broken icon back down. The case asserts the element is shown, calls the
+  handler, and asserts it is hidden.
+
+### Changed
+
+- The unanswered probe case in the same file measures the handler rather than
+  the state it starts in. `offerSheetToElement()` already leaves the element
+  hidden on that branch, so a `display` check after the handler held whatever
+  the handler did: emptying `curCheatSheetImg.onerror` to `function() {}` left
+  every case passing. The element is now put up before the handler is called,
+  so the assertion fails when the handler stops taking it down. Both cases were
+  confirmed against that same emptied handler.
+- The stall symptom recorded on 2026.09.10 is corrected in all three places it
+  was written. The 2026.09.10 entry below, the `offerSheetToElement()` comment
+  in `index.html`, and the unanswered probe case's comment in
+  `tools/test-example-selection.mjs` each said the pre-change page left the
+  `cheat sheet image` alt text on screen for the length of the stall. It did
+  not: a request still in flight gives the element no intrinsic size, so
+  `height: auto` resolves to 0, and the element sat shown having decoded
+  nothing in a box 600 wide and 0 tall, painting neither alt text nor a broken
+  icon. The 600x18 with alt text is the state after that request has finished
+  failing, which is the 2026.09.08 measurement. The fix those records describe
+  is unaffected and still holds.
+
 ## [2026.09.10]
 
 ### Fixed
@@ -14,7 +47,7 @@ The date of the change is the version, written `YYYY.MM.DD`.
   that could take it back down - which happens only once that element's request
   has finished failing. A request that stalls rather than fails, on a throttled
   connection or behind a proxy holding it open, never reaches that handler, so
-  the empty box and its `cheat sheet image` alt text stayed on screen for as
+  the element stayed shown having decoded nothing, holding a 600x0 box for as
   long as the stall lasted. The element is now handed the path while left
   hidden, and shows itself from a new `onload` handler once it has decoded a
   sheet. Driving Chromium against a server that drops the probe and stalls the

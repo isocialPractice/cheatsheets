@@ -167,7 +167,9 @@ function selectExample(example) {
  };
  // A probe that never answered has ruled nothing out, so the element is asked
  // rather than told: it takes the src and stays hidden until it has decoded
- // something. Showing it here put the alt text on screen from the moment the
+ // something. Showing it here left the element on screen having decoded
+ // nothing, holding a zero height box - a request still in flight has no
+ // intrinsic size for "height: auto" to resolve against - from the moment the
  // probe failed until the element's own request finished failing, which on a
  // stalled connection - throttled, proxied, blackholed - is until that request
  // times out rather than at once.

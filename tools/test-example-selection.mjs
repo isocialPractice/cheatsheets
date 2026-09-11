@@ -181,11 +181,11 @@ test("an unanswered probe hands the sheet over without rendering it", () => {
   // own XMLHttpRequest is refused by the CORS rules, onload never fires, and
   // onerror runs at readyState 4 with status 0. The element gets the src,
   // because the sheet is sitting right there and the element is not refused the
-  // same read - but it gets it hidden. Showing it at this point left the alt
-  // text on screen for as long as the element's own request took to fail, which
-  // a stalled connection stretches from an instant to a timeout. The footnote
-  // stays: the example script loads on its own and logs the console output it
-  // points at.
+  // same read - but it gets it hidden. Showing it at this point left the
+  // element on screen having decoded nothing, holding a zero height box for as
+  // long as the element's own request took to fail, which a stalled connection
+  // stretches from an instant to a timeout. The footnote stays: the example
+  // script loads on its own and logs the console output it points at.
   fail(page);
 
   assert.equal(page.curCheatSheetImg.src, "javaScriptArrays/SortingArrays.jpg");
@@ -207,6 +207,25 @@ test("the image element shows itself once it has decoded the sheet", () => {
   assert.equal(page.showFootNote.style.display, "block");
 });
 
+test("the image element takes down a sheet the probe let through but it cannot decode", () => {
+  const page = loadPage();
+  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  // The branch where the handler is still what decides the outcome. A 2xx
+  // rules nothing out, so settleImage() shows the element before anything has
+  // been decoded - and what arrives is not always an image. A truncated .jpg
+  // and the 200 HTML a single page host answers an unknown path with both
+  // reach here, and only the element's own onerror takes the broken icon back
+  // down.
+  respond(page, 200);
+  assert.equal(page.curCheatSheetImg.style.display, "block");
+
+  page.curCheatSheetImg.onerror.call(page.curCheatSheetImg);
+
+  assert.equal(page.curCheatSheetImg.style.display, "none");
+  // The footnote is the probe's to hide, and the probe said nothing was wrong.
+  assert.equal(page.showFootNote.style.display, "block");
+});
+
 test("the image element hides itself when it cannot decode what got through", () => {
   const page = loadPage();
   page.sandbox.selectExample({ value: "Sorting Arrays" });
@@ -216,6 +235,13 @@ test("the image element hides itself when it cannot decode what got through", ()
   // either. It was never shown, and its own onerror keeps it that way, so no
   // broken icon survives a probe that went unanswered. The footnote stays,
   // because the example script is fetched separately from the image.
+  assert.equal(page.curCheatSheetImg.style.display, "none");
+  // Reading display back after the handler would measure nothing on this
+  // branch: offerSheetToElement() has already hidden the element, so "none"
+  // holds whatever the handler does, and emptying it to function() {} left
+  // this case passing. The element is put up by hand first, so the assertion
+  // below fails if the handler ever stops taking it down.
+  page.curCheatSheetImg.style.display = "block";
   page.curCheatSheetImg.onerror.call(page.curCheatSheetImg);
 
   assert.equal(page.curCheatSheetImg.style.display, "none");
