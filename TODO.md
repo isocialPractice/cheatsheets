@@ -11,19 +11,16 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
-  - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
+- [ ] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
+  - The sheets' own palette is not the site's: their heading grey `#414143` is 35 units from the site's slate, and their green reaches only 2.80:1 on white, which is the pairing **The one substitution** already forbids. The stylesheet takes the site values, not the sheets'
+  - The 8px step is common ground. The sheets' five vertical bands land on it and close exactly at the display width, so the page's spacing and a sheet's bands can share one rhythm
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `mark.png`
-  - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
-  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
-  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Extract the text placement from the images and record which composition region each run of text falls into
-  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
-  - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
-  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [ ] Check every text and background pair in the stylesheet reaches 4.5:1 contrast, or 3:1 for large headings
+  - From: Page Structure and Responsiveness
+- [ ] Give the cheatsheet image an `alt` value naming the selected example rather than the generic `cheat sheet image`
+  - From: Page Structure and Responsiveness
+- [ ] Decide whether a browser driven layout test belongs beside `tools/test-page-structure.mjs`, and add it if so
+  - From: Page Structure and Responsiveness
 
 ## GitHub Pages Deployment
 
@@ -566,15 +563,13 @@ what the sheets and the site both look like.
 
 ### Extracting the Language from the Images
 
-- [ ] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
-  - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
-- [ ] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `mark.png`
-  - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
-- [ ] Extract the text from the images and identify the repeating font families, recording each with the role it carries
-- [ ] Extract the text placement from the images and record which composition region each run of text falls into
-- [ ] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
-  - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
+The extraction itself is done and recorded under **The sheets** in
+`DESIGN_LANGUAGE.md`, measured by `tools/measure-sheet-composition.mjs`. What is
+left is carrying it into the page.
+
 - [ ] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
+  - The sheets' own palette is not the site's: their heading grey `#414143` is 35 units from the site's slate, and their green reaches only 2.80:1 on white, which is the pairing **The one substitution** already forbids. The stylesheet takes the site values, not the sheets'
+  - The 8px step is common ground. The sheets' five vertical bands land on it and close exactly at the display width, so the page's spacing and a sheet's bands can share one rhythm
 
 ### The Composition Algorithm
 
@@ -850,3 +845,16 @@ generate ideas about generating ideas.
   - **Issue**: The queued **UI/UX Override - the stalled sheet paints nothing** corrects one sentence of the 2026.09.10 `CHANGELOG.md` entry, but the same claim went into the code in the same turn and no item reaches it. `index.html` says of the branch it replaced "Showing it here put the alt text on screen from the moment the probe failed until the element's own request finished failing", and `tools/test-example-selection.mjs` says "Showing it at this point left the alt text on screen for as long as the element's own request took to fail". Both describe the in flight window, and both name a symptom it does not produce: the run's own measurement in `.tmp/ui-ux/log-entry-0910.txt` is that a request still in flight leaves the element no intrinsic size, so `height: auto` resolves to 0 and the pre-change page held a 600x0 box that painted nothing - no alt text, no broken icon, the captures byte identical to the fixed page. Correcting the changelog alone leaves the claim standing in the two files a reader checks first, and the source comment is the one a later run copies from
   - **Goal**: Rewrite both comments to the state that was measured - the element stayed shown having decoded nothing, holding a zero height box for as long as the stall lasted - in the same terms the changelog sentence is rewritten to, so the three records say one thing. Change nothing else in either comment: what each says about which branch shows the element, and when, was verified and holds
   - From: Code Review Override - the same symptom in the code comments
+- [x] Extract the repeating composition patterns from the eleven `javaScriptArrays` images and record them in `DESIGN_LANGUAGE.md`
+  - Name each region the sheets reuse - title band, code block, annotation, footer - and give each its measured position and proportion
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Count the colors across the eleven images and record the repeating ones with each color's share, beside the palette already sampled from `mark.png`
+  - Say plainly where a sheet color and a site color disagree, rather than averaging them into one value
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Extract the text from the images and identify the repeating font families, recording each with the role it carries
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Extract the text placement from the images and record which composition region each run of text falls into
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
+  - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images

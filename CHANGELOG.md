@@ -4,6 +4,107 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.12]
+
+### Added
+
+- `DESIGN_LANGUAGE.md` records the design language of the eleven cheatsheet
+  images under a new **The sheets** part, which is the first time anything in
+  the repository has said what they are composed of. It names the six regions
+  that stack down the canvas and the three that divide it, with the rows,
+  columns, pixel heights and share of canvas each occupies; counts the colors
+  over all 142,639,211 pixels of the set and gives each its role; measures the
+  four type roles and states which of them are one face; places every run of
+  text in the region it falls into; and derives one token set at the site's
+  own 8px step.
+- `tools/measure-sheet-composition.mjs` produces every figure in that part bar
+  the RMSE comparison and the font survey, which record the `magick` commands
+  they were read with, so the sheets stay checkable against the artwork the way
+  the palette already is against `mark.png`. It decodes each JPEG with ImageMagick, assigns each pixel
+  to the nearest of the four fills, and reads the regions, the text lines, the
+  type metrics and the color census out of the runs. No dependency beyond
+  ImageMagick.
+- `tools/test-sheet-composition.mjs` checks the measurements hold across all
+  eleven sheets and that the tables in `DESIGN_LANGUAGE.md` are the numbers the
+  artwork returns. It parses the region, division and color tables out of the
+  document and compares each cell against a fresh measurement, so a table that
+  drifts away from the images fails rather than going unnoticed. Two figures
+  written into the document were wrong when the checks first ran and are
+  corrected below.
+
+### Changed
+
+- The document now describes two artworks rather than one. Its opening said it
+  was the design language of the published site; the site and the sheets are
+  now stated as two parts measured the same way, and the **Status** note records
+  that the sheet tokens are a target rather than something drawn to yet.
+
+### Fixed
+
+- Two figures in the new part were corrected by the checks that were written
+  against them. The transition row between the code panel and the divider was
+  recorded as always present; it exists on nine of the eleven sheets, and on the
+  other two the divider starts where the panel ends. The line-grid control that
+  calibrates the monospace test was recorded as landing between 0.007 and 0.023
+  on nine sheets; it does so on eight, and stays under 0.1 on ten.
+- Five further figures were corrected after the fact, every one of them in a
+  table the new checks do not read:
+  - The code panel's residual across the canvas is **4.52 display pixels**, not
+    4.72. A 64 step token is 512 site px against the 516.52 the division
+    measures.
+  - The row belonging to no region is row 3216 on six sheets and row 3223 on the
+    three whose panel ends seven rows lower, rather than row 3216 on nine of
+    them. On those three, row 3216 is inside the code panel.
+  - The token table listed the code panel's top padding as a `step` and the
+    footer's bottom padding as a `step-2`. Neither is on the step - the first
+    runs from 37 to 152 sheet px across the eleven, the second is a step and a
+    half - and both are now recorded beneath the table as the exceptions they
+    are. The residual figures either side of them were already correct.
+  - The RMSE column is the worst across the other nine template sheets, not the
+    other ten: `shiftAndUnshift.jpg` returns 0.448 on the lead-in it offsets by
+    84px, against the 0.098 recorded.
+  - The six largest colors cover 98.74% of the pixels, not of the 8,306 to 9,369
+    exact colors the same sentence counts.
+- `tools/measure-sheet-composition.mjs` read the canvas size back out of the
+  pixel count, so its own square-image guard passed anything whose pixels
+  multiply to a square - 512x128 is 256 squared - and measured it as 256x256,
+  reporting every row, column and region wrongly. It asks ImageMagick for the
+  geometry now. `--json` with no path after it ran the full measurement, wrote
+  nothing and reported success; it fails on the missing argument instead.
+
+### Measured
+
+- **The code face is proportional, not monospaced.** Splitting each code line
+  into runs of inked columns and measuring how far the gaps between run starts
+  sit from whole multiples of one advance, the sheets miss by 0.186 to 0.230 on
+  all eleven. The same statistic over the code lines themselves, which do sit on
+  one spacing, returns 0.007 to 0.023 on eight of them. A generated sheet that
+  assumed a monospace would set its code to a grid the eleven never used.
+- **The five vertical bands land on the site's 8px step and close exactly.**
+  Snapped to it they are 11, 14, 42, 1 and 7 steps, which is 75 steps of 48
+  sheet pixels and exactly 3600. No band sits more than 1.74 display pixels off.
+  The three divisions across the canvas do not close: snapping each to its
+  nearest step overruns the canvas by a full step, so the recorded grid drops
+  the code panel to 64 steps and carries a 4.52 px residual there.
+- **The sheets break the site's own contrast rule in one place.** Their green
+  reaches 2.80:1 on white, and the footer draws the sigil of the account handle
+  in it inside a run of text. `DESIGN_LANGUAGE.md` already forbids the mark's
+  green on a light ground for exactly that reason. The sheets are left as they
+  are and the rule is restated for generated ones.
+- **The display face cannot be named from the artwork, and that was tested.**
+  The lead-in reads identically on every sheet at 1481 x 141 px, so it is the
+  run to match against. Rendering it in each of the 481 fonts installed here and
+  scaling every result to the reference height, seventeen come within 6% of the
+  reference width and all seventeen fail on letterform. The face is a bold
+  condensed grotesque that is not on this machine. The metrics a renderer
+  actually needs are recorded either way.
+- **Ten of the eleven sheets share one template to within a pixel**, and four
+  template regions come back bit-for-bit identical between two of them.
+  `shiftAndUnshift.jpg` pushes everything below its subtitle down by 84px, and
+  two sheets end the code panel seven rows lower and absorb it in the divider.
+  Nothing inside the code panel repeats at all: its left inset ranges over
+  329px across the set.
+
 ## [2026.09.11]
 
 ### Added
