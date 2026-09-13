@@ -4,6 +4,79 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.13]
+
+### Added
+
+- `index.html` is drawn in the design language rather than in the browser
+  defaults. The stylesheet declares the palette, the type scale, the 8px step
+  and the 4px radius from `DESIGN_LANGUAGE.md` as custom properties and uses
+  them throughout, and a `prefers-color-scheme: dark` block restates the four
+  that change so the page reads on a dark ground as well as a light one. The
+  8px step is the one thing the page and the sheets it displays already had in
+  common - the sheets' five vertical bands land on it and close exactly at the
+  display width - so the page's spacing now shares a rhythm with the artwork
+  inside it rather than keeping one of its own.
+- The image announces the example that was selected. It carried the generic
+  `cheat sheet image` on every selection, which told a screen reader nothing
+  about which of the eleven sheets was on screen; `selectExample()` now writes
+  the chosen option's own label - `Sorting Arrays cheat sheet` - and the markup
+  ships an empty alt, because on a fresh load no example is selected and there
+  is nothing to name. The label is read off the option rather than taken from
+  its value: the two are not the same string on every option, and the value
+  exists to spell a file name rather than to be read out.
+- `tools/test-contrast.mjs` measures every text and background pair the page
+  renders, in both themes, against 4.5:1 for normal text and 3:1 for large text
+  and for a boundary a reader has to see the edge of. Twenty four pairings, all
+  clearing their floor. It restates no color: the tokens are read out of the
+  stylesheet's own custom properties, each pair names the rule that declares
+  it, and a separate check refuses any hex in the stylesheet that appears in no
+  table in `DESIGN_LANGUAGE.md`, so a token edited to a failing value, a rule
+  that stops using the token it claims, and an invented color all fail.
+- `tools/test-page-structure-browser.mjs` drives a real engine over the layout,
+  which is the decision the roadmap item asked for and the reasoning is in the
+  file's header. It asserts both column tops equal at 1280px with the image
+  starting 32px past the panel column; exactly one change of shape between
+  1280px and 360px, at 768px to 767px, with the image inside its column and no
+  sideways scroll at all 921 widths; `scrollWidth` equal to `clientWidth` at
+  390px; and the tools panel travelling the full 200px of a scroll rather than
+  holding its distance from the top. It also settles the two states the
+  2026.09.07 verification could only reach in a browser: `#showFootNote`
+  computing to `display: block` on the first selection of a freshly loaded
+  page, and `favicon.ico` decoding 48x48 square with the mark's navy at 36.89%
+  of its pixels, its green at 30.60% and its white at 12.72%.
+
+### Changed
+
+- The cheatsheet image is framed in the border color. Its masthead is the
+  mark's own navy and its body is near white, so against the new dark ground
+  the top band merges into the page and against the light one the sides do,
+  and either way a reader cannot see where the artwork stops. The frame is the
+  same 1px the instructions panel carries, which is what makes the two columns
+  read as one system.
+- The three `<br>` elements that spaced the page did so by line height, which
+  lands on no step. The stylesheet carries that spacing now, in multiples of 8.
+- Padding is inside the width everywhere. Without that, a dropdown given
+  `max-width: 100%` and 8px of padding overflows its container by 16px, which
+  is a sideways scroll on a phone.
+- The panel column takes `min-width: 0`. Its 360px basis is a flex basis, not a
+  minimum, and the widest option in the example dropdown can raise the column's
+  own minimum above it and wrap the row before the 768px breakpoint has had a
+  chance to decide. Measured across every width from 1280 to 360, the row now
+  changes shape exactly once.
+- The stub DOM in `tools/test-example-selection.mjs` models a real `<select>`,
+  with the twelve options read out of `index.html` rather than invented. The
+  page reads both halves of the chosen option now, so a stub carrying only a
+  value could not exercise the one option whose two halves differ.
+
+### Measured
+
+- `#6F6F8C` reaches **4.05:1** on the navy ground, against 4.57:1 on the off
+  white. It is the one token the dark theme does not restate: it clears the
+  3:1 boundary floor on both, so one value draws every edge in both themes,
+  and it clears the 4.5:1 text floor on neither ground but the light one, so
+  on dark it draws no glyphs. Recorded in the dark theme table.
+
 ## [2026.09.12]
 
 ### Added

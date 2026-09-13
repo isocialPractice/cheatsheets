@@ -14,15 +14,18 @@ counted off the decoded image by `tools/measure-sheet-composition.mjs`.
 Nothing here is invented, and where the two artworks disagree this document
 says so rather than averaging them.
 
-> **Status**: the **Layout** section below is implemented. `index.html`
-> declares its language, carries a viewport tag, links the favicon, and lays
-> its columns out as a wrapping flex row that collapses to one column below
-> 768px. The palette and the type scale are still the target rather than the
-> stylesheet, and so is every token under **The sheets**: nothing is drawn to
-> them yet. **Apply what the extraction settles to the site's own
-> stylesheet**, under **Cheatsheet Composition Language** in `TODO.md`, is the
-> work that applies them; the contrast audit under **Page Structure and
-> Responsiveness** measures them once they are there.
+> **Status**: everything from **Palette and roles** through **Layout** is
+> implemented. `index.html` declares its language, carries a viewport tag,
+> links the favicon, lays its columns out as a wrapping flex row that
+> collapses to one column below 768px, and since 2026.09.13 draws itself in
+> the palette, the type scale and the 8px step below, in both themes.
+> `tools/test-contrast.mjs` measures every text and background pair the page
+> renders against its floor and fails on one that drops under it, and
+> `tools/test-page-structure-browser.mjs` drives a real engine over what those
+> rules render. What is still a target rather than a stylesheet is every token
+> under **The sheets**: nothing is drawn to them yet, and the algorithms under
+> **Cheatsheet Composition Language** in `TODO.md` are the work that will draw
+> to them.
 
 ## Source
 
@@ -89,6 +92,13 @@ site uses for text reaches at least 4.5:1.
 | Body text | `#F8F8F9` | `#020433` | 18.53:1 | AA normal |
 | Link, accent text | `#4CAE50` | `#020433` | 7.00:1 | AA normal |
 | Secondary text | `#9EBEA7` | `#020433` | 9.72:1 | AA normal |
+| Borders | `#6F6F8C` | `#020433` | 4.05:1 | AA non-text |
+
+`#6F6F8C` is the one token that is not restated for the dark theme. It reaches
+4.57:1 on the off white ground and 4.05:1 on the navy, so it clears the 3:1
+floor a control boundary has to clear on both and one value serves for both.
+What it does not clear on the navy is the 4.5:1 text floor, so on dark it draws
+edges and never glyphs; secondary text there is `#9EBEA7`.
 
 ### The one substitution
 
@@ -148,7 +158,10 @@ rounded interface would read as belonging to something else.
   a flex row wrapping at a `space-4` gap.
 - One column below 768px, controls first, image beneath at full width.
 - The image is capped at 600px wide on desktop, which is the width the page
-  has always displayed it at, and scales down with its column below that.
+  has always displayed it at, and scales down with its column below that. It
+  carries the same 1px border as the instructions panel: a sheet's masthead is
+  the mark's navy and its body is near white, so without a frame the top band
+  merges into the dark ground and the sides merge into the light one.
 - The page is centred at the 1200px maximum content width, with a `space-2`
   gutter so nothing meets the edge of a phone screen.
 

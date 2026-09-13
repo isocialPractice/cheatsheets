@@ -15,6 +15,36 @@ const script = html.slice(
   html.lastIndexOf("</script>")
 );
 
+// The example dropdown as the page declares it: the blank first option and the
+// eleven inside the optgroup, each with the value the file path is built from
+// and the label the reader chose by name. Reading them out of index.html keeps
+// the one option whose two halves differ - "shift And Unshift" against "Shift
+// And Unshift" - in the tests as the page really writes it.
+const exampleSelect = html.slice(
+  html.indexOf('<select name="example"'),
+  html.indexOf("</optgroup>")
+);
+const OPTIONS = [...exampleSelect.matchAll(/<option value="([^"]*)"[^>]*>([^<]*)<\/option>/g)].map(
+  ([, value, text]) => ({ value, text })
+);
+
+if (OPTIONS.length !== 12) {
+  throw new Error(
+    `expected the blank option and eleven examples in index.html, found ${OPTIONS.length}`
+  );
+}
+
+// Choose an option by the label the page shows for it, the way a reader does.
+function choose(page, label) {
+  const selectedIndex = OPTIONS.findIndex((option) => option.text === label);
+  if (selectedIndex === -1) {
+    throw new Error(`index.html has no example option labelled "${label}"`);
+  }
+  const select = { options: OPTIONS, selectedIndex, value: OPTIONS[selectedIndex].value };
+  page.sandbox.selectExample(select);
+  return select;
+}
+
 // The source text tests below both read selectExample() out of the page script.
 // One helper does it, and throws when either marker moves, so renaming the
 // function or correcting the misspelled "// SUPORT FUNCTION" heading fails the
@@ -54,6 +84,7 @@ function loadPage() {
   const curCheatSheetImg = el("curCheatSheetImg", {
     style: { display: "none" },
     src: "javaScriptArrays/.jpg",
+    alt: "",
   });
 
   const byId = {
@@ -112,7 +143,7 @@ function fail(page) {
 
 test("the footnote shows on the very first selection of a fresh page", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
 
   // The regression: this read the stale placeholder src, whose ".jpg"
   // basename is exactly 4 characters, and left the footnote hidden until a
@@ -122,7 +153,7 @@ test("the footnote shows on the very first selection of a fresh page", () => {
 
 test("the footnote survives the image request completing", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   respond(page, 200);
 
   assert.equal(page.showFootNote.style.display, "block");
@@ -131,14 +162,14 @@ test("the footnote survives the image request completing", () => {
 
 test("the footnote stays hidden when no example is selected", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "" });
+  choose(page, "");
 
   assert.equal(page.showFootNote.style.display, "none");
 });
 
 test("a missing cheatsheet image hides both the image and the footnote", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   // No reason phrase, as on the published site. Reading statusText here found
   // "" rather than "Not Found", took the 404 for a hit, and set the missing
   // path as the src - a broken image icon in place of a hidden one.
@@ -151,7 +182,7 @@ test("a missing cheatsheet image hides both the image and the footnote", () => {
 
 test("a 404 carrying a reason phrase is still a miss", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   // What the HTTP/1.1 development server sends, which is the only case the
   // reason phrase branch ever handled.
   respond(page, 404, "Not Found");
@@ -162,7 +193,7 @@ test("a 404 carrying a reason phrase is still a miss", () => {
 
 test("a response carrying no status line is not a ruling against the sheet", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   // Status 0 inside onload means a response arrived over a scheme that sends no
   // status line. No scheme the page is opened over produces it - a file:// page
   // never reaches onload at all, as the case below records - but a zero is
@@ -176,7 +207,7 @@ test("a response carrying no status line is not a ruling against the sheet", () 
 
 test("an unanswered probe hands the sheet over without rendering it", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   // What a file:// page does, measured in Chromium on 2026.09.09: the page's
   // own XMLHttpRequest is refused by the CORS rules, onload never fires, and
   // onerror runs at readyState 4 with status 0. The element gets the src,
@@ -195,7 +226,7 @@ test("an unanswered probe hands the sheet over without rendering it", () => {
 
 test("the image element shows itself once it has decoded the sheet", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   fail(page);
   // The file:// case carried through to the end: the element reads the sheet
   // from disk and its own onload is what puts it on screen, so nothing renders
@@ -209,7 +240,7 @@ test("the image element shows itself once it has decoded the sheet", () => {
 
 test("the image element takes down a sheet the probe let through but it cannot decode", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   // The branch where the handler is still what decides the outcome. A 2xx
   // rules nothing out, so settleImage() shows the element before anything has
   // been decoded - and what arrives is not always an image. A truncated .jpg
@@ -228,7 +259,7 @@ test("the image element takes down a sheet the probe let through but it cannot d
 
 test("the image element hides itself when it cannot decode what got through", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
   fail(page);
   // The other half of an unanswered probe: a dropped or blocked request over
   // HTTP reaches the same branch, and there the element cannot load the sheet
@@ -248,9 +279,52 @@ test("the image element hides itself when it cannot decode what got through", ()
   assert.equal(page.showFootNote.style.display, "block");
 });
 
+test("the image announces the example that was selected", () => {
+  const page = loadPage();
+  choose(page, "Sorting Arrays");
+
+  assert.equal(page.curCheatSheetImg.alt, "Sorting Arrays cheat sheet");
+});
+
+test("the alt takes the option's label, not the value the path is built from", () => {
+  const page = loadPage();
+  const select = choose(page, "Shift And Unshift");
+
+  // The one option whose two halves differ. Taking example.value here would
+  // announce "shift And Unshift cheat sheet", lower case, because that string
+  // exists to spell the file name rather than to be read out.
+  assert.equal(select.value, "shift And Unshift");
+  assert.equal(page.curCheatSheetImg.alt, "Shift And Unshift cheat sheet");
+});
+
+test("the image carries no alt text while nothing is selected", () => {
+  const page = loadPage();
+  choose(page, "");
+
+  // The element is hidden and holds the placeholder src, so there is no
+  // example to name. An alt naming one anyway would be describing nothing.
+  assert.equal(page.curCheatSheetImg.alt, "");
+});
+
+test("the alt is rewritten for each selection rather than left on the first", () => {
+  const page = loadPage();
+  choose(page, "Sorting Arrays");
+  choose(page, "Slicing Arrays");
+
+  assert.equal(page.curCheatSheetImg.alt, "Slicing Arrays cheat sheet");
+});
+
+test("the markup ships the image with an empty alt rather than a generic one", () => {
+  const img = html.slice(html.indexOf("<img"), html.indexOf(">", html.indexOf("<img")) + 1);
+
+  assert.match(img, /id="curCheatSheetImg"/);
+  assert.match(img, /alt=""/);
+  assert.doesNotMatch(html, /alt="cheat sheet image"/);
+});
+
 test("the selection loads its script and image by relative path", () => {
   const page = loadPage();
-  page.sandbox.selectExample({ value: "Sorting Arrays" });
+  choose(page, "Sorting Arrays");
 
   assert.equal(page.appended[0].src, "javaScriptArrays/SortingArrays.js");
   assert.equal(page.requests[0].url, "javaScriptArrays/SortingArrays.jpg");

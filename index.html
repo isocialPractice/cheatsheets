@@ -6,39 +6,141 @@
 <title>Show Output</title>
 <link rel="icon" href="favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
 <style>
+ /* The tokens below are the design language in `DESIGN_LANGUAGE.md`, applied.
+    Every color is sampled from `mark.png` or derived from one that is, and
+    every length is a multiple of the 8px step - the same step the sheets' five
+    vertical bands are drawn to, which is why the page and the sheet it
+    displays can share one rhythm rather than each keeping its own. */
+ :root {
+  color-scheme: light dark;
+  --page: #F8F8F9;
+  --text: #020433;
+  --text-secondary: #414566;
+  --border: #6F6F8C;
+  --accent: #2E7534;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --radius: 4px;
+ }
+ /* The sheets are drawn in the mark's own green, and the page cannot be: it
+    reaches 2.65:1 on the off white ground, under the 4.5:1 text floor and
+    under the 3:1 one a border or a focus ring has to clear. #2E7534 is the
+    same hue darkened to 5.33:1 and stands in for it on light. On the navy
+    ground the figure green reaches 7.00:1 and is used as the sheets draw it. */
+ @media (prefers-color-scheme: dark) {
+  :root {
+   --page: #020433;
+   --text: #F8F8F9;
+   --text-secondary: #9EBEA7;
+   --accent: #4CAE50;
+  }
+ }
+ /* Padding is inside the width everywhere, so "max-width: 100%" holds for a
+    padded control as well as a bare one and nothing overflows a phone. */
+ *, *::before, *::after {
+  box-sizing: border-box;
+ }
  body {
   margin: 0 auto;
   max-width: 1200px;
-  padding: 16px;
+  padding: var(--space-2);
+  background: var(--page);
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.6;
+ }
+ h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+ }
+ h3 {
+  margin: 0 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 1.3;
+ }
+ hr {
+  margin: var(--space-1) 0 var(--space-2);
+  border: 0;
+  border-top: 1px solid var(--accent);
+ }
+ p {
+  margin: 0 0 var(--space-2);
+ }
+ ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-3);
+ }
+ div.tools {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
  }
  select, label {
   display: block;
-  margin: 8px 0;
+  margin: var(--space-1) 0;
   max-width: 100%;
+ }
+ label {
+  color: var(--text-secondary);
+ }
+ select {
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--page);
+  color: var(--text);
+  font: inherit;
+ }
+ select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+ }
+ #showFootNote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
  }
  div.row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 32px;
+  gap: var(--space-4);
+  margin: var(--space-3) 0;
  }
+ /* The panel column keeps its 360px basis on a wide screen. "min-width: 0" is
+    what stops the widest option in the dropdown raising the column's own
+    minimum above that basis and wrapping the row early, before the 768px
+    breakpoint below has had a chance to decide. */
  div.row > div.col:first-child {
   flex: 0 1 360px;
+  min-width: 0;
  }
  div.row > div.col:last-child {
   flex: 1 1 320px;
   min-width: 0;
  }
+ /* The sheet takes the panel's own frame, which is what gives it an edge. Its
+    masthead is the mark's navy and its body is near white, so on the dark
+    ground the top band merges into the page and on the light one the sides
+    do, and either way the reader cannot see where the artwork stops. No
+    radius: the frame is the interface, the sheet inside it is content, and a
+    rounded corner would clip the artwork rather than the frame. */
  div.col img {
   display: block;
   width: 100%;
   max-width: 600px;
   height: auto;
+  border: 1px solid var(--border);
  }
  @media (max-width: 767px) {
   div.row {
    flex-direction: column;
-   gap: 16px;
+   gap: var(--space-2);
   }
   div.row > div.col:first-child,
   div.row > div.col:last-child {
@@ -57,9 +159,7 @@
 <body>
  <h1>Example Outputs</h1><hr>  
  <p>Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
- 
- <br>
- 
+
  <div class="row">
   <div class="col">
   <div class="tools">
@@ -100,11 +200,9 @@
   </div>
   <div class="col">
    <img style="display: none" id="curCheatSheetImg"
-    src="javaScriptArrays/.jpg" alt="cheat sheet image">
+    src="javaScriptArrays/.jpg" alt="">
   </div>
 </div>
-<br>
-<br>
 <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
 
 <script>
@@ -147,6 +245,14 @@ function selectCheatsheet(category) {
 function selectExample(example) {
  selectedExample = removeSpaceInVariable(example.value);
  curCheatSheetImg = document.getElementById("curCheatSheetImg");
+ // The sheet is a picture of the example that was chosen, so it announces the
+ // choice rather than announcing that it is a picture. The label is read off
+ // the option rather than taken from its value, because the two are not the
+ // same string on every option: "Shift And Unshift" is selected by the value
+ // "shift And Unshift", the value being what the file path is built from and
+ // the label being what the reader chose by name.
+ let chosenOption = example.options[example.selectedIndex];
+ curCheatSheetImg.alt = selectedExample ? chosenOption.text + " cheat sheet" : "";
  // The page is served from the repository, so the examples sit beside it.
  let curScriptLocation = selectCategory + "/" + selectedExample + ".js";
  let curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
