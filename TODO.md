@@ -11,16 +11,40 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
-  - The sheets' own palette is not the site's: their heading grey `#414143` is 35 units from the site's slate, and their green reaches only 2.80:1 on white, which is the pairing **The one substitution** already forbids. The stylesheet takes the site values, not the sheets'
-  - The 8px step is common ground. The sheets' five vertical bands land on it and close exactly at the display width, so the page's spacing and a sheet's bands can share one rhythm
-  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
-- [ ] Check every text and background pair in the stylesheet reaches 4.5:1 contrast, or 3:1 for large headings
-  - From: Page Structure and Responsiveness
-- [ ] Give the cheatsheet image an `alt` value naming the selected example rather than the generic `cheat sheet image`
-  - From: Page Structure and Responsiveness
-- [ ] Decide whether a browser driven layout test belongs beside `tools/test-page-structure.mjs`, and add it if so
-  - From: Page Structure and Responsiveness
+- [ ] Write the composition algorithm: given a cheatsheet document and the extracted language, produce a composition variation
+  - The language is recorded under **The sheets** in `DESIGN_LANGUAGE.md`: six regions down the canvas, three across it, one token set at the 8px step, and four measured type sizes that are not a scale. A generated sheet composes at 3600, not 3601 - 3600 is 75 whole steps and the extra pixel is export rounding
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
+  - The contrast floors come from **Palette and roles**, not from the sheets' own pairings: the sheets draw headings in a green that reaches 2.80:1 on white, which is the pairing **The one substitution** forbids. `tools/test-contrast.mjs` measures a stylesheet the same way and is the working example of how a floor is checked
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Write the SVG generation algorithm: reference content as raw character data, composition as layered shapes and design elements
+  - The display face is not nameable from the artwork - it matches none of the 481 fonts surveyed - so the generator is given the four measured cap heights rather than a family. The code face is proportional, not monospaced, so its code must not be set to a grid
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+
+### UI/UX Override - the visual surface of index.html
+
+The 2026.09.13 verification drove the rewritten page in a real engine in both
+themes. Everything it was sent to check passed: the tokens arrive on the
+elements, the panel and the sheet share one 1px frame, every vertical gap is a
+multiple of 8px with no `<br>` left, the focus ring is painted and findable on
+both dropdowns in both themes, the sheet announces the selected example on all
+eleven options, and the new browser suite passes six and skips six as designed.
+Nothing below reopens that work. Both items are things seen beside it.
+
+#### Found Issues
+
+- [ ] The page's body face and the sheets' face are two different typographic systems
+  - **Issue**: `DESIGN_LANGUAGE.md` loads no family, so `body` falls to the browser default and `getComputedStyle(document.body).fontFamily` resolves to `"Times New Roman"` - the page renders with serifs, including both `<select>` controls through `font: inherit`. The sheets beside it are set throughout in what the record itself calls a bold condensed grotesque. The color and the 8px rhythm carry the pairing; the type does not, and the page reads as a different document from the artwork it displays
+  - **Goal**: Resolve to [page-face-decision.prompt.md](.claude/prompts/page-face-decision.prompt.md)
+  - From: UI/UX Override - the visual surface of index.html
+- [ ] The framed sheet stops up to 176px short of its own column between 1025px and 1280px
+  - **Issue**: `div.col:last-child` is `flex: 1 1 320px` and grows to the remaining width while `div.col img` is capped at `max-width: 600px` and left aligned, so the page's visible content ends well left of its measure and the composition sits off centre. It is worst at exactly 1200px, the width `body { max-width }` is set to. The geometry predates this run - `git show HEAD:index.html` carries both rules - but the 1px frame the run added is what makes the column's real extent legible, so the frame surfaced it rather than caused it and should stay
+  - **Goal**: Resolve to [sheet-column-measure.prompt.md](.claude/prompts/sheet-column-measure.prompt.md)
+  - From: UI/UX Override - the visual surface of index.html
 
 ## GitHub Pages Deployment
 
@@ -53,30 +77,24 @@ so relative paths resolve on their own.
   - The `fetch` half of this item is closed. The 2026.09.09 verification measured `fetch("javaScriptArrays/SortingArrays.jpg")` from a `file://` page and it throws `TypeError: Failed to fetch`, refused by the same CORS rule that refuses the `XMLHttpRequest`. A fetch response check would reintroduce the fault the 2026.09.09 entry fixed, so the `img.onerror` route is the only one of the two left
   - Half the `img.onerror` handler already exists, added on 2026.09.09 to hide the element when it cannot decode what the probe let through. Deleting the probe means giving that handler the footnote and the missing sheet decisions the probe still holds, not writing it from nothing
   - The blank first option is not a missing sheet, which is worth knowing before the replacement treats it as one. It requests `javaScriptArrays/.jpg`, a committed 72x72 image of a single white pixel value that answers 200 both locally and on the published site, so the empty selection takes the found branch and leaves a 600x600 white square in the image column. Nothing shows because the square matches the page background. The 2026.09.08 verification measured this: no dropdown option, blank included, resolves to a 404, so the missing sheet branch cannot be reached by clicking the page at all
+  - A browser harness now exists, as `tools/test-page-structure-browser.mjs`, and deliberately covers none of the three rendered states this item turns on - the broken icon measured 2026.09.08, the `file://` page measured 2026.09.09, and the stalled request measured 2026.09.10. Each needs its own origin, scheme or stalling server rather than a viewport, so each belongs to whichever run replaces the probe, and the harness is there to build on. That file's header records the same boundary from its side
   - The probe writes into the very console the footnote points the reader at, but only from a `file://` page. Measured 2026.09.09: one selection over http leaves the console holding the example's 17 lines and nothing else, while the same selection from a `file://` URL puts two Chromium errors ahead of them - the CORS refusal naming the image URL, and `Failed to load resource: net::ERR_FAILED` - once per selection. The page works either way; the reader following the instruction on screen meets two red lines first. Deleting the probe removes them
 
 ## Page Structure and Responsiveness
 
-`index.html` now declares its language, carries a viewport tag, links the
-repository favicon, and lays its two columns out as a wrapping flex row that
-becomes a single column below 768px. What is left is what the reader still
-meets on the page: the image announces itself as a generic `cheat sheet
-image` to a screen reader, and no text and background pair in the stylesheet
-has been measured against a contrast floor.
+`index.html` declares its language, carries a viewport tag, links the
+repository favicon, lays its two columns out as a wrapping flex row that
+becomes a single column below 768px, draws itself in the design language, and
+names the selected example in the image's alt text. Every text and background
+pair it renders has been measured against its contrast floor, and the layout
+is asserted in a real engine as well as in the source text.
 
 **Intent**: make the published page readable on the devices that will reach
 it once it is public.
 
-- [ ] Give the cheatsheet image an `alt` value naming the selected example rather than the generic `cheat sheet image`
-- [ ] Check every text and background pair in the stylesheet reaches 4.5:1 contrast, or 3:1 for large headings
-- [ ] Decide whether a browser driven layout test belongs beside `tools/test-page-structure.mjs`, and add it if so
-  - That file reads the source text, so it confirms the rules are present but never what they render. The reflow was verified once by driving a browser, and nothing in the suite would catch a later regression
-  - It would assert: both column tops equal at 1280px with the image left edge within 40px of the panel column's right edge; exactly one two column to one column transition, at 768px to 767px, with the image inside its column at every width between 1280 and 360; `documentElement.scrollWidth` equal to `clientWidth` at 390px; and `div.tools` travelling the full scroll distance rather than staying pinned
-  - The decision to make first is the dependency: `tools/` is deliberately dependency free, and a browser test needs Playwright, which is currently installed only at user scope on one machine
-  - Two further things the 2026.09.07 verification could only assert in a browser, if the decision goes that way: `#showFootNote` reaching computed `display: block` on the first selection of a freshly loaded page, which the stub DOM test covers as a style property but never as rendered state; and `favicon.ico` decoding square with the mark's green and navy halves in its pixels, which the byte level test cannot see because it parses the container rather than the image
-  - One more from 2026.09.08, and the strongest case yet for the browser: a broken image icon is a rendered state with no property to read. The stub DOM proves the status branch chooses correctly, but only a browser shows that the element the branch produces is laid out at 0x0 with nothing decoded rather than at 600x18 with alt text. Asserting it needs the empty reason phrase, which no local server sends, so the test would have to reach the published origin over HTTP/2 or synthesise the response. The 2026.09.08 verification did the former: it served each version of `index.html` from the published origin so the image requests went out over the real `h2` connection, and read `naturalWidth` and the element's box back
-  - And one from 2026.09.09: a `file://` page is the second rendered state with no property to read. Chromium refuses that page its own `XMLHttpRequest`, and no stub DOM reproduces either the refusal or the separate read the `<img>` element is still allowed, so only a browser shows the sheet decoding 3601x3601 into a 600x600 box on a page whose probe was denied. The 2026.09.09 verification asserted it by driving the real `file://` URL, which needs no server at all and is the cheapest of the browser cases to keep
-  - And one from 2026.09.10: a stalled request is the third rendered state with no property to read, and only a browser tells it from a failed one. A request still in flight leaves the element no intrinsic size, so it lays out 600x0 and paints nothing; a request that has finished failing gives it the broken icon's 600x18 with alt text. The stub DOM reads the same `display` string for both, which is how a changelog entry came to describe one as the other. Asserting it needs a server that tells the probe from the element by the `Sec-Fetch-Dest` request header - `empty` is the `XMLHttpRequest`, `image` is the `<img>` - dropping the first and holding the second socket open, which is a dozen lines of `node:http` and no dependency
+Nothing is outstanding here. Two suites hold what the section settled:
+`tools/test-contrast.mjs` for the pairings, and
+`tools/test-page-structure-browser.mjs` for what the rules render.
 
 ## Cheatsheet Catalog
 
@@ -564,12 +582,10 @@ what the sheets and the site both look like.
 ### Extracting the Language from the Images
 
 The extraction itself is done and recorded under **The sheets** in
-`DESIGN_LANGUAGE.md`, measured by `tools/measure-sheet-composition.mjs`. What is
-left is carrying it into the page.
-
-- [ ] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
-  - The sheets' own palette is not the site's: their heading grey `#414143` is 35 units from the site's slate, and their green reaches only 2.80:1 on white, which is the pairing **The one substitution** already forbids. The stylesheet takes the site values, not the sheets'
-  - The 8px step is common ground. The sheets' five vertical bands land on it and close exactly at the display width, so the page's spacing and a sheet's bands can share one rhythm
+`DESIGN_LANGUAGE.md`, measured by `tools/measure-sheet-composition.mjs`, and
+the page is now drawn to what it settled. Nothing is outstanding here; the
+two sections below are the algorithms that draw a new sheet to the same
+record.
 
 ### The Composition Algorithm
 
@@ -858,3 +874,21 @@ generate ideas about generating ideas.
 - [x] Turn the measured placement into the margin and padding tokens future cheatsheets are drawn to
   - One token set, expressed in the same 8px step the site already uses, so a generated sheet and the page around it agree
   - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Apply what the extraction settles to the site's own stylesheet, so the page and the sheets it displays read as one design
+  - The sheets' own palette is not the site's: their heading grey `#414143` is 35 units from the site's slate, and their green reaches only 2.80:1 on white, which is the pairing **The one substitution** already forbids. The stylesheet takes the site values, not the sheets'
+  - The 8px step is common ground. The sheets' five vertical bands land on it and close exactly at the display width, so the page's spacing and a sheet's bands can share one rhythm
+  - Applied as custom properties: the five palette roles, the four type steps, `--space-1` through `--space-4` and the 4px radius, with a `prefers-color-scheme: dark` block restating the four colors that change. Two layout facts came out of it that a source text test could not have found - a padded control given `max-width: 100%` overflows its container without `box-sizing: border-box`, and the panel column's 360px flex basis is not a minimum, so the widest dropdown option can wrap the row before the breakpoint has decided
+  - From: Cheatsheet Composition Language `->` Extracting the Language from the Images
+- [x] Check every text and background pair in the stylesheet reaches 4.5:1 contrast, or 3:1 for large headings
+  - Twenty four pairings, twelve in each theme, every one clearing its floor. `tools/test-contrast.mjs` is the audit and re-runs it: it reads the tokens out of the stylesheet's own custom properties, makes each pair name the rule that declares it, and refuses a hex that appears in no table in `DESIGN_LANGUAGE.md`
+  - One figure came out of it that the design language had not recorded: `#6F6F8C` reaches 4.05:1 on the navy ground against 4.57:1 on the off white, so it draws every edge in both themes and no glyph on the dark one
+  - From: Page Structure and Responsiveness
+- [x] Give the cheatsheet image an `alt` value naming the selected example rather than the generic `cheat sheet image`
+  - The alt is taken from the chosen option's label rather than from its value. The two are not the same string on every option - "Shift And Unshift" is selected by the value "shift And Unshift" - because the value is what the file path is built from, and announcing it would read a file name out
+  - The markup ships an empty alt. Nothing is selected on a fresh load, so there is no example for it to name
+  - From: Page Structure and Responsiveness
+- [x] Decide whether a browser driven layout test belongs beside `tools/test-page-structure.mjs`, and add it if so
+  - **Decided yes**, and added as `tools/test-page-structure-browser.mjs`. The dependency question is answered rather than traded off: nothing is added to the repository, Playwright is resolved at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and every case is skipped with the install command as its reason when none of the three answers. A bare clone still passes the suite, and a machine with a browser gets the assertions. The page is served from a throwaway `node:http` server on an ephemeral port, so the run needs no `php -S` and no network
+  - It asserts both column tops equal at 1280px with the image starting 32px past the panel column; exactly one change of shape between 1280px and 360px, at 768px to 767px; `scrollWidth` equal to `clientWidth` at 390px; and the tools panel travelling the full distance of a scroll rather than holding its place. The scan found no width between 1280 and 360 where the image leaves its column or the page scrolls sideways. It also settles the two states the 2026.09.07 verification named: `#showFootNote` computing to `display: block` on the first selection of a freshly loaded page, and `favicon.ico` decoding 48x48 square at 36.89% navy, 30.60% green and 12.72% white
+  - The three image loading states are deliberately not in it. Each needs its own origin, scheme or stalling server rather than a viewport, so each is recorded against the probe replacement item that changes the code they describe
+  - From: Page Structure and Responsiveness
