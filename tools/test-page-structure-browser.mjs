@@ -159,6 +159,7 @@ function readLayout() {
     column.getBoundingClientRect()
   );
   const image = document.getElementById("curCheatSheetImg").getBoundingClientRect();
+  const body = document.body.getBoundingClientRect();
   const page = document.documentElement;
   return {
     twoColumns: Math.round(columns[0].top) === Math.round(columns[1].top),
@@ -167,6 +168,20 @@ function readLayout() {
     imageLeft: Math.round(image.left),
     imageInsideColumn:
       image.left >= columns[1].left - 0.5 && image.right <= columns[1].right + 0.5,
+    // How far the sheet's right edge stops short of its column's. Inside the
+    // column is only half the question: the column takes whatever width the
+    // row has left while the sheet is capped and left aligned, so the two can
+    // agree on containment and still leave empty ground between them.
+    imageTrailingGap: Math.round(columns[1].right - image.right),
+    // The same two edges unreduced, because a difference of zero says the two
+    // agree and not where they agreed.
+    imageRight: Math.round(image.right * 100) / 100,
+    columnRight: Math.round(columns[1].right * 100) / 100,
+    imageWidth: Math.round(image.width * 100) / 100,
+    bodyWidth: Math.round(body.width * 100) / 100,
+    bodyLeft: Math.round(body.left * 100) / 100,
+    bodyMarginRight: Math.round((page.clientWidth - body.right) * 100) / 100,
+    gutter: getComputedStyle(document.body).paddingLeft,
     overflow: page.scrollWidth - page.clientWidth,
   };
 }
@@ -195,6 +210,7 @@ test(
     const transitions = [];
     const escapes = [];
     const overflows = [];
+    const stranded = [];
     let previous = null;
 
     for (let width = 1280; width >= 360; width--) {
@@ -205,6 +221,13 @@ test(
       }
       if (!layout.imageInsideColumn) escapes.push(width);
       if (layout.overflow > 0) overflows.push(width);
+      // Two columns only: below the breakpoint the sheet fills its column by
+      // rule and there is nothing for this to catch. It was measured at 176px
+      // on 2026.09.13 at every width from 1025px up, worst at exactly the
+      // 1200px `body { max-width }` then carried.
+      if (width >= 769 && layout.imageTrailingGap > 32) {
+        stranded.push({ width, gap: layout.imageTrailingGap });
+      }
       previous = layout.twoColumns;
     }
     await page.close();
@@ -212,8 +235,69 @@ test(
     assert.deepEqual(transitions, [{ from: 768, to: 767, twoColumns: false }]);
     assert.deepEqual(escapes, [], "the image left its column at these widths");
     assert.deepEqual(overflows, [], "the page scrolled sideways at these widths");
+    assert.deepEqual(
+      stranded,
+      [],
+      "the sheet stopped more than one space-4 short of its own column at these widths"
+    );
   }
 );
+
+test("the sheet ends exactly where its own column ends", { skip }, async () => {
+  // The scan above allows one space-4 of slack, which is the right tolerance
+  // for a sweep of 921 widths and the wrong one for the claim itself: the
+  // 1024px maximum content width is the row's own measure - 360 for the panel,
+  // a space-4 gap, 600 for the sheet, a space-2 gutter each side - so above
+  // 1024px the two edges are not merely close, they are the same number. They
+  // were as much as 176px apart until 2026.09.14.
+  const page = await openPage(1280, 900);
+  const measured = [];
+  for (const width of [1280, 1200, 1100, 1025, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    measured.push({ width, ...(await page.evaluate(readLayout)) });
+  }
+  await page.close();
+
+  for (const row of measured) {
+    assert.equal(
+      row.imageRight,
+      row.columnRight,
+      `at ${row.width}px the sheet ends at ${row.imageRight} and its column at ${row.columnRight}`
+    );
+    assert.equal(
+      row.imageWidth,
+      600,
+      `the sheet is ${row.imageWidth}px at ${row.width}px rather than its 600px cap`
+    );
+  }
+});
+
+test("the page holds its measure and stays centred on a wide screen", { skip }, async () => {
+  // Capping the page at its content is what puts the two edges above together,
+  // so this is the other half of the same change: the cap has to hold, and the
+  // page has to keep sitting in the middle of whatever window it is given
+  // rather than against one edge of it.
+  const page = await openPage(1280, 900);
+  const measured = [];
+  for (const width of [1024, 1025, 1100, 1280, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    measured.push({ width, ...(await page.evaluate(readLayout)) });
+  }
+  await page.close();
+
+  for (const row of measured) {
+    assert.equal(row.bodyWidth, 1024, `the page is ${row.bodyWidth}px wide at ${row.width}px`);
+    assert.ok(
+      Math.abs(row.bodyLeft - row.bodyMarginRight) < 1,
+      `the page sits ${row.bodyLeft}px from the left and ${row.bodyMarginRight}px from the ` +
+        `right at ${row.width}px, so it is not centred`
+    );
+    // The gutter is inside the width, so it survives the cap rather than being
+    // squeezed out by it.
+    assert.equal(row.gutter, "16px", `the gutter is ${row.gutter} at ${row.width}px`);
+    assert.equal(row.overflow, 0, `the page scrolls sideways at ${row.width}px`);
+  }
+});
 
 test("nothing pushes the page sideways on a phone", { skip }, async () => {
   const page = await openPage(390, 664);

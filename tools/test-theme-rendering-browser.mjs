@@ -240,6 +240,146 @@ for (const theme of THEMES) {
     assert.equal(hex(rgb(seen.dropdownText)), theme.text, "dropdown text");
   });
 
+  test(`${theme.name}: every run of text renders in the page's own face`, { skip }, async () => {
+    // The same failure as the one above, in the one property a color check
+    // cannot see. Until 2026.09.14 `body` set a size and a line height and no
+    // family at all, so the page fell to the browser default and rendered in
+    // Times New Roman beside artwork set throughout in a grotesque. Nothing in
+    // the repository failed, because an omission leaves no wrong value behind
+    // to fail on.
+    //
+    // tools/test-contrast.mjs holds the half a parse can reach: that --font is
+    // declared, that `body` asks for it, and that the stack is the one
+    // DESIGN_LANGUAGE.md records under **The page's face**. A declared stack
+    // can still resolve to nothing at all, and only an engine says which
+    // family answered. That is the half that lives here.
+    const page = await openPage(theme);
+    const seen = await page.evaluate(() => {
+      const round = (value) => Math.round(value * 100) / 100;
+      const stack = getComputedStyle(document.body).fontFamily;
+
+      // Every run of text on the page, addressed by what it is rather than by
+      // a position, so reordering the page cannot quietly drop one.
+      const computed = {};
+      for (const [name, selector] of Object.entries({
+        "the title": "h1",
+        "the paragraph under it": "body > p",
+        "the instructions heading": "div.tools h3",
+        "the first step": "div.tools ol li:nth-child(1)",
+        "the last step": "div.tools ol li:last-child",
+        "the cheatsheet label": 'label[for="category"]',
+        "the example label": 'label[for="example"]',
+        "the footnote": "#showFootNote",
+        "the cheatsheet dropdown": "#category",
+        "the example dropdown": "#example",
+      })) {
+        const element = document.querySelector(selector);
+        computed[name] = element && getComputedStyle(element).fontFamily;
+      }
+
+      // A family resolves or it does not, and the only way to see which is to
+      // set a string in it and measure. A computed value proves nothing on its
+      // own: it reports the stack verbatim whether or not a single member of
+      // it exists on the machine.
+      const widthIn = (family) => {
+        const span = document.createElement("span");
+        span.textContent = "Select Cheatsheet from dropdown";
+        span.style.cssText =
+          "position:absolute;left:-9999px;white-space:nowrap;font-size:16px;font-family:" +
+          family;
+        document.body.appendChild(span);
+        const width = round(span.getBoundingClientRect().width);
+        span.remove();
+        return width;
+      };
+
+      // The controls take `font: inherit`, and whether a native control honors
+      // that is a question about the engine rather than about the stylesheet.
+      // `max-width: 100%` comes off first: #example wants more width than its
+      // column leaves it, so measured as it sits both faces sit on the cap and
+      // the comparison reads the cap instead of the text.
+      const control = (id) => {
+        const select = document.getElementById(id);
+        const before = { family: select.style.fontFamily, max: select.style.maxWidth };
+        const measure = (family) => {
+          select.style.maxWidth = "none";
+          select.style.fontFamily = family;
+          const width = round(select.getBoundingClientRect().width);
+          select.style.fontFamily = before.family;
+          select.style.maxWidth = before.max;
+          return width;
+        };
+        return { asItIs: measure(""), asSerif: measure('"Times New Roman", serif') };
+      };
+
+      // A wider face needs more room than the one it replaced, so the longest
+      // option has to still fit the control that shows it.
+      const select = document.getElementById("example");
+      const style = getComputedStyle(select);
+      const inner =
+        select.getBoundingClientRect().width -
+        parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight) -
+        parseFloat(style.borderLeftWidth) -
+        parseFloat(style.borderRightWidth);
+      const labelWidth = (text) => {
+        const span = document.createElement("span");
+        span.textContent = text;
+        span.style.cssText =
+          "position:absolute;left:-9999px;white-space:nowrap;font:" + style.font;
+        document.body.appendChild(span);
+        const width = round(span.getBoundingClientRect().width);
+        span.remove();
+        return width;
+      };
+
+      return {
+        stack,
+        computed,
+        rendered: widthIn(stack),
+        asSerif: widthIn("serif"),
+        asSansSerif: widthIn("sans-serif"),
+        controls: { category: control("category"), example: control("example") },
+        clipped: [...select.querySelectorAll("option")]
+          .map((option) => option.text)
+          .filter((text) => text && labelWidth(text) > inner),
+      };
+    });
+    await page.close();
+
+    for (const [name, family] of Object.entries(seen.computed)) {
+      assert.ok(family, `${name} is not on the page at all`);
+      assert.equal(family, seen.stack, `${name} does not take the body's stack`);
+    }
+
+    // Not the serif, which is the face the page had when it had none of its
+    // own. Measured against the generic rather than against a family name, so
+    // a machine without Times New Roman is judged by what it does have.
+    assert.notEqual(
+      seen.rendered,
+      seen.asSerif,
+      `the stack resolves to ${seen.rendered}px, exactly what the serif measures`
+    );
+    // And it resolved to something: a stack whose every member is missing
+    // falls past the last generic to the browser's own default.
+    assert.equal(
+      seen.rendered,
+      seen.asSansSerif,
+      `the stack measures ${seen.rendered}px against ${seen.asSansSerif}px for the ` +
+        "sans-serif generic, so no member of it resolved"
+    );
+
+    // The controls render it rather than merely computing it.
+    for (const [id, widths] of Object.entries(seen.controls)) {
+      assert.ok(
+        widths.asItIs - widths.asSerif >= 4,
+        `#${id} is ${widths.asItIs}px as it stands against ${widths.asSerif}px in a serif, ` +
+          "too close to tell the two faces apart"
+      );
+    }
+    assert.deepEqual(seen.clipped, [], "these option labels no longer fit the control");
+  });
+
   test(`${theme.name}: the panel and the sheet carry the same frame`, { skip }, async () => {
     // The two columns read as a pair because they share one edge. A frame that
     // drifts on one of them - a width, a style, a color, or one side of four -
