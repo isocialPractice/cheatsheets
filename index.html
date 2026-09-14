@@ -18,6 +18,13 @@
   --text-secondary: #414566;
   --border: #6F6F8C;
   --accent: #2E7534;
+  /* The page's own face, and not a claim about the sheets'. With no family
+     declared here "body" fell to the browser default and every run of text on
+     the page rendered in Times New Roman beside artwork set in a grotesque. A
+     stack rather than a family, so nothing has to ship: a grotesque where one
+     is installed, the platform's own interface face where it is not, and the
+     generic as the last resort. */
+  --font: "Helvetica Neue", Arial, system-ui, sans-serif;
   --space-1: 8px;
   --space-2: 16px;
   --space-3: 24px;
@@ -42,12 +49,19 @@
  *, *::before, *::after {
   box-sizing: border-box;
  }
+ /* The maximum width is the row's own measure rather than a round number: 360
+    for the panel column, a 32px gap and 600 for the sheet is 992, and a
+    space-2 gutter each side makes 1024 - 128 whole 8px steps. At the old
+    1200px the sheet's column grew to the remaining width while the sheet
+    inside it stayed capped at 600px and left aligned, so up to 176px of empty
+    ground sat to the right of the frame at every width from 1025px up. */
  body {
   margin: 0 auto;
-  max-width: 1200px;
+  max-width: 1024px;
   padding: var(--space-2);
   background: var(--page);
   color: var(--text);
+  font-family: var(--font);
   font-size: 1rem;
   line-height: 1.6;
  }

@@ -129,9 +129,31 @@ short and the body size is the anchor.
 | Body | 1rem | 1.6 | Paragraphs, list items, labels |
 | Small | 0.875rem | 1.5 | The footnote |
 
-Body text is the browser default stack. The examples themselves are read
-from the screenshots rather than from the page, so no monospace face is
-loaded.
+The examples themselves are read from the screenshots rather than from the
+page, so no monospace face is loaded.
+
+### The page's face
+
+The page is set in `"Helvetica Neue", Arial, system-ui, sans-serif`, declared
+once as the `--font` token and taken by `body`. Both `<select>` controls
+inherit it through `font: inherit`, so the whole page is one face.
+
+It was measured in a real engine on 2026.09.13 that it was not. The stylesheet
+set a size and a line height on `body` and no family at all, so
+`getComputedStyle(document.body).fontFamily` resolved to `"Times New Roman"`
+and the page rendered with serifs beside artwork set throughout in a
+grotesque. The color and the 8px step carried the pairing and the type did
+not.
+
+It is a stack rather than a family so nothing has to ship: a grotesque where
+one is installed, the platform's own interface face where it is not, and the
+generic as the last resort.
+
+**This is not an identification of the sheets' face.** The artwork's display
+face cannot be named from the artwork, which **The faces are not named**
+records and this does not reopen. A family chosen for the page because it is
+legible and installed nearly everywhere is evidence about the page and about
+nothing else.
 
 ## Spacing and radius
 
@@ -144,7 +166,7 @@ A single 8px step, because the mark is orthogonal and evenly weighted.
 | `space-3` | 24px |
 | `space-4` | 32px |
 | Radius | 4px |
-| Max content width | 1200px |
+| Max content width | 1024px |
 
 The 4px radius is deliberately small. The mark has square corners, so a
 rounded interface would read as belonging to something else.
@@ -162,8 +184,16 @@ rounded interface would read as belonging to something else.
   carries the same 1px border as the instructions panel: a sheet's masthead is
   the mark's navy and its body is near white, so without a frame the top band
   merges into the dark ground and the sides merge into the light one.
-- The page is centred at the 1200px maximum content width, with a `space-2`
-  gutter so nothing meets the edge of a phone screen.
+- The page is centred at the 1024px maximum content width, with a `space-2`
+  gutter so nothing meets the edge of a phone screen. That width is the row's
+  own measure and not a round number: 360 for the panel, a `space-4` gap and
+  600 for the sheet is 992, and the two gutters make 1024, which is 128 whole
+  8px steps. It was 1200px until 2026.09.14, and the difference showed: the
+  sheet's column takes whatever width is left while the sheet inside it stays
+  capped at 600px and left aligned, so from 1025px up the frame stopped as
+  much as 176px short of the column it sits in and the composition read off
+  centre. Capping the page at its content puts the two edges back together at
+  every width without moving anything else.
 
 ## The sheets
 
@@ -455,6 +485,12 @@ above regardless: a face is specified to a renderer by its metrics, and the cap
 heights, stems and lower-band ratios are all measured. A family name, when one
 turns up, is a substitution to check against those numbers rather than a fact
 this document is missing.
+
+This says nothing about the page that displays the sheets, which is a separate
+question settled separately under **The page's face**. Declining to name the
+artwork's face is a finding; leaving the page with whatever face the browser
+happened to prefer was an omission, and until 2026.09.14 one silence was
+carrying both.
 
 ### Where the text sits
 

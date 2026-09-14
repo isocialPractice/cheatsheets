@@ -10,6 +10,12 @@
 // to, and a color that appears in neither document all fail rather than pass
 // quietly.
 //
+// The last three cases hold the page's type face the same way, because it was
+// declared nowhere at all until 2026.09.14 and the page fell to the browser
+// default: the --font token is read out of the stylesheet, checked against the
+// stack DESIGN_LANGUAGE.md records under "The page's face", and confirmed to
+// be what `body` actually asks for.
+//
 // Run with: node --test tools/test-contrast.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -288,6 +294,75 @@ test("the mark's own green carries nothing on the light theme", () => {
     );
   }
   assert.equal(DARK["--accent"].toUpperCase(), green);
+});
+
+// The stack as the stylesheet declares it, normalised so that spacing and
+// quote style are not what a comparison turns on.
+function normalizeStack(stack) {
+  return stack
+    .split(",")
+    .map((family) => family.trim().replace(/^["']|["']$/g, ""))
+    .filter(Boolean);
+}
+
+test("body takes its face from a token rather than from the browser", () => {
+  // The omission this replaces was invisible in the source: the rule set a
+  // size and a line height and simply said nothing about a family, so there
+  // was no wrong value to spot. Both halves are asserted - the token exists,
+  // and the rule that is supposed to use it does.
+  assert.ok(LIGHT["--font"], "the stylesheet declares no --font token");
+  assert.match(
+    ruleBody("body"),
+    /font-family:\s*var\(--font\)/,
+    "body no longer takes font-family from --font, so the page falls to the browser default"
+  );
+});
+
+test("the face is a stack that needs nothing installed to resolve", () => {
+  const families = normalizeStack(LIGHT["--font"]);
+  assert.ok(families.length > 1, `--font is "${LIGHT["--font"]}", which is a single family`);
+  assert.ok(
+    families.includes("system-ui"),
+    "the stack names no system-ui, so a machine without the named families falls past the platform's own face"
+  );
+  assert.ok(
+    ["sans-serif", "serif", "monospace", "system-ui"].includes(families.at(-1)),
+    `the stack ends in "${families.at(-1)}", which is a family rather than a generic`
+  );
+});
+
+test("the page's stack is the one the design language records", () => {
+  // The same cross check the colors get: the document and the stylesheet have
+  // to agree, so neither can be edited into a claim the other does not carry.
+  const opens = designLanguage.indexOf("### The page's face");
+  assert.notEqual(opens, -1, "DESIGN_LANGUAGE.md has no \"The page's face\" section");
+  const recorded = /`([^`]*(?:sans-serif|serif|system-ui)[^`]*)`/.exec(
+    designLanguage.slice(opens)
+  );
+  assert.ok(recorded, "\"The page's face\" records no stack in a code span");
+  assert.deepEqual(
+    normalizeStack(recorded[1]),
+    normalizeStack(LIGHT["--font"]),
+    "the stack in DESIGN_LANGUAGE.md is not the stack index.html declares"
+  );
+
+  // The page's face is a decision about the page. "The faces are not named"
+  // records that the sheets' display face cannot be identified from the
+  // artwork, and none of the near misses it names may be borrowed here, or the
+  // page's stack reads as an answer to a question the record leaves open.
+  const unnamed = designLanguage.indexOf("#### The faces are not named");
+  const after = designLanguage.indexOf("### Where the text sits");
+  assert.ok(
+    unnamed !== -1 && after > unnamed,
+    "DESIGN_LANGUAGE.md no longer carries \"The faces are not named\" ahead of \"Where the text sits\""
+  );
+  const disclaimed = designLanguage.slice(unnamed, after);
+  for (const family of normalizeStack(LIGHT["--font"])) {
+    assert.ok(
+      !disclaimed.includes(family),
+      `the page's stack names ${family}, which "The faces are not named" discusses as a candidate for the sheets' face`
+    );
+  }
 });
 
 test("the spacing tokens are whole multiples of the 8px step", () => {

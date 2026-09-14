@@ -25,27 +25,6 @@ keys its entries by date, written `YYYY.MM.DD`.
 - [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
   - From: Cheatsheet Composition Language `->` Rendering and Conversion
 
-### UI/UX Override - the visual surface of index.html
-
-The 2026.09.13 verification drove the rewritten page in a real engine in both
-themes. Everything it was sent to check passed: the tokens arrive on the
-elements, the panel and the sheet share one 1px frame, every vertical gap is a
-multiple of 8px with no `<br>` left, the focus ring is painted and findable on
-both dropdowns in both themes, the sheet announces the selected example on all
-eleven options, and the new browser suite passes six and skips six as designed.
-Nothing below reopens that work. Both items are things seen beside it.
-
-#### Found Issues
-
-- [ ] The page's body face and the sheets' face are two different typographic systems
-  - **Issue**: `DESIGN_LANGUAGE.md` loads no family, so `body` falls to the browser default and `getComputedStyle(document.body).fontFamily` resolves to `"Times New Roman"` - the page renders with serifs, including both `<select>` controls through `font: inherit`. The sheets beside it are set throughout in what the record itself calls a bold condensed grotesque. The color and the 8px rhythm carry the pairing; the type does not, and the page reads as a different document from the artwork it displays
-  - **Goal**: Resolve to [page-face-decision.prompt.md](.claude/prompts/page-face-decision.prompt.md)
-  - From: UI/UX Override - the visual surface of index.html
-- [ ] The framed sheet stops up to 176px short of its own column between 1025px and 1280px
-  - **Issue**: `div.col:last-child` is `flex: 1 1 320px` and grows to the remaining width while `div.col img` is capped at `max-width: 600px` and left aligned, so the page's visible content ends well left of its measure and the composition sits off centre. It is worst at exactly 1200px, the width `body { max-width }` is set to. The geometry predates this run - `git show HEAD:index.html` carries both rules - but the 1px frame the run added is what makes the column's real extent legible, so the frame surfaced it rather than caused it and should stay
-  - **Goal**: Resolve to [sheet-column-measure.prompt.md](.claude/prompts/sheet-column-measure.prompt.md)
-  - From: UI/UX Override - the visual surface of index.html
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -785,6 +764,9 @@ generate ideas about generating ideas.
 
 ## Complete
 
+<details>
+<summary>Show Details</summary>
+
 - [x] Create `.github/workflows/pages.yml` deploying the repository root on push to the default branch and on `workflow_dispatch`
   - From: GitHub Pages Deployment
 - [x] Enable GitHub Pages for the repository with its source set to GitHub Actions
@@ -892,3 +874,13 @@ generate ideas about generating ideas.
   - It asserts both column tops equal at 1280px with the image starting 32px past the panel column; exactly one change of shape between 1280px and 360px, at 768px to 767px; `scrollWidth` equal to `clientWidth` at 390px; and the tools panel travelling the full distance of a scroll rather than holding its place. The scan found no width between 1280 and 360 where the image leaves its column or the page scrolls sideways. It also settles the two states the 2026.09.07 verification named: `#showFootNote` computing to `display: block` on the first selection of a freshly loaded page, and `favicon.ico` decoding 48x48 square at 36.89% navy, 30.60% green and 12.72% white
   - The three image loading states are deliberately not in it. Each needs its own origin, scheme or stalling server rather than a viewport, so each is recorded against the probe replacement item that changes the code they describe
   - From: Page Structure and Responsiveness
+- [x] The page's body face and the sheets' face are two different typographic systems
+  - **Issue**: `DESIGN_LANGUAGE.md` loads no family, so `body` falls to the browser default and `getComputedStyle(document.body).fontFamily` resolves to `"Times New Roman"` - the page renders with serifs, including both `<select>` controls through `font: inherit`. The sheets beside it are set throughout in what the record itself calls a bold condensed grotesque. The color and the 8px rhythm carry the pairing; the type does not, and the page reads as a different document from the artwork it displays
+  - **Goal**: Resolve to [page-face-decision.prompt.md](.claude/prompts/page-face-decision.prompt.md)
+  - From: UI/UX Override - the visual surface of index.html
+- [x] The framed sheet stops up to 176px short of its own column between 1025px and 1280px
+  - **Issue**: `div.col:last-child` is `flex: 1 1 320px` and grows to the remaining width while `div.col img` is capped at `max-width: 600px` and left aligned, so the page's visible content ends well left of its measure and the composition sits off centre. It is worst at exactly 1200px, the width `body { max-width }` is set to. The geometry predates this run - `git show HEAD:index.html` carries both rules - but the 1px frame the run added is what makes the column's real extent legible, so the frame surfaced it rather than caused it and should stay
+  - **Goal**: Resolve to [sheet-column-measure.prompt.md](.claude/prompts/sheet-column-measure.prompt.md)
+  - From: UI/UX Override - the visual surface of index.html
+
+</details>

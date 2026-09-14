@@ -4,6 +4,60 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.14]
+
+### Fixed
+
+- The page has a face of its own. The stylesheet set a size and a line height
+  on `body` and no family at all, so every run of text on it - the title, the
+  instructions, the labels, the footnote, and both `<select>` controls through
+  `font: inherit` - fell to the browser default and rendered in Times New
+  Roman, beside artwork set throughout in a grotesque. A `--font` token now
+  sits in `:root` with the palette and the step, and `body` takes it. It is a
+  stack rather than a family so nothing has to ship: `"Helvetica Neue"`, then
+  `Arial`, then `system-ui`, then the generic. Measured in a real engine, the
+  page renders 241.92px of the same sample string that Times New Roman sets at
+  217.28px, which is Arial to the pixel on the machine this was checked on.
+- The framed sheet meets the right edge of its own column again. `div.col img`
+  is capped at 600px and left aligned while its column takes whatever width the
+  row has left, so from 1025px up the sheet stopped as much as 176px short of
+  its column and the composition sat off centre - worst at exactly the 1200px
+  `body { max-width }` then carried. The page is capped at 1024px instead,
+  which is the row's own measure rather than a round number: 360 for the panel,
+  a 32px gap and 600 for the sheet is 992, and a `space-2` gutter each side
+  makes 1024, or 128 whole 8px steps. Measured at 1280, 1200, 1100, 1025, 1024,
+  900 and 769px, the gap is 0 at every one. The 1px frame the 2026.09.13 run
+  added is what made the asymmetry legible rather than what caused it, and it
+  stays.
+
+### Added
+
+- `tools/test-contrast.mjs` holds the type the way it already holds the color.
+  Three cases: `body` takes `font-family` from `--font` rather than from the
+  browser, the stack resolves without anything installed - more than one
+  family, `system-ui` among them, a generic last - and the stack in the
+  stylesheet is the stack `DESIGN_LANGUAGE.md` records. The omission it
+  replaces was invisible in the source, because a family that is never
+  declared leaves no wrong value to read.
+- The width scan in `tools/test-page-structure-browser.mjs` measures how far
+  the sheet stops short of its column, not only whether it is inside it. The
+  two are different questions and the old one passed throughout the 176px:
+  containment held at every width while the empty ground sat beside the frame.
+  Across 1280px down to 769px the trailing gap has to stay within one
+  `space-4`. Reverted to the old 1200px cap it catches 224 of those 512 widths,
+  every one from 1057px to 1280px.
+
+### Changed
+
+- `DESIGN_LANGUAGE.md` records the page's face under **The page's face**,
+  stated as a decision about the page and explicitly not as an identification
+  of the sheets'. **The faces are not named** gains a pointer to it, because
+  the two read as contradicting each other otherwise: declining to name the
+  artwork's display face is a finding, and leaving the page with whatever face
+  the browser preferred was an omission, and one silence was carrying both.
+  The maximum content width in **Spacing and radius** and **Layout** is 1024px,
+  with the arithmetic that arrives at it.
+
 ## [2026.09.13]
 
 ### Added
