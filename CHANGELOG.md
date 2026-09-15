@@ -4,6 +4,59 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.15]
+
+### Added
+
+- `api/graphic-design/`, a hand port of the drawing surface this roadmap was
+  about to write from nothing. Eleven modules and a barrel over them:
+  `units`, `types`, `color`, `geometry`, `font`, `svg`, `compose`, `deflate`,
+  `png`, `raster` and `brand`, 5,899 lines of dependency free `.mjs` from the
+  5,041 lines of TypeScript they came from. It composes rectangles, circles,
+  ellipses, triangles, polygons, polylines, lines, paths, text, placed media
+  and clipping masks into one document, and renders that document to SVG or to
+  PNG with no canvas, no browser and no native image dependency. A top level
+  `api/` rather than `tools/`, because the page imports this at run time and
+  everything in `tools/` is a Node only script the published site never loads.
+  No build step and no `package.json`, so the local `php -S localhost:8000`
+  workflow keeps working without Node.
+- The port is verified against its source rather than against its author's
+  reading of it. Bundling `src/core/graphic-design/index.ts` with the sibling
+  repository's own esbuild gives a module with the same surface, and a
+  throwaway comparison over 131 cases - every colour form, every path command,
+  every cap and join, four alignments against four baselines, the whole brand
+  resource surface, PNG in both directions, and a document carrying an image,
+  a clip, an `evenodd` path, a millimetre page and a hidden element - found no
+  difference in any of them. The two SVG documents are identical strings and
+  the two PNG files are identical bytes, 37,450 of them.
+- `tools/test-graphic-design-port.mjs`, 14 cases holding what porting cost
+  rather than what upstream already settled: nothing in the port imports
+  outside its own folder, nothing reaches for Node, every sibling import names
+  a file that exists and carries its extension, there is no `package.json` and
+  no build output, `canvas` is absent, the barrel exports the authoring
+  surface and the four brand functions `.claude/constants.md` is written
+  against, the units reduction kept `toPx`, a composition renders live `<text>`
+  rather than outlines, a render decodes back at the scale it was asked for,
+  an elliptical arc raises, an unknown colour raises, and every module carries
+  the upstream MIT notice and the commit it was taken from.
+- `tools/test-pages-media-type.mjs`, which asks the published site what it
+  serves a `.mjs` file as. It needs the network, so it is the one case in the
+  suite that skips with its reason rather than failing when there is none.
+
+### Changed
+
+- The `.mjs` extension is now a measurement rather than an assumption.
+  GitHub Pages answers `tools/test-contrast.mjs` and
+  `tools/measure-sheet-composition.mjs` on this repository's own published site
+  with `200` and `content-type: text/javascript; charset=utf-8`, which is a
+  JavaScript MIME type under the HTML specification, so a module script and a
+  bare `import` both accept it. The fallback that was queued behind this - name
+  every ported file `.js` and add `api/package.json` holding only
+  `{"type": "module"}` - is not needed, which is what makes the port's
+  thousands of lines safe to land under the extension they were written with.
+  Measuring it first was the point: the same answer found afterwards would
+  have been a rename of the whole tree.
+
 ## [2026.09.14]
 
 ### Fixed
