@@ -22,21 +22,34 @@ keys its entries by date, written `YYYY.MM.DD`.
   - The ported renderers are pure: one document renders to identical bytes every time, in both formats. So the seed is the only thing a variation turns on, and determinism is a property of the composition rather than of the renderer
   - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
-### User Override
+### Code Review Override - what the port carried in with it
 
-Three items, in this order, because each one settles something the next
-depends on. Nothing below the override starts until all three are done.
+The port itself is sound. A differential harness bundled the upstream
+TypeScript at the recorded commit and compared it against the port over 1,001
+cases - every colour form, the whole glyph table, path parsing, the stroker,
+the dasher, both matrix paths, deflate in both directions, PNG across all five
+scanline filter types and a split `IDAT`, and a document carrying an image, a
+clip, an `evenodd` path, a millimetre page and a hidden element - and found no
+difference in any of them. Nothing below is a transcription error. What is
+below is what the port brought in that the port itself does not settle.
 
-- [ ] Verify GitHub Pages answers a `.mjs` request with a JavaScript media type before the page depends on importing one
-  - First, and before a line is ported. A module script served as `application/octet-stream` is refused, and the whole in browser route fails after the port is written. The fallback renames every ported file, so measuring it afterwards means renaming thousands of lines rather than choosing an extension
+#### Resolve Issues
+
+- [ ] Upstream Notice 1
+  - **Issue**: what landed is an attribution line, not a notice. Every module opens with ``Ported from `src/core/graphic-design/<file>.ts` in napkin-sketch (MIT, isocialPractice), commit d43caac191b2dfd532b3311f4ca1ea6969bb002f``, which records provenance and the diff point but carries neither the copyright line nor the permission text. MIT asks for both in "all copies or substantial portions", and 5,899 lines is a substantial portion. Meanwhile the repository's own `LICENSE` is CC0 1.0 with nothing scoping it, so the file that governs the tree waives rights over code held under different terms. The failing state is concrete: a reader, or GitHub's own licence detector, takes `LICENSE` at its word and redistributes `api/graphic-design/` as public domain
+  - **Goal**: carry the notice itself, not a pointer to it. Decide where it lives before writing it, because the obvious spot is closed: `tools/test-graphic-design-port.mjs` asserts `readdirSync(portDir)` equals the twelve module names exactly, so an `api/graphic-design/LICENSE` fails the suite on arrival. A root `NOTICE`, or a scoping paragraph in `LICENSE`, avoids that and says the same thing. Whichever is chosen, the per-file headers stay - they are what makes a later diff against upstream possible, and that is a separate job from licensing
   - From: Port the napkin-sketch Graphic Design API
-- [ ] Port the surface to `api/graphic-design/` as dependency free `.mjs`, with no build step and no `package.json`
-  - A top level `api/` rather than `tools/`, because the page imports this at run time and everything in `tools/` is a Node only script the published site never loads. No build step, so the local `php -S localhost:8000` workflow keeps working without Node
-  - From: Port the napkin-sketch Graphic Design API
-- [ ] Port `types`, `units`, `color`, `geometry`, `font`, `svg`, `compose`, `raster`, `png`, `deflate` and `brand`, and leave `canvas` behind
-  - `brand.mjs` carries `parseResources`, `descriptorFromFilename`, `placeBrand`, `brandMark` and `inlineSvg`, which the design language helper calls at run time, so it is the brand resource convention rather than logo detection. `canvas.ts` is the only drop
-  - `types.ts` and `raster.ts` import `toPx` from `../units.js`, one folder above the tree being ported, so the port is not self contained as the folder listing suggests
-  - From: Port the napkin-sketch Graphic Design API
+
+#### Found Issues
+
+- [ ] The suite forbids the next file the roadmap asks for
+  - **Issue**: `tools/test-graphic-design-port.mjs` line 63 asserts `assert.deepEqual(files, PORTED)`, where `PORTED` is the twelve names on disk today. **Keep the Node only helpers in `api/graphic-design/files.mjs`** sits four items below this one under the same heading, so the run that works it creates the thirteenth file and turns the suite red on a case that has nothing to do with what it changed. The test's own comment names `files` as "the Node-only half and is its own queued item", so the collision was foreseen and left in
+  - **Goal**: settle whether that is a tripwire or an oversight, and make the file say which. If the exact list is deliberate, add a line to the case saying that a new module is expected to update `PORTED` by hand. If it is not, assert that `PORTED` is a subset of what is there and that every extra entry is a `.mjs` - the neighbouring cases already forbid `canvas`, a `package.json` and build output, which is most of what the exact match was buying
+  - From: Code Review Override - what the port carried in with it
+- [ ] The colour guarantee holds in the renderer this repository will not use
+  - **Issue**: `tools/test-graphic-design-port.mjs` titles a case "an unrecognised colour fails where the swatch is written" and then asserts only that `api.parseColor("nosuchcolour")` raises in isolation. In a composition it does not fail where the swatch is written. `design.rect({ fill: "nosuchcolour" })` returns normally, and `toSVG()` returns normally with `fill="nosuchcolour"` in the markup, which a browser drops on the floor and paints black. Only `toPNG()` raises, because only the rasterizer has to turn the name into numbers. That is upstream's deliberate design - `color.mjs` says the SVG writer passes colours through because a browser is the better parser - but it lands badly here, because the page composes its sheet as inline SVG in the browser, so the one renderer this repository ships is the one that never checks a swatch. A misspelled token in a generated sheet is a black region and no error anywhere
+  - **Goal**: either give the case a name that matches what it asserts, or give the claim something that makes it true - a validation pass over a document's paints, called before `toSVG`, that raises the same error the rasterizer would. The second is the useful one and it is cheap: `parsePaint` already exists and the element walk already exists. Settle it before **Write the composition algorithm**, which is what will start generating paints rather than writing them by hand
+  - From: Code Review Override - what the port carried in with it
 
 ## GitHub Pages Deployment
 
@@ -646,35 +659,28 @@ form the page and the Node scripts can both import.
 The port is what the composition algorithm above calls and what the API below
 is a surface over, so it is worked before either.
 
-- [ ] Port the surface to `api/graphic-design/` as dependency free `.mjs`, with no build step and no `package.json`
-  - A top level `api/` rather than `tools/`, because the page imports this at run time and everything in `tools/` is a Node only script the published site never loads
-  - No build step, so the local `php -S localhost:8000` workflow keeps working without Node, which is the same constraint the manifest pipeline item records
-  - Hand port the TypeScript rather than copying `napkin-sketch/dist/api/index.js`. That bundle is esbuild output, unreadable and undiffable, and it carries the modules being dropped
-- [ ] Port `types`, `units`, `color`, `geometry`, `font`, `svg`, `compose`, `raster`, `png`, `deflate` and `brand`, and leave `canvas` behind
-  - `brand.mjs` is the implementation of the brand resource convention `.claude/constants.md` records, not logo detection with helpers attached. `parseResources` reads a `resources.md` at all, `descriptorFromFilename` is the rule that makes a file name the slot it fills, and `placeBrand` and `brandMark` put a resolved asset or its fallback into a composition. The design language helper calls all four at run time
-  - `inlineSvg` is the one that cannot be worked around. A vector asset placed as an image is present in the SVG and a hole in every raster, which is a defect no check made against one format can see. The asset this repository carries is solid paths declaring their colors in a `<style>` block, which is the case it is written for
-  - `canvas.ts` paints into a GUI canvas this repository does not have, and is the only module dropped
-  - `types.ts` and `raster.ts` both import `toPx` from `../units.js`, one folder above the tree being ported, so the port is not self contained as the folder listing suggests. Sheets compose in pixels only, so reduce it to the ratio table and land it as `api/graphic-design/units.mjs`
-  - The reduced port is roughly 4,400 to 4,700 lines of `.mjs`, against the 5,227 lines of TypeScript it came from
+**The surface itself is ported and now in the repository**, as 5,899 lines of
+dependency free `.mjs` under `api/graphic-design/`: `units`, `types`, `color`,
+`geometry`, `font`, `svg`, `compose`, `deflate`, `png`, `raster` and `brand`,
+with `canvas` dropped and a barrel over the rest. It is verified against a
+bundle of the upstream TypeScript rather than against a reading of it, and
+`tools/test-graphic-design-port.mjs` holds what porting cost. What is left
+below is everything the port did not settle by landing.
+
 - [ ] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
   - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
 - [ ] Give the ported `font.mjs` the sheets' own metrics rather than the built in alphabet's
   - The display face is not nameable from the artwork - it matches none of the 481 fonts surveyed - so the generator is given the four measured cap heights rather than a family. The code face is proportional, not monospaced, so its code must not be set to a grid
   - Upstream `measureText` measures the built in alphabet, not the named family, so text laid out run beside run in a proportional family overprints in the SVG while looking right in the raster. Two routes answer it: set each block as a single `text` element and let the browser break it, forfeiting exact extents; or measure the fallback stack in a browser once and commit the width table. Settle which before the composition algorithm depends on either
-- [ ] Carry the upstream license notice into the port
-  - `napkin-sketch` is MIT and this repository is CC0 1.0. Copied source keeps its notice
-- [ ] Record the source commit the port was taken from, so a later run can diff the two rather than guess
 - [ ] Record the ported surface and every limit it carries where a caller will read it
   - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
   - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
 - [ ] Cover the port with a test that renders a fixture document twice and compares byte for byte
   - Upstream rendering is pure and deterministic in both formats, and that property is what makes a generated sheet reviewable and a seeded variation reproducible
 - [ ] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
-  - The port is the first code in this repository whose tests are not in `tools/`, so `node --test tools/` stops being the whole suite whatever else is decided
-  - That invocation is already broken here. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 96 cases, so it is the documented invocation that is wrong rather than the tests
+  - The port landed with its tests in `tools/` beside every other suite, so `node --test tools/*.mjs` is still the whole suite and this item is not yet forced. It is the first code in the repository whose *source* is outside `tools/`, which is what will force it as soon as a test wants to sit beside the module it covers
+  - That invocation is already broken here. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 112 cases, so it is the documented invocation that is wrong rather than the tests
   - Whatever replaces it keeps what that file settled: a bare clone with nothing installed still runs the suite, and a case needing a browser skips with the install command as its reason
-- [ ] Verify GitHub Pages answers a `.mjs` request with a JavaScript media type before the page depends on importing one
-  - A module script served as `application/octet-stream` is refused, and the whole in browser route fails after the port is written. If it is, name the files `.js` and add `api/package.json` holding only `{"type": "module"}`, which is a scope marker rather than a dependency manifest
 - [ ] Build the worked examples that show what the port produces and how it is reconfigured
   - Reproduce one existing `javaScriptArrays` sheet from a document, then restyle that same document through a second theme. That pair is what the eleven kept images are for, per **Raster Export and Example Images**
 - [ ] Port the design language helper: its two skills, its command and its contract file
@@ -1004,5 +1010,26 @@ generate ideas about generating ideas.
   - **Issue**: `div.col:last-child` is `flex: 1 1 320px` and grows to the remaining width while `div.col img` is capped at `max-width: 600px` and left aligned, so the page's visible content ends well left of its measure and the composition sits off centre. It is worst at exactly 1200px, the width `body { max-width }` is set to. The geometry predates this run - `git show HEAD:index.html` carries both rules - but the 1px frame the run added is what makes the column's real extent legible, so the frame surfaced it rather than caused it and should stay
   - **Goal**: Resolve to [sheet-column-measure.prompt.md](.claude/prompts/sheet-column-measure.prompt.md)
   - From: UI/UX Override - the visual surface of index.html
+- [x] Verify GitHub Pages answers a `.mjs` request with a JavaScript media type before the page depends on importing one
+  - First, and before a line is ported. A module script served as `application/octet-stream` is refused, and the whole in browser route fails after the port is written. The fallback renames every ported file, so measuring it afterwards means renaming thousands of lines rather than choosing an extension
+  - Measured 2026.09.15 against this repository's own published site: `tools/test-contrast.mjs` and `tools/measure-sheet-composition.mjs` both answer `200` with `content-type: text/javascript; charset=utf-8`, which is a JavaScript MIME type under the HTML specification. `.mjs` stands, and the `.js` rename with `api/package.json` is not needed. `tools/test-pages-media-type.mjs` holds the measurement and skips with its reason when there is no network
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Port the surface to `api/graphic-design/` as dependency free `.mjs`, with no build step and no `package.json`
+  - A top level `api/` rather than `tools/`, because the page imports this at run time and everything in `tools/` is a Node only script the published site never loads. No build step, so the local `php -S localhost:8000` workflow keeps working without Node
+  - `tools/test-graphic-design-port.mjs` holds the three properties porting cost rather than the drawing upstream already settled: every import is a sibling with its extension, nothing reads `node:`, `require` or `process`, and there is no `package.json` or build output in the tree
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Port `types`, `units`, `color`, `geometry`, `font`, `svg`, `compose`, `raster`, `png`, `deflate` and `brand`, and leave `canvas` behind
+  - `brand.mjs` carries `parseResources`, `descriptorFromFilename`, `placeBrand`, `brandMark` and `inlineSvg`, which the design language helper calls at run time, so it is the brand resource convention rather than logo detection. `canvas.ts` is the only drop
+  - `types.ts` and `raster.ts` import `toPx` from `../units.js`, one folder above the tree being ported, so the port is not self contained as the folder listing suggests
+  - Landed as 5,899 lines of `.mjs` from 5,041 lines of TypeScript, rather than the 4,400 to 4,700 the estimate carried. The port is larger than its source rather than smaller, because a JSDoc typedef and a `@param` per argument cost more lines than the inline annotations they replace; `types.mjs` alone is 335 lines of documentation and five constants
+  - Verified against the source rather than against a reading of it: the sibling repository's own esbuild bundles `src/core/graphic-design/index.ts` into a module with the same surface, and 131 comparisons across every module agree, including two identical SVG strings and two identical 37,450 byte PNG files
+  - From: Port the napkin-sketch Graphic Design API
+- [x] **Upstream Notice**: Carry the upstream license notice into the port
+  - `napkin-sketch` is MIT and this repository is CC0 1.0. Copied source keeps its notice
+  - Carried per file rather than as a single notice at the root, because a module read on its own is the way any of these will actually be read. Every one of the twelve opens by naming the upstream file it came from and `napkin-sketch (MIT, isocialPractice)`, and `tools/test-graphic-design-port.mjs` fails if one of them stops saying so
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Record the source commit the port was taken from, so a later run can diff the two rather than guess
+  - `d43caac191b2dfd532b3311f4ca1ea6969bb002f`, `update: version 4.2.2-alpha`, dated 2026.09.14. It sits in the same header line as the licence notice in all twelve modules, and the same test holds it there, so the commit is recorded beside the code it describes rather than in a file that can drift from it
+  - From: Port the napkin-sketch Graphic Design API
 
 </details>
