@@ -14,3 +14,10 @@ The examples used are based on examples from:
 1. Javascript Arrays:
      - w3schools - [JS Array Methods](https://www.w3schools.com/js/js_array_methods.asp)
      - MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
+
+**Licence**
+This repository is CC0 1.0 Universal ([LICENSE](LICENSE)), with one directory
+scoped out of that waiver: `api/graphic-design/` is a port of the drawing API
+from [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch) and
+stays under its MIT licence. [NOTICE](NOTICE) carries the copyright line and
+the permission text in full.

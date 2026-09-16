@@ -17,10 +17,22 @@
 // Line breaking and alignment come from `font.mjs`, the same table the
 // rasterizer measures with, so the two formats agree on where the text sits
 // even though each draws the glyphs its own way.
+//
+// **One thing here is not upstream: paints are checked before they are
+// written.** Upstream passes a colour through to the markup and lets the
+// browser parse it, which is the better parser and costs nothing when a PNG is
+// the deliverable - the rasterizer has to turn every name into numbers, so a
+// misspelling is caught there. This repository ships the opposite: the page
+// composes its sheet as inline SVG, so the rasterizer never runs and a
+// misspelled token is a black region with no error anywhere. {@link
+// validatePaints} closes that, raising the same error the rasterizer would.
+// Every document that rendered before still renders to the identical bytes,
+// because the only documents it changes are the ones that were already wrong.
 
 import { DEFAULT_FONT_SIZE, DEFAULT_LINE_HEIGHT, DEFAULT_TEXT_FONT } from "./types.mjs";
 import { elementMatrix, IDENTITY, shapeCentre } from "./geometry.mjs";
 import { layoutText, transformText } from "./font.mjs";
+import { parsePaint } from "./color.mjs";
 
 /**
  * Options for {@link compositionToSvg}.
@@ -28,6 +40,7 @@ import { layoutText, transformText } from "./font.mjs";
  * @typedef {object} SvgOptions
  * @property {boolean} [pretty] Indent nested elements. On by default; off writes one long line.
  * @property {number} [precision] Decimal places coordinates are rounded to. Default 3.
+ * @property {boolean} [validate] Refuse a paint no renderer can read. On by default; `false` restores upstream pass-through.
  */
 
 /**
@@ -403,6 +416,38 @@ function collectInlineClips(elements, clips, clipIds, counter) {
 }
 
 /**
+ * Raises on the first paint in a document that no renderer can read.
+ *
+ * `parsePaint` is the rasterizer's own reader, so a colour this accepts is one
+ * both back ends agree on, and a colour it refuses raises the message the PNG
+ * route would have raised - `graphic-design: unsupported color "..."`, quoting
+ * what was written. The paints a composition may legitimately leave unset are
+ * not errors: `undefined`, `null`, `""`, `none` and `transparent` all mean "do
+ * not paint" and pass.
+ *
+ * Every element is read, groups included - a group carries the common paint
+ * props and SVG inherits them into its children, so a misspelling on the
+ * wrapper reaches the artwork the same way one on a leaf does.
+ *
+ * @param {import('./types.mjs').CompositionDocument} doc
+ * @throws if any fill, stroke or page background is not a color this API reads.
+ */
+export function validatePaints(doc) {
+  parsePaint(doc.background);
+
+  /** @param {import('./types.mjs').Element[]} elements */
+  const walk = (elements) => {
+    for (const el of elements) {
+      parsePaint(el.fill);
+      parsePaint(el.stroke);
+      if (el.type === "group") walk(el.children);
+    }
+  };
+
+  walk(doc.elements);
+}
+
+/**
  * Renders a composition as an SVG document.
  *
  * The root carries a `viewBox` in composition units and a width and height in
@@ -415,6 +460,8 @@ function collectInlineClips(elements, clips, clipIds, counter) {
  * @returns {string}
  */
 export function compositionToSvg(doc, options = {}) {
+  if (options.validate !== false) validatePaints(doc);
+
   const precision = options.precision ?? 3;
   const pretty = options.pretty !== false;
   const nl = pretty ? "\n" : "";

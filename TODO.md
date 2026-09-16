@@ -22,35 +22,6 @@ keys its entries by date, written `YYYY.MM.DD`.
   - The ported renderers are pure: one document renders to identical bytes every time, in both formats. So the seed is the only thing a variation turns on, and determinism is a property of the composition rather than of the renderer
   - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
-### Code Review Override - what the port carried in with it
-
-The port itself is sound. A differential harness bundled the upstream
-TypeScript at the recorded commit and compared it against the port over 1,001
-cases - every colour form, the whole glyph table, path parsing, the stroker,
-the dasher, both matrix paths, deflate in both directions, PNG across all five
-scanline filter types and a split `IDAT`, and a document carrying an image, a
-clip, an `evenodd` path, a millimetre page and a hidden element - and found no
-difference in any of them. Nothing below is a transcription error. What is
-below is what the port brought in that the port itself does not settle.
-
-#### Resolve Issues
-
-- [ ] Upstream Notice 1
-  - **Issue**: what landed is an attribution line, not a notice. Every module opens with ``Ported from `src/core/graphic-design/<file>.ts` in napkin-sketch (MIT, isocialPractice), commit d43caac191b2dfd532b3311f4ca1ea6969bb002f``, which records provenance and the diff point but carries neither the copyright line nor the permission text. MIT asks for both in "all copies or substantial portions", and 5,899 lines is a substantial portion. Meanwhile the repository's own `LICENSE` is CC0 1.0 with nothing scoping it, so the file that governs the tree waives rights over code held under different terms. The failing state is concrete: a reader, or GitHub's own licence detector, takes `LICENSE` at its word and redistributes `api/graphic-design/` as public domain
-  - **Goal**: carry the notice itself, not a pointer to it. Decide where it lives before writing it, because the obvious spot is closed: `tools/test-graphic-design-port.mjs` asserts `readdirSync(portDir)` equals the twelve module names exactly, so an `api/graphic-design/LICENSE` fails the suite on arrival. A root `NOTICE`, or a scoping paragraph in `LICENSE`, avoids that and says the same thing. Whichever is chosen, the per-file headers stay - they are what makes a later diff against upstream possible, and that is a separate job from licensing
-  - From: Port the napkin-sketch Graphic Design API
-
-#### Found Issues
-
-- [ ] The suite forbids the next file the roadmap asks for
-  - **Issue**: `tools/test-graphic-design-port.mjs` line 63 asserts `assert.deepEqual(files, PORTED)`, where `PORTED` is the twelve names on disk today. **Keep the Node only helpers in `api/graphic-design/files.mjs`** sits four items below this one under the same heading, so the run that works it creates the thirteenth file and turns the suite red on a case that has nothing to do with what it changed. The test's own comment names `files` as "the Node-only half and is its own queued item", so the collision was foreseen and left in
-  - **Goal**: settle whether that is a tripwire or an oversight, and make the file say which. If the exact list is deliberate, add a line to the case saying that a new module is expected to update `PORTED` by hand. If it is not, assert that `PORTED` is a subset of what is there and that every extra entry is a `.mjs` - the neighbouring cases already forbid `canvas`, a `package.json` and build output, which is most of what the exact match was buying
-  - From: Code Review Override - what the port carried in with it
-- [ ] The colour guarantee holds in the renderer this repository will not use
-  - **Issue**: `tools/test-graphic-design-port.mjs` titles a case "an unrecognised colour fails where the swatch is written" and then asserts only that `api.parseColor("nosuchcolour")` raises in isolation. In a composition it does not fail where the swatch is written. `design.rect({ fill: "nosuchcolour" })` returns normally, and `toSVG()` returns normally with `fill="nosuchcolour"` in the markup, which a browser drops on the floor and paints black. Only `toPNG()` raises, because only the rasterizer has to turn the name into numbers. That is upstream's deliberate design - `color.mjs` says the SVG writer passes colours through because a browser is the better parser - but it lands badly here, because the page composes its sheet as inline SVG in the browser, so the one renderer this repository ships is the one that never checks a swatch. A misspelled token in a generated sheet is a black region and no error anywhere
-  - **Goal**: either give the case a name that matches what it asserts, or give the claim something that makes it true - a validation pass over a document's paints, called before `toSVG`, that raises the same error the rasterizer would. The second is the useful one and it is cheap: `parsePaint` already exists and the element walk already exists. Settle it before **Write the composition algorithm**, which is what will start generating paints rather than writing them by hand
-  - From: Code Review Override - what the port carried in with it
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -1031,5 +1002,17 @@ generate ideas about generating ideas.
 - [x] Record the source commit the port was taken from, so a later run can diff the two rather than guess
   - `d43caac191b2dfd532b3311f4ca1ea6969bb002f`, `update: version 4.2.2-alpha`, dated 2026.09.14. It sits in the same header line as the licence notice in all twelve modules, and the same test holds it there, so the commit is recorded beside the code it describes rather than in a file that can drift from it
   - From: Port the napkin-sketch Graphic Design API
+- [x] Upstream Notice 1
+  - **Issue**: what landed is an attribution line, not a notice. Every module opens with ``Ported from `src/core/graphic-design/<file>.ts` in napkin-sketch (MIT, isocialPractice), commit d43caac191b2dfd532b3311f4ca1ea6969bb002f``, which records provenance and the diff point but carries neither the copyright line nor the permission text. MIT asks for both in "all copies or substantial portions", and 5,899 lines is a substantial portion. Meanwhile the repository's own `LICENSE` is CC0 1.0 with nothing scoping it, so the file that governs the tree waives rights over code held under different terms. The failing state is concrete: a reader, or GitHub's own licence detector, takes `LICENSE` at its word and redistributes `api/graphic-design/` as public domain
+  - **Goal**: carry the notice itself, not a pointer to it. Decide where it lives before writing it, because the obvious spot is closed: `tools/test-graphic-design-port.mjs` asserts `readdirSync(portDir)` equals the twelve module names exactly, so an `api/graphic-design/LICENSE` fails the suite on arrival. A root `NOTICE`, or a scoping paragraph in `LICENSE`, avoids that and says the same thing. Whichever is chosen, the per-file headers stay - they are what makes a later diff against upstream possible, and that is a separate job from licensing
+  - From: Port the napkin-sketch Graphic Design API
+- [x] The suite forbids the next file the roadmap asks for
+  - **Issue**: `tools/test-graphic-design-port.mjs` line 63 asserts `assert.deepEqual(files, PORTED)`, where `PORTED` is the twelve names on disk today. **Keep the Node only helpers in `api/graphic-design/files.mjs`** sits four items below this one under the same heading, so the run that works it creates the thirteenth file and turns the suite red on a case that has nothing to do with what it changed. The test's own comment names `files` as "the Node-only half and is its own queued item", so the collision was foreseen and left in
+  - **Goal**: settle whether that is a tripwire or an oversight, and make the file say which. If the exact list is deliberate, add a line to the case saying that a new module is expected to update `PORTED` by hand. If it is not, assert that `PORTED` is a subset of what is there and that every extra entry is a `.mjs` - the neighbouring cases already forbid `canvas`, a `package.json` and build output, which is most of what the exact match was buying
+  - From: Code Review Override - what the port carried in with it
+- [x] The colour guarantee holds in the renderer this repository will not use
+  - **Issue**: `tools/test-graphic-design-port.mjs` titles a case "an unrecognised colour fails where the swatch is written" and then asserts only that `api.parseColor("nosuchcolour")` raises in isolation. In a composition it does not fail where the swatch is written. `design.rect({ fill: "nosuchcolour" })` returns normally, and `toSVG()` returns normally with `fill="nosuchcolour"` in the markup, which a browser drops on the floor and paints black. Only `toPNG()` raises, because only the rasterizer has to turn the name into numbers. That is upstream's deliberate design - `color.mjs` says the SVG writer passes colours through because a browser is the better parser - but it lands badly here, because the page composes its sheet as inline SVG in the browser, so the one renderer this repository ships is the one that never checks a swatch. A misspelled token in a generated sheet is a black region and no error anywhere
+  - **Goal**: either give the case a name that matches what it asserts, or give the claim something that makes it true - a validation pass over a document's paints, called before `toSVG`, that raises the same error the rasterizer would. The second is the useful one and it is cheap: `parsePaint` already exists and the element walk already exists. Settle it before **Write the composition algorithm**, which is what will start generating paints rather than writing them by hand
+  - From: Code Review Override - what the port carried in with it
 
 </details>

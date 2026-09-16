@@ -25,10 +25,19 @@
 // data is refused rather than quietly losing a corner. The sheets' 4px radius
 // is a rounded rectangle, which `rect` draws with `rx`, so nothing the design
 // language has asked for so far needs an arc.
+//
+// **One behaviour here is not upstream's.** Upstream lets the SVG writer pass
+// a colour straight through to the markup, on the reasoning that a browser is
+// the better parser, and catches a misspelling in the rasterizer instead. The
+// page composes its sheet as inline SVG, so the rasterizer never runs here and
+// that misspelling would be a black region with no error anywhere. Both back
+// ends therefore refuse a paint they cannot read, raising the same message.
+// `compositionToSvg(doc, { validate: false })` restores the upstream pass
+// through, and `validatePaints(doc)` runs the check on its own.
 
 export { Composition, ElementList, createComposition, renderComposition, renderPng } from "./compose.mjs";
 
-export { compositionToSvg, escapeXml } from "./svg.mjs";
+export { compositionToSvg, escapeXml, validatePaints } from "./svg.mjs";
 
 export { rasterizeComposition, rasterizeContours } from "./raster.mjs";
 

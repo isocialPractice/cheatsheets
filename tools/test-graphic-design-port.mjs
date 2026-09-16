@@ -33,8 +33,12 @@ import * as api from "../api/graphic-design/index.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const portDir = join(root, "api", "graphic-design");
 
-// The eleven modules the port was asked for, and nothing else. `canvas` is
-// dropped; `files` is the Node-only half and is its own queued item.
+// The eleven modules the port was asked for, and the barrel over them. This is
+// the list every case below reads, not the list of what the folder may hold:
+// `files.mjs` is the Node-only half and is its own queued item under **Port the
+// napkin-sketch Graphic Design API**, so it lands here without being a module
+// the page imports. A module that *is* browser-safe belongs in `PORTED` by
+// hand, which is what puts it under the import and Node checks.
 const PORTED = [
   "brand.mjs",
   "color.mjs",
@@ -62,7 +66,22 @@ function specifiersOf(source) {
 }
 
 test("the port carries the eleven modules and the barrel over them", () => {
-  assert.deepEqual(files, PORTED, `api/graphic-design/ holds ${files.join(", ")}`);
+  for (const name of PORTED) {
+    assert.ok(files.includes(name), `api/graphic-design/ is missing ${name}`);
+  }
+});
+
+test("and nothing beside them that the page could not load", () => {
+  // Not an exact match against `PORTED`, which would turn red on the run that
+  // adds `files.mjs` over a collision with nothing to do with what it changed.
+  // What the exact match was actually buying is asserted on its own: `canvas`
+  // is refused below, a `package.json` and build output are refused below that,
+  // and the import and Node checks read `PORTED` rather than the folder. What
+  // is left to hold here is that every extra is source a browser can parse.
+  for (const name of files) {
+    if (PORTED.includes(name)) continue;
+    assert.match(name, /\.mjs$/, `${name} is not an ES module, so the page cannot import it`);
+  }
 });
 
 test("canvas is not ported, because there is no GUI canvas to paint into", () => {
@@ -195,13 +214,81 @@ test("an elliptical arc is refused rather than quietly losing a corner", () => {
 });
 
 test("an unrecognised colour fails where the swatch is written", () => {
+  // Upstream only fails in the rasterizer, because only the rasterizer has to
+  // turn a name into numbers; the SVG writer passes the string through and
+  // lets the browser parse it. That lands badly here, where the page composes
+  // its sheet as inline SVG and the rasterizer never runs - a misspelled token
+  // would be a black region and no error anywhere. So both renderers refuse it.
   assert.throws(() => api.parseColor("nosuchcolour"), /unsupported color/);
+
+  const design = api.createComposition({ width: 40, height: 40 });
+  design.rect({ x: 4, y: 4, width: 32, height: 32, fill: "nosuchcolour" });
+  assert.throws(() => design.toSVG(), /graphic-design: unsupported color "nosuchcolour"/);
+  assert.throws(() => design.toPNG(), /graphic-design: unsupported color "nosuchcolour"/);
 });
 
-test("the upstream licence notice travelled with the source", () => {
-  // napkin-sketch is MIT and this repository is CC0 1.0, so copied source keeps
-  // its notice. Each module names the file it came from and the commit it was
-  // taken at, which is also what makes a later diff against upstream possible.
+test("and it fails on a group, a stroke and the page background alike", () => {
+  // A group carries the common paint props and SVG inherits them into its
+  // children, so a misspelling on the wrapper reaches the artwork too.
+  const grouped = api.createComposition({ width: 40, height: 40 });
+  grouped.group({ fill: "nosuchcolour" }, (inner) => inner.rect({ width: 8, height: 8 }));
+  assert.throws(() => grouped.toSVG(), /unsupported color "nosuchcolour"/);
+
+  const stroked = api.createComposition({ width: 40, height: 40 });
+  stroked.line({ x1: 0, y1: 0, x2: 40, y2: 40, stroke: "alsonotacolour" });
+  assert.throws(() => stroked.toSVG(), /unsupported color "alsonotacolour"/);
+
+  const paged = api.createComposition({ width: 40, height: 40, background: "papyrusish" });
+  assert.throws(() => paged.toSVG(), /unsupported color "papyrusish"/);
+});
+
+test("but the paints that mean \"do not paint\" are not mistaken for typos", () => {
+  // `undefined`, `null`, an empty string, `none` and `transparent` are all
+  // legitimate ways to leave a paint off, and a check that refused them would
+  // break every composition that draws an unfilled outline.
+  const design = api.createComposition({ width: 40, height: 40 });
+  design.rect({ width: 10, height: 10 });
+  design.rect({ x: 10, width: 10, height: 10, fill: null, stroke: "#000000" });
+  design.rect({ x: 20, width: 10, height: 10, fill: "none" });
+  design.rect({ x: 30, width: 10, height: 10, fill: "transparent", stroke: "" });
+  assert.match(design.toSVG(), /<svg/);
+});
+
+test("and a caller who wants the browser to be the parser can still say so", () => {
+  // `validate: false` is upstream's behaviour, kept reachable so the port can
+  // still be diffed against the source it was taken from.
+  const design = api.createComposition({ width: 40, height: 40 });
+  design.rect({ width: 40, height: 40, fill: "color(display-p3 1 0 0)" });
+  assert.match(
+    api.compositionToSvg(design.toDocument(), { validate: false }),
+    /fill="color\(display-p3 1 0 0\)"/
+  );
+  assert.throws(() => api.validatePaints(design.toDocument()), /unsupported color/);
+});
+
+test("the repository carries the upstream permission notice itself", () => {
+  // The per-file headers below are provenance, not a licence: they name a
+  // source and a commit and carry neither the copyright line nor the
+  // permission text. MIT asks for both in "all copies or substantial portions"
+  // and 5,899 lines is a substantial portion, so the notice is reproduced at
+  // the root, where it also scopes the CC0 `LICENSE` off this one directory.
+  // It cannot live in `api/graphic-design/` - the case above refuses anything
+  // there that is not a module the page can import.
+  const notice = readFileSync(join(root, "NOTICE"), "utf8");
+  assert.match(notice, /Copyright \(c\) 2026 isocialPractice/);
+  assert.match(notice, /Permission is hereby granted, free of charge/);
+  assert.match(notice, /shall be included in all\s+copies or substantial portions/);
+  assert.match(notice, /`api\/graphic-design\/`/, "the notice does not say what it scopes");
+  assert.match(notice, /d43caac191b2dfd532b3311f4ca1ea6969bb002f/, "the notice does not record the commit");
+
+  // And the file that governs the tree points at the scope, so a reader who
+  // takes `LICENSE` at its word does not redistribute the port as public domain.
+  assert.match(readFileSync(join(root, "README.md"), "utf8"), /\[NOTICE\]\(NOTICE\)/);
+});
+
+test("and every module still records where it came from", () => {
+  // Per-file headers stay whatever the root notice says: they are what makes a
+  // later diff against upstream possible, which is a separate job from licensing.
   for (const [name, source] of sources) {
     // Read the header with its comment markers and line breaks collapsed, so a
     // notice that wrapped differently still reads as the same sentence.

@@ -4,6 +4,59 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.16]
+
+### Added
+
+- `NOTICE` at the repository root, carrying the MIT copyright line and the
+  permission text in full for `api/graphic-design/`. The per-module headers
+  that landed with the port record a source file and a commit, which is
+  provenance rather than a licence: MIT asks for the copyright and permission
+  text in "all copies or substantial portions", and 5,899 lines is a
+  substantial portion. The notice also scopes the CC0 `LICENSE` off that one
+  directory, so the file governing the tree no longer waives rights over code
+  held under different terms. `LICENSE` itself is untouched and still reads as
+  verbatim CC0; `README.md` gains a licence section pointing at both.
+- `validatePaints(doc)`, exported from the barrel and run by
+  `compositionToSvg` before it writes any markup. It walks a document's page
+  background and every element's fill and stroke, groups included, and raises
+  the rasterizer's own error on the first paint no renderer can read.
+
+### Changed
+
+- The SVG back end now refuses a colour it cannot read, which upstream does
+  not. Upstream passes the string through to the markup on the reasoning that
+  a browser is the better parser, and catches a misspelling in the rasterizer,
+  where a name has to become numbers. That holds when a PNG is the deliverable
+  and fails here: the page composes its sheet as inline SVG, so the rasterizer
+  never runs and a misspelled token was a black region with no error anywhere.
+  `compositionToSvg(doc, { validate: false })` restores the upstream behaviour,
+  which is what keeps the port diffable against the source it came from. Valid
+  documents render to identical bytes either way, and the differential harness
+  against the bundled upstream TypeScript still reports all 131 surfaces
+  identical.
+- `tools/test-graphic-design-port.mjs` no longer asserts that
+  `api/graphic-design/` holds exactly the twelve names on disk today. That
+  exact match would have turned the suite red on the run that adds
+  `files.mjs` - the Node only half, queued under **Port the napkin-sketch
+  Graphic Design API** and named in the test's own comment - over a collision
+  with nothing to do with what that run changed. What the exact match was
+  buying is asserted on its own and stays: `canvas` is refused, a
+  `package.json` and build output are refused, and the import and Node checks
+  read the module list rather than the folder. What is left is that every
+  module asked for is present and every extra file is an ES module the page
+  could parse, which still refuses a stray `LICENSE` or `README` in there.
+
+### Fixed
+
+- The case titled "an unrecognised colour fails where the swatch is written"
+  asserted only that `parseColor` raises in isolation, which was not what its
+  name claimed and not what happened in a composition. It now renders through
+  both back ends and holds the claim across a fill, a stroke, a group and the
+  page background, alongside new cases proving the five paints that mean "do
+  not paint" are not mistaken for typos and that the upstream pass-through is
+  still reachable.
+
 ## [2026.09.15]
 
 ### Added
