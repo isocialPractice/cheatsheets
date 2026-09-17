@@ -191,7 +191,8 @@
  * Character-level text styling.
  *
  * @typedef {object} TextStyle
- * @property {string} [fontFamily] CSS font family list. Default {@link DEFAULT_TEXT_FONT}.
+ * @property {import('./font.mjs').Face} [face] The metrics this run is measured with. Default the built-in alphabet. When it names a `fontFamily`, that is also what the SVG asks for, so a run cannot be measured in one face and drawn in another.
+ * @property {string} [fontFamily] CSS font family list. Default the face's own, else {@link DEFAULT_TEXT_FONT}.
  * @property {number} [fontSize] Font size in composition units. Default {@link DEFAULT_FONT_SIZE}.
  * @property {number | 'normal' | 'bold'} [fontWeight] `normal`, `bold`, or a numeric CSS weight.
  * @property {'normal' | 'italic'} [fontStyle] `normal` or `italic`.

@@ -179,10 +179,14 @@ function textMarkup(el, precision, frame) {
     wordSpacing: el.wordSpacing,
     paragraphSpacing: el.paragraphSpacing,
     indent: el.indent,
+    face: el.face,
   });
 
   const style = attrs({
-    "font-family": el.fontFamily ?? DEFAULT_TEXT_FONT,
+    // A face that names the stack it was measured from names it here too, so
+    // the browser is asked for the family the line was laid out in rather than
+    // for whatever the element happened to say.
+    "font-family": el.fontFamily ?? el.face?.fontFamily ?? DEFAULT_TEXT_FONT,
     "font-size": fmt(fontSize, precision),
     "font-weight": el.fontWeight === undefined ? undefined : String(el.fontWeight),
     "font-style": el.fontStyle,

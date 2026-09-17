@@ -412,7 +412,7 @@ function paintText(ctx, el, frame) {
   if (!fill && !stroke) return;
 
   const fontSize = el.fontSize ?? DEFAULT_FONT_SIZE;
-  const metrics = fontMetrics(fontSize, el.fontWeight, el.fontStyle);
+  const metrics = fontMetrics(fontSize, el.fontWeight, el.fontStyle, el.face);
   const content = transformText(el.text, el.transform);
   const layout = layoutText(content, {
     x: el.x,
@@ -426,6 +426,7 @@ function paintText(ctx, el, frame) {
     wordSpacing: el.wordSpacing,
     paragraphSpacing: el.paragraphSpacing,
     indent: el.indent,
+    face: el.face,
   });
 
   /** @type {import('./geometry.mjs').Contour[]} */
@@ -438,6 +439,7 @@ function paintText(ctx, el, frame) {
         wordSpacing: (el.wordSpacing ?? 0) + line.wordSpacing,
         slant: metrics.slant,
         strokeWidth: metrics.strokeWidth,
+        face: el.face,
       })
     );
     if (el.decoration === "underline" || el.decoration === "line-through") {

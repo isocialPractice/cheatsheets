@@ -492,6 +492,68 @@ artwork's face is a finding; leaving the page with whatever face the browser
 happened to prefer was an omission, and until 2026.09.14 one silence was
 carrying both.
 
+#### What a generated sheet is measured in
+
+Not naming the artwork's face leaves a generated sheet needing one anyway, and
+the drawing API this repository ported measures its own built-in single-stroke
+alphabet rather than whatever family the SVG asks a browser for. That gap was
+settled on 2026.09.17 and the figures are here, because it is a property of
+the sheets rather than of the code that draws them.
+
+**The gap is not marginal.** The lead-in is the one run whose text is known, at
+1481 px wide and a 112 px cap. The built-in alphabet predicts **2403 px** for
+it, 62% too wide. A second run laid out after the first would start most of its
+own width past where it belongs.
+
+**Two routes were open.** Set each block as a single `text` element and let the
+browser break it, forfeiting the extents; or measure a real face once and
+commit the width table. The second was taken, on what the tables above
+themselves ask for: the title is 2595 px wide and centred within 2 px of the
+canvas axis, the flanking rules were placed against that measured width, and
+the lead-in sits 146 px in from the spine. None of it is expressible without
+knowing how wide a run is before it is drawn, and the dependency-free raster
+route has no browser whose breaks it could follow even in principle.
+
+The table is measured with `tools/measure-font-widths.mjs` and committed in
+`api/cheatsheet/faces.mjs`:
+
+```bash
+node tools/measure-font-widths.mjs
+```
+
+Three results, each of which is a measurement rather than a preference:
+
+- **The fall-through families share one set of advances, exactly.** Across
+  printable ASCII, `Arial`, `Helvetica` and `Liberation Sans` disagree with the
+  resolved stack by **0 units on all 95 characters**. One committed table
+  therefore travels, which is what makes committing one defensible.
+- **Summing per character equals the engine's own measurement of the whole
+  string, to 0.000%.** None of those families kerns by default, so a
+  per-character table loses nothing to one. `system-ui` is the exception at
+  -0.512%.
+- **The artwork's face is condensed to 0.684 of that stack.** At the lead-in's
+  112 px cap the stack sets the same string at 2165 px against the artwork's
+  1481. That is the same finding **The faces are not named** reached from the
+  other side, where all three nearest candidates among 481 fonts were
+  condensed.
+
+Two residuals follow, and both are bounded:
+
+- **Cap height is not shared even where advances are.** `Liberation Sans`
+  matches every advance at a 688 unit cap against the stack's 719, and
+  `Helvetica Neue` at 672. A run breaks in the same place and sits at the same
+  coordinates on every machine, while the glyphs drawn into it vary in height
+  by up to 7% between fallbacks. Layout never shifts; the type colour does.
+- **The condensation is recorded and not applied.** Squeezing a grotesque to
+  68% of its width forges a condensed face out of one that is not. A generated
+  run that will not fit its region is set smaller instead, so a generated sheet
+  keeps the artwork's geometry without pretending to its letterforms.
+
+Checked end to end against a real engine on 2026.09.17: a composed sheet
+rendered in Chromium draws its runs within **0.29%** of the widths the
+committed table predicted, which is 7 px of 2531 on the 3600 px canvas, or
+about one pixel at the 600 px display size.
+
 ### Where the text sits
 
 Every run of text falls into one of the regions above. These are the positions on

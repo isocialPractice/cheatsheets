@@ -16,19 +16,41 @@
 // "the same composition in two formats" holds for layout, which is the part a
 // composition actually controls.
 //
-// **What that costs this repository, stated plainly.** The sheets measured in
-// `DESIGN_LANGUAGE.md` are set in a proportional face this table is not, so a
-// run laid out beside another run in the real family overprints in the SVG
-// while looking right in the PNG. That is the open question **Give the ported
-// `font.mjs` the sheets' own metrics rather than the built in alphabet's**
-// under **Port the napkin-sketch Graphic Design API** in `TODO.md` exists to
-// settle, and it is deliberately not settled here: the port lands what
-// upstream wrote, and the metrics decision is made once against the measured
-// artwork rather than twice.
-//
 // Grid: x runs left to right from 0, y runs **up** from the baseline. The cap
 // height is 11, the x-height is 7, descenders reach -3, and the em is 15 units
 // tall, so a 16px font has an 11.7px cap - close to a normal sans.
+//
+// ---
+//
+// **The one local addition to this module, and what it is for.** Everything
+// above is upstream. Below it, every measuring and layout function takes an
+// optional `face`, and `BUILTIN_FACE` is the table above described in that
+// form. Omit it and this file behaves exactly as it did on the day it was
+// ported, which is what keeps a later diff against upstream readable.
+//
+// It exists because measuring the built-in alphabet is wrong for this
+// repository by a margin that is not arguable. The sheets in
+// `DESIGN_LANGUAGE.md` are set in a proportional face this table is not, and
+// the SVG writer emits live `<text>` naming a family the browser draws
+// instead. Measured against the one run of the artwork whose text is known -
+// the lead-in, "Starting Point for Practical Use:", 1481 px wide at a 112 px
+// cap - the built-in alphabet predicts **2403 px**, 62% too wide. A second run
+// laid out after it would start most of its own width past where it belongs.
+//
+// A face carries advance widths, a cap height, an x-height and a descender in
+// its own units per em, so a layout is measured in the face that will actually
+// draw it. `api/cheatsheet/faces.mjs` holds the measured ones and says how
+// they were read; nothing in this folder depends on that file, so the port
+// still imports only its own siblings.
+//
+// **Both renderers read the face, which is the property that makes this
+// worth doing.** The rasterizer has no font engine and still draws the
+// built-in glyph shapes, but it advances the pen by the face's widths and
+// scales each glyph so its cap matches the face's cap. So the SVG and the PNG
+// break lines in the same places and put every line at the same coordinates,
+// and the only thing the format changes is the shape of the letters - which is
+// what made the PNG a shape-level regression target rather than a sheet
+// anyone publishes.
 
 import { strokeContour } from "./geometry.mjs";
 
@@ -199,6 +221,90 @@ export function glyph(char) {
 }
 
 /**
+ * A face: what a renderer needs in order to measure text it cannot draw.
+ *
+ * Everything is in the face's own `unitsPerEm`, the way a font file carries
+ * it, so one table serves every size.
+ *
+ * @typedef {object} Face
+ * @property {string} name How a render names the face it measured with.
+ * @property {number} unitsPerEm
+ * @property {number} capHeight
+ * @property {number} xHeight
+ * @property {number} descender Positive distance below the baseline.
+ * @property {Record<string, number>} advances Advance width per character.
+ * @property {number} fallbackAdvance Used for a character the table omits.
+ * @property {string} [fontFamily] The CSS stack these advances were read from.
+ */
+
+/**
+ * The built-in alphabet's own advances, derived from the glyph table rather
+ * than restated beside it, so the two cannot drift apart.
+ *
+ * @type {Record<string, number>}
+ */
+const BUILTIN_ADVANCES = Object.fromEntries(
+  Object.keys(GLYPHS).map((char) => [char, /** @type {Glyph} */ (glyph(char)).advance])
+);
+
+/**
+ * The built-in single-stroke alphabet, described as a face.
+ *
+ * This is the default everywhere a face is optional, so a call that names none
+ * measures exactly what this module measured before faces existed.
+ *
+ * @type {Face}
+ */
+export const BUILTIN_FACE = {
+  name: "builtin",
+  unitsPerEm: FONT_UNITS_PER_EM,
+  capHeight: FONT_CAP_HEIGHT,
+  xHeight: FONT_X_HEIGHT,
+  descender: FONT_DESCENDER,
+  advances: BUILTIN_ADVANCES,
+  fallbackAdvance: FALLBACK_ADVANCE,
+};
+
+/**
+ * @param {Face} [face]
+ * @returns {Face}
+ */
+function resolveFace(face) {
+  return face ?? BUILTIN_FACE;
+}
+
+/**
+ * Advance of one character in the face's own units.
+ *
+ * @param {Face} face
+ * @param {string} char
+ * @returns {number}
+ */
+function faceAdvance(face, char) {
+  // An object literal answers a lookup for `constructor` or `toString` from
+  // Object.prototype, so read own properties only - the same guard `glyph`
+  // carries, for the same reason.
+  if (!Object.prototype.hasOwnProperty.call(face.advances, char)) return face.fallbackAdvance;
+  const advance = face.advances[char];
+  return advance === undefined ? face.fallbackAdvance : advance;
+}
+
+/**
+ * How far a built-in glyph is scaled so its cap lands on the face's cap.
+ *
+ * The rasterizer has only these glyph shapes whatever face it is measuring
+ * with, so drawing them at the face's cap height is what keeps a rasterized
+ * sheet comparable to the SVG beside it.
+ *
+ * @param {Face} face
+ * @param {number} size
+ * @returns {number}
+ */
+function glyphScale(face, size) {
+  return (size * face.capHeight) / (face.unitsPerEm * FONT_CAP_HEIGHT);
+}
+
+/**
  * The metrics a measured run of text carries.
  *
  * @typedef {object} FontMetrics
@@ -216,19 +322,25 @@ export function glyph(char) {
  * @param {number} size
  * @param {number | 'normal' | 'bold'} [weight]
  * @param {'normal' | 'italic'} [style]
+ * @param {Face} [face]
  * @returns {FontMetrics}
  */
-export function fontMetrics(size, weight = "normal", style = "normal") {
+export function fontMetrics(size, weight = "normal", style = "normal", face) {
+  const resolved = resolveFace(face);
   const numeric = weight === "normal" ? 400 : weight === "bold" ? 700 : weight;
   // 0.075em at 400 up to 0.13em at 900: the range a single-stroke alphabet can
   // carry before the counters of "e" and "a" close up.
   const ratio = 0.075 + (Math.min(Math.max(numeric - 400, 0), 500) / 500) * 0.055;
+  // The pen is as heavy as the glyphs it draws, so the weight is taken against
+  // the size those glyphs are actually drawn at rather than against the font
+  // size. The two are the same number for the built-in face.
+  const drawnAt = glyphScale(resolved, size) * FONT_UNITS_PER_EM;
   return {
     size,
-    capHeight: (FONT_CAP_HEIGHT / FONT_UNITS_PER_EM) * size,
-    xHeight: (FONT_X_HEIGHT / FONT_UNITS_PER_EM) * size,
-    descender: (FONT_DESCENDER / FONT_UNITS_PER_EM) * size,
-    strokeWidth: Math.max(size * ratio, 0.35),
+    capHeight: (resolved.capHeight / resolved.unitsPerEm) * size,
+    xHeight: (resolved.xHeight / resolved.unitsPerEm) * size,
+    descender: (resolved.descender / resolved.unitsPerEm) * size,
+    strokeWidth: Math.max(drawnAt * ratio, 0.35),
     slant: style === "italic" ? 0.21 : 0,
   };
 }
@@ -238,12 +350,12 @@ export function fontMetrics(size, weight = "normal", style = "normal") {
  *
  * @param {string} char
  * @param {number} size
+ * @param {Face} [face]
  * @returns {number}
  */
-export function charWidth(char, size) {
-  const g = glyph(char);
-  const advance = g ? g.advance : FALLBACK_ADVANCE;
-  return (advance / FONT_UNITS_PER_EM) * size;
+export function charWidth(char, size, face) {
+  const resolved = resolveFace(face);
+  return (faceAdvance(resolved, char) / resolved.unitsPerEm) * size;
 }
 
 /**
@@ -253,6 +365,7 @@ export function charWidth(char, size) {
  * @property {number} fontSize
  * @property {number} [letterSpacing]
  * @property {number} [wordSpacing]
+ * @property {Face} [face]
  */
 
 /**
@@ -267,7 +380,7 @@ export function measureText(text, options) {
   const wordSpacing = options.wordSpacing ?? 0;
   let width = 0;
   for (const char of text) {
-    width += charWidth(char, options.fontSize) + spacing;
+    width += charWidth(char, options.fontSize, options.face) + spacing;
     if (char === " ") width += wordSpacing;
   }
   // The trailing letter space is a gap after the last glyph, not part of the
@@ -358,6 +471,7 @@ export function wrapText(text, maxWidth, options) {
  * @property {number} [wordSpacing]
  * @property {number} [paragraphSpacing]
  * @property {number} [indent]
+ * @property {Face} [face]
  */
 
 /**
@@ -377,6 +491,7 @@ export function layoutText(text, options) {
     fontSize: options.fontSize,
     letterSpacing: options.letterSpacing,
     wordSpacing: options.wordSpacing,
+    face: options.face,
   };
   const advance = options.fontSize * options.lineHeight;
   const paragraphs = text.split("\n");
@@ -403,7 +518,7 @@ export function layoutText(text, options) {
   const spacing = options.paragraphSpacing ?? 0;
 
   // Where the first baseline sits, given what `y` was said to measure.
-  const metrics = fontMetrics(options.fontSize);
+  const metrics = fontMetrics(options.fontSize, "normal", "normal", options.face);
   const blockHeight = advance * (flowed.length - 1);
   let firstBaseline = options.y;
   if (options.baseline === "top") firstBaseline = options.y + metrics.capHeight;
@@ -455,6 +570,7 @@ export function layoutText(text, options) {
  * @property {number} [letterSpacing]
  * @property {number} [wordSpacing]
  * @property {number} [slant]
+ * @property {Face} [face]
  */
 
 /**
@@ -463,6 +579,14 @@ export function layoutText(text, options) {
  * Returned as open contours with y already flipped into screen space, ready
  * for the stroker.
  *
+ * The glyph shapes are always the built-in alphabet's - it is the only one
+ * this module can draw - but both the pen's advance and the glyph's size come
+ * from the face, so a rasterized line breaks and sits exactly where the SVG
+ * beside it does. Where the face is wider than the built-in alphabet the
+ * glyphs stand further apart than the shapes want; where it is narrower they
+ * crowd. That is the visible cost of rasterizing a face nothing here has, and
+ * it is a cost in letterfit rather than in layout.
+ *
  * @param {string} text
  * @param {number} x
  * @param {number} baseline
@@ -470,7 +594,8 @@ export function layoutText(text, options) {
  * @returns {import('./types.mjs').Point[][]}
  */
 export function lineStrokes(text, x, baseline, options) {
-  const scale = options.fontSize / FONT_UNITS_PER_EM;
+  const face = resolveFace(options.face);
+  const scale = glyphScale(face, options.fontSize);
   const spacing = options.letterSpacing ?? 0;
   const wordSpacing = options.wordSpacing ?? 0;
   const slant = options.slant ?? 0;
@@ -489,7 +614,7 @@ export function lineStrokes(text, x, baseline, options) {
         );
       }
     }
-    pen += charWidth(char, options.fontSize) + spacing + (char === " " ? wordSpacing : 0);
+    pen += charWidth(char, options.fontSize, face) + spacing + (char === " " ? wordSpacing : 0);
   }
   return out;
 }

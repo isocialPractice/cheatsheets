@@ -69,6 +69,7 @@ export {
   measureText,
   transformText,
   wrapText,
+  BUILTIN_FACE,
   FONT_CAP_HEIGHT,
   FONT_DESCENDER,
   FONT_UNITS_PER_EM,

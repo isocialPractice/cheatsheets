@@ -11,16 +11,27 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Give the ported `font.mjs` the sheets' own metrics rather than the built in alphabet's
-  - The display face is not nameable from the artwork - it matches none of the 481 fonts surveyed - so the generator is given the four measured cap heights rather than a family. The code face is proportional, not monospaced, so its code must not be set to a grid
-  - Upstream `measureText` measures the built in alphabet, not the named family, so text laid out run beside run in a proportional family overprints in the SVG while looking right in the raster. Settle which of the two routes answers it before the composition algorithm depends on either
+- [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
+  - The algorithm and the seed landed on 09.17 and left two things for this item. A short example fills under half the panel and the composition only reports it, as `variation.panelFill`; and a run that overflows is stepped down with no floor under how small it may get
+  - The contrast half is already data rather than work: `language.mjs` carries the floors and the green that may carry text on a white ground, and nothing yet checks a composed pairing against them
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
+  - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
   - From: Port the napkin-sketch Graphic Design API
-- [ ] Write the composition algorithm: given a cheatsheet document and the extracted language, produce a composition variation
-  - The language is recorded under **The sheets** in `DESIGN_LANGUAGE.md`: six regions down the canvas, three across it, one token set at the 8px step, and four measured type sizes that are not a scale. A generated sheet composes at 3600, not 3601 - 3600 is 75 whole steps and the extra pixel is export rounding
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
-- [ ] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
-  - The ported renderers are pure: one document renders to identical bytes every time, in both formats. So the seed is the only thing a variation turns on, and determinism is a property of the composition rather than of the renderer
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Cover the port with a test that renders a fixture document twice and compares byte for byte
+  - Upstream rendering is pure and deterministic in both formats, and that property is what makes a generated sheet reviewable and a seeded variation reproducible
+  - There is a fixture now that there was not before: a composed sheet at a named seed. `tools/test-composition-algorithm.mjs` already compares two renders of one document in the same process, so what is left here is the committed expected output that survives a process
+  - From: Port the napkin-sketch Graphic Design API
+- [ ] Render a composed SVG to a raster, taking the route, the scale and the background from the call
+  - Two routes exist and only one is publishable. The ported `toPNG()` is dependency free and draws its text in a built in single stroke alphabet, so it is a shape level regression target rather than a sheet anyone sees. A published or posted raster goes through a real engine, in the face the design language measured
+  - Small raster text needs a scale of 2 or 3. A stroke thinner than a device pixel anti-aliases to grey
+  - GIF and TIFF are dropped. Neither has a consumer here, and the social recipe in `.claude/constants.md` publishes `jpg` and `webp`
+  - The face the real engine draws in is settled now, and `tools/test-sheet-faces-browser.mjs` already resolves a browser at run time and skips with the install command as its reason, which is the pattern the route selection wants
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
+  - The ported `svg.mjs` emits live `text` already, so this is a constraint on how the composition calls the API rather than something to write
+  - `compose.mjs` calls only `text` for every run, so this is an acceptance check and a case that fails if a later change starts emitting outlines
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
 
 ## GitHub Pages Deployment
 
@@ -593,8 +604,6 @@ record.
 
 ### The Composition Algorithm
 
-- [ ] Write the composition algorithm: given a cheatsheet document and the extracted language, produce a composition variation
-- [ ] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
 - [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
 - [ ] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
   - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
@@ -613,6 +622,7 @@ record.
 - [ ] Record the algorithm each of the steps above settles on, where the next run will read it
   - The user note asks for this in `.claude/agent-note.md`, which is a transient file rather than a missing one: a run leaves it for the next run and deletes it once the check is resolved, so it is absent between runs by design. The algorithm itself is not a check and belongs in `DESIGN_LANGUAGE.md`, with the agent note used only to point a following run at that record
   - The renderer half of this is already covered: recording the ported surface and its limits is an item under **Port the napkin-sketch Graphic Design API**, so what is left here is the composition algorithm's own record
+  - The font route half is recorded too, under **What a generated sheet is measured in**. What is left is the composition's own record: what a seed moves, what it may not, and why the three free figures are the three the artwork left free
 
 ## Port the napkin-sketch Graphic Design API
 
@@ -638,11 +648,18 @@ bundle of the upstream TypeScript rather than against a reading of it, and
 `tools/test-graphic-design-port.mjs` holds what porting cost. What is left
 below is everything the port did not settle by landing.
 
+**The font metrics question is settled**, which was the largest of those and
+the one every composition item was waiting on. `font.mjs` now takes an optional
+face and measures in it, with the built-in alphabet as the default so omitting
+one reproduces the port exactly. The route taken was the committed width table
+rather than letting the browser break an unmeasured block, and the figures are
+in **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`. The one
+consequence for the items below: this is the first local change to a ported
+module, so a later diff against upstream reads `font.mjs` as upstream above the
+divider in its header and this repository's below it.
+
 - [ ] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
   - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
-- [ ] Give the ported `font.mjs` the sheets' own metrics rather than the built in alphabet's
-  - The display face is not nameable from the artwork - it matches none of the 481 fonts surveyed - so the generator is given the four measured cap heights rather than a family. The code face is proportional, not monospaced, so its code must not be set to a grid
-  - Upstream `measureText` measures the built in alphabet, not the named family, so text laid out run beside run in a proportional family overprints in the SVG while looking right in the raster. Two routes answer it: set each block as a single `text` element and let the browser break it, forfeiting exact extents; or measure the fallback stack in a browser once and commit the width table. Settle which before the composition algorithm depends on either
 - [ ] Record the ported surface and every limit it carries where a caller will read it
   - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
   - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
@@ -1014,5 +1031,15 @@ generate ideas about generating ideas.
   - **Issue**: `tools/test-graphic-design-port.mjs` titles a case "an unrecognised colour fails where the swatch is written" and then asserts only that `api.parseColor("nosuchcolour")` raises in isolation. In a composition it does not fail where the swatch is written. `design.rect({ fill: "nosuchcolour" })` returns normally, and `toSVG()` returns normally with `fill="nosuchcolour"` in the markup, which a browser drops on the floor and paints black. Only `toPNG()` raises, because only the rasterizer has to turn the name into numbers. That is upstream's deliberate design - `color.mjs` says the SVG writer passes colours through because a browser is the better parser - but it lands badly here, because the page composes its sheet as inline SVG in the browser, so the one renderer this repository ships is the one that never checks a swatch. A misspelled token in a generated sheet is a black region and no error anywhere
   - **Goal**: either give the case a name that matches what it asserts, or give the claim something that makes it true - a validation pass over a document's paints, called before `toSVG`, that raises the same error the rasterizer would. The second is the useful one and it is cheap: `parsePaint` already exists and the element walk already exists. Settle it before **Write the composition algorithm**, which is what will start generating paints rather than writing them by hand
   - From: Code Review Override - what the port carried in with it
+- [x] Give the ported `font.mjs` the sheets' own metrics rather than the built in alphabet's
+  - The display face is not nameable from the artwork - it matches none of the 481 fonts surveyed - so the generator is given the four measured cap heights rather than a family. The code face is proportional, not monospaced, so its code must not be set to a grid
+  - Upstream `measureText` measures the built in alphabet, not the named family, so text laid out run beside run in a proportional family overprints in the SVG while looking right in the raster. Settle which of the two routes answers it before the composition algorithm depends on either
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Write the composition algorithm: given a cheatsheet document and the extracted language, produce a composition variation
+  - The language is recorded under **The sheets** in `DESIGN_LANGUAGE.md`: six regions down the canvas, three across it, one token set at the 8px step, and four measured type sizes that are not a scale. A generated sheet composes at 3600, not 3601 - 3600 is 75 whole steps and the extra pixel is export rounding
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
+  - The ported renderers are pure: one document renders to identical bytes every time, in both formats. So the seed is the only thing a variation turns on, and determinism is a property of the composition rather than of the renderer
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 </details>

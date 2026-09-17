@@ -350,13 +350,26 @@ test("the page's stack is the one the design language records", () => {
   // records that the sheets' display face cannot be identified from the
   // artwork, and none of the near misses it names may be borrowed here, or the
   // page's stack reads as an answer to a question the record leaves open.
+  //
+  // **The span is that one subsection and nothing after it.** It used to run to
+  // "Where the text sits", which was the next heading on the day it was
+  // written and stopped being so once "What a generated sheet is measured in"
+  // landed between them. That section names Arial and Helvetica deliberately,
+  // because a generated sheet has to be measured in something and those are
+  // what the stack resolves to - which is the opposite of borrowing them as an
+  // identification of the artwork. Reading to the next heading of any level
+  // keeps the guard on the sentence it was written about rather than on
+  // whatever happens to follow it.
   const unnamed = designLanguage.indexOf("#### The faces are not named");
-  const after = designLanguage.indexOf("### Where the text sits");
-  assert.ok(
-    unnamed !== -1 && after > unnamed,
-    "DESIGN_LANGUAGE.md no longer carries \"The faces are not named\" ahead of \"Where the text sits\""
-  );
+  assert.notEqual(unnamed, -1, 'DESIGN_LANGUAGE.md no longer carries "The faces are not named"');
+  const body = designLanguage.slice(unnamed);
+  const next = /\n#{1,4} /.exec(body.slice(1));
+  const after = next ? unnamed + 1 + next.index : designLanguage.length;
   const disclaimed = designLanguage.slice(unnamed, after);
+  assert.ok(
+    disclaimed.includes("cannot be named from the artwork"),
+    'the span read for "The faces are not named" no longer holds its finding'
+  );
   for (const family of normalizeStack(LIGHT["--font"])) {
     assert.ok(
       !disclaimed.includes(family),
