@@ -4,6 +4,125 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.17]
+
+### Added
+
+- `api/cheatsheet/`, this repository's own layer over the ported drawing
+  surface, as five dependency free `.mjs` files the page can import with no
+  build step. The dependency runs one way only - it imports
+  `api/graphic-design/` and nothing there imports it - so the port is still
+  diffable against upstream.
+  - `faces.mjs` carries the width table a generated sheet is measured in, the
+    four cap heights the artwork was set at, and the conversion from a cap
+    height to a font size.
+  - `language.mjs` carries `DESIGN_LANGUAGE.md` in the form the algorithm
+    reads: the five bands, the three divisions, the token set, the colors and
+    the syntax palette, the flanking rules, the mark square, the measured
+    baseline of every fixed run, and the three figures the code panel is free
+    within.
+  - `variation.mjs` holds the seeded source every choice is drawn from -
+    SplitMix32, a string-to-seed hash, and a recorder that keeps what was
+    chosen.
+  - `compose.mjs` is the composition algorithm: a cheatsheet document and the
+    language in, a composition variation out.
+- `tools/measure-font-widths.mjs`, which drives Chromium over a canvas 2D
+  context and reads a font stack's advance widths at 1000 units per em. It is
+  run once and its output committed, not called at composition time: the page
+  composes in a browser with no Node in reach, and a sheet has to measure
+  identically on a machine with no browser at all. It skips with the install
+  command as its reason where Playwright is absent, which is the pattern
+  `tools/test-page-structure-browser.mjs` settled.
+- `tools/test-sheet-faces.mjs`, `tools/test-composition-algorithm.mjs` and
+  `tools/test-sheet-faces-browser.mjs`, 53 cases between them. The last of the
+  three resolves a browser at run time and skips with the install command as
+  its reason where Playwright is absent. `node --test tools/*.mjs` now reports
+  171 against 117 before, counting as that command does - the figure includes
+  one entry per file for `tools/measure-font-widths.mjs` and
+  `tools/measure-sheet-composition.mjs`, which carry no cases of their own.
+- **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`, recording
+  the font route and the figures that settled it.
+
+### Changed
+
+- **The ported `font.mjs` now measures in the face that will draw the text,
+  rather than in its own built-in alphabet.** Every measuring and layout
+  function takes an optional face; omitting one reproduces the built-in
+  behaviour exactly, which is asserted at six sizes across `measureText`,
+  `fontMetrics`, `charWidth`, `layoutText` and `lineStrokes` rather than
+  assumed. `BUILTIN_FACE` is the built-in alphabet described in that form, with
+  its advances derived from the glyph table rather than restated beside it.
+
+  The gap this closes is not marginal. The lead-in is the one run of artwork
+  whose text is known, at 1481 px wide and a 112 px cap, and the built-in
+  alphabet predicts **2403 px** for it - 62% too wide, so a second run laid out
+  after the first would begin most of its own width past where it belongs.
+
+  Of the two routes open, the committed width table was taken over letting the
+  browser break an unmeasured block. The tables in `DESIGN_LANGUAGE.md` ask for
+  extents a browser cannot be asked for in advance - a title 2595 px wide
+  centred within 2 px of the canvas axis, flanking rules placed against that
+  width - and the dependency free raster route has no browser whose breaks it
+  could follow. Three measurements make one committed table defensible rather
+  than machine-local: `Arial`, `Helvetica` and `Liberation Sans` disagree with
+  the resolved stack by **0 units on all 95 characters**; summing per character
+  equals the engine's own measurement of a whole string to **0.000%**, so none
+  of them kerns; and the artwork's face is condensed to **0.684** of the stack,
+  which is the same finding **The faces are not named** reached from the other
+  side. Checked end to end, a composed sheet rendered in Chromium draws its
+  runs within **0.29%** of what the table predicted.
+- The rasterizer reads the face too, which is what keeps the two back ends one
+  composition. It still draws the built-in glyph shapes - they are the only
+  ones it has - but it advances the pen by the face's widths and scales each
+  glyph so its cap matches the face's. So the SVG and the PNG break lines in
+  the same places and put every line at the same coordinates, and the only
+  thing the format changes is the shape of the letters. The cost is in
+  letterfit rather than in layout.
+- The SVG writer asks the browser for the family the face was measured from
+  when a text element names none, so a run cannot be measured in one face and
+  drawn in another.
+- `TextStyle` in `types.mjs` carries `face`, and the barrel exports
+  `BUILTIN_FACE`.
+
+### Fixed
+
+- **A long example could place its last line below the code panel while the
+  composition reported that it fitted.** The spacing a seed may choose was
+  sized by dividing the padded panel height by the number of gaps between
+  lines, which reserves nothing for the cap height the block reaches above its
+  first baseline or the descender it reaches below its last - neither of which
+  is a gap. An eighteen line example at seed 2073 put its last baseline 21 px
+  below the panel and its ink 43 px below, over the green divider, with
+  `codeFits` true and no note. The two fractions are now taken out of the
+  height before the spacing is drawn, so every composition that reports a fit
+  keeps the whole block inside the panel with the top padding clear at both
+  ends. The cap's share of the spacing is one named constant rather than the
+  same literal in two places.
+- **A code line whose role named an inherited property was painted with a
+  function rather than falling back to plain.** `syntax` is an object literal,
+  so a role of `constructor`, `toString` or `hasOwnProperty` answered from
+  `Object.prototype` and the `?? plain` fallback never fired; the paint reached
+  the renderer as a function and `toSVG()` raised `unsupported color "function
+  toString() { [native code] }"`. The lookup reads own properties only, which
+  is the guard `glyph` and `roleStyle` already carry.
+
+### Known
+
+- **A short example leaves a void in the code panel, and the composition
+  reports it rather than closing it.** The eleven sheets all fill their panel
+  because every one of them carries enough code to; a four line example at the
+  measured maximum spacing fills under half of it. Closing the gap means either
+  centring the block or letting the panel shrink, and both are decisions for
+  **Constrain every variation to the extracted margins, spacing and contrast
+  floors**, which is the item that settles what a variation may not do. Until
+  then `variation.panelFill` says what fraction of the panel the example
+  occupies.
+- **The artwork's wordmark sits 208.5 px left of the canvas axis and a composed
+  sheet centres its own.** A second masthead element sits to the wordmark's
+  right on all eleven and the pair is what is centred; a document has no way to
+  declare that element yet. Reproducing the offset without the thing that
+  balances it would put a lone run visibly off centre and call it fidelity.
+
 ## [2026.09.16]
 
 ### Added
