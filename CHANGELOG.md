@@ -4,6 +4,95 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.19]
+
+### Added
+
+- Floors on what a seeded variation may do, as `FLOORS` in
+  `api/cheatsheet/language.mjs` and the enforcement of them in `compose.mjs`.
+  Each of the three is derived from something already measured rather than
+  chosen: a display cap of one step, a code cap of the minimum measured line
+  spacing at the cap share, and a panel fill of 0.85, which is the least filled
+  code panel of the eleven sheets.
+  - The fill floor narrows the spacing the seed may draw from, and the margin as
+    well. The padding is chosen before the spacing, and at the measured maximum
+    of 152 px the block can occupy at most 0.849 of the panel before a line is
+    placed, so a seed drawing it would be one no spacing could rescue.
+  - A floor that no spacing can reach - a document with too few rows - leaves
+    the measured range intact rather than collapsing it onto its own maximum,
+    which would have made every seed compose the same sheet with the panel still
+    empty. It is reported through `fillsPanel` instead.
+  - A floor is never a clamp. A run that still does not fit at the floor is left
+    at the floor and reported through `runsFit` or `codeFits`, because pushing it
+    back up would put ink outside the region it was fitted to.
+  - And a floor never outranks the room actually available, which is the reading
+    a crowded document turns on. Past about 31 rows the spacing the panel has
+    room for is already below the measured minimum, so a floor applied as "at
+    least the minimum" would hand the seed an inverted range and set the block at
+    the one spacing that certainly does not fit; one step later the cap such a
+    spacing yields is already under `codeCap`, so the same reading would step the
+    cap *up* past its own line spacing and overlap every line. The eleven run 18
+    to 36 rows, so both are inside the record. A floor stops a descent and never
+    starts an ascent.
+- `api/cheatsheet/contrast.mjs`, which measures a composed sheet's pairings
+  rather than trusting the table that recorded them. Every run is checked against
+  the ground it was placed on, all of them are reported and not only the
+  failures, and the one substitution the design language nominated - the sheets'
+  green becoming `#2E7534` where it has to be read on a light ground - is applied
+  rather than merely written down.
+- `api/graphic-design/files.mjs`, the port's Node only half, holding
+  `writeComposition` alone. Upstream's `imageDataUrl` and `mediaTypeOf` serve
+  placed bitmaps and the design language allows none, so neither came across. It
+  is deliberately not re-exported from the barrel: a browser handed `node:fs`
+  fails at load rather than at the call, so exporting it would break every page
+  importing the barrel whether or not it ever wrote a file.
+- `api/cheatsheet/raster.mjs`, which turns a composed sheet into pixels by one of
+  two routes, with the route, the scale, the background and the format all taken
+  from the call.
+  - The routes are not two implementations of one thing. The ported `toPNG()`
+    has no font file and strokes a built-in single stroke alphabet, so it is a
+    shape level regression target; a real engine draws in the face the design
+    language measured. `publishable` on the result is the single field that says
+    which was used, and it is never true for the built-in route.
+  - The scale floor is `2 / DISPLAY_SCALE`, near a third, rather than the 2 the
+    roadmap names. That figure is device pixels per *display* pixel and `scale`
+    counts composition pixels, of which there are six per display pixel, so
+    reading it straight would have made every published sheet a 7200 px square.
+  - PNG, JPEG and WebP. GIF and TIFF are refused with a message rather than
+    silently substituted, because a caller who writes `sheet.gif` and receives a
+    PNG has a file that lies about itself.
+- `tools/fixtures/` and `tools/test-render-fixture.mjs`, which pin the render
+  against committed output. A synthetic document exercising every element kind,
+  a clip and a matrix is committed in both formats in full; a real sheet at a
+  named seed has its SVG and its variation report committed in full and its
+  930 KB raster committed as a digest. Rendering twice in one process is checked
+  beside them and is the weaker half - both renders come from the same loaded
+  module, so only a file on disk catches a renderer that changed.
+  `MCP_FIXTURE_UPDATE=1` rewrites the expectations once the new output has been
+  read.
+- `tools/test-sheet-raster.mjs`, 15 cases over the two routes. The
+  dependency free half runs anywhere; the browser half resolves Chromium at run
+  time and skips with the install command as its reason where it is absent.
+- 35 cases in `tools/test-composition-algorithm.mjs` and
+  `tools/test-graphic-design-port.mjs` covering the floors, the contrast check,
+  the Node only boundary from both sides, and the constraint that a sheet's text
+  reaches the SVG as characters rather than as outlined paths.
+  `node --test tools/*.mjs` now reports 218 against 171 before. The crowded end
+  of the record has its own case: the floor sweep composes a 19 row document, and
+  both floor inversions above only open past 31 rows.
+
+### Changed
+
+- The suite's canonical cheatsheet document is 19 rows rather than 9. The eleven
+  sheets run 18 to 36 rows counting the blanks between statements, so a nine line
+  example was sparser than anything in the repository and measured the algorithm
+  against a sheet the design language does not contain.
+- `DESIGN_LANGUAGE.md` now names the ground beside the substitute green's
+  contrast ratio. The same colour was recorded at 5.33:1 under **The one
+  substitution**, against the site's off white `#F8F8F9`, and that figure had
+  been carried into a sentence about the sheets' pure white, where the true ratio
+  is 5.66:1. Both numbers were right and the pair read as a contradiction.
+
 ## [2026.09.17]
 
 ### Added

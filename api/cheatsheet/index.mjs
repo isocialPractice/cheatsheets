@@ -33,7 +33,9 @@
 // folder and the port beside it, so the page loads it with a bare `import` and
 // no build step.
 
-export { composeSheet } from "./compose.mjs";
+export { composeSheet, CAP_SHARE } from "./compose.mjs";
+
+export { checkPairings, contrastRatio, readableInk, relativeLuminance } from "./contrast.mjs";
 
 export {
   roleStyle,
@@ -56,6 +58,7 @@ export {
   CONTRAST,
   DISPLAY_SCALE,
   DIVISIONS,
+  FLOORS,
   INSETS,
   MARK_SQUARE,
   PANEL_FREEDOM,

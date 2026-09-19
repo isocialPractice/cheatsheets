@@ -1,0 +1,212 @@
+{
+  "seed": 2112388739,
+  "givenSeed": "splicing-arrays",
+  "topPadding": 48,
+  "leftInset": 240,
+  "lineSpacing": 101.492620751397,
+  "codeCap": 62,
+  "panelFill": 0.9369380821057272,
+  "fillsPanel": true,
+  "titleCap": 141,
+  "subtitleCap": 112,
+  "face": "sheet",
+  "codeFits": true,
+  "runsFit": true,
+  "floors": {
+    "displayCap": 48,
+    "codeCap": 34,
+    "panelFill": 0.85
+  },
+  "contrastHolds": true,
+  "contrast": [
+    {
+      "name": "wordmark",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "title",
+      "ink": "#414143",
+      "ground": "#FFFFFF",
+      "ratio": 10.18462441844838,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "subtitle",
+      "ink": "#414143",
+      "ground": "#FFFFFF",
+      "ratio": 10.18462441844838,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "lead-in",
+      "ink": "#414143",
+      "ground": "#FFFFFF",
+      "ratio": 10.18462441844838,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-0",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-1",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-2",
+      "ink": "#B4BEC8",
+      "ground": "#000132",
+      "ratio": 10.605553298177888,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-4",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-5",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-6",
+      "ink": "#B4BEC8",
+      "ground": "#000132",
+      "ratio": 10.605553298177888,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-8",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-9",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-10",
+      "ink": "#B4BEC8",
+      "ground": "#000132",
+      "ratio": 10.605553298177888,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-12",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-13",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-14",
+      "ink": "#B4BEC8",
+      "ground": "#000132",
+      "ratio": 10.605553298177888,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-16",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-17",
+      "ink": "#FFFFFF",
+      "ground": "#000132",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "code-18",
+      "ink": "#B4BEC8",
+      "ground": "#000132",
+      "ratio": 10.605553298177888,
+      "floor": 4.5,
+      "holds": true
+    },
+    {
+      "name": "follow-line",
+      "ink": "#000132",
+      "ground": "#FFFFFF",
+      "ratio": 19.992392956739867,
+      "floor": 4.5,
+      "holds": true
+    }
+  ],
+  "notes": [
+    "The follow line was stepped down from a 154 px cap to 150 px to fit the 2736 px its region leaves."
+  ],
+  "choices": [
+    {
+      "name": "topPadding",
+      "value": 48,
+      "range": [
+        37,
+        142.51026174615956
+      ]
+    },
+    {
+      "name": "leftInset",
+      "value": 240,
+      "range": [
+        85,
+        414
+      ]
+    },
+    {
+      "name": "lineSpacing",
+      "value": 101.492620751397,
+      "range": [
+        92.08378088077335,
+        102.07962991993232
+      ]
+    }
+  ]
+}

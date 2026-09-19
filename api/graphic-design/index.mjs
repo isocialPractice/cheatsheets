@@ -16,9 +16,14 @@
 //
 // **What was dropped on the way in, and why.** `canvas.ts` paints into a GUI
 // canvas this repository does not have, so it is not here. The Node-only file
-// helpers are not here either: they belong in a `files.mjs` beside this barrel
-// that nothing the page imports ever reaches, which is its own item under
-// **Port the napkin-sketch Graphic Design API** in `TODO.md`.
+// helper is in `files.mjs` beside this barrel and is deliberately not
+// re-exported from it: `writeComposition` needs `node:fs`, and a browser handed
+// `node:fs` fails at load rather than at the call, so exporting it here would
+// break every page importing this barrel whether or not it ever wrote a file. A
+// Node script imports that file by path, which reads as deliberate and cannot
+// be arrived at from a page by accident. Upstream's `imageDataUrl` and
+// `mediaTypeOf` did not come across at all, because they serve placed bitmaps
+// and the design language allows none.
 //
 // **The limits are load bearing.** No gradients, filters or patterns; solid
 // paint, opacity and clipping masks only; and an elliptical arc `A` in path

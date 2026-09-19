@@ -119,7 +119,7 @@ export const COLORS = {
   /** The title, the subtitle and the lead-in. Neutral, not the site's blue-tinted slate. */
   heading: "#414143",
   /**
-   * The green that may carry text on a white ground, at 5.33:1.
+   * The green that may carry text on a white ground, at 5.66:1.
    *
    * The sheets' own green reaches 2.80:1 on their white and the footer sets a
    * sigil in it anyway, which is the one place the eleven break the site's
@@ -127,6 +127,11 @@ export const COLORS = {
    * records that rather than repainting it, and settles the rule for generated
    * sheets as the site's rule unchanged: on a white ground the green is a fill,
    * and text that has to be read takes this instead.
+   *
+   * The same color is recorded at 5.33:1 elsewhere in `DESIGN_LANGUAGE.md`, and
+   * both figures are right: the site softens its page white to `#F8F8F9` and
+   * the sheets use pure white. A ratio without its ground is not a fact about a
+   * color, which is why `contrast.mjs` computes rather than quotes.
    */
   greenOnWhite: "#2E7534",
 };
@@ -265,6 +270,59 @@ export const PANEL_FREEDOM = {
 };
 
 /**
+ * The floors a variation may not cross, whatever the seed or the document.
+ *
+ * Everything else in this file describes what a sheet **is**. These three
+ * describe what a sheet may not become, which is a different kind of figure and
+ * is why they are grouped rather than folded into the tables above.
+ *
+ * Each is derived from something already measured rather than chosen:
+ *
+ * - `displayCap` is one {@link STEP} of cap height, which is 8.0 display pixels
+ *   at the 600 px display width. The step is the unit the whole sheet is drawn
+ *   to, so a run allowed below one step of cap is a run set smaller than the
+ *   grid it sits on can address. Every measured display cap - 220, 154, 141,
+ *   112 - is a multiple of it or close to one.
+ * - `codeCap` is the cap the **minimum** measured line spacing yields, at the
+ *   share of the spacing the cap takes. The eleven sheets' most crowded panel
+ *   is therefore exactly at this floor, which is the point: the floor is the
+ *   tightest the artwork itself ever got, not a figure invented under it.
+ *   `tools/test-composition-algorithm.mjs` ties it back to the share
+ *   `compose.mjs` derives it with, so the two cannot drift apart.
+ * - `panelFill` is the least filled panel of the eleven. Re-measuring them with
+ *   `tools/measure-sheet-composition.mjs` puts the ink of the code block at
+ *   0.852 of the panel on `CompareArrayFunction.jpg` and at 0.966 on three
+ *   others. 0.85 is therefore the sparsest the artwork itself ever was, and a
+ *   generated sheet under it is outside the record rather than merely airy.
+ *
+ *   What a document needs to reach it is **rows**, not lines: at the 116 px
+ *   maximum spacing the floor wants 16 of them, and the eleven run 18 to 36,
+ *   counting the blanks. `SlicingArrays.jpg` draws only 14 lines of code and
+ *   still fills 0.966 of the panel, because three of its rows are empty and a
+ *   blank row occupies its slot exactly like an inked one.
+ *
+ * **What a floor does when it is reached is not to clamp.** A run stops
+ * shrinking at the floor and the composition reports that it did; it is never
+ * pushed back up to the floor, which would put the ink outside the region it
+ * was fitted to. The floors bound what a **seed** may do. A document carrying
+ * more code than the panel holds, or less than fills it, is a fault in the
+ * document, and the report is what says so.
+ */
+export const FLOORS = {
+  /** Smallest cap height a display run may be stepped down to, in sheet pixels. */
+  displayCap: TOKENS.step,
+  /**
+   * Smallest cap height a line of code may be stepped down to, in sheet pixels.
+   *
+   * `Math.floor(PANEL_FREEDOM.lineSpacing.min * CAP_SHARE)`, with `CAP_SHARE`
+   * the 0.62 `compose.mjs` derives a code cap from its spacing with.
+   */
+  codeCap: 34,
+  /** Least of the code panel's height a sheet's example may occupy, 0 to 1. */
+  panelFill: 0.85,
+};
+
+/**
  * The whole language as one object, so a caller can pass a modified copy rather
  * than reach for module state.
  */
@@ -284,4 +342,5 @@ export const SHEET_LANGUAGE = {
   insets: INSETS,
   runs: RUNS,
   panelFreedom: PANEL_FREEDOM,
+  floors: FLOORS,
 };

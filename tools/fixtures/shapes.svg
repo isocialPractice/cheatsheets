@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="fixture" width="240" height="160" viewBox="0 0 240 160">
+  <title>Demo Tool</title>
+  <defs>
+    <clipPath id="band" clipPathUnits="userSpaceOnUse"><rect x="8" y="8" width="224" height="64"/></clipPath>
+  </defs>
+  <rect width="240" height="160" fill="#fdfcf7" data-name="background"/>
+  <rect data-name="panel" x="8" y="8" width="224" height="64" rx="4" fill="#326478"/>
+  <circle data-name="dot" clip-path="url(#band)" cx="32" cy="40" r="12" fill="#4dae51" opacity="0.8"/>
+  <ellipse data-name="oval" cx="72" cy="40" rx="20" ry="11" fill="#f8f5ae"/>
+  <polygon data-name="wedge" points="104,52 124,52 114,26" fill="#fdc83a"/>
+  <polygon data-name="chevron" points="140,28 156,40 140,52 148,40" fill="#adf8b7"/>
+  <polyline data-name="trace" points="168,52 178,28 188,46 198,30" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <line data-name="rule" x1="8" y1="80" x2="232" y2="80" stroke="#4dae51" stroke-width="3"/>
+  <path data-name="curve" d="M 16 112 C 56 88, 96 136, 136 112 L 176 112" fill="none" stroke="#2e7534" stroke-width="2"/>
+  <text data-name="label" font-family="Helvetica, Arial, &apos;Liberation Sans&apos;, sans-serif" font-size="14" xml:space="preserve" fill="#414143"><tspan x="82.667" y="140">Acme Corp</tspan></text>
+  <g data-name="badge" transform="matrix(0.978 0.208 -0.208 0.978 196 124)">
+    <rect data-name="badge-ground" x="-14" y="-10" width="28" height="20" rx="2" fill="#000132"/>
+    <text data-name="badge-text" font-family="Helvetica, Arial, &apos;Liberation Sans&apos;, sans-serif" font-size="9" xml:space="preserve" fill="#ffffff"><tspan x="-7.2" y="4">xyz</tspan></text>
+  </g>
+</svg>

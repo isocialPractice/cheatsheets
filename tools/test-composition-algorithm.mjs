@@ -29,22 +29,44 @@ import assert from "node:assert/strict";
 import {
   BANDS,
   CANVAS,
+  CAP_SHARE,
   CODE_FACE,
+  COLORS,
+  CONTRAST,
   DIVISIONS,
+  FLOORS,
   PANEL_FREEDOM,
   RULES,
   RUNS,
+  SHEET_FACE,
+  SHEET_LANGUAGE,
   STEP,
   SYNTAX,
   TOKENS,
   TYPE_ROLES,
   composeSheet,
+  contrastRatio,
+  readableInk,
   seedFrom,
+  sizeForCap,
   splitmix32,
   Variation,
 } from "../api/cheatsheet/index.mjs";
+import { escapeXml } from "../api/graphic-design/index.mjs";
 
-/** A document with enough code to fill the panel, as all eleven sheets have. */
+/**
+ * A document with enough code to fill the panel, as all eleven sheets have.
+ *
+ * "Enough" is a row count rather than a line count, and the difference is why
+ * this document is the length it is. Re-measuring the artwork puts the eleven
+ * at 18 to 36 rows of panel, counting the blank rows between the statements -
+ * `SlicingArrays.jpg` draws only 14 lines of code and still fills 0.966 of its
+ * panel, because three of its rows are empty and an empty row takes its slot
+ * like any other. A nine line example, which is what this was before the fill
+ * floor landed, is sparser than any sheet in the repository, so composing the
+ * suite's canonical document from one would have measured the algorithm against
+ * a sheet the design language does not contain.
+ */
 const DOC = {
   title: "JavaScript Array Practical Use Starting Point",
   subtitle: "Splice Array",
@@ -52,12 +74,22 @@ const DOC = {
     { text: "var fruits = ['Banana', 'Orange', 'Apple', 'Mango'];", role: "plain" },
     { text: "console.log(fruits.splice(2, 2, 'Lemon', 'Kiwi'));", role: "plain" },
     { text: "// (2) ['Apple', 'Mango']", role: "comment" },
+    { text: "", role: "plain" },
     { text: "var trees = ['Maple', 'Spruce', 'Palm'];", role: "plain" },
     { text: "trees.splice(3, 0, 'Birch');", role: "plain" },
     { text: "// (4) ['Maple', 'Spruce', 'Palm', 'Birch']", role: "comment" },
+    { text: "", role: "plain" },
     { text: "var mapleTrees = ['Silver', 'Norway', 'Bigleaf'];", role: "plain" },
     { text: "console.log(mapleTrees.length);", role: "plain" },
     { text: "// 3", role: "comment" },
+    { text: "", role: "plain" },
+    { text: "var sliced = fruits.slice(1, 3);", role: "plain" },
+    { text: "console.log(sliced.join(' and '));", role: "plain" },
+    { text: "// Orange and Apple", role: "comment" },
+    { text: "", role: "plain" },
+    { text: "var joined = fruits.concat(trees, mapleTrees);", role: "plain" },
+    { text: "console.log(joined.indexOf('Birch'));", role: "plain" },
+    { text: "// 6", role: "comment" },
   ],
 };
 
@@ -441,6 +473,210 @@ test("the panel's fill is reported, so a short example's void is visible", () =>
   const sparse = composeSheet({ title: "Sparse", code: [{ text: "one" }] }, { seed: 1 }).variation;
   assert.ok(full.panelFill > sparse.panelFill);
   assert.ok(sparse.panelFill < 0.2, "a one-line example was reported as filling the panel");
+  assert.equal(sparse.fillsPanel, false);
+  assert.equal(full.fillsPanel, true);
+});
+
+// --- 2b. The floors ---------------------------------------------------------
+// These are the cases the floors exist for, and all but the last of them sweep
+// rather than pin: a floor that holds for one seed and breaks for another has
+// not been tested, it has been sampled.
+
+test("the floors are derived from the language rather than chosen beside it", () => {
+  // `codeCap` is the cap the minimum measured spacing yields, so the most
+  // crowded of the eleven sits exactly on the floor rather than under a figure
+  // invented below it. Two files hold the two halves of that arithmetic, and
+  // this is what stops them drifting.
+  assert.equal(FLOORS.codeCap, Math.floor(PANEL_FREEDOM.lineSpacing.min * CAP_SHARE));
+  assert.equal(FLOORS.displayCap, TOKENS.step);
+  // The fill floor is the least filled panel of the eleven, measured at 0.852.
+  assert.ok(FLOORS.panelFill <= 0.852 && FLOORS.panelFill > 0.8);
+});
+
+test("no seed can put a document that fits under a floor", () => {
+  // The guarantee the item is named for. A document long enough to fill the
+  // panel is composed at every seed in a wide sweep, and none of them may
+  // produce a sheet that fails any of the four checks the report carries.
+  for (let seed = 0; seed < 300; seed += 1) {
+    const { variation } = composeSheet(DOC, { seed });
+    assert.ok(
+      variation.fillsPanel && variation.codeFits && variation.runsFit && variation.contrastHolds,
+      `seed ${seed} composed a sheet under a floor: ${variation.notes.join(" ")}`
+    );
+    assert.ok(variation.codeCap >= FLOORS.codeCap, `seed ${seed} set code at ${variation.codeCap} px`);
+    assert.ok(variation.titleCap >= FLOORS.displayCap);
+  }
+});
+
+test("and a crowded document is spaced to what the panel holds, not to the floor", () => {
+  // The case the sweep above cannot reach, because `DOC` is 19 rows and the
+  // trap only opens past 31. The eleven run **18 to 36 rows**, so the crowded
+  // half of the record needs its own document.
+  //
+  // Two floors meet here and both can be read backwards. Past about 31 rows the
+  // spacing the panel has room for drops below the measured minimum, so a floor
+  // taken as "at least the minimum" puts the bottom of the seed's range above
+  // its top; `Variation.between` answers an inverted range with its `min`, which
+  // is then the one spacing that certainly does not fit, and the last lines are
+  // drawn past the foot of the panel onto the divider. The cap floor inverts the
+  // same way one step later: the cap such a spacing yields is already under
+  // `FLOORS.codeCap`, so holding the width fitting to that floor steps the cap
+  // *up*, past its own line spacing, and every line overlaps the one above it.
+  //
+  // A floor stops a descent. It never starts an ascent, and it never outranks
+  // the room actually available.
+  const descenderShare = CODE_FACE.descender / CODE_FACE.capHeight;
+  for (const rows of [32, 36, 48, 70]) {
+    for (const width of [12, 90, 400]) {
+      const code = Array.from({ length: rows }, (_, i) =>
+        i === 0 ? { text: `${"x".repeat(width)} = 1;` } : { text: `line${i}();` }
+      );
+      for (let seed = 0; seed < 25; seed += 1) {
+        const { variation } = composeSheet({ title: "Crowded", code }, { seed });
+        const where = `${rows} rows, a ${width} character line, seed ${seed}`;
+
+        const [low, high] = variation.choices.find((c) => c.name === "lineSpacing").range;
+        assert.ok(low <= high, `${where}: the seed was offered the inverted range ${low} to ${high}`);
+
+        assert.ok(
+          variation.codeCap <= Math.floor(variation.lineSpacing * CAP_SHARE),
+          `${where}: a ${variation.codeCap} px cap on ${variation.lineSpacing.toFixed(1)} px of spacing`
+        );
+
+        // The whole block, last descender included, inside the padded panel.
+        const bottom =
+          variation.topPadding +
+          variation.codeCap * (1 + descenderShare) +
+          variation.lineSpacing * (rows - 1);
+        assert.ok(
+          bottom <= BANDS.code.height - variation.topPadding + 0.5,
+          `${where}: the block ends ${bottom.toFixed(0)} px into a ${BANDS.code.height} px panel`
+        );
+      }
+    }
+  }
+});
+
+test("a run too long for its region stops at the floor rather than shrinking past it", () => {
+  // Before the floor, this stepped down to a one pixel cap - a sixth of a
+  // display pixel - and reported that it fitted, because it had.
+  const { composition, variation } = composeSheet(
+    { title: "A".repeat(400), code: DOC.code },
+    { seed: 1 }
+  );
+  assert.equal(variation.titleCap, FLOORS.displayCap);
+  assert.equal(variation.runsFit, false);
+  assert.ok(variation.notes.some((note) => note.includes("cap floor")));
+  // And the floor is a floor rather than a clamp: the run is left at it, not
+  // pushed back up to the size it could not fit at.
+  const title = named(composition, "title");
+  assert.ok(title.fontSize < sizeForCap(RUNS.title.cap, SHEET_FACE));
+});
+
+test("a fill floor that cannot be met leaves the seed its whole measured range", () => {
+  // The trap this rules out: narrowing the spacing range towards a floor no
+  // spacing can reach collapses it onto its own maximum, so every seed composes
+  // the same sheet and the panel is still empty. A floor that cannot be met is
+  // reported instead.
+  const short = { title: "Short", code: Array.from({ length: 4 }, (_, i) => ({ text: `a(${i});` })) };
+  const spacings = new Set();
+  for (let seed = 0; seed < 60; seed += 1) {
+    const { variation } = composeSheet(short, { seed });
+    assert.equal(variation.fillsPanel, false);
+    assert.ok(
+      variation.lineSpacing >= PANEL_FREEDOM.lineSpacing.min &&
+        variation.lineSpacing <= PANEL_FREEDOM.lineSpacing.max
+    );
+    spacings.add(variation.lineSpacing.toFixed(4));
+  }
+  assert.ok(spacings.size > 40, `the range collapsed to ${spacings.size} spacings over 60 seeds`);
+});
+
+test("the margin is constrained by the fill floor, not only the spacing", () => {
+  // The padding is drawn before the spacing, so a seed could otherwise choose
+  // one no spacing could rescue: at the measured maximum of 152 px the block
+  // can occupy at most (2016 - 304) / 2016, which is 0.849 and already under
+  // the floor before a line is placed.
+  const worst = (BANDS.code.height * (1 - FLOORS.panelFill)) / 2;
+  assert.ok(PANEL_FREEDOM.topPadding.max > worst, "the measured maximum was already safe");
+  for (let seed = 0; seed < 300; seed += 1) {
+    const { variation } = composeSheet(DOC, { seed });
+    assert.ok(
+      variation.topPadding <= worst,
+      `seed ${seed} padded to ${variation.topPadding}, past the ${worst.toFixed(1)} px the floor allows`
+    );
+    assert.ok(variation.topPadding >= PANEL_FREEDOM.topPadding.min);
+  }
+});
+
+// --- 2c. Contrast -----------------------------------------------------------
+
+test("the contrast of every pairing is measured, not assumed", () => {
+  const { variation } = composeSheet(DOC, { seed: 1 });
+  // Reported whether it passes or fails: a report that lists nothing on a pass
+  // reads exactly like a report from a run where the check never executed.
+  const names = variation.contrast.map((pairing) => pairing.name);
+  assert.ok(names.includes("title"));
+  assert.ok(names.includes("wordmark"));
+  assert.ok(names.includes("lead-in"));
+  assert.ok(names.includes("follow-line"));
+  assert.ok(names.some((name) => /^code-\d+$/.test(name)));
+  for (const pairing of variation.contrast) {
+    assert.equal(pairing.floor, CONTRAST.text);
+    assert.equal(pairing.holds, pairing.ratio >= pairing.floor);
+  }
+});
+
+test("and the ratios agree with the table the design language recorded", () => {
+  // The document's own figures, to two places. Reproducing them from the WCAG
+  // definitions rather than from the table is what makes a colour the table
+  // never listed measurable at all.
+  assert.equal(contrastRatio(COLORS.white, COLORS.navy).toFixed(2), "19.99");
+  assert.equal(contrastRatio(COLORS.heading, COLORS.white).toFixed(2), "10.18");
+  assert.equal(contrastRatio(COLORS.green, COLORS.white).toFixed(2), "2.80");
+  // 5.66 on the sheets' pure white, against the 5.33 the light theme table
+  // records for the same color on the site's off white `#F8F8F9`. Both are in
+  // the document and neither is wrong; a ratio belongs to a pair, not a color.
+  assert.equal(contrastRatio(COLORS.greenOnWhite, COLORS.white).toFixed(2), "5.66");
+  assert.equal(contrastRatio(COLORS.greenOnWhite, "#F8F8F9").toFixed(2), "5.33");
+  assert.equal(contrastRatio(SYNTAX.comment, COLORS.navy).toFixed(2), "10.61");
+  // Symmetric, and 1:1 against itself.
+  assert.equal(contrastRatio(COLORS.navy, COLORS.white), contrastRatio(COLORS.white, COLORS.navy));
+  assert.equal(contrastRatio(COLORS.navy, COLORS.navy), 1);
+});
+
+test("green text on a light ground is repainted, and on a dark ground is left alone", () => {
+  // The one substitution the design language nominates. It is applied rather
+  // than recorded, which is the whole difference between a rule in a document
+  // and a rule in a pipeline.
+  assert.equal(readableInk(COLORS.green, COLORS.white), COLORS.greenOnWhite);
+  assert.equal(readableInk(COLORS.green, COLORS.navy), COLORS.green);
+  // And nothing else is repainted. There is no second colour on record to swap
+  // an arbitrary failing ink for, so it is reported rather than invented over.
+  assert.equal(readableInk(SYNTAX.comment, COLORS.white), SYNTAX.comment);
+});
+
+test("a language that paints a run under the floor is reported rather than composed quietly", () => {
+  const language = {
+    ...SHEET_LANGUAGE,
+    colors: { ...SHEET_LANGUAGE.colors, heading: "#D8D8D8" },
+  };
+  const { variation } = composeSheet(DOC, { seed: 1, language });
+  assert.equal(variation.contrastHolds, false);
+  const title = variation.contrast.find((pairing) => pairing.name === "title");
+  assert.equal(title.holds, false);
+  assert.ok(variation.notes.some((note) => note.includes("text floor")));
+});
+
+test("a language written before the floors existed still gets them", () => {
+  // A caller passing a modified copy of the language can omit `floors` without
+  // meaning "no floors". Omission falls back to the record; only a language
+  // that names a floor moves one.
+  const { floors } = SHEET_LANGUAGE;
+  const without = { ...SHEET_LANGUAGE };
+  delete without.floors;
+  const { variation } = composeSheet(DOC, { seed: 1, language: without });
+  assert.deepEqual(variation.floors, floors);
 });
 
 test("the seeded source is the one that was chosen, and is engine-independent", () => {
@@ -517,4 +753,88 @@ test("an empty or inverted range still consumes a draw", () => {
   b.between("wide", 0, 50);
   b.between("after", 0, 100);
   assert.equal(a.choices[1].value, b.choices[1].value, "a zero-width range did not consume a value");
+});
+
+// --- 2d. Text stays text ----------------------------------------------------
+// The acceptance check for **Keep reference text as real characters in the SVG
+// rather than converting it to paths**. Nothing in the repository converts text
+// to outlines today, so none of this is a check that something was undone - it
+// is a check that stops it being done.
+//
+// The temptation is real and comes from a good motive. Outlining every run
+// removes the last dependency a generated sheet has on the machine that renders
+// it: no font stack to resolve, no fallback to go wrong, the same glyphs
+// everywhere. `geometry.mjs` exports `lineContours` and `strokeContour`, and
+// `font.mjs` will hand back the contours of a laid out line, so the conversion
+// is a few lines away from anyone who decides the fidelity is worth it.
+//
+// What it costs is everything that makes a vector sheet better than the JPEG it
+// replaces. A reader cannot select the example to copy it, a search engine
+// cannot index the title, a translator cannot read a word of it, and a screen
+// reader is handed a picture of some curves. So the constraint is asserted from
+// three directions: the markup carries `text` elements, the runs are findable
+// as strings, and no element in the document is a path that used to be a word.
+
+test("every run reaches the SVG as a text element, not as an outline", () => {
+  const { composition } = composeSheet(DOC, { seed: 1 });
+  const svg = composition.toSVG();
+  const textElements = svg.match(/<text\b/g) ?? [];
+  // The five fixed runs - wordmark, title, subtitle, lead-in, follow line -
+  // plus one per inked line of the example. Counted rather than merely asserted
+  // non-empty, because a single surviving `<text>` beside a hundred outlined
+  // paths would pass the weaker check while the sheet was unreadable to
+  // everything but an eye.
+  const fixed = ["wordmark", "title", "subtitle", "lead-in", "follow-line"];
+  const inked = DOC.code.filter((line) => line.text.length > 0).length;
+  assert.equal(textElements.length, inked + fixed.length, "a run was not written as a text element");
+  for (const name of fixed) {
+    assert.equal(named(composition, name)?.type, "text", `${name} is not a text element`);
+  }
+  assert.equal((svg.match(/<path\b/g) ?? []).length, 0, "the sheet drew a path, which it has no need of");
+});
+
+test("and the words are in the markup, so a reader can select and a search can index", () => {
+  const { composition } = composeSheet(DOC, { seed: 1 });
+  const svg = composition.toSVG();
+  for (const run of [DOC.title, DOC.subtitle, "practicing.xyz", "Starting Point for Practical Use:"]) {
+    assert.ok(svg.includes(run), `"${run}" is not recoverable from the markup`);
+  }
+  for (const line of DOC.code) {
+    if (line.text.length === 0) continue;
+    // Through the XML escape, since an example is full of quotes and brackets.
+    assert.ok(
+      svg.includes(escapeXml(line.text)),
+      `the example line "${line.text}" is not recoverable from the markup`
+    );
+  }
+});
+
+test("nothing in the document is a glyph outline wearing an element's name", () => {
+  // The markup checks above read the rendered result; this reads the document
+  // the composition built, so a future renderer that outlined on the way out
+  // would fail there and a composition that outlined on the way in fails here.
+  const { composition } = composeSheet(DOC, { seed: 1 });
+  const walk = (elements) => {
+    for (const el of elements) {
+      assert.notEqual(el.type, "path", `${el.name ?? "an element"} is a path`);
+      assert.notEqual(el.type, "image", `${el.name ?? "an element"} is a placed bitmap`);
+      if (el.type === "group") walk(el.children);
+    }
+  };
+  walk(composition.toDocument().elements);
+});
+
+test("a title with characters XML cannot carry is escaped, not redrawn", () => {
+  // The one honest reason to reach for outlines is a string the markup cannot
+  // hold. It can hold all of them, and this is what says so - an escape is the
+  // answer, and the text is still a string on the other side of it.
+  const tricky = 'Arrays & "Objects" <in> 5 > 3';
+  const { composition } = composeSheet({ ...DOC, title: tricky }, { seed: 1 });
+  const svg = composition.toSVG();
+  assert.ok(svg.includes(escapeXml(tricky)));
+  assert.doesNotMatch(svg, /<path\b/);
+  // And it survives a round trip through a parser, which is what a search
+  // engine and a screen reader both do.
+  const spans = [...svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]);
+  assert.ok(spans.some((span) => span === escapeXml(tricky)));
 });

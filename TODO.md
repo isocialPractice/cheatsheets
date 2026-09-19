@@ -11,27 +11,31 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
-  - The algorithm and the seed landed on 09.17 and left two things for this item. A short example fills under half the panel and the composition only reports it, as `variation.panelFill`; and a run that overflows is stepped down with no floor under how small it may get
-  - The contrast half is already data rather than work: `language.mjs` carries the floors and the green that may carry text on a white ground, and nothing yet checks a composed pairing against them
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
-- [ ] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
-  - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
+- [ ] Record the ported surface and every limit it carries where a caller will read it
+  - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
+  - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
+  - Two limits landed since the item was written and belong in the same record: the port refuses a paint it cannot read where upstream passes it through, and `files.mjs` is Node only and deliberately absent from the barrel
   - From: Port the napkin-sketch Graphic Design API
-- [ ] Cover the port with a test that renders a fixture document twice and compares byte for byte
-  - Upstream rendering is pure and deterministic in both formats, and that property is what makes a generated sheet reviewable and a seeded variation reproducible
-  - There is a fixture now that there was not before: a composed sheet at a named seed. `tools/test-composition-algorithm.mjs` already compares two renders of one document in the same process, so what is left here is the committed expected output that survives a process
+- [ ] Record the algorithm each of the steps above settles on, where the next run will read it
+  - Unblocked now. The item names "each of the steps above" and the raster step was the one still queued; with the routes in `api/cheatsheet/raster.mjs` all three are settled, so this is the one pass the roadmap held it for rather than two halves
+  - The renderer half and the font route half are already recorded. What is left is the composition's own record: what a seed moves, what it may not, the three floors and why each is the figure it is, and why the three free figures are the three the artwork left free
+  - It belongs in `DESIGN_LANGUAGE.md`, not in `.claude/agent-note.md`, which is transient by design
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [ ] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
+  - That invocation is still broken. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 217 cases, so it is the documented invocation that is wrong rather than the tests
+  - More pressing than it was. `tools/fixtures/` now holds a folder of non-test modules inside the folder the glob sweeps, and the suite carries a full size raster encode, so what the invocation includes and what it costs both matter
+  - Whatever replaces it keeps what that file settled: a bare clone with nothing installed still runs the suite, and a case needing a browser skips with the install command as its reason
   - From: Port the napkin-sketch Graphic Design API
-- [ ] Render a composed SVG to a raster, taking the route, the scale and the background from the call
-  - Two routes exist and only one is publishable. The ported `toPNG()` is dependency free and draws its text in a built in single stroke alphabet, so it is a shape level regression target rather than a sheet anyone sees. A published or posted raster goes through a real engine, in the face the design language measured
-  - Small raster text needs a scale of 2 or 3. A stroke thinner than a device pixel anti-aliases to grey
-  - GIF and TIFF are dropped. Neither has a consumer here, and the social recipe in `.claude/constants.md` publishes `jpg` and `webp`
-  - The face the real engine draws in is settled now, and `tools/test-sheet-faces-browser.mjs` already resolves a browser at run time and skips with the install command as its reason, which is the pattern the route selection wants
-  - From: Cheatsheet Composition Language `->` Rendering and Conversion
-- [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
-  - The ported `svg.mjs` emits live `text` already, so this is a constraint on how the composition calls the API rather than something to write
-  - `compose.mjs` calls only `text` for every run, so this is an acceptance check and a case that fails if a later change starts emitting outlines
-  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [ ] Build the worked examples that show what the port produces and how it is reconfigured
+  - Reproduce one existing `javaScriptArrays` sheet from a document, then restyle that same document through a second theme. That pair is what the eleven kept images are for, per **Raster Export and Example Images**
+  - Unblocked by the raster route: an example that reproduces a sheet has to be able to produce a comparable raster, and `rasterizeSheet` is what produces one in the face the design language measured
+  - From: Port the napkin-sketch Graphic Design API
+- [ ] Bridge the brand resources recorded in `.claude/constants.md` to the `resources.md` the helper reads
+  - Nothing reads the constants section today. The helper reads a `resources.md`, and this repository has none, so the bridge is work rather than an assumption
+  - Three faults to handle: the heading is misspelled, so anything matching the correct spelling finds nothing; the footer asset is declared under a key that normalizes to a descriptor no composition asks for, which declaring the folder instead fixes by making the file name the slot; and pointing the parser at the constants file directly would also read every other `- key: value` line in it as a brand slot
+  - Register the helper against a folder inside `.claude/`, which is ignored. Its default is a tracked folder at the repository root, and the brand values are a real domain, a real name and a real tagline
+  - Queued ahead of the helper itself, which cannot be configured until the bridge exists
+  - From: Port the napkin-sketch Graphic Design API
 
 ## GitHub Pages Deployment
 
@@ -604,7 +608,18 @@ record.
 
 ### The Composition Algorithm
 
-- [ ] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
+**The floors are in and no seed can cross one.** `FLOORS` in `language.mjs`
+carries three, each derived from something already measured rather than chosen:
+a display cap of one step, a code cap of the minimum measured spacing at the cap
+share, and a panel fill of 0.85, which is the least filled panel of the eleven.
+The fill floor narrows the margin as well as the spacing, because the padding is
+drawn first and the two can be chosen into a corner. Contrast is checked rather
+than assumed: every run is measured against the ground it was placed on through
+`contrast.mjs`, and the one substitution the design language nominated is
+applied. A floor is never a clamp - a run that still does not fit is left at the
+floor and reported, since the floors bound what a seed may do and a document
+carrying too much or too little is the document's fault.
+
 - [ ] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
   - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
   - It must reproduce the recorded region proportions, not only the recorded colors. A vector palette is weighted by usage and a raster palette by area, and roles are decided from area, so the right colors in the wrong proportions produce the right palette with the wrong roles and nothing downstream can tell
@@ -613,12 +628,26 @@ record.
 
 ### Rendering and Conversion
 
-- [ ] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
-  - The ported `svg.mjs` emits live `text` already, so this is a constraint on how the composition calls the API rather than something to write
-- [ ] Render a composed SVG to a raster, taking the route, the scale and the background from the call
-  - Two routes exist and only one is publishable. The ported `toPNG()` is dependency free and draws its text in a built in single stroke alphabet, so it is a shape level regression target rather than a sheet anyone sees. A published or posted raster goes through a real engine, in the face the design language measured
-  - Small raster text needs a scale of 2 or 3. A stroke thinner than a device pixel anti-aliases to grey
-  - GIF and TIFF are dropped. Neither has a consumer here, and the social recipe in `.claude/constants.md` publishes `jpg` and `webp`
+**Both routes are in `api/cheatsheet/raster.mjs`**, which is Node only and kept
+out of the barrel for the same reason `files.mjs` is kept out of the port's. The
+caller names the route, the scale, the background and the format, and what comes
+back carries a `publishable` field: never true for the built-in route, which has
+no font file and strokes its own alphabet, and true for the browser route only
+at or above the scale floor. `auto` prefers the browser and records the reason
+when it falls back. PNG, JPEG and WebP only; GIF and TIFF are refused rather
+than substituted.
+
+One figure was read carefully rather than copied. "A scale of 2 or 3" is device
+pixels per **display** pixel, and `scale` counts composition pixels, of which
+there are six per display pixel - so the floor is `2 / DISPLAY_SCALE`, near a
+third, and taking the roadmap figure straight would have made every published
+sheet a 7200 px square.
+
+**Text stays text**, and that is now an acceptance check rather than a property
+nobody was testing. The sheet's runs reach the SVG as `text` elements, the words
+are recoverable from the markup, no element in the document is a path, and a
+title full of characters XML cannot carry is escaped rather than outlined.
+
 - [ ] Record the algorithm each of the steps above settles on, where the next run will read it
   - The user note asks for this in `.claude/agent-note.md`, which is a transient file rather than a missing one: a run leaves it for the next run and deletes it once the check is resolved, so it is absent between runs by design. The algorithm itself is not a check and belongs in `DESIGN_LANGUAGE.md`, with the agent note used only to point a following run at that record
   - The renderer half of this is already covered: recording the ported surface and its limits is an item under **Port the napkin-sketch Graphic Design API**, so what is left here is the composition algorithm's own record
@@ -640,13 +669,33 @@ form the page and the Node scripts can both import.
 The port is what the composition algorithm above calls and what the API below
 is a surface over, so it is worked before either.
 
-**The surface itself is ported and now in the repository**, as 5,899 lines of
+**The surface itself is ported and now in the repository**, as 6,093 lines of
 dependency free `.mjs` under `api/graphic-design/`: `units`, `types`, `color`,
 `geometry`, `font`, `svg`, `compose`, `deflate`, `png`, `raster` and `brand`,
-with `canvas` dropped and a barrel over the rest. It is verified against a
+with `canvas` dropped and a barrel over the rest. It landed at 5,899 and the
+figure has moved twice since, both times for a local edit rather than a
+re-port: the face-aware `font.mjs` on 09.17, and the barrel's header on 09.19
+recording why the Node only half is not exported from it. It is verified against a
 bundle of the upstream TypeScript rather than against a reading of it, and
 `tools/test-graphic-design-port.mjs` holds what porting cost. What is left
 below is everything the port did not settle by landing.
+
+**The Node only half landed as `api/graphic-design/files.mjs`**, holding
+`writeComposition` alone: `imageDataUrl` and `mediaTypeOf` serve placed bitmaps
+and the design language allows none. It is deliberately not re-exported from the
+barrel, and the port's suite now holds that boundary from both sides - the
+barrel does not reach it, no browser-safe module reaches it transitively, and it
+imports `node:fs/promises` and `node:path` and nothing else.
+
+**The render is pinned against committed output**, in `tools/fixtures/` and
+`tools/test-render-fixture.mjs`. Two fixtures: a synthetic document exercising
+every element kind, a clip and a matrix, committed in both formats in full; and
+a real sheet at a named seed, whose SVG and variation report are committed in
+full and whose 930 KB raster is committed as a digest. Rendering twice in one
+process is checked beside them, but it is the weaker half - both renders come
+from the same loaded module, so only a file on disk catches a renderer that
+changed. `MCP_FIXTURE_UPDATE=1` rewrites the expectations once the new output
+has been read.
 
 **The font metrics question is settled**, which was the largest of those and
 the one every composition item was waiting on. `font.mjs` now takes an optional
@@ -658,13 +707,9 @@ consequence for the items below: this is the first local change to a ported
 module, so a later diff against upstream reads `font.mjs` as upstream above the
 divider in its header and this repository's below it.
 
-- [ ] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
-  - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
 - [ ] Record the ported surface and every limit it carries where a caller will read it
   - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
   - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
-- [ ] Cover the port with a test that renders a fixture document twice and compares byte for byte
-  - Upstream rendering is pure and deterministic in both formats, and that property is what makes a generated sheet reviewable and a seeded variation reproducible
 - [ ] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
   - The port landed with its tests in `tools/` beside every other suite, so `node --test tools/*.mjs` is still the whole suite and this item is not yet forced. It is the first code in the repository whose *source* is outside `tools/`, which is what will force it as soon as a test wants to sit beside the module it covers
   - That invocation is already broken here. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 112 cases, so it is the documented invocation that is wrong rather than the tests
@@ -1041,5 +1086,26 @@ generate ideas about generating ideas.
 - [x] Make every variation deterministic from a seed, so one can be reproduced, reviewed and regenerated identically
   - The ported renderers are pure: one document renders to identical bytes every time, in both formats. So the seed is the only thing a variation turns on, and determinism is a property of the composition rather than of the renderer
   - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] Constrain every variation to the extracted margins, spacing and contrast floors, so no seed can produce an unreadable sheet
+  - The algorithm and the seed landed on 09.17 and left two things for this item. A short example fills under half the panel and the composition only reports it, as `variation.panelFill`; and a run that overflows is stepped down with no floor under how small it may get
+  - The contrast half is already data rather than work: `language.mjs` carries the floors and the green that may carry text on a white ground, and nothing yet checks a composed pairing against them
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] Keep the Node only helpers in `api/graphic-design/files.mjs`, separate from everything the page imports, so no renderer drags `node:fs` into a browser
+  - Keep `writeComposition`. Drop `imageDataUrl` and `mediaTypeOf`, which exist for placed bitmaps, and the design language allows none
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Cover the port with a test that renders a fixture document twice and compares byte for byte
+  - Upstream rendering is pure and deterministic in both formats, and that property is what makes a generated sheet reviewable and a seeded variation reproducible
+  - There is a fixture now that there was not before: a composed sheet at a named seed. `tools/test-composition-algorithm.mjs` already compares two renders of one document in the same process, so what is left here is the committed expected output that survives a process
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Render a composed SVG to a raster, taking the route, the scale and the background from the call
+  - Two routes exist and only one is publishable. The ported `toPNG()` is dependency free and draws its text in a built in single stroke alphabet, so it is a shape level regression target rather than a sheet anyone sees. A published or posted raster goes through a real engine, in the face the design language measured
+  - Small raster text needs a scale of 2 or 3. A stroke thinner than a device pixel anti-aliases to grey
+  - GIF and TIFF are dropped. Neither has a consumer here, and the social recipe in `.claude/constants.md` publishes `jpg` and `webp`
+  - The face the real engine draws in is settled now, and `tools/test-sheet-faces-browser.mjs` already resolves a browser at run time and skips with the install command as its reason, which is the pattern the route selection wants
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [x] Keep reference text as real characters in the SVG rather than converting it to paths, so a sheet stays selectable, searchable and translatable
+  - The ported `svg.mjs` emits live `text` already, so this is a constraint on how the composition calls the API rather than something to write
+  - `compose.mjs` calls only `text` for every run, so this is an acceptance check and a case that fails if a later change starts emitting outlines
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
 
 </details>

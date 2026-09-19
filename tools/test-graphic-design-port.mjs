@@ -35,10 +35,11 @@ const portDir = join(root, "api", "graphic-design");
 
 // The eleven modules the port was asked for, and the barrel over them. This is
 // the list every case below reads, not the list of what the folder may hold:
-// `files.mjs` is the Node-only half and is its own queued item under **Port the
-// napkin-sketch Graphic Design API**, so it lands here without being a module
-// the page imports. A module that *is* browser-safe belongs in `PORTED` by
-// hand, which is what puts it under the import and Node checks.
+// `files.mjs` is the Node-only half, so it sits in the folder without being a
+// module the page imports, and is held to the opposite rules under **The
+// Node-only half** at the end of this file. A module that *is* browser-safe
+// belongs in `PORTED` by hand, which is what puts it under the import and Node
+// checks.
 const PORTED = [
   "brand.mjs",
   "color.mjs",
@@ -296,4 +297,99 @@ test("and every module still records where it came from", () => {
     assert.match(header, /napkin-sketch \(MIT, isocialPractice\)/, `${name} does not carry the upstream notice`);
     assert.match(header, /commit d43caac191b2dfd532b3311f4ca1ea6969bb002f/, `${name} does not record the source commit`);
   }
+});
+
+// --- The Node-only half -----------------------------------------------------
+// `files.mjs` is held to the opposite rules from everything above. It is the
+// one module in the port that may import a Node builtin, and in exchange it may
+// not be reachable from anything the page loads - so each case below is the
+// mirror of one that came before it.
+
+test("the Node-only half is there, and is the only file outside the ported set", () => {
+  assert.ok(files.includes("files.mjs"), "api/graphic-design/files.mjs is missing");
+  const extras = files.filter((name) => !PORTED.includes(name));
+  assert.deepEqual(extras, ["files.mjs"], "something other than files.mjs is sitting beside the port");
+});
+
+test("and it is not re-exported from the barrel, which the page loads", () => {
+  // The failure this rules out is not subtle and is not gradual: a browser
+  // handed `node:fs` fails at load, so re-exporting `writeComposition` here
+  // breaks every page importing the barrel, whether or not it ever writes a
+  // file. Checked against the barrel's source rather than against `api`,
+  // because a re-export that fails to resolve would leave `api` looking clean.
+  // Read through `specifiersOf` rather than searching the text, because the
+  // barrel's header explains in prose why `files.mjs` is not exported from it,
+  // and a bare search for the name would fail on the explanation.
+  const barrel = readFileSync(join(portDir, "index.mjs"), "utf8");
+  assert.ok(
+    !specifiersOf(barrel).some((specifier) => specifier.endsWith("files.mjs")),
+    "the barrel re-exports the Node-only half"
+  );
+  assert.equal("writeComposition" in api, false);
+  for (const [name, source] of sources) {
+    assert.doesNotMatch(
+      source,
+      /from\s+["']\.\/files\.mjs["']/,
+      `${name} is browser-safe and imports the Node-only half`
+    );
+  }
+});
+
+test("nothing the page imports reaches it, transitively either", () => {
+  // The direct check above is what a reviewer would write; this is the one that
+  // holds once the port grows. A browser-safe module importing a browser-safe
+  // module that imports `files.mjs` breaks the page just as completely, and
+  // neither of the two would look wrong on its own.
+  const reached = new Set(["index.mjs"]);
+  const queue = ["index.mjs"];
+  while (queue.length > 0) {
+    const name = queue.pop();
+    const source = sources.get(name);
+    if (!source) continue;
+    for (const specifier of specifiersOf(source)) {
+      const target = specifier.replace(/^\.\//, "");
+      if (reached.has(target)) continue;
+      reached.add(target);
+      queue.push(target);
+    }
+  }
+  assert.equal(reached.has("files.mjs"), false, "the barrel reaches files.mjs through a sibling");
+});
+
+test("it imports only the Node builtins it needs, and only sibling modules besides", () => {
+  const source = readFileSync(join(portDir, "files.mjs"), "utf8");
+  const nodeBuiltins = [];
+  for (const specifier of specifiersOf(source)) {
+    if (specifier.startsWith("node:")) {
+      nodeBuiltins.push(specifier);
+      continue;
+    }
+    assert.ok(
+      specifier.startsWith("./") && specifier.endsWith(".mjs"),
+      `files.mjs imports "${specifier}", which is neither a Node builtin nor a sibling module`
+    );
+  }
+  // A package specifier here would need a `package.json` the port refuses to
+  // have, so the dependency-free property holds on this side of the line too.
+  assert.deepEqual(nodeBuiltins.sort(), ["node:fs/promises", "node:path"]);
+});
+
+test("the placed-bitmap helpers were left upstream, since no composition places one", () => {
+  const source = readFileSync(join(portDir, "files.mjs"), "utf8");
+  for (const dropped of ["imageDataUrl", "mediaTypeOf"]) {
+    assert.doesNotMatch(
+      source,
+      new RegExp(`export\s+(async\s+)?function\s+${dropped}\b`),
+      `files.mjs exports ${dropped}, which serves placed bitmaps the design language allows none of`
+    );
+  }
+});
+
+test("and it records where it came from, like every other ported module", () => {
+  const header = readFileSync(join(portDir, "files.mjs"), "utf8")
+    .slice(0, 2000)
+    .replace(/^\/\/ ?/gm, "")
+    .replace(/\s+/g, " ");
+  assert.match(header, /napkin-sketch \(MIT, isocialPractice\)/);
+  assert.match(header, /commit d43caac191b2dfd532b3311f4ca1ea6969bb002f/);
 });

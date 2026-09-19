@@ -48,6 +48,39 @@
 // widths would forge a condensed face out of one that is not, and a reader sees
 // that immediately.
 //
+// ## The floors, and what they are floors on
+//
+// Stepping a run down has to stop somewhere, and until the floors landed it
+// stopped at a one pixel cap - a sixth of a display pixel, which is not text.
+// `FLOORS` in `language.mjs` says where it stops instead, and the three figures
+// there bound three different things:
+//
+// | Floor | Bounds |
+// | --- | --- |
+// | `displayCap` | How small a heading, subtitle, lead-in or follow line may be stepped to |
+// | `codeCap` | How small a line of the example may be stepped to |
+// | `panelFill` | How little of the code panel a seed may leave the example occupying |
+//
+// **A floor is not a clamp.** A run that still does not fit at the floor is
+// left at the floor and reported, never pushed back up to it - pushing it up
+// would put ink outside the region it was fitted to, which is the failure the
+// fitting exists to prevent. What the floors guarantee is that **no seed** can
+// produce an unreadable sheet: the two cap floors are unreachable by any seed,
+// because the seed only moves figures the third floor has already narrowed, and
+// crossing one therefore means the document asked for something the sheet
+// cannot carry. `codeFits`, `fillsPanel` and `notes` on the report are what say
+// which.
+//
+// ## Contrast is checked, not assumed
+//
+// `language.mjs` has carried the site's two floors and the darker green that
+// may carry text on a white ground since it was written, and nothing read
+// either. Every run this composes is now measured against the ground it was
+// placed on, through `contrast.mjs`, and the measurements are reported beside
+// the variation. The one substitution the design language nominated - the
+// sheets' green becoming `#2E7534` where it has to be read on white - is
+// applied rather than merely recorded.
+//
 // ## The document model is provisional
 //
 // What this reads is the minimum the six regions need. The formal model - a
@@ -59,6 +92,7 @@
 import { createComposition } from "../graphic-design/compose.mjs";
 import { measureText } from "../graphic-design/font.mjs";
 
+import { checkPairings, readableInk } from "./contrast.mjs";
 import { CODE_FACE, SHEET_FACE, TYPE_ROLES, sizeForCap } from "./faces.mjs";
 import { SHEET_LANGUAGE } from "./language.mjs";
 import { Variation } from "./variation.mjs";
@@ -102,7 +136,7 @@ const DEFAULT_RUNS = {
  * the panel. Written twice, they drift, and the drift is a line of code drawn
  * past the foot of the panel.
  */
-const CAP_SHARE = 0.62;
+export const CAP_SHARE = 0.62;
 
 /**
  * The color a code line's role is set in.
@@ -134,26 +168,34 @@ function codeLines(code) {
 }
 
 /**
- * The largest cap height at or below `cap` that sets `text` within `maxWidth`.
+ * The largest cap height at or below `cap` that sets `text` within `maxWidth`,
+ * and whether it got there.
  *
  * Steps down by whole pixels rather than solving for the size, because the
  * advance table is integers per em and a solved size lands between two caps
  * that measure the same. A whole pixel of cap height is a sixth of a display
  * pixel at the sheet's own scale, so nothing is lost to the coarseness.
  *
+ * The descent stops at `floor`, and `fits` says whether it stopped because the
+ * text fitted or because it ran out of room to shrink into. Those are different
+ * outcomes and the caller has to be able to tell them apart: the first is the
+ * fitting working, and the second is a document asking for a run the region
+ * cannot carry. Before the floor existed there was no difference to report,
+ * because a run stepped down until it fitted however small that made it.
+ *
  * @param {string} text
  * @param {number} cap
  * @param {number} maxWidth
  * @param {import('../graphic-design/font.mjs').Face} face
- * @returns {number}
+ * @param {number} floor
+ * @returns {{ cap: number, fits: boolean }}
  */
-function capThatFits(text, cap, maxWidth, face) {
-  if (maxWidth <= 0) return cap;
+function capThatFits(text, cap, maxWidth, face, floor) {
+  if (maxWidth <= 0) return { cap, fits: true };
+  const width = (at) => measureText(text, { fontSize: sizeForCap(at, face), face });
   let fitted = Math.round(cap);
-  while (fitted > 1 && measureText(text, { fontSize: sizeForCap(fitted, face), face }) > maxWidth) {
-    fitted -= 1;
-  }
-  return fitted;
+  while (fitted > floor && width(fitted) > maxWidth) fitted -= 1;
+  return { cap: fitted, fits: width(fitted) <= maxWidth };
 }
 
 /**
@@ -186,10 +228,15 @@ function widestLine(lines, cap, face) {
  * @property {number} lineSpacing
  * @property {number} codeCap
  * @property {number} panelFill How much of the panel's height the example occupies, 0 to 1.
+ * @property {boolean} fillsPanel Whether that reaches the `panelFill` floor.
  * @property {number} titleCap
  * @property {number} subtitleCap
  * @property {string} face
  * @property {boolean} codeFits Whether every line of the example fits the panel.
+ * @property {boolean} runsFit Whether every display run fits its region above its floor.
+ * @property {typeof SHEET_LANGUAGE['floors']} floors The floors this variation was held to.
+ * @property {boolean} contrastHolds Whether every run clears the text contrast floor.
+ * @property {import('./contrast.mjs').MeasuredPairing[]} contrast Every ink and ground pairing, measured.
  * @property {string[]} notes Anything the composition had to give way on.
  * @property {import('./variation.mjs').Choice[]} choices
  */
@@ -222,10 +269,46 @@ export function composeSheet(doc, options = {}) {
   const variation = new Variation(options.seed);
   const { bands, divisions, colors, syntax, rules, runs, markSquare, insets, panelFreedom } =
     language;
+  // A caller may pass a replacement language, and one written before the floors
+  // existed carries none. Falling back to the recorded floors rather than to no
+  // floors at all keeps the guarantee: a language can move a floor, but it
+  // cannot remove one by omission.
+  const floors = language.floors ?? SHEET_LANGUAGE.floors;
+  const contrastFloor = (language.contrast ?? SHEET_LANGUAGE.contrast).text;
 
   const lines = codeLines(doc.code);
   /** @type {string[]} */
   const notes = [];
+  /**
+   * Every run of ink and the ground it was set on, collected as it is drawn.
+   *
+   * Collected here rather than read back off the composition afterwards,
+   * because the composition records an element's fill and not what is behind
+   * it. Which band a run sits in is knowledge this function has and the
+   * document does not.
+   *
+   * @type {import('./contrast.mjs').Pairing[]}
+   */
+  const pairings = [];
+
+  /**
+   * Draws a run of text, substituting the ink where the ground demands it and
+   * recording the pairing that was actually drawn.
+   *
+   * @param {Omit<import('../graphic-design/types.mjs').TextElement, 'type'> & { name: string, fill: string }} element
+   * @param {string} ground
+   */
+  const drawText = (element, ground) => {
+    const ink = readableInk(element.fill, ground, language);
+    if (ink !== element.fill) {
+      notes.push(
+        `The ${element.name} was repainted from ${element.fill} to ${ink}, which is the ` +
+          `green the design language nominates for text on a light ground.`
+      );
+    }
+    pairings.push({ name: element.name, ink, ground });
+    composition.text({ ...element, fill: ink });
+  };
 
   const composition = createComposition({
     width: language.canvas,
@@ -281,23 +364,54 @@ export function composeSheet(doc, options = {}) {
   // Reproducing the measured offset without the thing that balances it would
   // put a lone run visibly off centre and call it fidelity.
   const wordmark = doc.wordmark ?? DEFAULT_RUNS.wordmark;
-  const mastheadCap = capThatFits(
+  // Every display run is fitted the same way and every one of them can fail the
+  // same way, so the note is written once here rather than five times below.
+  let runsFit = true;
+  /**
+   * @param {string} name
+   * @param {string} text
+   * @param {number} cap
+   * @param {number} measure
+   * @returns {number}
+   */
+  const displayCap = (name, text, cap, measure) => {
+    const fitted = capThatFits(text, cap, measure, face, floors.displayCap);
+    if (fitted.cap < cap) {
+      notes.push(
+        `The ${name} was stepped down from a ${cap} px cap to ${fitted.cap} px ` +
+          `to fit the ${Math.round(measure)} px its region leaves.`
+      );
+    }
+    if (!fitted.fits) {
+      runsFit = false;
+      notes.push(
+        `The ${name} still overflows its ${Math.round(measure)} px region at the ` +
+          `${floors.displayCap} px cap floor, and is not stepped below it.`
+      );
+    }
+    return fitted.cap;
+  };
+
+  const mastheadCap = displayCap(
+    "wordmark",
     wordmark,
     runs.wordmark.cap,
-    language.canvas - insets.mastheadPadding * 2,
-    face
+    language.canvas - insets.mastheadPadding * 2
   );
-  composition.text({
-    name: "wordmark",
-    x: language.canvas / 2,
-    y: runs.wordmark.baseline,
-    text: wordmark,
-    align: "center",
-    face,
-    fontSize: sizeForCap(mastheadCap, face),
-    fontWeight: TYPE_ROLES.masthead.fontWeight,
-    fill: colors.white,
-  });
+  drawText(
+    {
+      name: "wordmark",
+      x: language.canvas / 2,
+      y: runs.wordmark.baseline,
+      text: wordmark,
+      align: "center",
+      face,
+      fontSize: sizeForCap(mastheadCap, face),
+      fontWeight: TYPE_ROLES.masthead.fontWeight,
+      fill: colors.white,
+    },
+    colors.navy
+  );
 
   // --- The heading band ----------------------------------------------------
   // Both rules are drawn as a pair flush to each edge with the title between
@@ -323,41 +437,41 @@ export function composeSheet(doc, options = {}) {
 
   // The title is set across the canvas less both flanking rules, which is the
   // measure the artwork placed the rules against.
-  const titleCap = capThatFits(doc.title, runs.title.cap, rules.measure, face);
-  if (titleCap < runs.title.cap) {
-    notes.push(
-      `The title was stepped down from a ${runs.title.cap} px cap to ${titleCap} px ` +
-        `to fit the ${rules.measure} px between the flanking rules.`
-    );
-  }
-  composition.text({
-    name: "title",
-    x: language.canvas / 2,
-    y: runs.title.baseline,
-    text: doc.title,
-    align: "center",
-    face,
-    fontSize: sizeForCap(titleCap, face),
-    fontWeight: TYPE_ROLES.title.fontWeight,
-    fill: colors.heading,
-  });
+  const titleCap = displayCap("title", doc.title, runs.title.cap, rules.measure);
+  drawText(
+    {
+      name: "title",
+      x: language.canvas / 2,
+      y: runs.title.baseline,
+      text: doc.title,
+      align: "center",
+      face,
+      fontSize: sizeForCap(titleCap, face),
+      fontWeight: TYPE_ROLES.title.fontWeight,
+      fill: colors.heading,
+    },
+    colors.white
+  );
 
   // The subtitle and the lead-in are the same size as each other, cap for cap
   // and stem for stem, which is why they share one role.
   let subtitleCap = runs.subtitle.cap;
   if (doc.subtitle) {
-    subtitleCap = capThatFits(doc.subtitle, runs.subtitle.cap, rules.measure, face);
-    composition.text({
-      name: "subtitle",
-      x: language.canvas / 2,
-      y: runs.subtitle.baseline,
-      text: doc.subtitle,
-      align: "center",
-      face,
-      fontSize: sizeForCap(subtitleCap, face),
-      fontWeight: TYPE_ROLES.leadIn.fontWeight,
-      fill: colors.heading,
-    });
+    subtitleCap = displayCap("subtitle", doc.subtitle, runs.subtitle.cap, rules.measure);
+    drawText(
+      {
+        name: "subtitle",
+        x: language.canvas / 2,
+        y: runs.subtitle.baseline,
+        text: doc.subtitle,
+        align: "center",
+        face,
+        fontSize: sizeForCap(subtitleCap, face),
+        fontWeight: TYPE_ROLES.leadIn.fontWeight,
+        fill: colors.heading,
+      },
+      colors.white
+    );
   }
 
   // The lead-in sits a `step-3` in from the spine, which is the tokenised form
@@ -366,32 +480,76 @@ export function composeSheet(doc, options = {}) {
   // records for `step-3`.
   const leadIn = doc.leadIn ?? DEFAULT_RUNS.leadIn;
   const leadInX = divisions.spine.x + divisions.spine.width + insets.leadInFromSpine;
-  const leadInCap = capThatFits(
+  const leadInCap = displayCap(
+    "lead-in",
     leadIn,
     runs.leadIn.cap,
-    language.canvas - leadInX - divisions.rightMargin.width,
-    face
+    language.canvas - leadInX - divisions.rightMargin.width
   );
-  composition.text({
-    name: "lead-in",
-    x: leadInX,
-    y: runs.leadIn.baseline,
-    text: leadIn,
-    align: "left",
-    face,
-    fontSize: sizeForCap(leadInCap, face),
-    fontWeight: TYPE_ROLES.leadIn.fontWeight,
-    fill: colors.heading,
-  });
+  drawText(
+    {
+      name: "lead-in",
+      x: leadInX,
+      y: runs.leadIn.baseline,
+      text: leadIn,
+      align: "left",
+      face,
+      fontSize: sizeForCap(leadInCap, face),
+      fontWeight: TYPE_ROLES.leadIn.fontWeight,
+      fill: colors.heading,
+    },
+    colors.white
+  );
 
   // --- The code panel, which is where the seed does its work ---------------
   // The panel is a frame around free content, so its three free figures are
   // drawn from the seed. Every draw happens whatever the content is, so a
   // document that leaves no slack does not shift the choices after it.
+
+  // Two counts of the same thing, and they differ for a one line example. The
+  // divisors below must never be zero, so `gaps` floors at one; the block's own
+  // height genuinely has no gap in it, so `gapsDrawn` does not.
+  const gapsDrawn = Math.max(lines.length - 1, 0);
+  const gaps = Math.max(gapsDrawn, 1);
+  // The block is not `lineSpacing * gaps` tall. A line is placed by its
+  // baseline, so the block starts one cap height below the padding and ends a
+  // descender below the last baseline, and neither of those is a gap. Both are
+  // proportions of the spacing - the cap through {@link CAP_SHARE}, the
+  // descender through the face's own ratio - so the room the gaps may take is
+  // the padded height over the gaps *plus those two fractions*. Dividing by the
+  // gaps alone is how an example long enough to want the measured maximum
+  // spacing lands its last line past the foot of the panel, on the divider
+  // below it, with nothing reporting that it did.
+  const descenderShare = codeFace.descender / codeFace.capHeight;
+
+  // **The margin is the first thing the fill floor constrains**, because the
+  // padding is drawn before the spacing and the two can be chosen into a corner.
+  // The block has to *fit* inside the panel less twice the padding, and it has
+  // to *fill* the panel to the floor, and those are measured against different
+  // heights: what it fits in shrinks with the padding, what it fills does not.
+  // At the measured maximum padding of 152 px the block can occupy at most
+  // `(2016 - 304) / 2016`, which is 0.849 and below the 0.85 floor before a
+  // single line is placed. So a seed drawing that padding would be one no
+  // spacing could rescue, and it is not offered: the padding's own ceiling is
+  // whatever leaves the floor still reachable.
+  //
+  // `blockOverFill` is the ratio between those two heights - the fitted block
+  // carries a descender the filled block does not - and it is barely above 1
+  // for a long example and large for a short one, which is what makes the
+  // ceiling fall away to nothing exactly when the document is too short for the
+  // floor to mean anything. Below the measured minimum padding it is dropped
+  // entirely rather than inverted into an empty range.
+  const blockOverFill = (gaps + CAP_SHARE * (1 + descenderShare)) / (gapsDrawn + CAP_SHARE);
+  const paddingCeiling = (bands.code.height * (1 - floors.panelFill * blockOverFill)) / 2;
+  const paddingMax =
+    paddingCeiling >= panelFreedom.topPadding.min
+      ? Math.min(panelFreedom.topPadding.max, paddingCeiling)
+      : panelFreedom.topPadding.max;
+
   const topPadding = variation.betweenOnStep(
     "topPadding",
     panelFreedom.topPadding.min,
-    panelFreedom.topPadding.max,
+    paddingMax,
     language.step / 2
   );
   const leftInset = variation.betweenOnStep(
@@ -405,29 +563,48 @@ export function composeSheet(doc, options = {}) {
   // clearance below are taken out.
   const usableHeight = bands.code.height - topPadding * 2;
   const usableWidth = divisions.panel.width - leftInset * 2;
-  const gaps = Math.max(lines.length - 1, 1);
-  // The block is not `lineSpacing * gaps` tall. A line is placed by its
-  // baseline, so the block starts one cap height below the padding and ends a
-  // descender below the last baseline, and neither of those is a gap. Both are
-  // proportions of the spacing - the cap through {@link CAP_SHARE}, the
-  // descender through the face's own ratio - so the room the gaps may take is
-  // the padded height over the gaps *plus those two fractions*. Dividing by the
-  // gaps alone is how an example long enough to want the measured maximum
-  // spacing lands its last line past the foot of the panel, on the divider
-  // below it, with nothing reporting that it did.
-  const descenderShare = codeFace.descender / codeFace.capHeight;
   const spacingThatFits = usableHeight / (gaps + CAP_SHARE * (1 + descenderShare));
 
-  // The spacing the seed may choose from is the measured range narrowed to what
-  // this much code leaves room for. `tracking how much code the sheet has to
-  // fit` is the design language's own description of that figure, so narrowing
-  // by content is the rule rather than a compromise.
+  // The spacing the seed may choose from is the measured range narrowed from
+  // both ends.
+  //
+  // **From above** by what this much code leaves room for. `tracking how much
+  // code the sheet has to fit` is the design language's own description of that
+  // figure, so narrowing by content is the rule rather than a compromise.
+  //
+  // **From below** by the fill floor, where the floor is reachable at all. The
+  // block's height is very nearly proportional to the spacing - `gaps *
+  // spacing` plus a cap that is itself a share of the spacing - so the spacing
+  // that reaches a given fill inverts directly, and a seed is not offered
+  // anything under it. The `+ 1` covers the whole pixel the cap loses to
+  // `Math.floor` below, so a spacing chosen at the bottom of the narrowed range
+  // lands on the floor rather than a thousandth under it.
+  //
+  // **Narrowing stops where the floor stops being reachable**, which is the
+  // part that matters. An example too short to fill the panel at even the
+  // widest spacing the eleven were measured at cannot be made to fill it, and
+  // clamping the range to its own top in pursuit of that would collapse the
+  // variation to a single value: every seed composing the same sheet, and the
+  // panel still unfilled. So a floor that cannot be met leaves the measured
+  // range intact and is reported instead. The floor bounds what a seed may do,
+  // and there is nothing a seed can do about a document with too little in it.
   const spacingMax = Math.min(panelFreedom.lineSpacing.max, spacingThatFits);
-  const lineSpacing = variation.between(
-    "lineSpacing",
-    Math.min(panelFreedom.lineSpacing.min, spacingMax),
-    spacingMax
-  );
+  const spacingForFloor = (floors.panelFill * bands.code.height + 1) / (gapsDrawn + CAP_SHARE);
+  // **Whatever the floor asks for, the bottom of the range is never above its
+  // top.** `spacingMax` is what the panel physically has room for, so a minimum
+  // above it does not narrow the range, it inverts it - and `Variation.between`
+  // answers an inverted range with its `min`, which is the one value in play
+  // that certainly does not fit. An example of 32 rows or more is already below
+  // the measured minimum spacing, so raising the bottom of its range to that
+  // minimum sets the block at a spacing the panel cannot hold and drops the
+  // last lines past the foot of the panel onto the divider. The eleven run 18
+  // to 36 rows, so that is inside the record rather than beyond it.
+  const spacingFloor =
+    spacingForFloor <= spacingMax
+      ? Math.max(panelFreedom.lineSpacing.min, spacingForFloor)
+      : panelFreedom.lineSpacing.min;
+  const spacingMin = Math.min(spacingFloor, spacingMax);
+  const lineSpacing = variation.between("lineSpacing", spacingMin, spacingMax);
 
   let codeFits = true;
   if (spacingThatFits < panelFreedom.lineSpacing.min) {
@@ -442,42 +619,78 @@ export function composeSheet(doc, options = {}) {
   // it is derived rather than measured: the largest that keeps the widest line
   // inside the panel and the line's own height inside its spacing.
   const capFromSpacing = Math.floor(lineSpacing * CAP_SHARE);
+  // **A floor stops a descent; it never starts an ascent.** The width fitting
+  // below steps the cap *down* from the one the spacing settled, so the floor
+  // it stops at can never be above where it started. An example of 40 rows or
+  // more is already spaced under the measured minimum, so the cap its spacing
+  // yields is already under `floors.codeCap`, and holding the width fitting to
+  // that floor would step the cap *up* - drawing lines whose cap height exceeds
+  // their own spacing, so every line overlaps the one above it and the block
+  // runs past the foot of the panel. Which is the opposite of what a floor
+  // guarding readability is for.
+  const codeFloor = Math.min(floors.codeCap, capFromSpacing);
   let codeCap = capFromSpacing;
   const widest = widestLine(lines, codeCap, codeFace);
   if (widest > usableWidth && usableWidth > 0) {
-    codeCap = Math.max(1, Math.floor(codeCap * (usableWidth / widest)));
+    codeCap = Math.max(codeFloor, Math.floor(codeCap * (usableWidth / widest)));
     // Integer flooring can leave a pixel of slack or take one too many, so the
     // result is confirmed by measuring rather than trusted from the ratio.
-    while (codeCap > 1 && widestLine(lines, codeCap, codeFace) > usableWidth) codeCap -= 1;
+    while (codeCap > codeFloor && widestLine(lines, codeCap, codeFace) > usableWidth) {
+      codeCap -= 1;
+    }
     notes.push(
       `The example was stepped down from a ${capFromSpacing} px cap to ${codeCap} px to fit the ` +
         `${usableWidth.toFixed(0)} px the panel leaves at this inset.`
     );
+    if (widestLine(lines, codeCap, codeFace) > usableWidth) {
+      codeFits = false;
+      notes.push(
+        `Its longest line still overruns that width at the ${codeFloor} px cap floor, ` +
+          `and is not stepped below it.`
+      );
+    }
   }
 
   // How much of the panel the example occupies, top padding to last baseline.
-  // The eleven all fill it, because every one of them carries enough code to;
-  // a short example leaves a void, and the void is reported rather than closed.
-  // Closing it means either centring the block or letting the panel shrink, and
-  // both are decisions for **Constrain every variation to the extracted
-  // margins, spacing and contrast floors**, which is the item that settles what
-  // a variation may not do.
-  const codeHeight = lineSpacing * Math.max(lines.length - 1, 0) + codeCap;
+  //
+  // **The void a short example leaves is not closed, and this is the item that
+  // settles that it is not.** The two ways to close it were centring the block
+  // in the panel and shrinking the panel to the block, and both are outside
+  // what a variation may do. The panel's own geometry is fixed for every seed,
+  // so it cannot shrink; and the block's distance from the top of the panel is
+  // `topPadding`, which the eleven measured at 37 to 152 px, so centring a
+  // short block would set an effective padding of several hundred and put the
+  // sheet outside the record it is generated from. What the fill floor does
+  // instead is stop a seed *causing* the void, by refusing the spacings that
+  // would leave one. A void that survives that is one the document caused by
+  // carrying too little code, and `fillsPanel` is what says so.
+  const codeHeight = lineSpacing * gapsDrawn + codeCap;
   const panelFill = codeHeight / bands.code.height;
+  const fillsPanel = panelFill >= floors.panelFill;
+  if (!fillsPanel) {
+    notes.push(
+      `${lines.length} lines of example fill ${(panelFill * 100).toFixed(0)}% of the code panel, ` +
+        `under the ${(floors.panelFill * 100).toFixed(0)}% floor the eleven were measured at. ` +
+        `The eleven run 18 to 36 rows, counting the blank ones between them.`
+    );
+  }
 
   const codeSize = sizeForCap(codeCap, codeFace);
   lines.forEach((line, index) => {
     if (line.text.length === 0) return;
-    composition.text({
-      name: `code-${index}`,
-      x: divisions.panel.x + leftInset,
-      y: bands.code.y + topPadding + codeCap + lineSpacing * index,
-      text: line.text,
-      align: "left",
-      face: codeFace,
-      fontSize: codeSize,
-      fill: roleColor(syntax, line.role),
-    });
+    drawText(
+      {
+        name: `code-${index}`,
+        x: divisions.panel.x + leftInset,
+        y: bands.code.y + topPadding + codeCap + lineSpacing * index,
+        text: line.text,
+        align: "left",
+        face: codeFace,
+        fontSize: codeSize,
+        fill: roleColor(syntax, line.role),
+      },
+      colors.navy
+    );
   });
 
   // --- The footer ----------------------------------------------------------
@@ -492,23 +705,41 @@ export function composeSheet(doc, options = {}) {
 
   const followLine = doc.followLine ?? DEFAULT_RUNS.followLine;
   const followX = markSquare.x + markSquare.width + insets.followLineFromMark;
-  const followCap = capThatFits(
+  const followCap = displayCap(
+    "follow line",
     followLine,
     runs.followLine.cap,
-    language.canvas - followX - divisions.rightMargin.width,
-    face
+    language.canvas - followX - divisions.rightMargin.width
   );
-  composition.text({
-    name: "follow-line",
-    x: followX,
-    y: runs.followLine.baseline,
-    text: followLine,
-    align: "left",
-    face,
-    fontSize: sizeForCap(followCap, face),
-    fontWeight: TYPE_ROLES.followLine.fontWeight,
-    fill: colors.navy,
-  });
+  drawText(
+    {
+      name: "follow-line",
+      x: followX,
+      y: runs.followLine.baseline,
+      text: followLine,
+      align: "left",
+      face,
+      fontSize: sizeForCap(followCap, face),
+      fontWeight: TYPE_ROLES.followLine.fontWeight,
+      fill: colors.navy,
+    },
+    colors.white
+  );
+
+  // --- The contrast the sheet was actually drawn at ------------------------
+  // Measured after the fact rather than before, because the ink a run ends up
+  // in is not always the ink it was asked for: `drawText` may have substituted
+  // the green. Checking what was requested would pass a sheet on the strength
+  // of a colour that is not in it.
+  const contrast = checkPairings(pairings, contrastFloor);
+  const contrastHolds = contrast.every((pairing) => pairing.holds);
+  for (const pairing of contrast) {
+    if (pairing.holds) continue;
+    notes.push(
+      `The ${pairing.name} is set in ${pairing.ink} on ${pairing.ground}, which reaches ` +
+        `${pairing.ratio.toFixed(2)}:1 against the ${pairing.floor}:1 text floor.`
+    );
+  }
 
   return {
     composition,
@@ -520,10 +751,15 @@ export function composeSheet(doc, options = {}) {
       lineSpacing,
       codeCap,
       panelFill,
+      fillsPanel,
       titleCap,
       subtitleCap,
       face: face.name,
       codeFits,
+      runsFit,
+      floors,
+      contrastHolds,
+      contrast,
       notes,
       choices: variation.choices,
     },

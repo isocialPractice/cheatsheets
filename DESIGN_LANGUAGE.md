@@ -22,10 +22,17 @@ says so rather than averaging them.
 > `tools/test-contrast.mjs` measures every text and background pair the page
 > renders against its floor and fails on one that drops under it, and
 > `tools/test-page-structure-browser.mjs` drives a real engine over what those
-> rules render. What is still a target rather than a stylesheet is every token
-> under **The sheets**: nothing is drawn to them yet, and the algorithms under
-> **Cheatsheet Composition Language** in `TODO.md` are the work that will draw
-> to them.
+> rules render.
+>
+> **The sheets** is no longer a target either. `api/cheatsheet/` composes to it -
+> `language.mjs` carries this document in the form the algorithm reads,
+> `compose.mjs` draws the six regions, `variation.mjs` seeds what the panel is
+> free within, and `contrast.mjs` measures what the result is set in.
+> `tools/test-composition-algorithm.mjs` checks the two records against each
+> other, so a figure edited here and not there fails rather than drifts. What is
+> still outstanding is under **Cheatsheet Composition Language** in `TODO.md`:
+> composing a sheet from a `sheet.json`, and a temporary SVG for a category with
+> no artwork to measure.
 
 ## Source
 
@@ -326,6 +333,42 @@ generated to this language:
   how much code the sheet carries. The panel is a fixed frame around free
   content, and it is the only region of which that is true.
 
+#### How full the code panel is
+
+The panel is free content, but it is not free to be empty. Measuring the ink of
+each sheet's code block - the first line's top to the last line's bottom, over
+the panel's own height - puts all eleven between **0.852 and 0.966**:
+
+| Sheet | Lines drawn | Rows | Median pitch | Fill |
+| --- | --- | --- | --- | --- |
+| `CompareArrayFunction.jpg` | 23 | 26 | 70 | 0.852 |
+| `ConcatingArrays.jpg` | 21 | 22 | 89 | 0.905 |
+| `SplicingArrays.jpg` | 22 | 23 | 86 | 0.923 |
+| `shiftAndUnshift.jpg` | 20 | 19 | 104 | 0.946 |
+| `RandomSortArray.jpg` | 29 | 33 | 61 | 0.956 |
+| `ChangingElements.jpg` | 19 | 20 | 104 | 0.957 |
+| `MaxandMinValueArray.jpg` | 21 | 25 | 82 | 0.958 |
+| `MaxandMinFunctionandSortObject.jpg` | 27 | 28 | 72 | 0.958 |
+| `SlicingArrays.jpg` | 14 | 18 | 116 | 0.966 |
+| `SortingArrays.jpg` | 25 | 27 | 76 | 0.966 |
+| `SortNumbersArray.jpg` | 34 | 36 | 56 | 0.966 |
+
+Read with `tools/measure-sheet-composition.mjs`, which reports the code panel's
+line boxes and the pitch between them. The lines column is what the measurement
+detects as inked; the rows column is the ink span over the median pitch, and
+the two differ because a sheet leaves blank rows between its statements.
+
+**The distinction between the two columns is the load-bearing one**, and
+`SlicingArrays.jpg` is why. It draws the fewest lines of any sheet, 14, and
+fills the most of its panel, 0.966, because three of its 18 rows are empty. A
+blank row occupies its slot exactly like an inked one. So a document aiming at
+this record needs **rows**, not lines, and counting only the statements would
+suggest a sheet half the length of the ones it is modelled on.
+
+The lowest figure, 0.852, is what `FLOORS.panelFill` in
+`api/cheatsheet/language.mjs` carries: the sparsest the artwork itself ever was.
+At the 116 px maximum measured spacing, reaching it takes 16 rows.
+
 ### The colors the sheets are drawn in
 
 Counted over all 142,639,211 pixels of the eleven sheets. JPEG spreads a flat
@@ -393,7 +436,16 @@ the site palette forbids, done on every one of the eleven.
 It is recorded rather than corrected: the sheets are the repository's existing
 content and nothing here repaints them. What it settles is the rule for generated
 sheets, which is the site's rule unchanged. On a white ground the green is a
-fill, and text that has to be read takes `#2E7534` at 5.33:1.
+fill, and text that has to be read takes `#2E7534`, which reaches **5.66:1** on
+the sheets' `#FFFFFF`.
+
+That is a different figure from the 5.33:1 recorded for the same color under
+**The one substitution** and in the light theme table, and both are correct. The
+site softens its page white to `#F8F8F9` and the sheets use pure white, so the
+substitute green measures 5.33:1 against the one and 5.66:1 against the other.
+The ground has to be named with the ratio or the two records read as a
+contradiction; `api/cheatsheet/contrast.mjs` computes whichever applies rather
+than carrying either.
 
 Every other pairing the sheets use clears its floor:
 
