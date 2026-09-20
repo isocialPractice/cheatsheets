@@ -11,31 +11,19 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Record the ported surface and every limit it carries where a caller will read it
-  - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
-  - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
-  - Two limits landed since the item was written and belong in the same record: the port refuses a paint it cannot read where upstream passes it through, and `files.mjs` is Node only and deliberately absent from the barrel
+- [ ] Port the design language helper: its two skills, its command and its contract file
+  - It is prose apart from four scripts, and those four are what make it work. They measure an asset, resolve a `resources.md` into placeable assets, and generate a per asset skill
+  - Three edits are needed on the way in. Re-point the API loader in the two scripts that resolve the drawing API by package name, since no package exists here. Correct the two paths that address the scripts through a folder this repository does not have. Do not port the installer, which can only write into a dot folder of its own repository
+  - The helper depends on the ported `brand.mjs` at run time. A loader that cannot find the API must say so, because an unconfigured brand is filled with a mark drawn in the design language rather than left as a hole, so a broken path looks like a result
+  - Unblocked now. `tools/build-brand-resources.mjs` writes the `resources.md` the helper reads, to `.claude/references/`, and prints the `NAPKIN_BRAND_RESOURCES` assignment that points it there. Configure the port against that rather than against the tracked folder the helper defaults to
+  - This is the last item in its section. Closing it is what settles **Add links to `napkin-sketch`** in `.claude/user-note.md`, which has been waiting on the port being complete since 09.15
   - From: Port the napkin-sketch Graphic Design API
-- [ ] Record the algorithm each of the steps above settles on, where the next run will read it
-  - Unblocked now. The item names "each of the steps above" and the raster step was the one still queued; with the routes in `api/cheatsheet/raster.mjs` all three are settled, so this is the one pass the roadmap held it for rather than two halves
-  - The renderer half and the font route half are already recorded. What is left is the composition's own record: what a seed moves, what it may not, the three floors and why each is the figure it is, and why the three free figures are the three the artwork left free
-  - It belongs in `DESIGN_LANGUAGE.md`, not in `.claude/agent-note.md`, which is transient by design
-  - From: Cheatsheet Composition Language `->` Rendering and Conversion
-- [ ] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
-  - That invocation is still broken. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 217 cases, so it is the documented invocation that is wrong rather than the tests
-  - More pressing than it was. `tools/fixtures/` now holds a folder of non-test modules inside the folder the glob sweeps, and the suite carries a full size raster encode, so what the invocation includes and what it costs both matter
-  - Whatever replaces it keeps what that file settled: a bare clone with nothing installed still runs the suite, and a case needing a browser skips with the install command as its reason
-  - From: Port the napkin-sketch Graphic Design API
-- [ ] Build the worked examples that show what the port produces and how it is reconfigured
-  - Reproduce one existing `javaScriptArrays` sheet from a document, then restyle that same document through a second theme. That pair is what the eleven kept images are for, per **Raster Export and Example Images**
-  - Unblocked by the raster route: an example that reproduces a sheet has to be able to produce a comparable raster, and `rasterizeSheet` is what produces one in the face the design language measured
-  - From: Port the napkin-sketch Graphic Design API
-- [ ] Bridge the brand resources recorded in `.claude/constants.md` to the `resources.md` the helper reads
-  - Nothing reads the constants section today. The helper reads a `resources.md`, and this repository has none, so the bridge is work rather than an assumption
-  - Three faults to handle: the heading is misspelled, so anything matching the correct spelling finds nothing; the footer asset is declared under a key that normalizes to a descriptor no composition asks for, which declaring the folder instead fixes by making the file name the slot; and pointing the parser at the constants file directly would also read every other `- key: value` line in it as a brand slot
-  - Register the helper against a folder inside `.claude/`, which is ignored. Its default is a tracked folder at the repository root, and the brand values are a real domain, a real name and a real tagline
-  - Queued ahead of the helper itself, which cannot be configured until the bridge exists
-  - From: Port the napkin-sketch Graphic Design API
+- [ ] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
+  - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
+  - It must reproduce the recorded region proportions, not only the recorded colors. A vector palette is weighted by usage and a raster palette by area, and roles are decided from area, so the right colors in the wrong proportions produce the right palette with the wrong roles and nothing downstream can tell
+  - Write it to `.tmp/`. It is an input to a measurement rather than an artifact
+  - Queued with the helper rather than with the rest of its own section, because the helper is what consumes it and neither can be checked without the other
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 ## GitHub Pages Deployment
 
@@ -648,10 +636,18 @@ nobody was testing. The sheet's runs reach the SVG as `text` elements, the words
 are recoverable from the markup, no element in the document is a path, and a
 title full of characters XML cannot carry is escaped rather than outlined.
 
-- [ ] Record the algorithm each of the steps above settles on, where the next run will read it
-  - The user note asks for this in `.claude/agent-note.md`, which is a transient file rather than a missing one: a run leaves it for the next run and deletes it once the check is resolved, so it is absent between runs by design. The algorithm itself is not a check and belongs in `DESIGN_LANGUAGE.md`, with the agent note used only to point a following run at that record
-  - The renderer half of this is already covered: recording the ported surface and its limits is an item under **Port the napkin-sketch Graphic Design API**, so what is left here is the composition algorithm's own record
-  - The font route half is recorded too, under **What a generated sheet is measured in**. What is left is the composition's own record: what a seed moves, what it may not, and why the three free figures are the three the artwork left free
+**The algorithm is recorded**, under **Composing a sheet** in
+`DESIGN_LANGUAGE.md`: what a seed moves and why those three figures are the
+three the artwork left free, the order the choices are made in, the three
+floors with the derivation of each, what a floor does instead of clamping, the
+fitting rule, and the contrast pass. It went there rather than into
+`.claude/agent-note.md`, which is transient by design - a run leaves it for the
+next run and deletes it once the check is resolved.
+
+The figures in it are read against `language.mjs` by
+`tools/test-composition-algorithm.mjs`, including the worked example of the
+padding ceiling, so a figure edited in one record and not the other fails
+rather than drifts.
 
 ## Port the napkin-sketch Graphic Design API
 
@@ -707,23 +703,58 @@ consequence for the items below: this is the first local change to a ported
 module, so a later diff against upstream reads `font.mjs` as upstream above the
 divider in its header and this repository's below it.
 
-- [ ] Record the ported surface and every limit it carries where a caller will read it
-  - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
-  - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
-- [ ] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
-  - The port landed with its tests in `tools/` beside every other suite, so `node --test tools/*.mjs` is still the whole suite and this item is not yet forced. It is the first code in the repository whose *source* is outside `tools/`, which is what will force it as soon as a test wants to sit beside the module it covers
-  - That invocation is already broken here. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 112 cases, so it is the documented invocation that is wrong rather than the tests
-  - Whatever replaces it keeps what that file settled: a bare clone with nothing installed still runs the suite, and a case needing a browser skips with the install command as its reason
-- [ ] Build the worked examples that show what the port produces and how it is reconfigured
-  - Reproduce one existing `javaScriptArrays` sheet from a document, then restyle that same document through a second theme. That pair is what the eleven kept images are for, per **Raster Export and Example Images**
+**The surface and its limits are recorded in `api/graphic-design/API.md`**,
+beside the barrel a caller imports, and the record is held honest rather than
+reviewed: `tools/test-graphic-design-port.mjs` fails on an export with no entry,
+on an entry naming a call the port does not have, and on a stated limit the port
+does not enforce.
+
+Writing it turned up a limit that was documented and not carried. An elliptical
+arc was **not** refused - upstream's path tokenizer does not list `A` among its
+command letters, so an arc was skipped by the scan and its seven parameters read
+as coordinates of the command before it. A path with two arcs leaves fourteen
+numbers, which divide evenly into pairs, so it parsed into a polyline of nonsense
+with no error at all; a path with one left an odd number over and raised
+`malformed path data`, naming the string rather than the command. Whether an
+unsupported arc was reported came down to arithmetic. `PATH_TOKEN` now matches
+the letter, which is the second local change to a ported module after
+`font.mjs`, and the case that used to assert the accidental behaviour now
+asserts the stated one.
+
+**The suite is run with a bare `node --test` from the repository root**, which
+is what settles the invocation for tests outside `tools/`: Node walks the tree
+from the working directory, so a test written beside the module it covers is
+found without the command changing. Both forms it replaced were wrong -
+`node --test tools/` resolves the folder as a CommonJS module and exits, and the
+glob form hands Node every `.mjs` in the folder, so it ran
+`measure-font-widths.mjs`, which exits non-zero without Playwright and therefore
+**failed the suite on exactly the bare clone the constraint was written for**.
+`tools/test-suite-invocation.mjs` records the decision and holds the naming the
+bare command depends on. Measured with Playwright hidden: 257 cases, 229 passed,
+28 skipped with the install command as their reason, none failed.
+
+**The worked examples are in `examples/`**: one document, composed through the
+recorded design language and then through a second theme, with
+`tools/test-worked-examples.mjs` checking the claims the README makes about
+them. The pair demonstrates that the two axes are independent - a theme moves
+every paint and not one coordinate, a seed moves geometry and no paint - by
+composing both and comparing rather than by saying so.
+
+**The brand bridge is `tools/build-brand-resources.mjs`**, which reads the
+declaration out of the constants file and writes a `resources.md` the helper's
+own parser reads correctly. All three faults are handled: the misspelled heading
+is matched within an edit distance of two rather than corrected, since a
+constants file is the user's; the asset folder is declared rather than the
+files, so a file's own name is the slot and a key normalizing to no known
+descriptor stops mattering; and only the brand section's lines are read, which
+matters most for the one stray key that is itself a directory key. It writes to
+`.claude/references/`, ignored, and prints the variable that points the helper
+at it.
+
 - [ ] Port the design language helper: its two skills, its command and its contract file
   - It is prose apart from four scripts, and those four are what make it work. They measure an asset, resolve a `resources.md` into placeable assets, and generate a per asset skill
   - Three edits are needed on the way in. Re-point the API loader in the two scripts that resolve the drawing API by package name, since no package exists here. Correct the two paths that address the scripts through a folder this repository does not have. Do not port the installer, which can only write into a dot folder of its own repository
   - The helper depends on the ported `brand.mjs` at run time. A loader that cannot find the API must say so, because an unconfigured brand is filled with a mark drawn in the design language rather than left as a hole, so a broken path looks like a result
-- [ ] Bridge the brand resources recorded in `.claude/constants.md` to the `resources.md` the helper reads
-  - Nothing reads the constants section today. The helper reads a `resources.md`, and this repository has none, so the bridge is work rather than an assumption
-  - Three faults to handle: the heading is misspelled, so anything matching the correct spelling finds nothing; the footer asset is declared under a key that normalizes to a descriptor no composition asks for, which declaring the folder instead fixes by making the file name the slot; and pointing the parser at the constants file directly would also read every other `- key: value` line in it as a brand slot
-  - Register the helper against a folder inside `.claude/`, which is ignored. Its default is a tracked folder at the repository root, and the brand values are a real domain, a real name and a real tagline
 
 ## Implement Cheatsheet API
 
@@ -1107,5 +1138,30 @@ generate ideas about generating ideas.
   - The ported `svg.mjs` emits live `text` already, so this is a constraint on how the composition calls the API rather than something to write
   - `compose.mjs` calls only `text` for every run, so this is an acceptance check and a case that fails if a later change starts emitting outlines
   - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [x] Record the ported surface and every limit it carries where a caller will read it
+  - The limits are load bearing: no gradients, filters or patterns; solid paint, opacity and clipping masks only; and an elliptical arc `A` in path data is refused rather than quietly losing a corner
+  - The sheets' 4px radius is a rounded rectangle, which `rect` draws with `rx`, so nothing composed so far needs an arc
+  - Two limits landed since the item was written and belong in the same record: the port refuses a paint it cannot read where upstream passes it through, and `files.mjs` is Node only and deliberately absent from the barrel
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Record the algorithm each of the steps above settles on, where the next run will read it
+  - Unblocked now. The item names "each of the steps above" and the raster step was the one still queued; with the routes in `api/cheatsheet/raster.mjs` all three are settled, so this is the one pass the roadmap held it for rather than two halves
+  - The renderer half and the font route half are already recorded. What is left is the composition's own record: what a seed moves, what it may not, the three floors and why each is the figure it is, and why the three free figures are the three the artwork left free
+  - It belongs in `DESIGN_LANGUAGE.md`, not in `.claude/agent-note.md`, which is transient by design
+  - From: Cheatsheet Composition Language `->` Rendering and Conversion
+- [x] Settle how the suite runs once tests live outside `tools/`, and fix or correct the invocation the test files document
+  - That invocation is still broken. `tools/test-page-structure-browser.mjs` records the constraint that `node --test tools/` "has to work on a clone with nothing installed", and on Node 24.1.0 it resolves `tools` as a CommonJS module and exits with `Cannot find module`. `node --test tools/*.mjs` passes all 217 cases, so it is the documented invocation that is wrong rather than the tests
+  - More pressing than it was. `tools/fixtures/` now holds a folder of non-test modules inside the folder the glob sweeps, and the suite carries a full size raster encode, so what the invocation includes and what it costs both matter
+  - Whatever replaces it keeps what that file settled: a bare clone with nothing installed still runs the suite, and a case needing a browser skips with the install command as its reason
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Build the worked examples that show what the port produces and how it is reconfigured
+  - Reproduce one existing `javaScriptArrays` sheet from a document, then restyle that same document through a second theme. That pair is what the eleven kept images are for, per **Raster Export and Example Images**
+  - Unblocked by the raster route: an example that reproduces a sheet has to be able to produce a comparable raster, and `rasterizeSheet` is what produces one in the face the design language measured
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Bridge the brand resources recorded in `.claude/constants.md` to the `resources.md` the helper reads
+  - Nothing reads the constants section today. The helper reads a `resources.md`, and this repository has none, so the bridge is work rather than an assumption
+  - Three faults to handle: the heading is misspelled, so anything matching the correct spelling finds nothing; the footer asset is declared under a key that normalizes to a descriptor no composition asks for, which declaring the folder instead fixes by making the file name the slot; and pointing the parser at the constants file directly would also read every other `- key: value` line in it as a brand slot
+  - Register the helper against a folder inside `.claude/`, which is ignored. Its default is a tracked folder at the repository root, and the brand values are a real domain, a real name and a real tagline
+  - Queued ahead of the helper itself, which cannot be configured until the bridge exists
+  - From: Port the napkin-sketch Graphic Design API
 
 </details>

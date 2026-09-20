@@ -10,6 +10,13 @@
 // primitive to implement, and the SVG writer emits the original shape rather
 // than the flattening, so the vector output stays as small and as editable as
 // a design tool would have written it.
+//
+// ---
+//
+// **The one local change to this module** is a single letter pair in the path
+// tokenizer, `PATH_TOKEN`, which makes the refusal of an elliptical arc real
+// rather than documented. That constant carries the whole account. Everything
+// else here is upstream.
 
 /**
  * A contour: a run of points, closed or open depending on the caller.
@@ -383,7 +390,30 @@ export function triangleContour(x, y, width, height, variant = "up") {
  * @property {boolean} closed
  */
 
-const PATH_TOKEN = /([MmLlHhVvCcSsQqTtZz])|(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
+/**
+ * The command letters and numbers a `d` string is read as.
+ *
+ * **The `Aa` here is a local correction, and is the second edit this port has
+ * made to a module it took from upstream.** Upstream's class is
+ * `[MmLlHhVvCcSsQqTtZz]`, which does not include the arc - so an `A` matched
+ * neither alternative, was skipped by the scan entirely, and its seven
+ * parameters were read as coordinates of whatever command came before it. The
+ * `default:` branch below, whose whole job is to raise on an arc, was
+ * unreachable for the one command it was written for.
+ *
+ * What that produced was not an error. `M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1
+ * 20 0` parsed cleanly into an eight point polyline of nonsense, because
+ * fourteen leftover numbers divide evenly into pairs. A path whose leftovers
+ * happened to be odd raised `malformed path data` instead, naming the whole
+ * string rather than the command - so whether an unsupported arc was reported
+ * at all came down to arithmetic.
+ *
+ * Matching the letter is what makes the refusal real, and it is the same
+ * decision `svg.mjs` records for paints: this port refuses what it cannot
+ * read rather than letting it through to be wrong somewhere with no error
+ * attached. `api/graphic-design/API.md` states the limit a caller sees.
+ */
+const PATH_TOKEN = /([MmLlHhVvCcSsQqTtZzAa])|(-?\d*\.?\d+(?:e[-+]?\d+)?)/gi;
 
 /**
  * Reads an SVG `d` string into flattened subpaths.

@@ -31,14 +31,28 @@
 // is a rounded rectangle, which `rect` draws with `rx`, so nothing the design
 // language has asked for so far needs an arc.
 //
-// **One behaviour here is not upstream's.** Upstream lets the SVG writer pass
-// a colour straight through to the markup, on the reasoning that a browser is
-// the better parser, and catches a misspelling in the rasterizer instead. The
-// page composes its sheet as inline SVG, so the rasterizer never runs here and
-// that misspelling would be a black region with no error anywhere. Both back
-// ends therefore refuse a paint they cannot read, raising the same message.
+// `API.md` beside this file is the reference a caller reads: every export, and
+// every limit stated as the behaviour it actually is.
+//
+// **Two behaviours here are not upstream's, and they are the same decision
+// taken twice** - refuse at the call rather than hand a renderer something it
+// will draw wrongly with no error attached.
+//
+// Upstream lets the SVG writer pass a colour straight through to the markup,
+// on the reasoning that a browser is the better parser, and catches a
+// misspelling in the rasterizer instead. The page composes its sheet as inline
+// SVG, so the rasterizer never runs here and that misspelling would be a black
+// region with no error anywhere. Both back ends therefore refuse a paint they
+// cannot read, raising the same message.
 // `compositionToSvg(doc, { validate: false })` restores the upstream pass
 // through, and `validatePaints(doc)` runs the check on its own.
+//
+// And the arc limit above was documented rather than carried until `PATH_TOKEN`
+// in `geometry.mjs` was corrected. Upstream's tokenizer does not list `A` among
+// its command letters, so an arc was skipped by the scan and its parameters
+// read as coordinates of the command before it - a shape quietly losing a
+// corner, which is the outcome the limit was written to prevent. That constant
+// carries the account.
 
 export { Composition, ElementList, createComposition, renderComposition, renderPng } from "./compose.mjs";
 

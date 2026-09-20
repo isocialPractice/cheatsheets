@@ -79,8 +79,13 @@ test("and nothing beside them that the page could not load", () => {
   // is refused below, a `package.json` and build output are refused below that,
   // and the import and Node checks read `PORTED` rather than the folder. What
   // is left to hold here is that every extra is source a browser can parse.
+  //
+  // `API.md` is the one exception, and it is one because the rule is about
+  // what the *page* loads. A markdown file is not a module, cannot be
+  // imported, and cannot break a page by sitting here; the reference belongs
+  // beside the barrel it documents, which is where a caller already is.
   for (const name of files) {
-    if (PORTED.includes(name)) continue;
+    if (PORTED.includes(name) || name === "API.md") continue;
     assert.match(name, /\.mjs$/, `${name} is not an ES module, so the page cannot import it`);
   }
 });
@@ -202,16 +207,61 @@ test("the same composition renders to a PNG the decoder reads back", () => {
 });
 
 test("an elliptical arc is refused rather than quietly losing a corner", () => {
-  // The tokenizer does not carry `A` as a command at all, so an arc is refused
-  // by the reader rather than by a branch that names it: a path beginning with
-  // one has no move command, and one mid-path leaves the numbers to be read as
-  // coordinates of whatever came before, which runs out. Both raise, which is
-  // the property the limit is written for - the shape never silently loses its
-  // corner - and the two messages are what upstream produces for each case.
+  // **This case used to assert the wrong thing, and passing was the proof.**
+  // It read the arc as "refused by the reader rather than by a branch that
+  // names it", on the reasoning that an arc mid-path leaves its numbers to be
+  // read as coordinates of whatever came before, "which runs out".
+  //
+  // Sometimes it runs out. An arc carries seven parameters, so a path with
+  // one of them leaves an odd number over and the reader raises `malformed
+  // path data` - which is what this case used to see. A path with *two* arcs
+  // leaves fourteen, which divides evenly into pairs, and parsed clean into a
+  // polyline of nonsense with no error anywhere. Whether an unsupported arc
+  // was reported came down to arithmetic, and the limit says it is refused.
+  //
+  // `PATH_TOKEN` in `geometry.mjs` now matches the letter, which is what makes
+  // the `default:` branch that raises on it reachable at all.
+  const twoArcs = "M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1 20 0";
+  assert.throws(() => api.parsePathData(twoArcs), /unsupported path command "A"/);
+  assert.throws(() => api.parsePathData("M 0 0 a 5 5 0 0 1 10 10"), /unsupported path command "a"/);
+
+  // The message names the command rather than the whole `d` string, which is
+  // the other half of what was wrong: a caller was told the path was
+  // malformed when the path was well formed and the command unsupported.
+  const raised = (() => {
+    try {
+      api.parsePathData(twoArcs);
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  })();
+  assert.doesNotMatch(raised, /malformed path data/);
+
+  // It reaches a caller through a composition too, not only the reader.
   const design = api.createComposition({ width: 20, height: 20 });
   design.path({ d: "M0 0 A 5 5 0 0 1 10 10", fill: "#000000" });
-  assert.throws(() => design.toPNG(), /graphic-design: malformed path data/);
-  assert.throws(() => api.parsePathData("A 5 5 0 0 1 10 10"), /must start with a move command/);
+  assert.throws(() => design.toPNG(), /unsupported path command "A"/);
+
+  // A path that *opens* with an arc now names the arc too. It used to fail on
+  // the missing move, because the arc was not a token and the numbers after
+  // it were the first thing the reader saw; the command is the more useful of
+  // the two answers and is the one a caller now gets.
+  assert.throws(() => api.parsePathData("A 5 5 0 0 1 10 10"), /unsupported path command "A"/);
+
+  // The missing-move guard itself is unchanged, and still fires for the case
+  // it was written for: data that opens with coordinates and no command.
+  assert.throws(() => api.parsePathData("10 10 L 20 20"), /must start with a move command/);
+});
+
+test("and adding it to the tokenizer changed nothing about the commands that work", () => {
+  const curve = api.parsePathData("M 16 112 C 56 88, 96 136, 136 112 L 176 112");
+  assert.equal(curve.length, 1);
+  assert.deepEqual(curve[0].points[0], { x: 16, y: 112 });
+  assert.deepEqual(curve[0].points.at(-1), { x: 176, y: 112 });
+  const closed = api.parsePathData("M 0 0 H 10 V 10 H 0 Z");
+  assert.equal(closed.length, 1);
+  assert.equal(closed[0].closed, true);
 });
 
 test("an unrecognised colour fails where the swatch is written", () => {
@@ -305,9 +355,13 @@ test("and every module still records where it came from", () => {
 // not be reachable from anything the page loads - so each case below is the
 // mirror of one that came before it.
 
-test("the Node-only half is there, and is the only file outside the ported set", () => {
+test("the Node-only half is there, and is the only module outside the ported set", () => {
   assert.ok(files.includes("files.mjs"), "api/graphic-design/files.mjs is missing");
-  const extras = files.filter((name) => !PORTED.includes(name));
+  // `API.md` is prose rather than a module, and is held by the case above
+  // instead. Everything else here has to be one of the ported modules or the
+  // Node-only half, so a stray script cannot appear in the tree the page
+  // loads without this failing.
+  const extras = files.filter((name) => !PORTED.includes(name) && name !== "API.md");
   assert.deepEqual(extras, ["files.mjs"], "something other than files.mjs is sitting beside the port");
 });
 
@@ -379,7 +433,12 @@ test("the placed-bitmap helpers were left upstream, since no composition places 
   for (const dropped of ["imageDataUrl", "mediaTypeOf"]) {
     assert.doesNotMatch(
       source,
-      new RegExp(`export\s+(async\s+)?function\s+${dropped}\b`),
+      // Built with `String.raw`, not a plain template literal. `\s` is not an
+      // escape JavaScript knows, so a plain literal drops the backslash and
+      // `\b` becomes a backspace character - which made this pattern
+      // `exports+(asyncs+)?functions+imageDataUrl<BS>`, matching nothing, so
+      // the case passed whatever `files.mjs` held.
+      new RegExp(String.raw`export\s+(async\s+)?function\s+${dropped}\b`),
       `files.mjs exports ${dropped}, which serves placed bitmaps the design language allows none of`
     );
   }
@@ -392,4 +451,87 @@ test("and it records where it came from, like every other ported module", () => 
     .replace(/\s+/g, " ");
   assert.match(header, /napkin-sketch \(MIT, isocialPractice\)/);
   assert.match(header, /commit d43caac191b2dfd532b3311f4ca1ea6969bb002f/);
+});
+
+/* --- The record a caller reads -------------------------------------------
+   `api/graphic-design/API.md` is where the surface and its limits are
+   written down. A reference is only worth reading while it is complete, and
+   the way a hand written one stops being complete is an export added without
+   an entry, so the two are checked against each other rather than trusted.   */
+
+const apiDoc = readFileSync(join(portDir, "API.md"), "utf8");
+
+test("every export the barrel offers is in the API reference", () => {
+  const missing = Object.keys(api).filter(
+    (name) => !new RegExp(String.raw`\b${name}\b`).test(apiDoc)
+  );
+  assert.deepEqual(
+    missing,
+    [],
+    "these are exported from index.mjs and named nowhere in API.md, so a caller has no way to find them"
+  );
+});
+
+test("and every call the reference names is really there", () => {
+  // The other direction, which catches a rename: the reference keeps the old
+  // name, the barrel has the new one, and both cases pass unless this one
+  // exists. Only names written in a code span and followed by a paren are
+  // read, so prose is free.
+  //
+  // The method names are taken off the classes rather than listed, so this
+  // covers `rect`, `toSVG` and the rest of the surface a caller actually
+  // types, and a renamed method fails here too.
+  const methods = [api.Composition, api.ElementList].flatMap((cls) =>
+    Object.getOwnPropertyNames(cls.prototype)
+  );
+  const real = new Set([...Object.keys(api), ...methods, "writeComposition"]);
+  // CSS colour functions, which the reference names because `parseColor`
+  // reads them. They are input to this API, not part of it.
+  const cssFunctions = new Set(["rgb", "rgba", "hsl", "hsla"]);
+  /** @type {string[]} */
+  const claimed = [];
+  for (const [, name] of apiDoc.matchAll(/`([A-Za-z_$][\w$]*)\(/g)) claimed.push(name);
+  const unknown = [...new Set(claimed)].filter((name) => !real.has(name) && !cssFunctions.has(name));
+  assert.deepEqual(unknown, [], "API.md documents calls that the port does not have");
+});
+
+test("the reference states every limit the port carries", () => {
+  // Not a wording check: each of these is a behaviour a caller hits, and the
+  // reference exists so they hit it in prose first. Matched on the phrase the
+  // limit is stated in, so a rewrite that drops one fails here.
+  for (const [what, pattern] of [
+    ["no gradients", /gradients, filters or patterns/i],
+    ["the refused arc", /elliptical arc `A`[\s\S]{0,80}refused/i],
+    ["the paint refusal", /graphic-design: unsupported color/],
+    ["the validate escape hatch", /validate: false/],
+    ["the Node-only half", /files\.mjs[\s\S]{0,200}not re-exported/i],
+    ["the dropped canvas", /canvas\.ts/],
+    ["the built-in alphabet", /single-stroke alphabet|built-in single-stroke/i],
+  ]) {
+    assert.match(apiDoc, pattern, `API.md does not state ${what}`);
+  }
+});
+
+test("the limits it states are the ones the port actually enforces", () => {
+  // The reference quotes two refusals verbatim. A message reworded in the
+  // source and not here would leave a caller searching for a string that is
+  // no longer raised, so both are provoked rather than read.
+  assert.throws(
+    () => api.parsePathData("M0 0 A 5 5 0 0 1 10 10"),
+    /unsupported path command "A"/,
+    "an elliptical arc is no longer refused"
+  );
+  const page = api.createComposition({ width: 10, height: 10 });
+  page.rect({ x: 0, y: 0, width: 10, height: 10, fill: "ofwhite" });
+  assert.throws(() => page.toSVG(), /graphic-design: unsupported color "ofwhite"/);
+  // And the documented way back to upstream's behaviour still works.
+  assert.match(page.toSVG({ validate: false }), /fill="ofwhite"/);
+});
+
+test("and the README points a reader at it", () => {
+  assert.match(
+    readFileSync(join(root, "README.md"), "utf8"),
+    /\(api\/graphic-design\/API\.md\)/,
+    "nothing at the root links the API reference, so only someone already inside the folder finds it"
+  );
 });

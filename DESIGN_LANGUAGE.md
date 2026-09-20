@@ -29,8 +29,10 @@ says so rather than averaging them.
 > `compose.mjs` draws the six regions, `variation.mjs` seeds what the panel is
 > free within, and `contrast.mjs` measures what the result is set in.
 > `tools/test-composition-algorithm.mjs` checks the two records against each
-> other, so a figure edited here and not there fails rather than drifts. What is
-> still outstanding is under **Cheatsheet Composition Language** in `TODO.md`:
+> other, so a figure edited here and not there fails rather than drifts.
+> **Composing a sheet** below is the algorithm's own record - what a seed
+> moves, what it may not, and the three floors it is held to. What is still
+> outstanding is under **Cheatsheet Composition Language** in `TODO.md`:
 > composing a sheet from a `sheet.json`, and a temporary SVG for a category with
 > no artwork to measure.
 
@@ -708,6 +710,164 @@ four measured cap heights are 220, 154, 141 and 112 sheet pixels, which is 36.66
 and 1.20 - are not one ratio. They are four sizes chosen by hand, and a generated
 sheet should take them as the four measured values rather than reconstruct a
 scale that was never there.
+
+## Composing a sheet
+
+Everything above this heading is a **record of what the eleven sheets are**.
+This section is the other half: the algorithm that draws a new one to that
+record, and the decisions it settles. It is implemented in
+`api/cheatsheet/compose.mjs`, drawing on `language.mjs` for the figures,
+`variation.mjs` for the seeded choices, `faces.mjs` for the type and
+`contrast.mjs` for the ink, over the drawing surface documented in
+[api/graphic-design/API.md](api/graphic-design/API.md).
+
+The record of the *renderer* is in that file, and the record of the *face* a
+generated sheet is measured in is **What a generated sheet is measured in**
+above. What is written here is what those two leave open: what a seed may
+move, what it may not, and what stops it.
+
+### What a seed moves
+
+Three figures, and nothing else:
+
+| What varies | Measured across the eleven | Snapped to |
+| --- | --- | --- |
+| The code panel's top padding | 37 to 152 px | Half a step, 24 px |
+| The leftmost code line's inset | 85 to 414 px | A whole step, 48 px |
+| The code line spacing | 56 to 116 px | Nothing; it is continuous |
+
+Everything else is fixed for every seed. Two sheets from two seeds are
+recognisably the same design because the only thing between them is how the
+example sits inside its panel.
+
+### Why those three, and no others
+
+Because those are the three the artwork left free. Of every figure the eleven
+were measured for, all but these hold to within **one pixel** across every one
+of them, and one pixel is the floor of what can be read at all: JPEG at quality
+99 moves a flat edge by that much on its own. A figure identical to within the
+measurement error is a figure that was fixed by hand, not one that varied.
+
+So the geometry is not a style this algorithm chooses. It is a record it
+reproduces, and the code panel is the one region of which that is not true - a
+fixed frame around free content. **Nothing inside the code panel repeats**
+above is the same finding read from the other side.
+
+**Two of the eleven's deviations are deliberately not offered as variations.**
+`shiftAndUnshift.jpg` pushes everything below the subtitle down 84 px, and two
+sheets end the panel seven rows low. Those are recorded above as deviations
+rather than freedoms, and a generator that reproduced them would be generating
+the artwork's mistakes.
+
+### The order the choices are made in
+
+Padding, then inset, then spacing. The order is fixed and is part of the
+algorithm rather than an accident of how it was written, because the padding
+narrows what the spacing may be.
+
+One rule holds the reproducibility together: **an empty or inverted range still
+consumes a value from the seeded sequence.** A document that leaves no slack
+returns the range's minimum without skipping a draw. Skipping one would shift
+every later choice, and two sheets at the same seed would then differ because
+one of them happened to be full.
+
+### The floors, and what each is derived from
+
+A run that does not fit is stepped down until it does, and that has to stop
+somewhere. Until the floors landed it stopped at a one pixel cap, which is a
+sixth of a display pixel and is not text. `FLOORS` in `language.mjs` is where
+it stops instead. Each of the three is derived from something already measured
+rather than chosen:
+
+| Floor | Value | Bounds | Where the figure comes from |
+| --- | --- | --- | --- |
+| `displayCap` | 48 px | How small a heading, subtitle, lead-in or follow line may be set | One step of cap height, which is 8.0 display pixels. The step is the unit the whole sheet is drawn to, so a run below one step is set smaller than the grid it sits on can address. The four measured caps - 220, 154, 141, 112 - are each a multiple of it or close to one |
+| `codeCap` | 34 px | How small a line of the example may be set | The cap the **minimum** measured line spacing yields, at the share of the spacing a cap takes: `floor(56 x 0.62)`. The most crowded of the eleven panels is therefore exactly at this floor, which is the point - it is the tightest the artwork itself ever got, not a figure invented under it |
+| `panelFill` | 0.85 | How little of the code panel the example may occupy | The least filled panel of the eleven. `CompareArrayFunction.jpg` measures 0.852 and three others measure 0.966, so 0.85 is the sparsest the artwork ever was. A generated sheet under it is outside the record rather than merely airy |
+
+The share in the middle row, 0.62, is the one type size this document does not
+record, so it is derived from the spacing rather than measured. It is named
+once in the code, because two figures depend on it - the cap itself, and how
+much room the spacing may take before the block outgrows the panel - and
+written twice they drift, and the drift is a line of code drawn past the foot
+of the panel.
+
+**What reaches the fill floor is rows, not lines.** At the 116 px maximum
+spacing the floor wants 16 of them, and the eleven run 18 to 36 counting the
+blanks between statements. `SlicingArrays.jpg` draws only 14 lines of code and
+still fills 0.966 of the panel, because three of its rows are empty and a blank
+row occupies its slot exactly like an inked one.
+
+### A floor is not a clamp
+
+A run that still does not fit at the floor is **left at the floor and
+reported**, never pushed back up to it. Pushing it up would put ink outside the
+region it was fitted to, which is the failure the fitting exists to prevent.
+
+What the floors guarantee is that no *seed* can produce an unreadable sheet.
+The two cap floors are unreachable by any seed, because a seed only moves
+figures the fill floor has already narrowed, so crossing one means the
+*document* asked for something the sheet cannot carry. The variation report is
+what says which: `codeFits`, `runsFit`, `fillsPanel`, `panelFill` and a `notes`
+list naming what had to give way.
+
+Three consequences that are easy to get backwards, and each is a case in
+`tools/test-composition-algorithm.mjs`:
+
+- **The fill floor narrows the padding, not only the spacing.** The padding is
+  drawn first, and at the measured maximum of 152 px the block can occupy at
+  most `(2016 - 304) / 2016` of the panel - 0.849, already under the floor -
+  before a single line is placed. A seed drawing that padding would be one no
+  spacing could rescue, so the padding's own ceiling is whatever leaves the
+  floor reachable.
+- **A floor that cannot be met leaves the measured range intact.** An example
+  too short to fill the panel at even the widest spacing the eleven were
+  measured at cannot be made to fill it, and narrowing the range in pursuit of
+  that would collapse it onto its own maximum: every seed composing the same
+  sheet, with the panel still empty. It is reported through `fillsPanel`
+  instead.
+- **A floor stops a descent and never starts an ascent.** Past about 31 rows
+  the spacing the panel has room for is already below the measured minimum, so
+  reading a floor as "at least the minimum" would hand the seed an inverted
+  range and set the block at the one spacing that certainly does not fit. One
+  step further and the cap that spacing yields is already under `codeCap`, so
+  the same reading would step the cap *up* past its own line spacing and
+  overlap every line. The eleven run 18 to 36 rows, so both ends are inside the
+  record rather than beyond it.
+
+### The size gives, never the letterform
+
+The artwork's display face is condensed to 0.684 of the stack a generated sheet
+can actually name, per **The faces are not named** above. A title set at the
+artwork's measured 141 px cap is therefore about half again as wide as the
+artwork's title, and something has to give.
+
+What gives is the size. A run that overflows its region is stepped down until
+it fits, and the fitted cap is reported beside the composition. Squeezing the
+glyphs horizontally to reach the artwork's exact widths would forge a condensed
+face out of one that is not, and a reader sees that immediately.
+
+### Contrast is measured, not assumed
+
+Every run is measured against the ground it was actually placed on, **after**
+it is drawn rather than before. The ink a run ends up in is not always the ink
+it was asked for, so checking what was requested would pass a sheet on the
+strength of a colour that is not in it.
+
+The one substitution this document nominates - the sheets' green becoming
+`#2E7534` where it has to carry text on a light ground, per **The one
+substitution** - is applied rather than merely recorded. Every pairing is
+reported, not only the failures, and anything under the 4.5:1 text floor is
+named in `notes` with its measured ratio.
+
+### Where the two records are held together
+
+`tools/test-composition-algorithm.mjs` and `tools/test-sheet-composition.mjs`
+read this document and `api/cheatsheet/language.mjs` against each other, so a
+figure edited in one and not the other fails rather than drifts.
+`tools/test-render-fixture.mjs` pins a real sheet at a named seed against
+committed output, so a change to what the algorithm draws has to be looked at
+before it is accepted.
 
 ## Graphics
 

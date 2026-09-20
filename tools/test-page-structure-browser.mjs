@@ -4,8 +4,8 @@
 // what they render.
 //
 // **The decision this file records.** A browser test belongs here, but not as
-// a dependency. `tools/` is dependency free on purpose - there is no
-// package.json, and `node --test tools/` has to work on a clone with nothing
+// a dependency. The repository is dependency free on purpose - there is no
+// package.json, and the whole suite has to run on a clone with nothing
 // installed - while a browser test needs Playwright, which on this machine
 // exists only at user scope. So the two are reconciled rather than traded off:
 // nothing is added to the repository, Playwright is looked for at run time in
@@ -15,6 +15,11 @@
 // Install it for a machine that should run them:
 //
 //   npm install -g @playwright/test && npx playwright install chromium
+//
+// The command that constraint is about is `node --test`, run from the
+// repository root with no path after it; `tools/test-suite-invocation.mjs`
+// records why it is that and not a path or a glob, and holds the naming the
+// bare command depends on.
 //
 // The page is served over a throwaway node:http server on an ephemeral port,
 // so the checks need no `php -S`, no network and no dependency of their own.

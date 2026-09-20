@@ -25,6 +25,9 @@
 // Run with: node --test tools/test-composition-algorithm.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 import {
   BANDS,
@@ -38,6 +41,7 @@ import {
   PANEL_FREEDOM,
   RULES,
   RUNS,
+  SHEET_CONDENSATION,
   SHEET_FACE,
   SHEET_LANGUAGE,
   STEP,
@@ -838,3 +842,89 @@ test("a title with characters XML cannot carry is escaped, not redrawn", () => {
   const spans = [...svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map((m) => m[1]);
   assert.ok(spans.some((span) => span === escapeXml(tricky)));
 });
+
+/* --- The algorithm's own record ------------------------------------------
+   **Composing a sheet** in `DESIGN_LANGUAGE.md` states what a seed moves and
+   what stops it. That is a second copy of figures this file already reads out
+   of `language.mjs`, and two copies drift, so the document is parsed and
+   compared rather than read by a person once.                               */
+
+const designLanguage = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "..", "DESIGN_LANGUAGE.md"),
+  "utf8"
+);
+
+/**
+ * The body of one section of the document, from its heading to the next
+ * heading at the same level or shallower.
+ *
+ * @param {string} heading
+ * @returns {string}
+ */
+function section(heading) {
+  const level = /^#+/.exec(heading)[0].length;
+  const from = designLanguage.indexOf(`${heading}\n`);
+  assert.notEqual(from, -1, `DESIGN_LANGUAGE.md has no "${heading}" heading`);
+  const rest = designLanguage.slice(from + heading.length);
+  const next = new RegExp(String.raw`\n#{1,${level}} `).exec(rest);
+  return next ? rest.slice(0, next.index) : rest;
+}
+
+test("the document records the three figures a seed may move, at the ranges the code holds", () => {
+  const body = section("### What a seed moves");
+  for (const [what, range] of [
+    ["top padding", PANEL_FREEDOM.topPadding],
+    ["inset", PANEL_FREEDOM.leftInset],
+    ["spacing", PANEL_FREEDOM.lineSpacing],
+  ]) {
+    assert.match(
+      body,
+      new RegExp(String.raw`${range.min} to ${range.max} px`),
+      `the table does not state ${what} as ${range.min} to ${range.max} px`
+    );
+  }
+  // And it names no fourth figure. Each row is one free figure, so a row added
+  // to the document without one being added to `PANEL_FREEDOM` is a claim the
+  // algorithm does not honour.
+  const rows = body.split("\n").filter((line) => /^\| .* \| \d+ to \d+ px \|/.test(line));
+  assert.equal(rows.length, Object.keys(PANEL_FREEDOM).length);
+});
+
+test("and the three floors, each at the value the code enforces", () => {
+  const body = section("### The floors, and what each is derived from");
+  assert.match(body, new RegExp(String.raw`\`displayCap\` \| ${FLOORS.displayCap} px`));
+  assert.match(body, new RegExp(String.raw`\`codeCap\` \| ${FLOORS.codeCap} px`));
+  assert.match(body, new RegExp(String.raw`\`panelFill\` \| ${FLOORS.panelFill} `));
+  // The derivation of the code cap, not only its value: the document states
+  // the arithmetic, and the arithmetic is what makes the figure defensible.
+  assert.match(
+    body,
+    new RegExp(String.raw`floor\(${PANEL_FREEDOM.lineSpacing.min} x ${CAP_SHARE}\)`),
+    "the document does not state how codeCap is derived"
+  );
+  assert.equal(Math.floor(PANEL_FREEDOM.lineSpacing.min * CAP_SHARE), FLOORS.codeCap);
+});
+
+test("and the padding ceiling the fill floor implies, worked at the measured maximum", () => {
+  // The document quotes `(2016 - 304) / 2016` and calls the result 0.849,
+  // under the floor. Both halves are checked: that the panel really is that
+  // tall, and that the figure really does fall under the floor - a changed
+  // band height would leave the prose quietly wrong otherwise.
+  const body = section("### A floor is not a clamp");
+  const padding = PANEL_FREEDOM.topPadding.max;
+  assert.match(
+    body,
+    new RegExp(String.raw`\(${BANDS.code.height} - ${padding * 2}\) / ${BANDS.code.height}`),
+    "the worked example does not use the panel height the code has"
+  );
+  const share = (BANDS.code.height - padding * 2) / BANDS.code.height;
+  assert.equal(share.toFixed(3), "0.849");
+  assert.ok(share < FLOORS.panelFill, "the worked example no longer lands under the fill floor");
+});
+
+test("and the condensation the fitting rule is stated against", () => {
+  const body = section("### The size gives, never the letterform");
+  assert.match(body, new RegExp(String.raw`condensed to ${SHEET_CONDENSATION} of`));
+  assert.match(body, new RegExp(String.raw`${RUNS.title.cap} px cap`));
+});
+

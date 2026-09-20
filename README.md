@@ -15,6 +15,20 @@ The examples used are based on examples from:
      - w3schools - [JS Array Methods](https://www.w3schools.com/js/js_array_methods.asp)
      - MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
 
+**Drawing a Sheet**
+A cheatsheet is composed rather than screenshotted. `api/graphic-design/` is the
+drawing surface and [API.md](api/graphic-design/API.md) is its reference, every
+export and every limit; `api/cheatsheet/` is the layer that knows what a sheet
+is, drawn to [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md). Both are dependency free
+`.mjs` a browser imports with no build step. Worked examples are in
+[examples/](examples/README.md).
+
+**Tests**
+Run the suite from the repository root with `node --test`, no path and no glob
+after it. Node finds every test file in the tree, so nothing needs changing when
+a test moves. Nothing has to be installed first: cases that need a browser skip
+with the install command as their reason.
+
 **Licence**
 This repository is CC0 1.0 Universal ([LICENSE](LICENSE)), with one directory
 scoped out of that waiver: `api/graphic-design/` is a port of the drawing API

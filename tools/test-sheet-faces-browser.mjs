@@ -8,10 +8,10 @@
 // predicted. If it does not, a generated sheet is measured correctly and drawn
 // wrong, and nothing in a dependency free suite would ever say so.
 //
-// Nothing is added to the repository for it. `tools/` has no package.json and
-// `node --test tools/*.mjs` has to work on a clone with nothing installed, so
-// Playwright is looked for at run time in the places it is actually installed
-// and every case below skips with the reason where it is absent. Install it for
+// Nothing is added to the repository for it. There is no package.json and
+// `node --test` has to work on a clone with nothing installed, so Playwright
+// is looked for at run time in the places it is actually installed and every
+// case below skips with the reason where it is absent. Install it for
 // a machine that should run them:
 //
 //   npm install -g @playwright/test && npx playwright install chromium
