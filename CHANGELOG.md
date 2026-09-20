@@ -4,6 +4,125 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.20]
+
+### Added
+
+- `api/graphic-design/API.md`, the reference a caller of the ported drawing
+  surface reads: every export grouped by module, and every limit stated as the
+  behaviour it actually is rather than as a note in a header. The record is held
+  honest rather than reviewed - `tools/test-graphic-design-port.mjs` now fails
+  on an export with no entry, on an entry naming a call the port does not have,
+  and on a stated limit the port does not enforce, and it provokes the two
+  refusals it quotes rather than reading them.
+- **Composing a sheet** in `DESIGN_LANGUAGE.md`, the composition algorithm's own
+  record: the three figures a seed moves and why those are the three the artwork
+  left free, the order the choices are made in, the three floors with the
+  derivation of each, what a floor does instead of clamping, the fitting rule,
+  and the contrast pass. Four cases in
+  `tools/test-composition-algorithm.mjs` read its tables against
+  `api/cheatsheet/language.mjs`, including the worked example of the padding
+  ceiling, so a figure edited in one record and not the other fails rather than
+  drifts.
+- `examples/`, the worked pair: one document, composed through the recorded
+  design language and then through a second theme, with a README that is a
+  transcript of a real run.
+  - The pair exists to show that the two axes are independent, and it measures
+    that rather than stating it. A theme moves every paint and not one
+    coordinate; a seed moves geometry and no paint. The restyle script composes
+    both and compares, and `tools/test-worked-examples.mjs` holds both
+    directions.
+  - A theme is a modified copy of `SHEET_LANGUAGE` passed as
+    `options.language`, so there is no theme format to learn. It is a re-tint
+    and not an inversion: the colour roles each carry two jobs - the dark ground
+    is also the dark ink - so swapping them would put dark type on a dark
+    ground.
+  - The second theme's accent is deliberately placed where the recorded green
+    sits, under the text floor on white with a darker substitute nominated. An
+    accent that passed everywhere would leave `readableInk` inert under the
+    theme, and the example would be demonstrating a check that never fires.
+- `tools/build-brand-resources.mjs`, the bridge from the brand a repository
+  declares in its constants file to the `resources.md` the design language
+  helper reads. All three faults the item named are handled, and each is
+  demonstrated in `tools/test-brand-bridge.mjs` against a fixture rather than
+  against the real declaration, which is ignored and absent from a clone.
+  - The misspelled heading is matched within an edit distance of two rather than
+    corrected: a constants file belongs to the user and is never edited by a
+    run.
+  - The asset folder is declared rather than the files, so a file's own name is
+    the slot. A footer declared under a key that normalizes to `footerImg` -
+    which no composition asks for - resolves to `footer` because `footer.png` is
+    what is in the folder.
+  - Only the brand section's lines are read. That matters most for one stray
+    key: `- Media: self`, under an unrelated section, is a directory key, so a
+    parser handed the whole file declares an assets folder named `self`.
+  - It writes to `.claude/references/`, which is ignored, rather than the
+    tracked `references/` the helper defaults to, and prints the
+    `NAPKIN_BRAND_RESOURCES` assignment that points the helper at it.
+- `tools/test-suite-invocation.mjs`, which settles how the suite runs and holds
+  the naming that decision depends on: every file importing `node:test` is named
+  so Node's own discovery finds it, and nothing that is not a test is named so
+  it does.
+
+### Changed
+
+- **The suite is run with a bare `node --test` from the repository root**, no
+  path and no glob. That is what settles the invocation for tests outside
+  `tools/`, which was the item's subject: Node walks the tree from the working
+  directory, so a test written beside the module it covers is found without the
+  command changing.
+  - Both forms it replaces were wrong. `node --test tools/` resolves the folder
+    as a CommonJS module and exits with `Cannot find module` before a case runs.
+  - The glob form was the worse of the two, and not for the reason on record.
+    The shell hands Node every `.mjs` in the folder and Node runs each as a test
+    file, so it ran `tools/measure-font-widths.mjs` - which drives Chromium and
+    exits non-zero without Playwright. Under `--test` that is a failing test, so
+    the documented invocation failed on exactly the bare clone
+    `tools/test-page-structure-browser.mjs` settled the suite had to run on. It
+    also ran `tools/measure-sheet-composition.mjs`, decoding all eleven JPEGs
+    and printing its report as one more passing "test".
+  - Measured with Playwright hidden: 257 cases, 229 passed, 28 skipped with the
+    install command as their reason, none failed.
+- `PATH_TOKEN` in `api/graphic-design/geometry.mjs` matches `A` and `a`, which
+  is the second local change to a ported module after `font.mjs`. Writing the
+  API reference turned up that the arc limit was documented and not carried:
+  upstream's tokenizer does not list the arc among its command letters, so an
+  `A` matched neither alternative, was skipped by the scan entirely, and its
+  seven parameters were read as coordinates of the command before it. The
+  `default:` branch whose whole job is to raise on an arc was unreachable for
+  the one command it was written for.
+  - What that produced was not an error. `M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1
+    20 0` parsed clean into an eight point polyline of nonsense, because
+    fourteen leftover numbers divide evenly into pairs. A path whose leftovers
+    were odd raised `malformed path data` instead, naming the whole string
+    rather than the command. Whether an unsupported arc was reported came down
+    to arithmetic.
+  - It is the same decision `svg.mjs` already records for paints, and the
+    reference now states both as one: this port refuses at the call rather than
+    handing a renderer something it will draw wrongly with no error attached.
+- The case asserting that limit used to assert the accidental behaviour, and
+  passing was the proof. It read the arc as "refused by the reader rather than
+  by a branch that names it", on the reasoning that the leftover numbers "run
+  out" - which they do for one arc and do not for two. It now asserts the stated
+  limit, from both the reader and a composition, and checks that the message
+  names the command rather than the string.
+- `README.md` records how to run the suite and points at the API reference, the
+  design language and the worked examples. It is 37 lines, still well under the
+  over-long threshold.
+
+### Fixed
+
+- A committed assertion in `tools/test-graphic-design-port.mjs` that could not
+  fail. The pattern refusing `imageDataUrl` and `mediaTypeOf` in `files.mjs` was
+  built from a plain template literal, and `\s` is not an escape JavaScript
+  knows, so the backslashes were dropped and `\b` became a backspace character:
+  the regex read `exports+(asyncs+)?functions+imageDataUrl<BS>`, which matches
+  nothing, so the case passed whatever that file held. Rebuilt with
+  `String.raw`.
+- The drawing example in `api/graphic-design/API.md` set a run of text taken
+  from the brand declared in the ignored constants file. A reference is public
+  and a declaration is not, so the example now sets placeholder text instead.
+
 ## [2026.09.19]
 
 ### Added
