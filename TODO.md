@@ -11,19 +11,34 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Port the design language helper: its two skills, its command and its contract file
-  - It is prose apart from four scripts, and those four are what make it work. They measure an asset, resolve a `resources.md` into placeable assets, and generate a per asset skill
-  - Three edits are needed on the way in. Re-point the API loader in the two scripts that resolve the drawing API by package name, since no package exists here. Correct the two paths that address the scripts through a folder this repository does not have. Do not port the installer, which can only write into a dot folder of its own repository
-  - The helper depends on the ported `brand.mjs` at run time. A loader that cannot find the API must say so, because an unconfigured brand is filled with a mark drawn in the design language rather than left as a hole, so a broken path looks like a result
-  - Unblocked now. `tools/build-brand-resources.mjs` writes the `resources.md` the helper reads, to `.claude/references/`, and prints the `NAPKIN_BRAND_RESOURCES` assignment that points it there. Configure the port against that rather than against the tracked folder the helper defaults to
-  - This is the last item in its section. Closing it is what settles **Add links to `napkin-sketch`** in `.claude/user-note.md`, which has been waiting on the port being complete since 09.15
-  - From: Port the napkin-sketch Graphic Design API
-- [ ] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
-  - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
-  - It must reproduce the recorded region proportions, not only the recorded colors. A vector palette is weighted by usage and a raster palette by area, and roles are decided from area, so the right colors in the wrong proportions produce the right palette with the wrong roles and nothing downstream can tell
-  - Write it to `.tmp/`. It is an input to a measurement rather than an artifact
-  - Queued with the helper rather than with the rest of its own section, because the helper is what consumes it and neither can be checked without the other
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Write `tools/build-manifest.mjs`, a dependency free Node script that walks the cheatsheet tree and emits `cheatsheets.json` at the repository root
+  - Treat any folder holding `sheet.json` as a cheatsheet, read the `meta.json` at each level for its title and order, detect the payload by extension, and record each document's composed width and height
+  - The recorded dimensions are what stops layout shift. The page reserves the composed box from the manifest before it composes the sheet into it, which is the job the image's `width` and `height` used to do when a sheet was a file the page fetched
+  - Commit `cheatsheets.json` rather than building it at deploy time, so the local `php -S localhost:8000` workflow keeps working without Node
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [ ] Add a `--check` mode to the same script that exits non zero on a broken tree
+  - Fail on: a missing, unparsable or invalid `sheet.json`, or a missing title; a `kind` that contradicts what is on disk; a path segment that is not lower case kebab ASCII, or whose on disk casing differs byte for byte; depth greater than three; a duplicate id; a `sheet.json` whose composition falls outside the extracted margins; an unreferenced file in a cheatsheet folder; and a committed `cheatsheets.json` that differs from freshly generated output
+  - The unreferenced file rule has to let a rendered raster through, or it fails a tree the export command line just wrote into. Either name a render as expected output or write it outside the cheatsheet folder, and say which under **Raster Export and Example Images**
+  - The casing check is the one that matters most: Pages serves from a case sensitive filesystem while the work happens on Windows, so a casing mismatch passes locally and 404s only in production
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [ ] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
+  - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+
+### Code Review Override - the language asset and the helper port
+
+- [ ] `--report` prints at one scale and the figures it prints contradict the file it is in
+  - **Issue**: `tools/compose-language-asset.mjs` documents `--report` as printing "the comparison at any scale", and `run()` calls `reportShares(composition)` with no scale, so the flag only ever prints the 0.25 default. `node tools/compose-language-asset.mjs --report` reports the heading grey 0.09 points off the census and the comment grey 0.06, where the same file's header and the `2026.09.21` changelog entry both say the three ink colours land "within 0.03 points". Both sets of numbers are right - 0.03 is the full size reading - but the only command a reader has prints the ones that read as a three-fold drift
+  - **Goal**: give the CLI a `--scale` flag that reaches the argument `reportShares` already takes, default it to the scale the documented figures were measured at, and have the report name the scale it used so the two records cannot be compared at cross purposes
+  - From: Code Review Override - the language asset and the helper port
+- [ ] `NOTICE` credits a port note to a file that does not carry one
+  - **Issue**: the `ai-helper/graphic-designer/` paragraph says "The four scripts name the upstream file they came from and record what changed on the way in". Three do. The fourth entry in `scripts/` is `template.md`, which is a fill-in procedure and carries no port header, so a reader checking the licence scoping against the tree finds the claim short by one
+  - **Goal**: either count the three `.mjs` scripts the sentence is actually true of, or give `template.md` the same upstream-and-commit line the other three carry. `NOTICE` is the file the CC0 waiver is scoped by, so the claim in it should be checkable
+  - From: Code Review Override - the language asset and the helper port
+- [ ] A theme inherits the sheets' census and nothing says it is stale
+  - **Issue**: `CENSUS` joined `SHEET_LANGUAGE` in `api/cheatsheet/language.mjs`, and a theme is built by spreading that object. `examples/ember-theme.mjs` replaces `colors` and `syntax` and inherits `census`, so `emberTheme.census` names `#000132`, `#4DAE51`, `#B4BEC8` and `#ADF8B7` - four colours the ember theme never draws - while declaring itself `@type {typeof SHEET_LANGUAGE}`. Nothing reads `language.census` today, so nothing fails yet; `tools/compose-language-asset.mjs` reads the module level `CENSUS` rather than a language it was handed, which is why the first consumer to compose an asset for a themed category gets the sheets' palette back
+  - **Goal**: decide which of the two a census belongs to and make the code say so - either derive the shares from the language passed in, so a theme's census follows its own palette, or move `CENSUS` out of `SHEET_LANGUAGE` and leave it a record of the eleven sheets alone. Have `tools/compose-language-asset.mjs` take its census from wherever that lands rather than from the module
+  - From: Code Review Override - the language asset and the helper port
 
 ## GitHub Pages Deployment
 
@@ -608,10 +623,32 @@ applied. A floor is never a clamp - a run that still does not fit is left at the
 floor and reported, since the floors bound what a seed may do and a document
 carrying too much or too little is the document's fault.
 
-- [ ] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
-  - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
-  - It must reproduce the recorded region proportions, not only the recorded colors. A vector palette is weighted by usage and a raster palette by area, and roles are decided from area, so the right colors in the wrong proportions produce the right palette with the wrong roles and nothing downstream can tell
-  - Write it to `.tmp/`. It is an input to a measurement rather than an artifact
+**A category with no artwork has an asset now**, composed rather than relaxed
+for. `tools/compose-language-asset.mjs` draws the regions exactly as
+`language.mjs` records them and the ink to the new `CENSUS`, and writes to
+`.tmp/` because it is an input to a measurement rather than an artifact.
+
+The proportions are the point and not the colors. A role is decided from area,
+so an asset carrying the right colors over the wrong areas produces a palette
+that is right about its swatches and wrong about which one is the ground, and
+nothing downstream can tell. The regions alone put navy at 63.2% and white at
+30.9%; the census puts them at 60.97% and 28.96%, and the difference is the type
+drawn over them.
+
+**What the record could not supply is stated rather than invented.** The census
+folds each ground colour together with the ink set in it - the wordmark is "in
+white and green", plain code is white, the follow line is navy - so none of the
+three can be drawn without splitting a figure the record does not split. They
+are carried as type records and no ink, navy lands 1.27 points high as a result,
+and `--report` prints the comparison. The three colours the census quantifies as
+ink and nothing else land within 0.03 points. No role moves, which is what the
+asset is measured for.
+
+The type is carried as `text` with no fill, which is how one file holds both
+halves: an element is a letterform or an area and not both. Without it the
+analyzer measures no sizes and the generator invents a type scale, which is the
+failure the asset exists to prevent.
+
 - [ ] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
 
 ### Rendering and Conversion
@@ -751,10 +788,37 @@ matters most for the one stray key that is itself a directory key. It writes to
 `.claude/references/`, ignored, and prints the variable that points the helper
 at it.
 
-- [ ] Port the design language helper: its two skills, its command and its contract file
-  - It is prose apart from four scripts, and those four are what make it work. They measure an asset, resolve a `resources.md` into placeable assets, and generate a per asset skill
-  - Three edits are needed on the way in. Re-point the API loader in the two scripts that resolve the drawing API by package name, since no package exists here. Correct the two paths that address the scripts through a folder this repository does not have. Do not port the installer, which can only write into a dot folder of its own repository
-  - The helper depends on the ported `brand.mjs` at run time. A loader that cannot find the API must say so, because an unconfigured brand is filled with a mark drawn in the design language rather than left as a hole, so a broken path looks like a result
+**The helper is ported too, which finishes this section.**
+`ai-helper/graphic-designer/` holds the two skills, the command, the contract
+file and the four scripts, at the same commit as the surface, and the README
+beside them records what changed on the way in. It landed at that path rather
+than anywhere else because upstream's own `graphic-design-api` skill already
+addressed a script through it, so one of the paths that had to be corrected was
+already correct.
+
+The three edits the item named were all needed. The API is resolved by walking
+up for `api/graphic-design/index.mjs` rather than by package name, which is what
+lets the copy of `brand-resources.mjs` inside a generated skill reach the same
+barrel from four folders down. The two `${CLAUDE_PLUGIN_ROOT}` paths in the
+command became repository paths, and a test now resolves every path the command
+names rather than trusting them. The installer and the plugin manifest did not
+come across.
+
+A fourth edit was not in the item and was load bearing anyway. The registration
+records its paths relative to the folder holding `references/`, and with the
+file in `.claude/references/` that folder is `.claude/` - so every path in it
+resolved one level too deep and found nothing. The brand file itself has the
+same shape and is searched for in the ignored folder first, which is what makes
+the bridge resolve with no environment variable set.
+
+**And one reading defect was found rather than reviewed.** `analyze-media.mjs`
+matched a `font-family` attribute and a `font-family` declaration with one
+pattern. They end differently - an attribute at its closing quote, a declaration
+at the `;` after it - and a family with a space in its name is escaped in the
+markup, so `&quot;Helvetica Neue&quot;` stopped the pattern four characters in
+and the family was reported as `&quot`. Not a name anything resolves, recorded
+in a design language as though measured. It is upstream's defect: every design
+tool that exports a spaced family hits it.
 
 ## Implement Cheatsheet API
 
@@ -1163,5 +1227,20 @@ generate ideas about generating ideas.
   - Register the helper against a folder inside `.claude/`, which is ignored. Its default is a tracked folder at the repository root, and the brand values are a real domain, a real name and a real tagline
   - Queued ahead of the helper itself, which cannot be configured until the bridge exists
   - From: Port the napkin-sketch Graphic Design API
+- [x] Port the design language helper: its two skills, its command and its contract file
+  - It is prose apart from four scripts, and those four are what make it work. They measure an asset, resolve a `resources.md` into placeable assets, and generate a per asset skill
+  - Three edits are needed on the way in. Re-point the API loader in the two scripts that resolve the drawing API by package name, since no package exists here. Correct the two paths that address the scripts through a folder this repository does not have. Do not port the installer, which can only write into a dot folder of its own repository
+  - The helper depends on the ported `brand.mjs` at run time. A loader that cannot find the API must say so, because an unconfigured brand is filled with a mark drawn in the design language rather than left as a hole, so a broken path looks like a result
+  - Unblocked now. `tools/build-brand-resources.mjs` writes the `resources.md` the helper reads, to `.claude/references/`, and prints the `NAPKIN_BRAND_RESOURCES` assignment that points it there. Configure the port against that rather than against the tracked folder the helper defaults to
+  - This is the last item in its section. Closing it is what settles **Add links to `napkin-sketch`** in `.claude/user-note.md`, which has been waiting on the port being complete since 09.15
+  - Landed at `ai-helper/graphic-designer/`, mirroring the upstream layout, which is what keeps the one path in the `graphic-design-api` skill that already addressed a script correct. The three edits were made and a fourth was needed: the registration's own root, which reads one folder too deep when the file sits in `.claude/references/`
+  - From: Port the napkin-sketch Graphic Design API
+- [x] Compose a temporary SVG from the recorded tokens, so a category with no artwork still has something to measure a design language from
+  - The helper measures an asset and refuses to invent a value the asset did not give it. A category that has not been built has no asset, so one is composed from **The sheets** in `DESIGN_LANGUAGE.md` and measured back. The per category language is then a derivation of the global record rather than a second opinion about it
+  - It must reproduce the recorded region proportions, not only the recorded colors. A vector palette is weighted by usage and a raster palette by area, and roles are decided from area, so the right colors in the wrong proportions produce the right palette with the wrong roles and nothing downstream can tell
+  - Write it to `.tmp/`. It is an input to a measurement rather than an artifact
+  - Queued with the helper rather than with the rest of its own section, because the helper is what consumes it and neither can be checked without the other
+  - `tools/compose-language-asset.mjs`, drawn to the new `CENSUS` in `language.mjs`. Composing it also turned up the one thing the record could not supply: the census folds each ground colour together with the ink set in it, so three runs are carried as type and no ink and the drift that leaves is stated rather than closed with an invented split
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 </details>
