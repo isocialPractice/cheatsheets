@@ -4,6 +4,101 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.21]
+
+### Added
+
+- `ai-helper/graphic-designer/`, the design language helper ported from the
+  sibling `napkin-sketch` repository at the same commit the drawing surface came
+  from: two skills, a command, a contract file and four scripts. It reads one
+  finished graphic into a written design language and generates a per-asset
+  skill that can draw more work in it. With this the port of that repository's
+  graphic design work is complete - the surface draws, and this is the half that
+  decides what to draw.
+  - **The API is resolved by path rather than by package name.** Upstream
+    imported `napkin-sketch` and fell back to a clone's `dist/`, and this
+    repository is neither: it has no `package.json` and the surface is source
+    rather than build output. Both scripts that resolved it now walk up from
+    their own folder for `api/graphic-design/index.mjs`, which is what lets the
+    copy of `brand-resources.mjs` inside a generated skill, four folders deeper,
+    reach the same barrel. `CHEATSHEET_GRAPHIC_DESIGN_API` names it outright for
+    a skill generated outside the tree.
+  - **A loader that finds nothing says so**, and that is the load bearing half
+    rather than a nicety. Every other failure in the brand path degrades on
+    purpose: an asset that does not resolve leaves a slot, and a slot with
+    nothing behind it is filled with a mark drawn in the design language rather
+    than left as a hole. So an unresolved API would have produced the same
+    finished looking page with nothing anywhere saying the API was never loaded.
+    `brand-resources.mjs` throws, and every `analyze-media.mjs` report carries
+    the reason in `notes`.
+  - **The brand comes from the constants file**, through the bridge that landed
+    on 09.20. `.claude/references/` is searched ahead of the tracked
+    `references/` upstream knew about, so the generated `resources.md` resolves
+    with no environment variable set, and a registration written into that
+    folder resolves its own relative paths against the repository rather than
+    against `.claude/`.
+  - **The installer did not come across.** It writes into a dot folder of its
+    own repository, and the plugin manifest names a marketplace this repository
+    is not part of. The command and the contract file are addressed by path
+    instead, which is what the two `${CLAUDE_PLUGIN_ROOT}` paths became.
+- `tools/compose-language-asset.mjs`, which composes a temporary SVG out of the
+  recorded design language so a category with no artwork has something to
+  measure one from. The helper refuses to invent a value an asset did not give
+  it, and the answer to a category that has not been drawn is to compose the
+  asset the record already describes rather than to relax the refusal. The
+  per-category language is then a derivation of the global record.
+  - It reproduces the recorded **proportions**, not only the recorded colors,
+    because a role is decided from area. The regions alone put navy at 63.2% and
+    white at 30.9%; the census puts them at 60.97% and 28.96%, and the
+    difference is the type drawn on top. The three colors the census quantifies
+    as ink and nothing else are drawn at exactly the area it gives them, and
+    land within 0.03 points of it.
+  - What it does not draw, it says. The wordmark is "in white and green", plain
+    code is white and the follow line is navy, and the census splits none of the
+    three from the grounds they share a color with - so each is carried as a
+    type record and no ink, and navy lands 1.27 points high as a result.
+    `--report` prints the whole comparison. No role moves.
+  - The type is carried as `text` elements with no fill, which is the only way
+    one file holds both halves: an element is a letterform or an area and not
+    both. Without them the analyzer measures no sizes and the generator invents
+    a type scale, which is the failure the asset exists to prevent.
+  - It writes to `.tmp/`. It is an input to a measurement rather than an
+    artifact, and a committed copy would be a second record of figures
+    `DESIGN_LANGUAGE.md` already holds.
+- `CENSUS` in `api/cheatsheet/language.mjs`: the color census of the eleven
+  sheets in the form code reads, with the document's own table checked against
+  it so the two cannot drift.
+- `tools/test-design-language-helper.mjs` and `tools/test-language-asset.mjs`,
+  30 cases between them. The suite is 287, from 257. The two end-to-end cases
+  generate their skill from `tools/fixtures/shapes.svg` rather than from a brand
+  asset, because the brand assets are in `.claude/` and a clone has none - the
+  same reason `tools/test-brand-bridge.mjs` skips its own constants cases, and
+  the fixture is pinned never to change, so the cases run everywhere instead of
+  passing on one machine.
+
+### Fixed
+
+- `analyze-media.mjs` read a `font-family` attribute and a `font-family`
+  declaration with one pattern, and the two end differently - an attribute at
+  its closing quote, a declaration at the `;` after it. A family with a space
+  in its name is quoted in the CSS and therefore escaped in the markup, and
+  `&quot;` carries a semicolon of its own, so the pattern stopped four
+  characters in and the family was reported as `&quot`. That is not a name
+  anything resolves, and it reached the design language as though it had been
+  measured. The two forms are now two branches and the attribute is decoded.
+  It is upstream's defect rather than the port's: every design tool that exports
+  a spaced family name hits it.
+
+### Changed
+
+- `NOTICE` and `README.md` scope a second directory out of the CC0 waiver.
+  `ai-helper/graphic-designer/` is copied source under MIT, like
+  `api/graphic-design/` beside it, and the README now says where both came from
+  and links the repository they came from.
+- **The colors the sheets are drawn in** in `DESIGN_LANGUAGE.md` records that
+  the census is what the composed asset reproduces, and why an area table is the
+  one a role has to be read from.
+
 ## [2026.09.20]
 
 ### Added
