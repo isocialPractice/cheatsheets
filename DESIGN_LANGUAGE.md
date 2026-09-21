@@ -406,6 +406,17 @@ Three more are brand colors belonging to the social icons in the footer rather
 than to the sheets: `#24292F` and `#1D9BF0`, each measured at 95% or more inside
 the footer, and the gradient behind the third icon.
 
+The six shares above are carried in code as `CENSUS` in
+`api/cheatsheet/language.mjs`, and `tools/compose-language-asset.mjs` composes a
+temporary SVG to them. That is what a category with no artwork is measured from:
+the design language helper refuses to invent a value an asset did not give it,
+so a category that has not been drawn needs an asset composed from this record
+rather than a relaxed rule. It is an **area** table and that is why it is the one
+used - a role is decided from how much page a color covers, so an asset carrying
+these colors in the regions' proportions rather than these would produce the
+right palette and the wrong roles. The composed asset is written to `.tmp/`,
+because it is an input to a measurement rather than an artifact.
+
 #### Where a sheet color and a site color disagree
 
 The site palette above was sampled from `mark.png`. The sheets were composed

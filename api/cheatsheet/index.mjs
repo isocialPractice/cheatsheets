@@ -54,6 +54,7 @@ export {
 export {
   BANDS,
   CANVAS,
+  CENSUS,
   COLORS,
   CONTRAST,
   DISPLAY_SCALE,

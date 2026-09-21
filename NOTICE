@@ -2,11 +2,11 @@ Third-party notices for cheatsheets
 ===================================
 
 This repository is released under CC0 1.0 Universal; see LICENSE. That waiver
-covers the work this repository's authors made, and it does not reach the
-directory named below, which is copied source held under different terms.
+covers the work this repository's authors made, and it does not reach the two
+directories named below, which are copied source held under different terms.
 
 Read LICENSE as scoped by this file: everything except `api/graphic-design/`
-is CC0, and `api/graphic-design/` is MIT.
+and `ai-helper/graphic-designer/` is CC0, and those two are MIT.
 
 
 api/graphic-design/
@@ -20,6 +20,20 @@ reproduced here in full, per the MIT licence's own condition that it travel
 with all copies or substantial portions of the software.
 
 Source: https://github.com/isocialPractice/napkin-sketch
+
+
+ai-helper/graphic-designer/
+---------------------------
+
+A hand port of the AI helper of the same name from napkin-sketch, taken at the
+same commit: two skills, a command, a contract file and four scripts. The four
+scripts name the upstream file they came from and record what changed on the
+way in, which is a path in every case. The installer and the plugin manifest
+were not ported.
+
+Source: https://github.com/isocialPractice/napkin-sketch
+
+Both directories are covered by the one permission notice below.
 
 MIT License
 

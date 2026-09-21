@@ -150,6 +150,40 @@ export const SYNTAX = {
   number: "#8DE632",
 };
 
+/**
+ * How much of the eleven sheets each color covers, from **The colors the
+ * sheets are drawn in**.
+ *
+ * Counted over all 142,639,211 pixels, each figure the exact color plus every
+ * triple within 12 units of it, because JPEG spreads a flat fill across
+ * hundreds of neighbouring triples. The six below cover 98.74%.
+ *
+ * This is an **area** record, which is what makes it different from everything
+ * else in this file. {@link BANDS} and {@link DIVISIONS} say where a region
+ * is; this says how much page a color ends up covering once the type is drawn
+ * on top of those regions, and the two answer different questions. A palette
+ * with the right colors in the wrong proportions produces the right swatches
+ * and the wrong roles, because a role is decided from area - so an asset
+ * composed to be measured has to reproduce this table and not only
+ * {@link COLORS}.
+ *
+ * The three syntax colors below `identifier` carry no share here because the
+ * census gives them none: each was measured at 100% inside the code panel and
+ * they rank below the six only because an example with no string in it has no
+ * string color. A share invented for them would be a number the record did not
+ * give, which is the one thing a design language may not contain.
+ *
+ * @type {Record<string, { hex: string, share: number }>}
+ */
+export const CENSUS = {
+  navy: { hex: COLORS.navy, share: 0.6097 },
+  white: { hex: COLORS.white, share: 0.2896 },
+  green: { hex: COLORS.green, share: 0.06 },
+  heading: { hex: COLORS.heading, share: 0.0187 },
+  comment: { hex: SYNTAX.comment, share: 0.007 },
+  identifier: { hex: SYNTAX.identifier, share: 0.0024 },
+};
+
 /** Contrast floors, which are the site's and which generated sheets keep. */
 export const CONTRAST = { text: 4.5, boundary: 3 };
 
@@ -336,6 +370,7 @@ export const SHEET_LANGUAGE = {
   divisions: DIVISIONS,
   colors: COLORS,
   syntax: SYNTAX,
+  census: CENSUS,
   contrast: CONTRAST,
   rules: RULES,
   markSquare: MARK_SQUARE,
