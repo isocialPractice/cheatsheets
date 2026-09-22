@@ -173,16 +173,69 @@ export const SYNTAX = {
  * string color. A share invented for them would be a number the record did not
  * give, which is the one thing a design language may not contain.
  *
+ * @type {Record<string, number>}
+ */
+export const CENSUS_SHARES = {
+  navy: 0.6097,
+  white: 0.2896,
+  green: 0.06,
+  heading: 0.0187,
+  comment: 0.007,
+  identifier: 0.0024,
+};
+
+/**
+ * Which half of a language's palette each census role takes its color from.
+ *
+ * Four of the six are page colors and two are syntax colors, and the two
+ * tables are replaced separately - so the role name alone does not say where
+ * to look its hex up.
+ *
+ * @type {Record<string, 'colors' | 'syntax'>}
+ */
+const CENSUS_PALETTE = {
+  navy: "colors",
+  white: "colors",
+  green: "colors",
+  heading: "colors",
+  comment: "syntax",
+  identifier: "syntax",
+};
+
+/**
+ * The census as `{ hex, share }` pairs, with the hexes read off `language`.
+ *
+ * **The shares belong to the sheets and the hexes belong to the palette.**
+ * Keeping the two apart is what {@link CENSUS_SHARES} is separated for: the
+ * shares were counted off artwork and cannot be re-counted for a palette
+ * nobody has drawn yet, while the hexes are whatever the language in hand
+ * paints with. So a theme's census is the recorded proportions in the theme's
+ * own colors, which is the only reading of it that invents no figure.
+ *
+ * It is a function rather than a field on {@link SHEET_LANGUAGE} on purpose. A
+ * theme is a spread copy with `colors` and `syntax` replaced, and a `census`
+ * field would survive that spread holding the sheets' hexes - a table naming
+ * four colors the theme never draws, reading as measured because every other
+ * figure beside it was.
+ *
+ * @param {{ colors: Record<string, string>, syntax: Record<string, string> }} language
+ * @returns {Record<string, { hex: string, share: number }>}
+ */
+export function censusFor(language) {
+  return Object.fromEntries(
+    Object.entries(CENSUS_SHARES).map(([role, share]) => [
+      role,
+      { hex: language[CENSUS_PALETTE[role]][role], share },
+    ])
+  );
+}
+
+/**
+ * The eleven sheets' own census: the recorded shares in the recorded colors.
+ *
  * @type {Record<string, { hex: string, share: number }>}
  */
-export const CENSUS = {
-  navy: { hex: COLORS.navy, share: 0.6097 },
-  white: { hex: COLORS.white, share: 0.2896 },
-  green: { hex: COLORS.green, share: 0.06 },
-  heading: { hex: COLORS.heading, share: 0.0187 },
-  comment: { hex: SYNTAX.comment, share: 0.007 },
-  identifier: { hex: SYNTAX.identifier, share: 0.0024 },
-};
+export const CENSUS = censusFor({ colors: COLORS, syntax: SYNTAX });
 
 /** Contrast floors, which are the site's and which generated sheets keep. */
 export const CONTRAST = { text: 4.5, boundary: 3 };
@@ -359,6 +412,14 @@ export const FLOORS = {
 /**
  * The whole language as one object, so a caller can pass a modified copy rather
  * than reach for module state.
+ *
+ * **The census is the one recorded table not in here**, and the reason is the
+ * modified copy. Every other figure below restates cleanly under a new palette
+ * - a band is at the same row whatever color fills it - but the census is an
+ * area measurement of the eleven sheets, so a spread copy with `colors` and
+ * `syntax` replaced would carry the sheets' hexes through under the theme's
+ * name. {@link censusFor} restates it against whatever language is in hand
+ * instead, and {@link CENSUS} is what it returns for this one.
  */
 export const SHEET_LANGUAGE = {
   canvas: CANVAS,
@@ -370,7 +431,6 @@ export const SHEET_LANGUAGE = {
   divisions: DIVISIONS,
   colors: COLORS,
   syntax: SYNTAX,
-  census: CENSUS,
   contrast: CONTRAST,
   rules: RULES,
   markSquare: MARK_SQUARE,

@@ -4,6 +4,7 @@
 //     node tools/compose-language-asset.mjs
 //     node tools/compose-language-asset.mjs --category html-css
 //     node tools/compose-language-asset.mjs --out .tmp/language-asset/sheets.svg --report
+//     node tools/compose-language-asset.mjs --report --scale 0.25
 //
 // The design language helper under `ai-helper/graphic-designer/` measures one
 // asset and refuses to invent a value that asset did not give it, which is the
@@ -16,7 +17,11 @@
 // ## What is composed, and from what
 //
 // Every figure comes from `api/cheatsheet/language.mjs`, which is
-// `DESIGN_LANGUAGE.md` in the form code reads. Nothing here is chosen.
+// `DESIGN_LANGUAGE.md` in the form code reads. Nothing here is chosen. A
+// caller composing a themed category passes that language's modified copy as
+// `options.language` and the same holds of it, the census included - it is
+// restated against whatever palette came in rather than read off the module,
+// so a themed asset is drawn in the theme down to the two colors of panel ink.
 //
 // - **The regions**, exactly as recorded: five bands down the canvas, three
 //   divisions across it, both flanking rules, the spine and its `step-4` rise
@@ -27,8 +32,9 @@
 //   or an area, and the census below is an area measurement. Without them the
 //   analyzer reports no sizes at all and the generator invents a type scale,
 //   which is the exact failure this asset exists to prevent.
-// - **The ink**, as blocks sized from {@link CENSUS}. Those blocks are the
-//   reason this file is not just the regions.
+// - **The ink**, as blocks sized from the census the language was restated
+//   into, which for the sheets is {@link CENSUS}. Those blocks are the reason
+//   this file is not just the regions.
 //
 // ## Why the ink has to be there
 //
@@ -61,10 +67,19 @@
 // full size and counted, the asset puts navy at 62.24% against the recorded
 // 60.97%, white at 29.07% against 28.96% and green at 5.86% against 6.00%; the
 // three ink colors land within 0.03 points of the record, which is the
-// antialiasing of their own edges. `--report` prints the comparison at any
-// scale. No role moves - navy is still the ground by thirty points and green
-// is still the only color with saturation and a percent of the page - and the
-// roles are what the asset is measured for.
+// antialiasing of their own edges. No role moves - navy is still the ground by
+// thirty points and green is still the only color with saturation and a
+// percent of the page - and the roles are what the asset is measured for.
+//
+// `--report` prints that same comparison, and prints it **at full size**,
+// because those are the figures above and a report that cannot be checked
+// against them is worth less than no report. `--scale` moves it and the report
+// names the scale it was run at, which is the part that matters: the drift a
+// smaller raster adds is the antialiasing of a downsample and not the asset
+// moving, so at a quarter the three ink colors read three times further out
+// than the paragraph above says. Two figures measured at two scales are not
+// two readings of one thing, and neither record is safe to quote without its
+// scale beside it.
 //
 // The same sentence decides the brand slots. The footer mark square is named
 // `logo`, because the record gives it a box and a color; the wordmark is not
@@ -89,26 +104,23 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createComposition, rasterizeComposition } from "../api/graphic-design/index.mjs";
 import { CAP_SHARE } from "../api/cheatsheet/compose.mjs";
 import { SHEET_FACE, sizeForCap } from "../api/cheatsheet/faces.mjs";
-import {
-  BANDS,
-  CANVAS,
-  CENSUS,
-  COLORS,
-  DIVISIONS,
-  INSETS,
-  MARK_SQUARE,
-  PANEL_FREEDOM,
-  RULES,
-  RUNS,
-} from "../api/cheatsheet/language.mjs";
+import { CENSUS, censusFor, SHEET_LANGUAGE } from "../api/cheatsheet/language.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Where the asset goes when `--out` does not say: ignored, and temporary. */
 export const DEFAULT_OUT_DIR = join(root, ".tmp", "language-asset");
 
-/** The canvas area every census share is a share of. */
-const CANVAS_AREA = CANVAS * CANVAS;
+/**
+ * The scale `--report` rasterizes at, and the one the header's figures are.
+ *
+ * Full size. A census is an area record and a downsample adds area of its own
+ * at every edge, so the cheaper raster is a different measurement rather than a
+ * faster one - which is fine as long as nothing compares the two, and the only
+ * way to keep that true is to make the honest reading the one a reader gets
+ * without asking.
+ */
+export const REPORT_SCALE = 1;
 
 /**
  * How many blocks a run of type is drawn as.
@@ -125,9 +137,14 @@ function midpoint(range) {
   return (range.min + range.max) / 2;
 }
 
-/** The area a census share covers, in canvas pixels. */
-export function censusArea(key) {
-  return CENSUS[key].share * CANVAS_AREA;
+/**
+ * The area a census share covers, in canvas pixels.
+ *
+ * @param {string} key
+ * @param {typeof SHEET_LANGUAGE} [language]
+ */
+export function censusArea(key, language = SHEET_LANGUAGE) {
+  return censusFor(language)[key].share * language.canvas * language.canvas;
 }
 
 /**
@@ -212,43 +229,46 @@ export function interleave(counts, total) {
  * centred, so theirs is derived from the canvas axis and the recorded width.
  * The subtitle has no recorded width at all, which is why it is the one run
  * with `inked: false`.
+ *
+ * @param {typeof SHEET_LANGUAGE} language
  */
-function typeRuns() {
-  const centred = (width) => (CANVAS - width) / 2;
+function typeRuns(language) {
+  const { canvas, rules, runs } = language;
+  const centred = (width) => (canvas - width) / 2;
   return [
     {
       name: "wordmark",
-      box: { left: RUNS.wordmark.left, width: RUNS.wordmark.width, top: RUNS.wordmark.inkTop, cap: RUNS.wordmark.cap },
-      baseline: RUNS.wordmark.baseline,
+      box: { left: runs.wordmark.left, width: runs.wordmark.width, top: runs.wordmark.inkTop, cap: runs.wordmark.cap },
+      baseline: runs.wordmark.baseline,
       inked: false,
     },
     {
       name: "title",
-      box: { left: centred(RUNS.title.width), width: RUNS.title.width, top: RUNS.title.inkTop, cap: RUNS.title.cap },
-      baseline: RUNS.title.baseline,
+      box: { left: centred(runs.title.width), width: runs.title.width, top: runs.title.inkTop, cap: runs.title.cap },
+      baseline: runs.title.baseline,
       inked: true,
     },
     {
       name: "subtitle",
-      box: { left: centred(RULES.measure), width: RULES.measure, top: RUNS.subtitle.inkTop, cap: RUNS.subtitle.cap },
-      baseline: RUNS.subtitle.baseline,
+      box: { left: centred(rules.measure), width: rules.measure, top: runs.subtitle.inkTop, cap: runs.subtitle.cap },
+      baseline: runs.subtitle.baseline,
       inked: false,
     },
     {
       name: "lead-in",
-      box: { left: RUNS.leadIn.left, width: RUNS.leadIn.width, top: RUNS.leadIn.inkTop, cap: RUNS.leadIn.cap },
-      baseline: RUNS.leadIn.baseline,
+      box: { left: runs.leadIn.left, width: runs.leadIn.width, top: runs.leadIn.inkTop, cap: runs.leadIn.cap },
+      baseline: runs.leadIn.baseline,
       inked: true,
     },
     {
       name: "follow line",
       box: {
-        left: RUNS.followLine.left,
-        width: RUNS.followLine.width,
-        top: RUNS.followLine.inkTop,
-        cap: RUNS.followLine.cap,
+        left: runs.followLine.left,
+        width: runs.followLine.width,
+        top: runs.followLine.inkTop,
+        cap: runs.followLine.cap,
       },
-      baseline: RUNS.followLine.baseline,
+      baseline: runs.followLine.baseline,
       inked: false,
     },
   ];
@@ -262,85 +282,97 @@ function typeRuns() {
  * it takes the midpoint of each: it is the only point in a range that is not a
  * preference, and it keeps the asset reproducible, which a seeded choice would
  * not.
+ *
+ * @param {typeof SHEET_LANGUAGE} language
  */
-function codeRows() {
-  const spacing = midpoint(PANEL_FREEDOM.lineSpacing);
-  const topPadding = midpoint(PANEL_FREEDOM.topPadding);
-  const leftInset = midpoint(PANEL_FREEDOM.leftInset);
+function codeRows(language) {
+  const { bands, panelFreedom } = language;
+  const spacing = midpoint(panelFreedom.lineSpacing);
+  const topPadding = midpoint(panelFreedom.topPadding);
+  const leftInset = midpoint(panelFreedom.leftInset);
   const cap = spacing * CAP_SHARE;
-  const count = Math.floor((BANDS.code.height - topPadding - cap) / spacing) + 1;
+  const count = Math.floor((bands.code.height - topPadding - cap) / spacing) + 1;
   return { spacing, topPadding, leftInset, cap, count };
 }
 
 /**
  * Composes the asset.
  *
- * @param {{ category?: string }} [options]
- * @returns {{ composition: import('../api/graphic-design/compose.mjs').Composition, areas: Record<string, number> }}
+ * `language` is the design language to compose, as {@link SHEET_LANGUAGE} or a
+ * modified copy of it - a theme is exactly such a copy, so composing a themed
+ * category is passing one here. The census is restated against it rather than
+ * read off the module, because the shares are the sheets' and the colors are
+ * the palette's, and only the second of those a theme replaces.
+ *
+ * @param {{ category?: string, language?: typeof SHEET_LANGUAGE }} [options]
+ * @returns {{ composition: import('../api/graphic-design/compose.mjs').Composition, census: Record<string, { hex: string, share: number }>, areas: Record<string, number> }}
  */
 export function composeLanguageAsset(options = {}) {
   const category = options.category ?? "sheets";
+  const language = options.language ?? SHEET_LANGUAGE;
+  const census = censusFor(language);
+  const { bands, canvas, colors, divisions, insets, markSquare, rules } = language;
   const design = createComposition({
-    width: CANVAS,
-    height: CANVAS,
+    width: canvas,
+    height: canvas,
     background: null,
     id: `language-${category}`,
     title: `The recorded design language of the sheets, composed for measurement`,
   });
 
   // --- The regions, in paint order -----------------------------------------
-  design.rect({ x: 0, y: BANDS.masthead.y, width: CANVAS, height: BANDS.masthead.height, fill: COLORS.navy });
-  design.rect({ x: 0, y: BANDS.heading.y, width: CANVAS, height: BANDS.heading.height, fill: COLORS.white });
+  design.rect({ x: 0, y: bands.masthead.y, width: canvas, height: bands.masthead.height, fill: colors.navy });
+  design.rect({ x: 0, y: bands.heading.y, width: canvas, height: bands.heading.height, fill: colors.white });
 
   // Both flanking rules, each a pair flush to an edge with the title between.
-  for (const rule of [RULES.upper, RULES.lower]) {
-    for (const x of [0, CANVAS - RULES.width]) {
-      design.rect({ x, y: rule.y, width: RULES.width, height: rule.height, fill: COLORS.green });
+  for (const rule of [rules.upper, rules.lower]) {
+    for (const x of [0, canvas - rules.width]) {
+      design.rect({ x, y: rule.y, width: rules.width, height: rule.height, fill: colors.green });
     }
   }
 
   // The spine starts `step-4` above the panel, so it crosses into the heading
   // band. That rise is recorded and is the only place a region overlaps another.
   design.rect({
-    x: DIVISIONS.spine.x,
-    y: BANDS.code.y - INSETS.spineTop,
-    width: DIVISIONS.spine.width,
-    height: BANDS.code.height + INSETS.spineTop,
-    fill: COLORS.green,
+    x: divisions.spine.x,
+    y: bands.code.y - insets.spineTop,
+    width: divisions.spine.width,
+    height: bands.code.height + insets.spineTop,
+    fill: colors.green,
   });
   design.rect({
-    x: DIVISIONS.panel.x,
-    y: BANDS.code.y,
-    width: DIVISIONS.panel.width,
-    height: BANDS.code.height,
-    fill: COLORS.navy,
+    x: divisions.panel.x,
+    y: bands.code.y,
+    width: divisions.panel.width,
+    height: bands.code.height,
+    fill: colors.navy,
   });
   design.rect({
-    x: DIVISIONS.rightMargin.x,
-    y: BANDS.code.y,
-    width: DIVISIONS.rightMargin.width,
-    height: BANDS.code.height,
-    fill: COLORS.white,
+    x: divisions.rightMargin.x,
+    y: bands.code.y,
+    width: divisions.rightMargin.width,
+    height: bands.code.height,
+    fill: colors.white,
   });
 
-  design.rect({ x: 0, y: BANDS.divider.y, width: CANVAS, height: BANDS.divider.height, fill: COLORS.green });
-  design.rect({ x: 0, y: BANDS.footer.y, width: CANVAS, height: BANDS.footer.height, fill: COLORS.white });
+  design.rect({ x: 0, y: bands.divider.y, width: canvas, height: bands.divider.height, fill: colors.green });
+  design.rect({ x: 0, y: bands.footer.y, width: canvas, height: bands.footer.height, fill: colors.white });
 
   // The mark square is named, so the analyzer reads the slot off the layer name
   // rather than scanning for a compact mark. A named slot is exact; a scanned
   // one is a guess that says so, and this one need not be a guess.
   design.group({ id: "logo" }, (g) => {
     g.rect({
-      x: MARK_SQUARE.x,
-      y: MARK_SQUARE.y,
-      width: MARK_SQUARE.width,
-      height: MARK_SQUARE.height,
-      fill: COLORS.navy,
+      x: markSquare.x,
+      y: markSquare.y,
+      width: markSquare.width,
+      height: markSquare.height,
+      fill: colors.navy,
     });
   });
 
   // --- The type, carried as size and family and drawn as nothing ------------
-  const runs = typeRuns();
+  const runs = typeRuns(language);
   for (const run of runs) {
     design.text({
       x: run.box.left,
@@ -355,17 +387,17 @@ export function composeLanguageAsset(options = {}) {
   // --- The ink the census quantifies ---------------------------------------
   // One coverage factor across both inked heading runs: the census gives the
   // color one area, and the two runs share it in proportion to their boxes.
-  const headingBoxes = runs.filter((run) => run.inked && run.box.top < BANDS.code.y);
+  const headingBoxes = runs.filter((run) => run.inked && run.box.top < bands.code.y);
   const headingBoxArea = headingBoxes.reduce((n, run) => n + run.box.width * run.box.cap, 0);
-  const headingCoverage = censusArea("heading") / headingBoxArea;
+  const headingCoverage = censusArea("heading", language) / headingBoxArea;
   for (const run of headingBoxes) {
     for (const block of runBlocks(run.box, headingCoverage)) {
-      design.rect({ ...block, fill: COLORS.heading });
+      design.rect({ ...block, fill: colors.heading });
     }
   }
 
-  const rows = codeRows();
-  const panelAreas = { comment: censusArea("comment"), identifier: censusArea("identifier") };
+  const rows = codeRows(language);
+  const panelAreas = { comment: censusArea("comment", language), identifier: censusArea("identifier", language) };
   const perColor = shareRows(panelAreas, rows.count);
   // A row's width is its color's whole area divided between its own rows, so a
   // color lands on its census share whatever the row split came out as.
@@ -376,15 +408,15 @@ export function composeLanguageAsset(options = {}) {
   // arrangement changes no area and no bounding box.
   interleave(perColor, rows.count).forEach((key, i) => {
     design.rect({
-      x: DIVISIONS.panel.x + rows.leftInset,
-      y: BANDS.code.y + rows.topPadding + i * rows.spacing,
+      x: divisions.panel.x + rows.leftInset,
+      y: bands.code.y + rows.topPadding + i * rows.spacing,
       width: width[key],
       height: rows.cap,
-      fill: key === "comment" ? CENSUS.comment.hex : CENSUS.identifier.hex,
+      fill: census[key].hex,
     });
   });
 
-  return { composition: design, areas: { headingCoverage, rows: rows.count, perColor, width } };
+  return { composition: design, census, areas: { headingCoverage, rows: rows.count, perColor, width } };
 }
 
 /**
@@ -397,9 +429,12 @@ export function composeLanguageAsset(options = {}) {
  *
  * @param {import('../api/graphic-design/compose.mjs').Composition} composition
  * @param {number} [scale]
+ * @param {Record<string, { hex: string, share: number }>} [census] The census
+ *   the composition was drawn against, which is what names the colors to count.
+ *   `composeLanguageAsset` returns it; the default is the eleven sheets'.
  * @returns {{ width: number, height: number, shares: Record<string, number> }}
  */
-export function measureShares(composition, scale = 0.25) {
+export function measureShares(composition, scale = 0.25, census = CENSUS) {
   const image = rasterizeComposition(composition.toDocument(), { scale });
   const counts = new Map();
   let total = 0;
@@ -412,7 +447,7 @@ export function measureShares(composition, scale = 0.25) {
     total++;
   }
   const shares = Object.fromEntries(
-    Object.entries(CENSUS).map(([key, entry]) => [
+    Object.entries(census).map(([key, entry]) => [
       key,
       (counts.get(entry.hex.toUpperCase()) ?? 0) / (total || 1),
     ])
@@ -420,11 +455,21 @@ export function measureShares(composition, scale = 0.25) {
   return { width: image.width, height: image.height, shares };
 }
 
-/** The census comparison as lines, which is what `--report` prints. */
-export function reportShares(composition, scale = 0.25) {
-  const { width, height, shares } = measureShares(composition, scale);
-  const lines = [`census, measured at ${width}x${height}:`];
-  for (const [key, entry] of Object.entries(CENSUS)) {
+/**
+ * The census comparison as lines, which is what `--report` prints.
+ *
+ * The heading carries the scale as well as the pixel size, because the drift
+ * column is only meaningful beside it - a reading at a quarter is not a cheaper
+ * version of the full size one, it is a different measurement.
+ *
+ * @param {import('../api/graphic-design/compose.mjs').Composition} composition
+ * @param {number} [scale]
+ * @param {Record<string, { hex: string, share: number }>} [census]
+ */
+export function reportShares(composition, scale = REPORT_SCALE, census = CENSUS) {
+  const { width, height, shares } = measureShares(composition, scale, census);
+  const lines = [`census, measured at ${width}x${height}, scale ${scale}:`];
+  for (const [key, entry] of Object.entries(census)) {
     const drift = (shares[key] - entry.share) * 100;
     lines.push(
       `  ${key.padEnd(11)} ${entry.hex}  recorded ${(entry.share * 100).toFixed(2)}%` +
@@ -443,7 +488,11 @@ async function run() {
 
   const category = flag("category", "sheets");
   const out = resolve(flag("out", join(DEFAULT_OUT_DIR, `${category}.svg`)));
-  const { composition } = composeLanguageAsset({ category });
+  const scale = Number(flag("scale", REPORT_SCALE));
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new Error(`--scale wants a positive number, not "${flag("scale", "")}"`);
+  }
+  const { composition, census } = composeLanguageAsset({ category });
 
   await mkdir(dirname(out), { recursive: true });
   await writeFile(out, composition.toSVG(), "utf-8");
@@ -452,7 +501,7 @@ async function run() {
   console.log(
     `  node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs "${out}" --markdown`
   );
-  if (args.includes("--report")) console.log(reportShares(composition));
+  if (args.includes("--report")) console.log(reportShares(composition, scale, census));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

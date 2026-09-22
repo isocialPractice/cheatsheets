@@ -4,6 +4,63 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.22]
+
+### Fixed
+
+- **`--report` prints at the scale its own figures were read at, and says so.**
+  The flag documented itself as printing "the comparison at any scale" while
+  `run()` called `reportShares` with no scale at all, so it only ever printed
+  the 0.25 default - which put the heading grey 0.09 points off the census and
+  the comment grey 0.06, against the "within 0.03 points" the same file's header
+  and the `2026.09.21` entry below both record. Neither set of numbers was
+  wrong: 0.03 is the full size reading and the drift a quarter-size raster adds
+  is the antialiasing of its own downsample. What was wrong is that the only
+  command a reader had printed the other one, unlabelled, and the two read as a
+  three-fold drift in the asset. There is now a `--scale` flag reaching the
+  argument `reportShares` always took, it defaults to full size, and the report
+  heading carries the scale beside the pixel size so two readings cannot be
+  compared at cross purposes.
+- **A theme's census follows the theme's palette.** `CENSUS` was a field on
+  `SHEET_LANGUAGE`, and a theme is a spread copy of that object with `colors`
+  and `syntax` replaced - so `emberTheme.census` named four colours the ember
+  theme never draws, while the object declared itself `typeof SHEET_LANGUAGE`.
+  Nothing read it yet, which is the only reason nothing had failed; the first
+  consumer to compose an asset for a themed category would have got the sheets'
+  palette back and no way to tell, because a palette measured off the wrong
+  asset still looks measured.
+
+  The two halves are now separated by what they are evidence of.
+  `CENSUS_SHARES` holds the six shares, which were counted off this artwork and
+  cannot be re-counted for a palette nobody has drawn. `censusFor(language)`
+  pairs them with the hexes of whatever language it is handed, so a theme's
+  census is the recorded proportions in the theme's own colors - the only
+  reading of it that invents no figure. `CENSUS` is what that returns for the
+  eleven sheets, and it is no longer a field on `SHEET_LANGUAGE`, so the spread
+  that caused this cannot happen again.
+- **`NOTICE` credits a port note to a file that now carries one.** The
+  `ai-helper/graphic-designer/` paragraph said the four files under
+  `skills/design-language/scripts/` each name their upstream file and record
+  what changed on the way in. Three did. The fourth, `template.md`, is a
+  fill-in procedure rather than a script - and the port had changed a path in
+  it exactly as in the other three, rewriting its import block to reach
+  `api/graphic-design/` because there is no package here to import. So it
+  needed the line rather than an exemption from it, and it now carries the same
+  upstream-and-commit note. `NOTICE` names the directory it is counting instead
+  of a bare figure, since that file is what scopes the CC0 waiver and its
+  claims should be checkable against the tree.
+
+### Changed
+
+- `composeLanguageAsset` takes a `language`, defaulting to `SHEET_LANGUAGE`,
+  and reads every figure off it rather than off module imports. Composing the
+  asset for a theme was the case the census fix was found in, and half of it -
+  regions themed, panel ink not - would have been worse than none. It returns
+  the census it composed against, so `measureShares` and `reportShares` can be
+  handed the same one instead of reaching for the module.
+- `DESIGN_LANGUAGE.md` and `examples/README.md` record where a census belongs
+  and why it is the one table `SHEET_LANGUAGE` does not carry.
+
 ## [2026.09.21]
 
 ### Added

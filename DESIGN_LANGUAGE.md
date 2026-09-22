@@ -406,9 +406,17 @@ Three more are brand colors belonging to the social icons in the footer rather
 than to the sheets: `#24292F` and `#1D9BF0`, each measured at 95% or more inside
 the footer, and the gradient behind the third icon.
 
-The six shares above are carried in code as `CENSUS` in
-`api/cheatsheet/language.mjs`, and `tools/compose-language-asset.mjs` composes a
-temporary SVG to them. That is what a category with no artwork is measured from:
+The six shares above are carried in code as `CENSUS_SHARES` in
+`api/cheatsheet/language.mjs`, paired with their hexes by `censusFor(language)`
+and exported as `CENSUS` for the eleven sheets themselves. The two halves are
+kept apart because only one of them is a fact about these sheets: the shares
+were counted off this artwork and cannot be re-counted for a palette nobody has
+drawn, while the hexes are whatever palette is in hand. So a theme's census is
+these proportions in the theme's own colors, which is the only reading of it
+that invents no figure - and it is why the census is not a field on
+`SHEET_LANGUAGE`, where a themed copy would carry these hexes through under the
+theme's name. `tools/compose-language-asset.mjs` composes a temporary SVG to
+whichever census it was handed. That is what a category with no artwork is measured from:
 the design language helper refuses to invent a value an asset did not give it,
 so a category that has not been drawn needs an asset composed from this record
 rather than a relaxed rule. It is an **area** table and that is why it is the one

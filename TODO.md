@@ -25,21 +25,6 @@ keys its entries by date, written `YYYY.MM.DD`.
   - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
   - From: Cheatsheet Catalog `->` The Manifest Pipeline
 
-### Code Review Override - the language asset and the helper port
-
-- [ ] `--report` prints at one scale and the figures it prints contradict the file it is in
-  - **Issue**: `tools/compose-language-asset.mjs` documents `--report` as printing "the comparison at any scale", and `run()` calls `reportShares(composition)` with no scale, so the flag only ever prints the 0.25 default. `node tools/compose-language-asset.mjs --report` reports the heading grey 0.09 points off the census and the comment grey 0.06, where the same file's header and the `2026.09.21` changelog entry both say the three ink colours land "within 0.03 points". Both sets of numbers are right - 0.03 is the full size reading - but the only command a reader has prints the ones that read as a three-fold drift
-  - **Goal**: give the CLI a `--scale` flag that reaches the argument `reportShares` already takes, default it to the scale the documented figures were measured at, and have the report name the scale it used so the two records cannot be compared at cross purposes
-  - From: Code Review Override - the language asset and the helper port
-- [ ] `NOTICE` credits a port note to a file that does not carry one
-  - **Issue**: the `ai-helper/graphic-designer/` paragraph says "The four scripts name the upstream file they came from and record what changed on the way in". Three do. The fourth entry in `scripts/` is `template.md`, which is a fill-in procedure and carries no port header, so a reader checking the licence scoping against the tree finds the claim short by one
-  - **Goal**: either count the three `.mjs` scripts the sentence is actually true of, or give `template.md` the same upstream-and-commit line the other three carry. `NOTICE` is the file the CC0 waiver is scoped by, so the claim in it should be checkable
-  - From: Code Review Override - the language asset and the helper port
-- [ ] A theme inherits the sheets' census and nothing says it is stale
-  - **Issue**: `CENSUS` joined `SHEET_LANGUAGE` in `api/cheatsheet/language.mjs`, and a theme is built by spreading that object. `examples/ember-theme.mjs` replaces `colors` and `syntax` and inherits `census`, so `emberTheme.census` names `#000132`, `#4DAE51`, `#B4BEC8` and `#ADF8B7` - four colours the ember theme never draws - while declaring itself `@type {typeof SHEET_LANGUAGE}`. Nothing reads `language.census` today, so nothing fails yet; `tools/compose-language-asset.mjs` reads the module level `CENSUS` rather than a language it was handed, which is why the first consumer to compose an asset for a themed category gets the sheets' palette back
-  - **Goal**: decide which of the two a census belongs to and make the code say so - either derive the shares from the language passed in, so a theme's census follows its own palette, or move `CENSUS` out of `SHEET_LANGUAGE` and leave it a record of the eleven sheets alone. Have `tools/compose-language-asset.mjs` take its census from wherever that lands rather than from the module
-  - From: Code Review Override - the language asset and the helper port
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -1242,5 +1227,17 @@ generate ideas about generating ideas.
   - Queued with the helper rather than with the rest of its own section, because the helper is what consumes it and neither can be checked without the other
   - `tools/compose-language-asset.mjs`, drawn to the new `CENSUS` in `language.mjs`. Composing it also turned up the one thing the record could not supply: the census folds each ground colour together with the ink set in it, so three runs are carried as type and no ink and the drift that leaves is stated rather than closed with an invented split
   - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] `--report` prints at one scale and the figures it prints contradict the file it is in
+  - **Issue**: `tools/compose-language-asset.mjs` documents `--report` as printing "the comparison at any scale", and `run()` calls `reportShares(composition)` with no scale, so the flag only ever prints the 0.25 default. `node tools/compose-language-asset.mjs --report` reports the heading grey 0.09 points off the census and the comment grey 0.06, where the same file's header and the `2026.09.21` changelog entry both say the three ink colours land "within 0.03 points". Both sets of numbers are right - 0.03 is the full size reading - but the only command a reader has prints the ones that read as a three-fold drift
+  - **Goal**: give the CLI a `--scale` flag that reaches the argument `reportShares` already takes, default it to the scale the documented figures were measured at, and have the report name the scale it used so the two records cannot be compared at cross purposes
+  - From: Code Review Override - the language asset and the helper port
+- [x] `NOTICE` credits a port note to a file that does not carry one
+  - **Issue**: the `ai-helper/graphic-designer/` paragraph says "The four scripts name the upstream file they came from and record what changed on the way in". Three do. The fourth entry in `scripts/` is `template.md`, which is a fill-in procedure and carries no port header, so a reader checking the licence scoping against the tree finds the claim short by one
+  - **Goal**: either count the three `.mjs` scripts the sentence is actually true of, or give `template.md` the same upstream-and-commit line the other three carry. `NOTICE` is the file the CC0 waiver is scoped by, so the claim in it should be checkable
+  - From: Code Review Override - the language asset and the helper port
+- [x] A theme inherits the sheets' census and nothing says it is stale
+  - **Issue**: `CENSUS` joined `SHEET_LANGUAGE` in `api/cheatsheet/language.mjs`, and a theme is built by spreading that object. `examples/ember-theme.mjs` replaces `colors` and `syntax` and inherits `census`, so `emberTheme.census` names `#000132`, `#4DAE51`, `#B4BEC8` and `#ADF8B7` - four colours the ember theme never draws - while declaring itself `@type {typeof SHEET_LANGUAGE}`. Nothing reads `language.census` today, so nothing fails yet; `tools/compose-language-asset.mjs` reads the module level `CENSUS` rather than a language it was handed, which is why the first consumer to compose an asset for a themed category gets the sheets' palette back
+  - **Goal**: decide which of the two a census belongs to and make the code say so - either derive the shares from the language passed in, so a theme's census follows its own palette, or move `CENSUS` out of `SHEET_LANGUAGE` and leave it a record of the eleven sheets alone. Have `tools/compose-language-asset.mjs` take its census from wherever that lands rather than from the module
+  - From: Code Review Override - the language asset and the helper port
 
 </details>

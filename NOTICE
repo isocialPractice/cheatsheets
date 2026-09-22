@@ -26,10 +26,11 @@ ai-helper/graphic-designer/
 ---------------------------
 
 A hand port of the AI helper of the same name from napkin-sketch, taken at the
-same commit: two skills, a command, a contract file and four scripts. The four
-scripts name the upstream file they came from and record what changed on the
-way in, which is a path in every case. The installer and the plugin manifest
-were not ported.
+same commit: two skills, a command, a contract file, and the four files under
+`skills/design-language/scripts/` - three scripts and the fill-in template they
+are driven from. Each of those four names the upstream file it came from and
+records what changed on the way in, which is a path in every case. The
+installer and the plugin manifest were not ported.
 
 Source: https://github.com/isocialPractice/napkin-sketch
 

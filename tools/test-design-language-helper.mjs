@@ -83,6 +83,36 @@ test("the two skills, the command and the contract file are all here", () => {
   }
 });
 
+test("and each of the four files under scripts/ records where it came from", () => {
+  // `NOTICE` is what scopes the CC0 waiver off this directory, and it says
+  // these four name their upstream file and the commit it was taken at. That
+  // claim is only worth making if it can be checked against the tree.
+  //
+  // The fourth is `template.md`, a fill-in procedure rather than a script. The
+  // port changed a path in it exactly as it did in the other three - its import
+  // block reaches `api/graphic-design/` instead of a `napkin-sketch` package -
+  // so it needs the line for the same reason they do, not an exemption from it.
+  const files = readdirSync(scripts);
+  assert.equal(files.length, 4, "NOTICE counts four files under scripts/");
+  for (const name of files) {
+    // Markers stripped and whitespace collapsed, so a notice that wrapped
+    // differently still reads as the same sentence - and so the two syntaxes
+    // read alike, the `.mjs` files carrying theirs in a block comment and the
+    // template in a blockquote.
+    const header = readFileSync(join(scripts, name), "utf8")
+      .slice(0, 2000)
+      .replace(/^[ \t]*(?:\/\*+|\*+\/?|\/\/+|>)+[ \t]?/gm, "")
+      .replace(/\s+/g, " ");
+    assert.match(header, /napkin-sketch \(MIT, isocialPractice\)/, `${name} does not name where it came from`);
+    assert.match(header, /d43caac191b2dfd532b3311f4ca1ea6969bb002f/, `${name} does not record the source commit`);
+  }
+  assert.match(
+    readFileSync(join(root, "NOTICE"), "utf8"),
+    /`ai-helper\/graphic-designer\/`/,
+    "the notice does not say it scopes this directory"
+  );
+});
+
 test("and the installer did not", () => {
   // Upstream's installer copies this tree into a dot folder of its own
   // repository, and the plugin manifest names a marketplace this repository is

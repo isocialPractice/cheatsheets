@@ -55,6 +55,8 @@ export {
   BANDS,
   CANVAS,
   CENSUS,
+  CENSUS_SHARES,
+  censusFor,
   COLORS,
   CONTRAST,
   DISPLAY_SCALE,

@@ -91,6 +91,12 @@ stopped. What is reproduced is every figure the artwork can be measured for.
 `options.language` - there is no separate theme format, because the design
 language is already exported as one object for exactly this.
 
+The one recorded table not in that object is the colour census, and the reason
+is the copy: a census is an area measurement of the eleven sheets, so a spread
+with `colors` and `syntax` replaced would carry the sheets' hexes through under
+the theme's name. `censusFor(language)` restates it instead - the recorded
+shares, in whichever palette it is given.
+
 ```js
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { emberTheme } from "./ember-theme.mjs";

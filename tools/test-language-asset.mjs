@@ -22,19 +22,24 @@ import {
   composeLanguageAsset,
   interleave,
   measureShares,
+  reportShares,
   runBlocks,
   shareRows,
+  REPORT_SCALE,
 } from "./compose-language-asset.mjs";
 import {
   BANDS,
   CANVAS,
   CENSUS,
+  censusFor,
   COLORS,
   DIVISIONS,
   INSETS,
   MARK_SQUARE,
   RUNS,
+  SHEET_LANGUAGE,
 } from "../api/cheatsheet/language.mjs";
+import { emberTheme } from "../examples/ember-theme.mjs";
 import { SHEET_FONT_FAMILY, sizeForCap } from "../api/cheatsheet/faces.mjs";
 import { analyzeSvg, analyzeMedia } from "../ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs";
 
@@ -269,6 +274,70 @@ test("the census in the code is the census in the document", () => {
 
 test("the same asset composes byte for byte, so a measurement of it is repeatable", () => {
   assert.equal(composeLanguageAsset({}).composition.toSVG(), svg);
+});
+
+/* --- 6. The report, and the scale it is only readable beside -------------- */
+
+test("the report runs at the scale the recorded figures were read at", () => {
+  // The header of `compose-language-asset.mjs` puts the three ink colours
+  // within 0.03 points of the census, and that is the full size reading. A
+  // report defaulting to a cheaper raster would print the same three colours
+  // three times further out, and a reader with only the flag to run would find
+  // the file contradicting itself.
+  assert.equal(REPORT_SCALE, 1, "the report defaults to a scale the header's figures are not");
+  for (const key of ["heading", "comment", "identifier"]) {
+    // Rounded the way the report prints it, so what is checked is the figure a
+    // reader compares against the prose rather than a tolerance around it.
+    const drift = Number((Math.abs(shares[key] - CENSUS[key].share) * 100).toFixed(2));
+    assert.ok(drift <= 0.03, `${key} is ${drift} points off the record at full size`);
+  }
+});
+
+test("and names that scale, because a smaller raster is a different measurement", () => {
+  // Not a cheaper version of the same reading: the drift a downsample adds is
+  // the antialiasing of its own edges. The heading grey is the clearest case,
+  // and it is three times further out at a quarter than the header records.
+  const quarter = measureShares(composition, 0.25);
+  const drift = Math.abs(quarter.shares.heading - CENSUS.heading.share) * 100;
+  assert.ok(drift > 0.05, `a quarter-size raster read the heading grey ${drift.toFixed(2)} points out`);
+  assert.match(reportShares(composition, 0.25), /measured at 900x900, scale 0\.25:/);
+});
+
+/* --- 7. Whose census it is ------------------------------------------------ */
+
+test("the language object carries no census, because a spread copy would carry the wrong one", () => {
+  // A theme is `{ ...SHEET_LANGUAGE, colors, syntax }`, so a `census` field
+  // would survive that spread naming four colours the theme never draws - and
+  // read as measured, because every other figure beside it was.
+  assert.ok(!("census" in SHEET_LANGUAGE), "a theme spread from this would inherit the sheets' hexes");
+  assert.deepEqual(censusFor(SHEET_LANGUAGE), CENSUS);
+});
+
+test("a theme's census is the recorded shares in the theme's own colors", () => {
+  const themed = censusFor(emberTheme);
+  // The shares stay the sheets'. They were counted off artwork and the ember
+  // theme has none to count, so re-measuring them is not on offer; inventing
+  // them is the one thing a design language may not do.
+  for (const key of Object.keys(CENSUS)) assert.equal(themed[key].share, CENSUS[key].share);
+  // The hexes come from the theme, from whichever of its two palettes the role
+  // is named in.
+  assert.equal(themed.navy.hex, emberTheme.colors.navy);
+  assert.equal(themed.comment.hex, emberTheme.syntax.comment);
+  const sheetInk = new Set(Object.values(CENSUS).map((entry) => entry.hex.toLowerCase()));
+  for (const key of ["navy", "green", "heading", "comment", "identifier"]) {
+    assert.ok(!sheetInk.has(themed[key].hex.toLowerCase()), `${key} came back as the sheets' colour`);
+  }
+});
+
+test("and an asset composed for a theme is drawn in it, ink as well as regions", () => {
+  // The half-fix is the one to rule out: the regions take the theme because
+  // they read `colors`, and the two panel rows keep the sheets' syntax greys
+  // because they read the module. The asset then measures as the theme with
+  // two foreign colours in it, and the palette looks measured, because it was.
+  const themed = composeLanguageAsset({ language: emberTheme });
+  const fills = [...new Set(rects(themed.composition.toSVG()).map((r) => r.fill?.toLowerCase()).filter(Boolean))];
+  const wanted = Object.values(themed.census).map((entry) => entry.hex.toLowerCase());
+  assert.deepEqual(fills.sort(), wanted.sort());
 });
 
 /* --- Writing the asset out, which the analyzer needs a path for ----------- */
