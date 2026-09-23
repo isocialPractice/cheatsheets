@@ -11,19 +11,26 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Write `tools/build-manifest.mjs`, a dependency free Node script that walks the cheatsheet tree and emits `cheatsheets.json` at the repository root
-  - Treat any folder holding `sheet.json` as a cheatsheet, read the `meta.json` at each level for its title and order, detect the payload by extension, and record each document's composed width and height
-  - The recorded dimensions are what stops layout shift. The page reserves the composed box from the manifest before it composes the sheet into it, which is the job the image's `width` and `height` used to do when a sheet was a file the page fetched
-  - Commit `cheatsheets.json` rather than building it at deploy time, so the local `php -S localhost:8000` workflow keeps working without Node
+- [ ] Migrate the eleven array examples to `javascript/arrays/` under the new convention, as the acceptance test for the manifest pipeline
+  - The existing eleven must render with no hand edited HTML before any new category is added
+  - Each becomes `javascript/arrays/<kebab-name>/` holding a `sheet.json` and the example script the folder already has, with `meta.json` carrying the title at the category and group levels. `node tools/build-manifest.mjs --check` is what says the tree is right
+  - Watch the panel fill warning. Each of the eleven is a full sheet, so each should clear the 85% floor the eleven were measured at, and a migrated document that warns is a document that lost content on the way in
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [ ] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
+  - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
+  - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
   - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Add a `--check` mode to the same script that exits non zero on a broken tree
-  - Fail on: a missing, unparsable or invalid `sheet.json`, or a missing title; a `kind` that contradicts what is on disk; a path segment that is not lower case kebab ASCII, or whose on disk casing differs byte for byte; depth greater than three; a duplicate id; a `sheet.json` whose composition falls outside the extracted margins; an unreferenced file in a cheatsheet folder; and a committed `cheatsheets.json` that differs from freshly generated output
-  - The unreferenced file rule has to let a rendered raster through, or it fails a tree the export command line just wrote into. Either name a render as expected output or write it outside the cheatsheet folder, and say which under **Raster Export and Example Images**
-  - The casing check is the one that matters most: Pages serves from a case sensitive filesystem while the work happens on Windows, so a casing mismatch passes locally and 404s only in production
+- [ ] Hide the previously shown `optgroup` when the category changes
+  - `selectCheatsheet()` only ever sets one to `display: block`, so with more than one category the example dropdown accumulates stale groups
   - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
-  - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
+- [ ] Remove the injected `script` element from the previous selection before appending the next one, and inject with `type="module"`
+  - Each selection currently appends another `script` and never removes the last, so globals leak and collide between examples. `console.clear()` hides the symptom rather than the cause
   - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [ ] Remove the `javaScriptArrays/.jpg` initial `src` the markup still ships, and the `javaScriptArrays/.js` reference beside it
+  - Both files were deleted on 2026.09.09 in `cec3805`, the image at 11,859 bytes, while `index.html` kept pointing at one. What the markup calls a placeholder is a live 404 on the published site, carried at `index.html` line 217
+  - The endpoint is no `src` attribute at all rather than an empty one, because the composed sheet replaces this element with a container the page injects an inline `svg` into. Doing both in one change is one edit rather than two, and there is no raster left for a `src` to name
+  - This is the item that makes the page import `api/cheatsheet/` for the first time. The composed box comes from the manifest entry's `width` and `height`, reserved before the sheet is composed into it
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
 
 ## GitHub Pages Deployment
 
@@ -90,21 +97,15 @@ the folder no longer holds.
 the configuration block for each.
 
 The manifest pipeline below is the one prerequisite for every item in **New
-Cheatsheets**. Until it is in place, adding a category means hand editing
-`index.html` again, which is the thing this section exists to remove.
+Cheatsheets**. Half of it is in place: `tools/build-manifest.mjs` walks the
+tree, composes every `sheet.json` for its box, writes the committed
+`cheatsheets.json`, and gates the Pages deploy with `--check`. The catalog it
+walks is empty until the eleven array examples are migrated, and nothing reads
+the file yet - the page still carries its `optgroup` by hand, which is what the
+items below take out.
 
 ### The Manifest Pipeline
 
-- [ ] Write `tools/build-manifest.mjs`, a dependency free Node script that walks the cheatsheet tree and emits `cheatsheets.json` at the repository root
-  - Treat any folder holding `sheet.json` as a cheatsheet, read the `meta.json` at each level for its title and order, detect the payload by extension, and record each document's composed width and height
-  - The recorded dimensions are what stops layout shift. The page reserves the composed box from the manifest before it composes the sheet into it, which is the job the image's `width` and `height` used to do when a sheet was a file the page fetched
-  - Commit `cheatsheets.json` rather than building it at deploy time, so the local `php -S localhost:8000` workflow keeps working without Node
-- [ ] Add a `--check` mode to the same script that exits non zero on a broken tree
-  - Fail on: a missing, unparsable or invalid `sheet.json`, or a missing title; a `kind` that contradicts what is on disk; a path segment that is not lower case kebab ASCII, or whose on disk casing differs byte for byte; depth greater than three; a duplicate id; a `sheet.json` whose composition falls outside the extracted margins; an unreferenced file in a cheatsheet folder; and a committed `cheatsheets.json` that differs from freshly generated output
-  - The unreferenced file rule has to let a rendered raster through, or it fails a tree the export command line just wrote into. Either name a render as expected output or write it outside the cheatsheet folder, and say which under **Raster Export and Example Images**
-  - The casing check is the one that matters most: Pages serves from a case sensitive filesystem while the work happens on Windows, so a casing mismatch passes locally and 404s only in production
-- [ ] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
-  - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
 - [ ] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
   - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
   - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
@@ -174,6 +175,7 @@ commits none of it.
   - Resolve the browser at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and skip with the install command as the reason when none answers, which is the pattern `tools/test-page-structure-browser.mjs` settled
   - Write the PNG into `.tmp/` and convert it to `<name>.webp` beside the cheatsheet, so `Watch: **/*.{jpg,webp}` in `.claude/constants.md` needs no change. Widening the watch to `png` sweeps in the favicon working set, measured at 46 files
   - Renders are untracked. Confirm the social tool globs the working tree rather than the commit before relying on that, since a pattern matching nothing reads exactly like a quiet day
+  - **The render is named as expected output, rather than written outside the folder.** That is the answer to the question the `--check` item asks here: `sheet.*` is reserved in a cheatsheet folder, so `sheet.json` is the document and `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the tree rule lets through by name. Naming them is what makes the rule give the same answer everywhere - a render is untracked, so a rule that asked git what was committed would pass on the machine that rendered it and fail on the runner. `<name>` is therefore `sheet` for a cheatsheet folder, which is also what `.claude/constants.md` already expects of `<category>/<cheatsheet>/sheet.webp`
   - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
 - [ ] Raise the displayed sheet cap from 600 pixels to `min(100%, 900px)` and give the composed sheet a route to full size
   - 600 pixels is too small to read code in, which is the whole purpose of the sheet
@@ -1239,5 +1241,18 @@ generate ideas about generating ideas.
   - **Issue**: `CENSUS` joined `SHEET_LANGUAGE` in `api/cheatsheet/language.mjs`, and a theme is built by spreading that object. `examples/ember-theme.mjs` replaces `colors` and `syntax` and inherits `census`, so `emberTheme.census` names `#000132`, `#4DAE51`, `#B4BEC8` and `#ADF8B7` - four colours the ember theme never draws - while declaring itself `@type {typeof SHEET_LANGUAGE}`. Nothing reads `language.census` today, so nothing fails yet; `tools/compose-language-asset.mjs` reads the module level `CENSUS` rather than a language it was handed, which is why the first consumer to compose an asset for a themed category gets the sheets' palette back
   - **Goal**: decide which of the two a census belongs to and make the code say so - either derive the shares from the language passed in, so a theme's census follows its own palette, or move `CENSUS` out of `SHEET_LANGUAGE` and leave it a record of the eleven sheets alone. Have `tools/compose-language-asset.mjs` take its census from wherever that lands rather than from the module
   - From: Code Review Override - the language asset and the helper port
+- [x] Write `tools/build-manifest.mjs`, a dependency free Node script that walks the cheatsheet tree and emits `cheatsheets.json` at the repository root
+  - Treat any folder holding `sheet.json` as a cheatsheet, read the `meta.json` at each level for its title and order, detect the payload by extension, and record each document's composed width and height
+  - The recorded dimensions are what stops layout shift. The page reserves the composed box from the manifest before it composes the sheet into it, which is the job the image's `width` and `height` used to do when a sheet was a file the page fetched
+  - Commit `cheatsheets.json` rather than building it at deploy time, so the local `php -S localhost:8000` workflow keeps working without Node
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Add a `--check` mode to the same script that exits non zero on a broken tree
+  - Fail on: a missing, unparsable or invalid `sheet.json`, or a missing title; a `kind` that contradicts what is on disk; a path segment that is not lower case kebab ASCII, or whose on disk casing differs byte for byte; depth greater than three; a duplicate id; a `sheet.json` whose composition falls outside the extracted margins; an unreferenced file in a cheatsheet folder; and a committed `cheatsheets.json` that differs from freshly generated output
+  - The unreferenced file rule has to let a rendered raster through, or it fails a tree the export command line just wrote into. Either name a render as expected output or write it outside the cheatsheet folder, and say which under **Raster Export and Example Images**
+  - The casing check is the one that matters most: Pages serves from a case sensitive filesystem while the work happens on Windows, so a casing mismatch passes locally and 404s only in production
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
+  - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
 
 </details>

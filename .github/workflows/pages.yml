@@ -20,7 +20,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The gate in front of the deploy. The page fetches cheatsheets.json and
+  # builds both dropdowns from it, so a broken catalog is a broken page rather
+  # than a stale one, and the failures worth catching are the ones that pass
+  # locally: Pages serves from a case sensitive filesystem while the work
+  # happens on Windows, so a casing mismatch resolves on the machine that made
+  # it and 404s only here.
+  #
+  # It runs on the repository as committed, with no Node install step. The
+  # script has no dependencies and no package.json by design, which is the same
+  # constraint that keeps php -S localhost:8000 the whole local workflow, so
+  # the runner's own Node is all it needs.
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Check the cheatsheet tree and the committed manifest
+        run: node tools/build-manifest.mjs --check
+
   build:
+    needs: manifest
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository

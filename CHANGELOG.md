@@ -4,6 +4,96 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.23]
+
+### Added
+
+- **`tools/build-manifest.mjs`, the catalog pipeline.** A dependency free Node
+  script that walks the cheatsheet tree and writes `cheatsheets.json` at the
+  repository root. A folder holding `sheet.json` is a cheatsheet and nothing
+  else marks one; `meta.json` at each level carries the human readable title
+  and the order, so no display text is ever reverse engineered out of a path.
+  The payload is detected by extension and recorded as a path the page can
+  fetch.
+
+  Every document is actually composed, through `api/cheatsheet/`, and the
+  composition's own width and height go into the manifest. That is what the
+  page reserves before it composes into it, which is the job the image
+  element's `width` and `height` did while a sheet was still a file the page
+  fetched. A document the API refuses stops the build rather than being written
+  without its box: a manifest that quietly omitted one entry's dimensions would
+  ship exactly the layout shift the dimensions exist to prevent.
+
+  The file is committed rather than built when the site deploys, so a local
+  `php -S localhost:8000` still needs no Node. It carries no generation
+  timestamp, for a narrower reason: `--check` compares the committed bytes
+  against freshly generated output, and a timestamp would fail that comparison
+  every run on a tree nobody had touched.
+- **`--check`, the same walk as a gate.** It exits non zero on a missing,
+  unparsable or invalid `sheet.json` or a missing title; a `kind` that
+  contradicts what is in the folder; a path segment that is not lower case
+  kebab ASCII, or a payload whose on disk casing differs byte for byte from
+  what the document named; a cheatsheet sitting less than two levels below the
+  root, having no category to be listed under; a duplicate id; a composition
+  that will not fit its own margins; an
+  unreferenced file or folder in a cheatsheet folder; a level holding a
+  cheatsheet and no title of its own; and a `cheatsheets.json` that differs
+  from freshly generated output.
+
+  The casing rule is the one that earns the gate. Pages serves from a case
+  sensitive filesystem while the work happens on Windows, so a mismatch
+  resolves on the machine that made it and 404s only in production. Every path
+  the manifest records comes from `readdir` rather than from what a file said
+  it was called, and a payload a document names by hand is resolved a segment
+  at a time against a real listing: `Src/example.js` is the same failure one
+  folder up as `Example.js` is in the folder itself, and a stat would confirm
+  both on Windows. A payload that climbs out of its own folder is refused
+  before any of that, since what the manifest hands the page to fetch is
+  inside the cheatsheet.
+
+  The unreferenced rule covers folders for the same reason it covers files.
+  The walk stops descending at a cheatsheet folder, so a subfolder is the one
+  place no other rule looks, and a `sheet.json` inside one is not a second
+  cheatsheet. Only `demo/` and the folder a named payload sits in are expected
+  there.
+
+  Two of the rules are deliberately not what they could have been. A sparse
+  code panel is a **warning** and not a failure: a short cheatsheet is inside
+  every margin, it is just emptier than the eleven measured sheets were, and
+  failing it would refuse a short sheet for being short. And `sheet.*` is
+  reserved in a cheatsheet folder, so `sheet.json` is the document while
+  `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the
+  unreferenced rule lets through by name. Naming them is what makes that rule
+  give one answer everywhere - a render is untracked, so a rule that asked git
+  what was committed would pass on the machine that rendered it and fail on the
+  runner.
+- **The Pages deploy waits on the check.** `.github/workflows/pages.yml` gained
+  a `manifest` job that runs `node tools/build-manifest.mjs --check`, and
+  `build` now carries `needs: manifest`, so a broken catalog cannot publish.
+  The job installs nothing: the script imports Node builtins and relative paths
+  only, which is the same no-build-step constraint the port was written under,
+  and `tools/test-build-manifest.mjs` holds both halves of that - no install
+  step in the workflow, and no bare specifier in the script.
+- `cheatsheets.json`, committed. It is empty today, because no folder holds a
+  `sheet.json` until the eleven array examples are migrated to
+  `javascript/arrays/`. An empty catalog is a state the pipeline handles rather
+  than a gap: it is what `--check` runs against on every push until then.
+- 51 cases in `tools/test-build-manifest.mjs`, covering the walk, the manifest
+  shape and its determinism, payload detection, all nine check rules, the
+  command line, the repository's own tree, and the workflow wiring. The last of
+  those is the easiest thing to lose: a job can be added, pass on every push,
+  and gate nothing at all, because nothing downstream needs it.
+
+### Changed
+
+- `README.md` gained a **The Catalog** paragraph, naming the convention, the
+  two commands and when to regenerate.
+- **Raster Export and Example Images** in `TODO.md` now records where a render
+  goes, which is the question the `--check` item asked it. The render is named
+  as expected output rather than written outside the folder, and `<name>` is
+  `sheet` for a cheatsheet folder, which is what `.claude/constants.md` already
+  expects of `<category>/<cheatsheet>/sheet.webp`.
+
 ## [2026.09.22]
 
 ### Fixed
