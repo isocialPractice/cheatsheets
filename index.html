@@ -119,6 +119,12 @@
   font-size: 0.875rem;
   line-height: 1.5;
  }
+ #catalogError {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+ }
  div.row {
   display: flex;
   flex-wrap: wrap;
@@ -143,13 +149,29 @@
     ground the top band merges into the page and on the light one the sides
     do, and either way the reader cannot see where the artwork stops. No
     radius: the frame is the interface, the sheet inside it is content, and a
-    rounded corner would clip the artwork rather than the frame. */
- div.col img {
+    rounded corner would clip the artwork rather than the frame.
+
+    "aspect-ratio" is what reserves the box. The sheet is composed by script
+    rather than fetched, so there is no intrinsic size for "height: auto" to
+    resolve against and the frame would be a zero height line until the
+    composition landed. The square here is the catalog's own canvas; a
+    selection overwrites it from that entry's recorded width and height, so a
+    second design language moving the canvas needs no change to this rule. */
+ div.col div.sheet {
   display: block;
   width: 100%;
   max-width: 600px;
   height: auto;
+  aspect-ratio: 1 / 1;
   border: 1px solid var(--border);
+ }
+ /* The composed graphic carries its own width and height in sheet pixels,
+    which the script strips so the element scales off the viewBox instead.
+    Without that the 3600px root would overflow the column at every width. */
+ div.col div.sheet > svg {
+  display: block;
+  width: 100%;
+  height: auto;
  }
  @media (max-width: 767px) {
   div.row {
@@ -161,7 +183,7 @@
    flex: 1 1 auto;
    width: 100%;
   }
-  div.col img {
+  div.col div.sheet {
    max-width: 100%;
   }
  }
@@ -171,7 +193,7 @@
 </head>
 
 <body>
- <h1>Example Outputs</h1><hr>  
+ <h1>Example Outputs</h1><hr>
  <p>Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
 
  <div class="row">
@@ -182,196 +204,224 @@
      <li>Select Cheatsheat from dropdown.</li>
      <li>Select the example from next dropdown.</li>
      <li>Press "F12" and select console tab to see results.</li>
-    </ol>    
+    </ol>
     <label for="category">Select Cheatsheet</label>
-    <select name="category" id="category"
-     onchange="selectCheatsheet(this)">
+    <select name="category" id="category">
      <option value="" style="display:none"></option>
-     <option value="javaScriptArrays">JavaScript Arrays</option>
     </select>
 
     <div id="selectExample" style="display:none">
      <label for="example">Select Example</label>
-     <select name="example" id="example"
-      onchange="selectExample(this)">
+     <select name="example" id="example">
       <option value=""></option>
-      <optgroup id="javaScriptArrays" label="JavaScript Arrays" style="display:none">
-       <option value="shift And Unshift">Shift And Unshift</option>
-       <option value="Changing Elements">Changing Elements</option>
-       <option value="Splicing Arrays">Splicing Arrays</option>
-       <option value="Concating Arrays">Concating Arrays</option>
-       <option value="Slicing Arrays">Slicing Arrays</option>
-       <option value="Sorting Arrays">Sorting Arrays</option>
-       <option value="Sort Numbers Array">Sort Numbers Array</option>
-       <option value="Compare Array Function">Compare Array Function</option>
-       <option value="Random Sort Array">Random Sort Array</option>
-       <option value="Max and Min Value Array">Max and Min Value Array</option>
-       <option value="Max and Min Function and Sort Object">Max and Min Function and Sort Object</option>
-      </optgroup>
      </select>
-    </div> 
+    </div>
   </div>
   </div>
   <div class="col">
-   <img style="display: none" id="curCheatSheetImg"
-    src="javaScriptArrays/.jpg" alt="">
+   <div class="sheet" id="curCheatSheet" role="img" aria-label="" style="display: none"></div>
   </div>
 </div>
 <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
+<p id="catalogError" style="display:none">The cheatsheet catalog could not be loaded. This page reads
+ <code>cheatsheets.json</code> over the network, so it needs to be served rather than opened as a file.</p>
 
-<script>
-// CONGIF TEST ENVIRONMENT - 1 = testing, 0 = production
-var testEnvironment = 0;
-if (testEnvironment == 1) {
-  document.getElementById("selectExample").style.display = "";
-  document.getElementById("category").value = "javaScriptArrays"; // CHANGE AS NEEDED
-  selectCheatsheet(document.getElementById("category")); // CHANGE AS NEEDED  
-  document.getElementById("example").value = "Max and Min Value Array"; // CHANGE AS NEEDED - best if value of one above test
-} else {
-  document.getElementById("selectExample").style.display = "";
-  document.getElementById("category").value = "javaScriptArrays"; // CHANGE AS NEEDED
-  selectCheatsheet(document.getElementById("category")); // CHANGE AS NEEDED   
-}
-// GLOBAL VARIABLES
-var selectCategory, selectedExample, curCheatSheetImg;
-var showFootNote = document.getElementById("showFootNote");
- 
-// APPLICATION FUNCTIONS
-// Select the appropriate js to load.
-function selectCheatsheet(category) {
- let selectedCategory = category.value;
- let nextStep = category.nextElementSibling;
- let nextStepOptions = nextStep.getElementsByTagName("optgroup");
- let nextStepOptionsLen = nextStepOptions.length;
- let nextStepOptionsMatch, nextStepOptionsMatchID;
- 
- nextStep.style.display = "";
- for (i = 0; i < nextStepOptionsLen; i++) {
-  nextStepOptionsMatch = nextStepOptions[i];
-  nextStepOptionsMatchID = nextStepOptionsMatch.id;
-  if (nextStepOptionsMatchID == selectedCategory) {
-   nextStepOptionsMatch.style.display = "block";
-   break;
-  }  
- }
- selectCategory = selectedCategory;
-}
-function selectExample(example) {
- selectedExample = removeSpaceInVariable(example.value);
- curCheatSheetImg = document.getElementById("curCheatSheetImg");
- // The sheet is a picture of the example that was chosen, so it announces the
- // choice rather than announcing that it is a picture. The label is read off
- // the option rather than taken from its value, because the two are not the
- // same string on every option: "Shift And Unshift" is selected by the value
- // "shift And Unshift", the value being what the file path is built from and
- // the label being what the reader chose by name.
- let chosenOption = example.options[example.selectedIndex];
- curCheatSheetImg.alt = selectedExample ? chosenOption.text + " cheat sheet" : "";
- // The page is served from the repository, so the examples sit beside it.
- let curScriptLocation = selectCategory + "/" + selectedExample + ".js";
- let curScriptImageLocation = selectCategory + "/" + selectedExample + ".jpg";
- // The footnote belongs to the selection being made. Reading it back off
- // curCheatSheetImg.src hid it on the first selection, because that src still
- // holds the previous one - on a fresh load, the empty ".jpg" placeholder.
- showFootNote.style.display = selectedExample ? "block" : "none";
- console.clear();
- let exampleScriptTag = document.createElement("script");
- exampleScriptTag.src = curScriptLocation;
- document.body.appendChild(exampleScriptTag);
- // A sheet the probe ruled out settles the image and the footnote together: a
- // missing sheet means a missing example, so neither is worth showing.
- let settleImage = function(imageFound) {
-  curCheatSheetImg.src = imageFound ? curScriptImageLocation : "";
-  curCheatSheetImg.style.display = imageFound ? "block" : "none";
-  if (!imageFound) showFootNote.style.display = "none";
- };
- // A probe that never answered has ruled nothing out, so the element is asked
- // rather than told: it takes the src and stays hidden until it has decoded
- // something. Showing it here left the element on screen having decoded
- // nothing, holding a zero height box - a request still in flight has no
- // intrinsic size for "height: auto" to resolve against - from the moment the
- // probe failed until the element's own request finished failing, which on a
- // stalled connection - throttled, proxied, blackholed - is until that request
- // times out rather than at once.
- let offerSheetToElement = function() {
-  curCheatSheetImg.style.display = "none";
-  curCheatSheetImg.src = curScriptImageLocation;
- };
- // The element reports what the probe could not, on both counts. It puts itself
- // on screen once it has decoded a sheet, and takes itself back down when it
- // cannot decode one, so a request that went unanswered leaves neither a broken
- // icon nor an empty box behind. The footnote stays either way: the example
- // script is fetched on its own, and the console output the footnote points at
- // does not depend on the image.
- curCheatSheetImg.onload = function() {
-  curCheatSheetImg.style.display = "block";
- };
- curCheatSheetImg.onerror = function() {
-  curCheatSheetImg.style.display = "none";
- };
- // The probe can only rule a sheet out, never rule one in. Its whole purpose is
- // to keep a missing sheet from rendering as a broken icon, and only a definite
- // non-2xx status establishes one. Never the reason phrase: the phrase is
- // server chosen and HTTP/2 carries none at all, so the published site reports
- // "" for every response and a "Not Found" test never matched anything. A
- // status of 0 is not a ruling either, so it leaves the sheet alone.
- let sheetRuledOut = function(status) {
-  return status > 0 && (status < 200 || status >= 300);
- };
+<script type="module">
+// The page composes its own graphic. `api/cheatsheet/` is this repository's
+// layer over the ported drawing surface in `api/graphic-design/`, both of them
+// plain modules with no build step, so the sheet arrives as an inline `svg`
+// drawn here rather than as a raster fetched from the repository.
+//
+// That is the reason this script is a module and the reason the page now has
+// to be served: `import` and `fetch` are both refused a `file://` document
+// under the same CORS rule, so `php -S localhost:8000` stops being optional.
+import { composeSheet } from "./api/cheatsheet/index.mjs";
 
- let xhttp = new XMLHttpRequest();
- xhttp.onload = function() {
-  settleImage(!sheetRuledOut(this.status));
- };
- // No answer at all, which is what a file:// page always gets: Chromium refuses
- // such a page its own XMLHttpRequest under its CORS rules, so onerror is the
- // only handler that ever runs there and onload never fires. The <img> element
- // is not refused the same read and renders the sheet from disk, so an
- // unanswered probe hands the decision to the element rather than hiding a
- // sheet that is sitting right there. A dropped, blocked or stalled request
- // over HTTP arrives here too, and there the element decides the other way -
- // nothing is shown unless it decodes a sheet.
- xhttp.onerror = function() {
-  offerSheetToElement();
- };
- xhttp.open("GET", curScriptImageLocation, true);
- xhttp.send();
-}
+// The catalog, by relative path so it resolves under the `/cheatsheets/`
+// project base path on Pages as well as at the root of a local server.
+const MANIFEST = "cheatsheets.json";
 
-// SUPORT FUNCTION
-// Below function also in "general" repository.
-function removeSpaceInVariable(variableWhereSpaceIs, changeCase) {
- if (changeCase == undefined) changeCase = 0;
- 
- let theVariableWhereSpaceIs = variableWhereSpaceIs; 
- let spaceIsPresent = 1;
- if (theVariableWhereSpaceIs) {
-  while (spaceIsPresent == 1) {
-   if (theVariableWhereSpaceIs.indexOf(" ") > -1) {
-    theVariableWhereSpaceIs = theVariableWhereSpaceIs.replace(" ", "");
-   } else {
-    spaceIsPresent = 0;
-   }
+const categorySelect = document.getElementById("category");
+const exampleSelect = document.getElementById("example");
+const exampleStep = document.getElementById("selectExample");
+const sheetBox = document.getElementById("curCheatSheet");
+const showFootNote = document.getElementById("showFootNote");
+const catalogError = document.getElementById("catalogError");
+
+// Every cheatsheet the manifest listed, keyed by the slug its option carries.
+// The option's value is that slug and nothing else: a path derived from the
+// label is what made "shift And Unshift" select `shiftAndUnshift.js`, and a
+// label is display text that anybody may reword.
+const cheatsheets = new Map();
+
+// The `script` element the last selection appended, so it can be taken out
+// before the next one goes in.
+let injected = null;
+
+// How many selections have run. It is part of the injected module's URL, and
+// that is not cosmetic: a module is registered once per URL per document, so
+// re-selecting an example - or coming back to one - would append an element
+// that executes nothing at all. A distinct URL per selection is what keeps
+// "select an example, watch the console" true on the second selection.
+let selections = 0;
+
+// Which selection the sheet on screen belongs to. Composing one takes two
+// awaits - the document, then its own body - so the order the documents answer
+// in is not the order they were asked in, and a reader who moves on before the
+// first answers would otherwise have the one they abandoned land on top of the
+// one they chose: the right name over the wrong graphic. Every step past an
+// await checks this before it touches the frame.
+let current = 0;
+
+/** Builds both dropdowns from the manifest. */
+function buildDropdowns(catalog) {
+ for (const category of catalog.categories) {
+  const option = document.createElement("option");
+  option.value = category.id;
+  option.textContent = category.title;
+  categorySelect.appendChild(option);
+
+  const group = document.createElement("optgroup");
+  group.dataset.category = category.id;
+  group.label = category.title;
+  group.style.display = "none";
+  for (const entry of category.cheatsheets) {
+   cheatsheets.set(entry.id, entry);
+   const item = document.createElement("option");
+   item.value = entry.id;
+   item.textContent = entry.title;
+   group.appendChild(item);
   }
+  exampleSelect.appendChild(group);
  }
- if (changeCase == "u") {
-  theVariableWhereSpaceIs = changeToUpperCase(theVariableWhereSpaceIs);
- } else if (changeCase == "l") {
-  theVariableWhereSpaceIs = changeToLowerCase(theVariableWhereSpaceIs);
- }
- return theVariableWhereSpaceIs;
 }
 
-function changeToUpperCase(variableToChange) {
- let theVariableToUpperCase = variableToChange.toUpperCase();
- return theVariableToUpperCase;
-}
-function changeToLowerCase(variableToChange) {
- let theVariableToLowerCase = variableToChange.toLowerCase();
- return theVariableToLowerCase;
+/** Reveals the chosen category's examples, and hides the one shown before. */
+function selectCheatsheet() {
+ const chosen = categorySelect.value;
+ // Every group is hidden rather than only the one remembered from last time.
+ // Setting one to "block" and leaving the rest was correct while there was a
+ // single category and accumulated stale groups the moment there were two.
+ for (const group of exampleSelect.getElementsByTagName("optgroup")) {
+  group.style.display = group.dataset.category === chosen ? "block" : "none";
+ }
+ // A selection belonging to the category being left would otherwise stay
+ // chosen, with its sheet on screen, under a dropdown that no longer offers it.
+ exampleSelect.value = "";
+ clearSheet();
+ exampleStep.style.display = chosen ? "" : "none";
 }
 
-</script> 
+/** Takes the sheet and the footnote back down. */
+function clearSheet() {
+ // Taking the sheet down is a selection like any other, so a composition still
+ // on its way has been moved on from too and must not draw itself into a frame
+ // the reader has just emptied.
+ current += 1;
+ sheetBox.style.display = "none";
+ sheetBox.replaceChildren();
+ sheetBox.setAttribute("aria-label", "");
+ showFootNote.style.display = "none";
+}
+
+/**
+ * Composes the selected cheatsheet into the reserved box.
+ *
+ * The box is reserved first, from the width and height the manifest recorded
+ * for this entry, so the frame holds its place while the document is fetched
+ * and the graphic is drawn. That is the job the image element's own
+ * dimensions used to do.
+ *
+ * `token` is the selection this call belongs to. The reservation is set before
+ * the first await, so it is always this selection's; everything after one is
+ * abandoned the moment a later selection has been made.
+ */
+async function showSheet(entry, token) {
+ sheetBox.style.aspectRatio = `${entry.width} / ${entry.height}`;
+ sheetBox.setAttribute("aria-label", `${entry.title} cheat sheet`);
+ sheetBox.style.display = "block";
+
+ const response = await fetch(`${entry.path}/sheet.json`);
+ if (!response.ok) throw new Error(`${entry.path}/sheet.json answered ${response.status}`);
+ const doc = await response.json();
+ if (token !== current) return;
+ const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed });
+
+ const parsed = new DOMParser().parseFromString(composition.toSVG(), "image/svg+xml");
+ const svg = parsed.documentElement;
+ // The composition is 3600 square in sheet pixels. The viewBox carries that,
+ // so the attributes are dropped and the stylesheet scales the element to the
+ // column it sits in.
+ svg.removeAttribute("width");
+ svg.removeAttribute("height");
+ sheetBox.replaceChildren(document.importNode(svg, true));
+}
+
+/** Runs the chosen example, and draws its sheet. */
+async function selectExample() {
+ const entry = cheatsheets.get(exampleSelect.value);
+ if (!entry) {
+  clearSheet();
+  return;
+ }
+ const token = (current += 1);
+
+ // The previous selection's element is taken out before the next goes in.
+ // Appending one per selection and never removing it left a pile of script
+ // elements in the body, one for every example the reader had looked at.
+ if (injected) {
+  injected.remove();
+  injected = null;
+ }
+ if (entry.kind === "run" && entry.payload) {
+  selections += 1;
+  const script = document.createElement("script");
+  // A module rather than a classic script. Each example declares its own
+  // `var fruits`, `var A`, `var ONE`; as classic scripts those are one shared
+  // global each, so the second example a reader chose ran against the first
+  // one's leftovers. Module scope is what stops that, rather than clearing
+  // the console so the collision is not visible.
+  script.type = "module";
+  script.src = `${entry.payload}?select=${selections}`;
+  injected = script;
+  document.body.appendChild(script);
+ }
+
+ showFootNote.style.display = entry.kind === "run" ? "block" : "none";
+
+ try {
+  await showSheet(entry, token);
+ } catch (error) {
+  console.error(`The sheet for ${entry.id} could not be composed.`, error);
+  // A sheet the reader has already moved on from is not theirs to take down
+  // either, so a late failure leaves the selection they did make on screen.
+  if (token !== current) return;
+  sheetBox.style.display = "none";
+  sheetBox.replaceChildren();
+ }
+}
+
+categorySelect.addEventListener("change", selectCheatsheet);
+exampleSelect.addEventListener("change", selectExample);
+
+try {
+ const response = await fetch(MANIFEST);
+ if (!response.ok) throw new Error(`${MANIFEST} answered ${response.status}`);
+ buildDropdowns(await response.json());
+ // Named by the catalog rather than in the script. One category is selected on
+ // arrival because there is nothing to choose between; a second one makes the
+ // choice the reader's, and the dropdown is where it belongs.
+ if (categorySelect.options.length === 2) {
+  categorySelect.value = categorySelect.options[1].value;
+  selectCheatsheet();
+ }
+ document.documentElement.dataset.catalog = "ready";
+} catch (error) {
+ console.error(`${MANIFEST} could not be read.`, error);
+ catalogError.style.display = "block";
+ document.documentElement.dataset.catalog = "error";
+}
+</script>
 
 </body>
 </html>

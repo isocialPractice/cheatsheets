@@ -1,0 +1,32 @@
+{
+  "title": "Changing Elements",
+  "subtitle": "Assign by index, at any depth",
+  "kind": "run",
+  "seed": "changing-elements",
+  "code": [
+    { "text": "var arrayToChange = [1, 2, 3, 4];", "role": "identifier" },
+    { "text": "arrayToChange[2] = .44; // 1,2,.44,4" },
+    { "text": "console.log(arrayToChange); // (4) [1, 2, 0.44, 4]" },
+    { "text": "" },
+    { "text": "arrayToChange[3] = [\"a\", \"b\", \"c\"];" },
+    { "text": "console.log(arrayToChange); // (4) [1, 2, 0.44, Array(3)]" },
+    { "text": "console.log(arrayToChange[3][1]); // b" },
+    { "text": "" },
+    { "text": "var nestArrayToChange = [[10, 20, 30, 40], [1.0, 2.0, 3.0, 4.0], [\"a\",\"b\"]];", "role": "identifier" },
+    { "text": "nestArrayToChange[0] = [1];" },
+    { "text": "nestArrayToChange[1][1] = 22.2;" },
+    { "text": "nestArrayToChange[2] = [\"c\", \"d\", [\"abc\", \"xyz\"]];" },
+    { "text": "nestArrayToChange[3] = \"new item\";" },
+    { "text": "" },
+    { "text": "console.log(nestArrayToChange); // (4) [Array(1), Array(4), Array(3), new item]" },
+    { "text": "console.log(nestArrayToChange[0]); // [1]" },
+    { "text": "" },
+    { "text": "console.log(nestArrayToChange[1]); // (4) [1, 22.2, 3, 4]" },
+    { "text": "console.log(nestArrayToChange[1][1]); // 22.2" },
+    { "text": "" },
+    { "text": "console.log(nestArrayToChange[2]); // (3) ['c', 'd', Array(2)]" },
+    { "text": "console.log(nestArrayToChange[2][2][0]); // abc" },
+    { "text": "" },
+    { "text": "console.log(nestArrayToChange[3]); // new item" }
+  ]
+}

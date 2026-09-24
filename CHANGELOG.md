@@ -4,6 +4,158 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.09.24]
+
+### Added
+
+- **The catalog has content: the eleven array examples are migrated.** Each is
+  now a folder under `javascript/arrays/<kebab-name>/` holding a `sheet.json`
+  and the example script it always had, with `meta.json` carrying the title at
+  the category and the group level. `javascript` is titled `JavaScript` and
+  `arrays` is titled `Arrays`, which is the whole reason a title lives in a
+  `meta.json` rather than being read off a path.
+
+  The eleven documents are transcribed from the payload each folder ships, by
+  one rule for all of them: the leading statements of the script, blank rows
+  kept, the source's own spelling and quote characters left alone so a document
+  and its payload stay in lockstep. Where a script runs past the panel's row
+  budget the excerpt stops early, and where a line runs past the panel's width
+  its trailing output comment is shortened. Every one of the eleven composes
+  clean and fills 85% to 94% of the code panel, against the 85% floor the
+  eleven hand composed sheets were measured at - the figure that says a
+  migrated document did not lose content on the way in. `node
+  tools/build-manifest.mjs --check` passes on the tree and on the committed
+  manifest.
+
+- **The page builds both dropdowns from `cheatsheets.json`.** The manifest is
+  fetched by relative path, so it resolves under the `/cheatsheets/` project
+  base path on Pages and at the root of a local server alike. Every option is
+  keyed by its slug id and labelled from a manifest title, which is what ends
+  the one arrangement this page has always had backwards: `removeSpaceInVariable`
+  took the label `Shift And Unshift` apart to reach `shiftAndUnshift.js`, so
+  rewording a label renamed a file that nobody had renamed. It and the two case
+  helpers beside it are gone with the hand maintained `optgroup`.
+
+- **The sheet is composed in the browser.** This is the first time the page
+  imports `api/cheatsheet/`, which is what the port was for. A selection
+  reserves the frame's box from the entry's recorded width and height, fetches
+  that folder's `sheet.json`, composes it, and injects the result as an inline
+  `svg` with its own `width` and `height` stripped so the element scales off its
+  `viewBox`. The box is reserved before the document is fetched rather than
+  after, which is the job the image element's dimensions used to do.
+
+### Changed
+
+- **`index.html` is a module.** `import` and a top level `await fetch` are what
+  the two items above needed, and both are refused a `file://` document under
+  the same CORS rule, so a local server stopped being optional. The `README.md`
+  line claiming the page works from disk said the opposite and now says that.
+  A catalog that cannot be read shows a line saying so rather than leaving an
+  empty dropdown to be interpreted.
+
+- **The injected example is a module too, and only one is ever in the body.**
+  Every selection used to append another `script` and never remove the last, so
+  a reader who looked at four examples left four elements behind and each new
+  example ran against the previous one's globals - which `console.clear()` hid
+  rather than fixed. The previous element is now removed before the next goes
+  in, the payload is injected with `type="module"` so its `var fruits` and
+  `var A` are its own, and `console.clear()` is gone. The injected URL carries
+  a per selection counter, because a module is registered once per URL per
+  document and without it the second visit to an example would execute nothing.
+
+- **Changing the category hides the group that was shown before.**
+  `selectCheatsheet()` set one `optgroup` to `display: block` and set none back,
+  which was correct while there was one category and would have shown the first
+  category's examples under the second the moment there were two. Every group is
+  now hidden and the chosen one shown, and a selection belonging to the category
+  being left is cleared with its sheet rather than left on screen under a
+  dropdown that no longer offers it.
+
+### Fixed
+
+- **The `javaScriptArrays/.jpg` placeholder `src` is gone**, along with the
+  `javaScriptArrays/.js` reference beside it. Both files were deleted on
+  2026.09.09 in `cec3805` while the markup kept pointing at one, so loading the
+  page at all requested a file that answers 404 on the published site. The
+  endpoint is no `src` attribute rather than an empty one: the element is now a
+  container the page draws into, and there is no raster left for a `src` to
+  name.
+
+- **Four undeclared loop counters and one octal literal**, all of them forced
+  into the open by injecting payloads as modules. Module scope is strict mode,
+  so `for (i in cars)` in `max-and-min-function-and-sort-object.js` and
+  `for (i in one)` and `for (i in tempArr)` in `max-and-min-value-array.js`
+  stopped being global leaks and became `ReferenceError`s; the `optgroup` loop
+  in `index.html` went out with the `optgroup` itself. `sort-numbers-array.js`
+  carried the legacy octal literal `01`, which is a parse error in a module
+  rather than a run time one, so that payload would not have loaded at all. It
+  already evaluated to `1`, which is what it says now, in the payload and in
+  the document transcribed from it.
+
+- **The `XMLHttpRequest` probe is deleted rather than replaced**, which the
+  queued item's own last bullet named as the likelier ending. Composing the
+  sheet in the page removed the image request, so there is no response status
+  to read, no broken icon to pre-empt, and no stalled request to leave an empty
+  box behind. Three days of measurements - 09.08, 09.09, 09.10 - are kept in
+  the **Preview Links and Example Loading** prose, because they are what the
+  change of course was decided against.
+
+- `tools/test-page-structure-browser.mjs` and
+  `tools/test-theme-rendering-browser.mjs` serve `.mjs` as `text/javascript` and
+  `.json` as `application/json`. Their servers needed neither until the page
+  imported a module and fetched a manifest; a module script served as
+  `application/octet-stream` is refused outright, so without this the page under
+  test rendered nothing and eighteen browser cases timed out rather than one
+  saying why.
+
+- `tools/test-example-selection.mjs` is rewritten. It used to slice the page's
+  script out of the HTML and run it in a `node:vm` sandbox against a hand built
+  DOM, which is not possible for a module with imports and a top level `await`.
+  Ten cases that can be read off the source text still are, so a bare clone
+  holds the page to them; fourteen more drive a real engine, including one that
+  selects all eleven examples in turn and fails on any page error, which is what
+  the strict mode fixes above are held to. Hiding the previously shown
+  `optgroup` needs two categories and the catalog has one, so the test server
+  answers the manifest under `/two/` with the real eleven split across two
+  synthetic categories.
+
+- **Three migrated documents drew something the example does not do.**
+  `splicing-arrays` drew `fruits.splice(2, 2, "Lemon", "Kiwi")` returning
+  `['Apple']` and `sorting-arrays` drew `ONE[1].sort()` returning
+  `['Apple', 'Banana']`; both really return the two and four elements the
+  payload's own comment names. Each had lost the `(n)` element count that marks
+  every other shortened comment in the eleven as partial, so they read as
+  complete rather than as elided, and the console the page tells the reader to
+  open prints the real thing beside the sheet that disagreed.
+
+  `changing-elements` shortened a statement rather than a comment, which no
+  other document does: it declared `nestArrayToChange` with `[1.0, 2.0]` where
+  the example declares `[1.0, 2.0, 3.0, 4.0]`, and then drew
+  `console.log(nestArrayToChange[1])` giving `(4) [1, 22.2, 3, 4]` three rows
+  below. A reader typing what that sheet shows gets a two element array and a
+  two element log.
+
+  All three restored from the payload. Measured after: the same code cap, the
+  same 93.8%, 90.6% and 85.4% panel fill and `codeFits` still true on each, so
+  nothing was traded for the correction, and every statement the eleven draw is
+  now its payload's own line.
+
+- **A cheatsheet the reader moved on from no longer lands on top of the one
+  they chose.** `showSheet()` awaits the document and then its body, so the
+  order two documents answer in is not the order they were asked in: selecting
+  Sorting Arrays and then Splicing Arrays before the first answered left the
+  Sorting Arrays graphic in the frame under the name, the footnote and the
+  dropdown of Splicing Arrays. Reachable by arrowing through the list, since a
+  closed `select` fires `change` on every key. Each selection now carries a
+  token and every step past an await checks it, so an abandoned composition
+  draws nothing, and a late failure no longer takes down the sheet that
+  replaced it.
+
+- The suite is 352 cases, up from 343, all passing with a browser present.
+  Seven of the nine new cases need no browser; the two that do are the reserved
+  box measured while the document is still in flight, and the abandoned
+  selection above.
+
 ## [2026.09.23]
 
 ### Added

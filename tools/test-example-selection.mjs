@@ -556,6 +556,50 @@ test("nothing below the sheet moves while the graphic is still in flight", { ski
   assert.equal(landed.page, reserved.page, "the page grew when the graphic landed");
 });
 
+test("a selection the reader moved on from does not land on top of the one they made", { skip }, async () => {
+  // Two selections, the first of them slower than the second. `showSheet`
+  // awaits the document and then composes it, so nothing about the order the
+  // two answer in is the order they were asked in: the reader picks Sorting
+  // Arrays, picks Splicing Arrays before the first document answers, and the
+  // held back one lands last and overwrites the sheet they are actually
+  // looking at. The frame then holds one cheatsheet's graphic under another
+  // one's name, with a third still named in the dropdown.
+  //
+  // Held back here rather than through `/slow/`, which delays every document
+  // alike and so keeps the two in the order they were asked in.
+  const { page } = await openPage();
+  await page.route("**/sorting-arrays/sheet.json", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, SLOW_DOCUMENT_MS));
+    await route.continue();
+  });
+  const held = page.waitForResponse((response) =>
+    response.url().endsWith("/sorting-arrays/sheet.json")
+  );
+
+  await page.selectOption("#example", { label: "Sorting Arrays" });
+  await page.selectOption("#example", { label: "Splicing Arrays" });
+  await page.waitForSelector("#curCheatSheet > svg");
+  await held;
+  // The composition runs off the resolved document, so the overwrite lands a
+  // tick after the response rather than with it.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  const shown = await page.evaluate(() => ({
+    chosen: document.getElementById("example").selectedOptions[0].textContent,
+    label: document.getElementById("curCheatSheet").getAttribute("aria-label"),
+    drawn: document.querySelector("#curCheatSheet > svg > title")?.textContent,
+  }));
+  await page.close();
+
+  assert.equal(shown.chosen, "Splicing Arrays");
+  assert.equal(shown.label, "Splicing Arrays cheat sheet");
+  assert.equal(
+    shown.drawn,
+    "Splicing Arrays",
+    `the frame holds the ${shown.drawn} graphic under the ${shown.label} name`
+  );
+});
+
 test("selecting the blank option takes the sheet back down", { skip }, async () => {
   const { page } = await openPage();
   await page.selectOption("#example", { label: "Sorting Arrays" });

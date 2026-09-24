@@ -1,0 +1,32 @@
+{
+  "title": "Sorting Arrays",
+  "subtitle": "Sort and reverse, both of which edit in place",
+  "kind": "run",
+  "seed": "sorting-arrays",
+  "code": [
+    { "text": "var A = [\"Banana\", \"Orange\", \"Apple\", \"Mango\"];", "role": "identifier" },
+    { "text": "console.log(A.sort()); // (4) ['Apple', 'Banana', 'Mango', 'Orange']" },
+    { "text": "console.log(A.reverse()); // ['Orange', 'Mango', 'Banana', 'Apple']" },
+    { "text": "console.log(A); // (4) ['Orange', 'Mango', 'Banana', 'Apple']" },
+    { "text": "var b = A.sort();", "role": "identifier" },
+    { "text": "console.log(b); // (4) ['Apple', 'Banana', 'Mango', 'Orange']" },
+    { "text": "var c = A.reverse();", "role": "identifier" },
+    { "text": "console.log(c); // (4) ['Orange', 'Mango', 'Banana', 'Apple']" },
+    { "text": "" },
+    { "text": "var ONE = [", "role": "identifier" },
+    { "text": "[20, 0, 1, 1000], // IMPORTANT - mind sorting numbers" },
+    { "text": "[\"c\", \"b\", \"a\", 1]," },
+    { "text": "[\"Banana\", \"Orange\", \"Apple\", \"Mango\"]];" },
+    { "text": "ONE.sort();" },
+    { "text": "console.log(ONE[0]); // (4) [2, 0, 10, 3]" },
+    { "text": "console.log(ONE[1]); // (4) ['Banana', 'Orange', 'Apple', 'Mango']" },
+    { "text": "console.log(ONE[2]); // (3) ['c', 'b', 'a', 1]" },
+    { "text": "var b = ONE[0].sort(); console.log(b); // (4) [0, 1, 10, 2]", "role": "identifier" },
+    { "text": "var c = ONE[1].sort(); console.log(c); // (4) ['Apple', 'Banana', 'Mango', 'Orange']", "role": "identifier" },
+    { "text": "var d = ONE[2].sort(); console.log(d); // (3) [1, 'a', 'b', 'c']", "role": "identifier" },
+    { "text": "console.log(ONE[0]); // (4) [0, 1, 10, 2]" },
+    { "text": "console.log(ONE[1]); // (4) ['Apple', 'Banana', 'Mango', 'Orange']" },
+    { "text": "console.log(ONE[2].reverse()); // (3) ['c', 'b', 'a', 1]" },
+    { "text": "console.log(ONE[2]); // (3) ['c', 'b', 'a', 1]" }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "title": "Splicing Arrays",
+  "subtitle": "Remove, replace and insert in one call",
+  "kind": "run",
+  "seed": "splicing-arrays",
+  "code": [
+    { "text": "var fruits = [\"Banana\", \"Orage\", \"Apple\", \"Mango\"];", "role": "identifier" },
+    { "text": "console.log(fruits.splice(2, 2, \"Lemon\", \"Kiwi\")); // (2) ['Apple', 'Mango']" },
+    { "text": "console.log(fruits); // (4) ['Banana', 'Orage', 'Lemon', 'Kiwi']" },
+    { "text": "var trees = [\"Maple\", \"Spruce\", \"Palm\"];", "role": "identifier" },
+    { "text": "var treeCategories = trees.splice(3, 0, \"Birch\");", "role": "identifier" },
+    { "text": "console.log(trees); // (4) ['Maple', 'Spruce', 'Palm', 'Birch']" },
+    { "text": "var mapleTrees = [\"Silver\", \"Norway\", \"Bigleaf\"];", "role": "identifier" },
+    { "text": "mapleTrees = trees.splice(0, 1, mapleTrees);" },
+    { "text": "console.log(mapleTrees); // ['Maple']" },
+    { "text": "console.log(trees); // (4) [Array(3), 'Spruce', 'Palm', 'Birch'];" },
+    { "text": "var spruceTrees = [\"White\", \"Red\", \"Blue\"];", "role": "identifier" },
+    { "text": "trees.splice(0, 0, mapleTrees[0]);" },
+    { "text": "console.log(trees.splice(3, 0, spruceTrees)); // []" },
+    { "text": "var palmTrees = [\"Pindo\", \"Canary\", \"Foxtail\"];", "role": "identifier" },
+    { "text": "palmTrees = trees.splice(4, 1, palmTrees);" },
+    { "text": "console.log(palmTrees[0]); // Palm" },
+    { "text": "console.log(trees.splice(4, 0, palmTrees[0])); // []" },
+    { "text": "console.log(trees); // (7) ['Maple', Array(3), 'Spruce', Array(3)]" },
+    { "text": "console.log(trees[1]); // (3) ['Silver', 'Norway', 'Bigleaf']" },
+    { "text": "console.log(trees[3]); // (3) ['White', 'Red', 'Blue']" },
+    { "text": "console.log(trees[5]); // (3) ['Pindo', 'Canary', 'Foxtail']" }
+  ]
+}
