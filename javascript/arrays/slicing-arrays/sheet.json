@@ -1,0 +1,25 @@
+{
+  "title": "Slicing Arrays",
+  "subtitle": "Copy a range, and leave the original alone",
+  "kind": "run",
+  "seed": "slicing-arrays",
+  "code": [
+    { "text": "var A = [\"A\", \"B\", \"C\"];", "role": "identifier" },
+    { "text": "var b = A.slice(1,2);", "role": "identifier" },
+    { "text": "console.log(b); // ['B']" },
+    { "text": "" },
+    { "text": "var c = A.slice(1)", "role": "identifier" },
+    { "text": "console.log(c); // (2) ['B', 'C']" },
+    { "text": "console.log(c[0]); // B" },
+    { "text": "" },
+    { "text": "var ONE = [[0, 1, 2, 3], [\"i\", \"ii\"], \"III\", \"IV\"];", "role": "identifier" },
+    { "text": "var two = ONE.slice(0,2);", "role": "identifier" },
+    { "text": "console.log(two); // (2) [Array(4), Array(2)]" },
+    { "text": "console.log(two[0]); // (4) [0, 1, 2, 3]" },
+    { "text": "console.log(two[1][1]); // ii" },
+    { "text": "" },
+    { "text": "var three = ONE[0].slice(0, 3);", "role": "identifier" },
+    { "text": "console.log(three); // (3) [0, 1, 2]" },
+    { "text": "console.log(three[2]); // 2" }
+  ]
+}

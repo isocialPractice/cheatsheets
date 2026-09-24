@@ -1,0 +1,32 @@
+{
+  "title": "Max and Min Value Array",
+  "subtitle": "Read the ends after sorting a copy",
+  "kind": "run",
+  "seed": "max-and-min-value-array",
+  "code": [
+    { "text": "var A = [1,2500, 2, 50, 3, 33, 8, 73, 12];", "role": "identifier" },
+    { "text": "var b = [...A].sort(function(a,b) {return a - b;});", "role": "identifier" },
+    { "text": "var c = [...A].sort(function(a,b) {return b - a});", "role": "identifier" },
+    { "text": "" },
+    { "text": "console.log(b[0]); // 1" },
+    { "text": "console.log(c[0]); // 2500" },
+    { "text": "" },
+    { "text": "// FInd max and min in nested array.", "role": "comment" },
+    { "text": "var ONE = [[1,2500], [[2, 50], [3, 33]], 8, 73, 1200];", "role": "identifier" },
+    { "text": "/* 1. To string */  var one = ONE.toString();" },
+    { "text": "/* 2. make array */ one = one.split(\",\");" },
+    { "text": "/* 3. convert to number */ for (let i in one) one[i] = Number(one[i]);" },
+    { "text": "/* 4. Now same logic */ one.sort(function(a, b) { return a - b;});" },
+    { "text": "console.log(one[0]); // 1" },
+    { "text": "// Use as function", "role": "comment" },
+    { "text": "function unNestArray(arr) {", "role": "keyword" },
+    { "text": " let tempArr = arr.toString();", "role": "identifier" },
+    { "text": " tempArr = tempArr.split(\",\");" },
+    { "text": " for (let i in tempArr) tempArr[i] = Number(tempArr[i]);" },
+    { "text": " return tempArr; // could include sort function oupt max or min." },
+    { "text": "}" },
+    { "text": "var two = unNestArray(ONE);", "role": "identifier" },
+    { "text": "two.sort(function(a, b) { return b - a; });" },
+    { "text": "console.log(two[0]); // 2500" }
+  ]
+}

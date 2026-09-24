@@ -87,6 +87,11 @@ async function loadChromium() {
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  // The page imports `api/cheatsheet/` as a module and fetches its manifest,
+  // and a module script served as anything but a JavaScript media type is
+  // refused outright, so both belong in a map that used to need neither.
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".ico": "image/vnd.microsoft.icon",
@@ -185,20 +190,23 @@ const THEMES = [
 ];
 
 // A page with an example chosen, so the sheet is on screen and has a frame to
-// measure. Nothing about the frame can be read from the placeholder, which
+// measure. Nothing about the frame can be read from the empty one, which
 // ships hidden.
+//
+// The catalog wait is unconditional even when nothing is chosen: the dropdowns
+// are appended from `cheatsheets.json`, so a page read before that fetch has
+// answered has no `optgroup` and no option for the chrome cases below to
+// measure. `data-catalog` on the root is what the page sets when it has.
 async function openPage(theme, { choose = "Sorting Arrays" } = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
     colorScheme: theme.scheme,
   });
   await page.goto(site.base);
+  await page.waitForSelector('html[data-catalog="ready"]');
   if (choose) {
     await page.selectOption("#example", { label: choose });
-    await page.waitForFunction(() => {
-      const image = document.getElementById("curCheatSheetImg");
-      return image.complete && image.naturalWidth > 0;
-    });
+    await page.waitForSelector("#curCheatSheet > svg");
   }
   return page;
 }
@@ -218,7 +226,7 @@ for (const theme of THEMES) {
         footnote: read("#showFootNote", "color"),
         rule: read("hr", "borderTopColor"),
         panelFrame: read("div.tools", "borderTopColor"),
-        sheetFrame: read("div.col img", "borderTopColor"),
+        sheetFrame: read("div.col div.sheet", "borderTopColor"),
         dropdownGround: read("#category", "backgroundColor"),
         dropdownText: read("#category", "color"),
       };
@@ -394,7 +402,7 @@ for (const theme of THEMES) {
             `${style[`border${side}Color`]}`
         );
       };
-      return { panel: sides("div.tools"), sheet: sides("div.col img") };
+      return { panel: sides("div.tools"), sheet: sides("div.col div.sheet") };
     });
     await page.close();
 

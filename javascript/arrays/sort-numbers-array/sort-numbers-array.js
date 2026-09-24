@@ -9,7 +9,7 @@ console.log(B.reverse()); // ['w', 'b', 33, 25, 3, 2]
 
 
 var ONE = [
- ["one", "and", "two"], [0, 10, 01], [1, 2], [210, 10],
+ ["one", "and", "two"], [0, 10, 1], [1, 2], [210, 10],
  [23, 10, 3, 33], [20, 10], ["z", 2, 1, "a", 10]]; 
 ONE.sort(function(a, b) { // WOULD BE LAST VALUE OF ONE
  return a.sort(function(a, b) { return a - b; }) - 

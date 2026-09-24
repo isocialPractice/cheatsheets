@@ -1,0 +1,29 @@
+{
+  "title": "Shift And Unshift",
+  "subtitle": "Take from the front, and put back on it",
+  "kind": "run",
+  "seed": "shift-and-unshift",
+  "code": [
+    { "text": "var fruits = [\"apple\", \"orange\", \"bannana\", \"coconut\"];", "role": "identifier" },
+    { "text": "" },
+    { "text": "var x = fruits.shift();", "role": "identifier" },
+    { "text": "console.log(fruits); // orange, bannana, coconut" },
+    { "text": "console.log(x); // appple" },
+    { "text": "" },
+    { "text": "function showShift(onOff) {", "role": "keyword" },
+    { "text": " if (onOff == 0) {", "role": "keyword" },
+    { "text": "  console.log(fruits.shift()); // orange" },
+    { "text": "  console.log(x); // apple" },
+    { "text": "  console.log(fruits); // bannana, coconut" },
+    { "text": " } else {", "role": "keyword" },
+    { "text": "  var y = fruits.unshift(\"orange\");", "role": "identifier" },
+    { "text": "  console.log(y); // 3" },
+    { "text": "  console.log(x); // apple" },
+    { "text": "  console.log(fruits); // orange, bannana, coconut" },
+    { "text": " }" },
+    { "text": "}" },
+    { "text": "" },
+    { "text": "showShift(0);" },
+    { "text": "showShift(1);" }
+  ]
+}

@@ -7,7 +7,9 @@ Click the link below to preview in browser: **NOTE** \- *opens in current tab*. 
 **Download and Preview**<br>
 The terminal will output the examples illustrated from the social media cheat sheet posts.
 Download repo, start a localhost (php -S localhost:8000) and open in browser, follow the instructions on page, then open terminal to see the results.
-Opening `index.html` straight from disk works as well: the examples, the cheat sheet images and the console output all load from a `file://` URL.
+A local server is required rather than convenient. The page reads its catalog with
+`fetch` and imports the drawing surface as a module, and a browser refuses both to a
+`file://` document, so opening `index.html` straight from disk no longer works.
 
 **Source for Examples**
 The examples used are based on examples from:

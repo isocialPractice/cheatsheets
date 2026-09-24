@@ -22,5 +22,5 @@ cars.sort( function(a, b) {
    // else essentially 
     return 0;    });
 console.log(cars); // {type:"BMW", year:2010} {type:"Saab", year:2001} {type:"Volvo", year:2016}    
-for (i in cars) { console.log(cars[i].type + " " + cars[i].year); }
+for (let i in cars) { console.log(cars[i].type + " " + cars[i].year); }
 // BMW 2010, Saab 2001, Volvo 2016

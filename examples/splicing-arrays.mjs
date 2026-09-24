@@ -7,9 +7,14 @@
 // sheet through a second theme, so what changed is visibly the theme and not
 // the content.
 //
-// The code lines are the first eight statements of
-// `javaScriptArrays/SplicingArrays.js`, which is what the artwork shows, with
-// the blank rows kept. A blank row is not decoration: it occupies its slot
+// The code lines are the first eight statements of the example script, which
+// is what the artwork shows, with the blank rows kept. That script moved into
+// the catalog on 2026.09.24 and is now
+// `javascript/arrays/splicing-arrays/splicing-arrays.js`; the catalog's own
+// document for that folder is a separate transcription of the same payload, so
+// this file stays what it has always been - the artwork written out, with the
+// artwork's own title and the fixed figures the reproduction is pinned to.
+// A blank row is not decoration: it occupies its slot
 // exactly like an inked one, and the eleven are measured at 18 to 36 rows
 // counting them, so dropping the blanks would compose a sparser sheet than the
 // design language contains.

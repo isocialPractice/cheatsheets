@@ -1,0 +1,29 @@
+{
+  "title": "Concating Arrays",
+  "subtitle": "Join arrays without editing either one",
+  "kind": "run",
+  "seed": "concating-arrays",
+  "code": [
+    { "text": "var A = [\"square\", \"triangle\"]; var B = []; B = B.concat([0, 1]);", "role": "identifier" },
+    { "text": "var c = A.concat(B); console.log(c); // ['square', 'triangle', 0, 1]", "role": "identifier" },
+    { "text": "var d = c.concat([ [\"a\", \"b\", \"c\"] ]);", "role": "identifier" },
+    { "text": "console.log(d); // (5) ['square', 'triangle', 0, 1, Array(3)]" },
+    { "text": "var one = d.concat([2, 3].concat(4, 5));", "role": "identifier" },
+    { "text": "console.log(one); // (9) ['square', 'triangle', 0, 1, Array(3), 2, 3]" },
+    { "text": "var two = [[\"Array One\", one].concat(A), [\"Array Two\"]];", "role": "identifier" },
+    { "text": "console.log(two); // (2) [Array(4), Array(1)]" },
+    { "text": "// * NOTE - This will not change array two___", "role": "comment" },
+    { "text": "two.concat(B); console.log(two + \"\"); // ____* Same as above" },
+    { "text": "/* Instead use: */ two = two.concat(B);" },
+    { "text": "console.log(two); // (4) [Array(4), Array(1), 0, 1]" },
+    { "text": "var three = { \"I\": [\"I\"].concat(one), \"II\": [\"II\"].concat(two) };", "role": "identifier" },
+    { "text": "console.log(three); // {I: Array(10), II: Array(5)}" },
+    { "text": "three[\"III\"] = [three[\"I\"]].concat([three[\"II\"]]);" },
+    { "text": "console.log(three); // {I: Array(10), II: Array(5), III: Array(2)}" },
+    { "text": "console.log(three[\"II\"][1][1][4][2]); // c" },
+    { "text": "console.log( // I - a,b,c -- square" },
+    { "text": " three[\"I\"][0] + \" - \" +" },
+    { "text": " three[\"II\"][1][1][4] + \" -- \" +" },
+    { "text": " three[\"III\"][1][1][1][0]);" }
+  ]
+}

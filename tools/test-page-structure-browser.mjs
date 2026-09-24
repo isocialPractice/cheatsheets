@@ -24,12 +24,13 @@
 // The page is served over a throwaway node:http server on an ephemeral port,
 // so the checks need no `php -S`, no network and no dependency of their own.
 //
-// What is deliberately not here: the image loading states measured on
-// 2026.09.08, 09.09 and 09.10 - the broken icon, the file:// page, the stalled
-// request. Each needs its own origin, scheme or stalling server rather than a
-// viewport, and each belongs with **Replace the `XMLHttpRequest` probe** under
-// **Preview Links and Example Loading**, which is the item that changes the
-// code they describe.
+// What used to be deliberately absent here was the image loading states
+// measured on 2026.09.08, 09.09 and 09.10 - the broken icon, the file:// page,
+// the stalled request. None of them exists any more: the page composes its
+// sheet from a document rather than fetching a raster, so there is no image
+// request to break, to be refused, or to stall. The selection behaviour that
+// replaced them is in `tools/test-example-selection.mjs`, which drives the same
+// kind of server.
 //
 // Run with: node --test tools/test-page-structure-browser.mjs
 import { test, after } from "node:test";
@@ -95,6 +96,11 @@ async function loadChromium() {
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  // The page imports `api/cheatsheet/` as a module and fetches its manifest,
+  // and a module script served as anything but a JavaScript media type is
+  // refused outright, so both belong in a map that used to need neither.
+  ".mjs": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
   ".jpg": "image/jpeg",
   ".png": "image/png",
   ".ico": "image/vnd.microsoft.icon",
@@ -143,17 +149,21 @@ after(async () => {
   site?.server.close();
 });
 
-// A page with an example chosen, so the image is on screen and has a box to
-// measure. Nothing about the layout can be read from the placeholder, which
+// A page with an example chosen, so the sheet is on screen and has a box to
+// measure. Nothing about the layout can be read from the empty frame, which
 // ships hidden.
+//
+// Two waits rather than one, because the page now builds itself in two stages.
+// The dropdowns are appended from `cheatsheets.json`, so there is no option to
+// select until that fetch has answered - `data-catalog` on the root is what the
+// page sets when it has - and the graphic is composed from the chosen sheet's
+// own document, so the frame holds a reserved box before it holds any ink.
 async function openPage(width, height) {
   const page = await browser.newPage({ viewport: { width, height } });
   await page.goto(site.base);
+  await page.waitForSelector('html[data-catalog="ready"]');
   await page.selectOption("#example", { label: "Sorting Arrays" });
-  await page.waitForFunction(() => {
-    const image = document.getElementById("curCheatSheetImg");
-    return image.complete && image.naturalWidth > 0;
-  });
+  await page.waitForSelector("#curCheatSheet > svg");
   return page;
 }
 
@@ -163,26 +173,26 @@ function readLayout() {
   const columns = [...document.querySelectorAll("div.row > div.col")].map((column) =>
     column.getBoundingClientRect()
   );
-  const image = document.getElementById("curCheatSheetImg").getBoundingClientRect();
+  const sheet = document.getElementById("curCheatSheet").getBoundingClientRect();
   const body = document.body.getBoundingClientRect();
   const page = document.documentElement;
   return {
     twoColumns: Math.round(columns[0].top) === Math.round(columns[1].top),
     columnTops: columns.map((box) => Math.round(box.top)),
     panelRight: Math.round(columns[0].right),
-    imageLeft: Math.round(image.left),
-    imageInsideColumn:
-      image.left >= columns[1].left - 0.5 && image.right <= columns[1].right + 0.5,
+    sheetLeft: Math.round(sheet.left),
+    sheetInsideColumn:
+      sheet.left >= columns[1].left - 0.5 && sheet.right <= columns[1].right + 0.5,
     // How far the sheet's right edge stops short of its column's. Inside the
     // column is only half the question: the column takes whatever width the
     // row has left while the sheet is capped and left aligned, so the two can
     // agree on containment and still leave empty ground between them.
-    imageTrailingGap: Math.round(columns[1].right - image.right),
+    sheetTrailingGap: Math.round(columns[1].right - sheet.right),
     // The same two edges unreduced, because a difference of zero says the two
     // agree and not where they agreed.
-    imageRight: Math.round(image.right * 100) / 100,
+    sheetRight: Math.round(sheet.right * 100) / 100,
     columnRight: Math.round(columns[1].right * 100) / 100,
-    imageWidth: Math.round(image.width * 100) / 100,
+    sheetWidth: Math.round(sheet.width * 100) / 100,
     bodyWidth: Math.round(body.width * 100) / 100,
     bodyLeft: Math.round(body.left * 100) / 100,
     bodyMarginRight: Math.round((page.clientWidth - body.right) * 100) / 100,
@@ -198,12 +208,12 @@ test("the two columns start at the same height on a wide screen", { skip }, asyn
 
   assert.equal(layout.columnTops[0], layout.columnTops[1]);
   assert.ok(layout.twoColumns);
-  // The row's gap is the only thing between them, so the image starts one
+  // The row's gap is the only thing between them, so the sheet starts one
   // space-4 right of where the panel column ends.
-  const gap = layout.imageLeft - layout.panelRight;
+  const gap = layout.sheetLeft - layout.panelRight;
   assert.ok(
     gap >= 0 && gap <= 40,
-    `the image starts ${gap}px past the panel column, which is not beside it`
+    `the sheet starts ${gap}px past the panel column, which is not beside it`
   );
 });
 
@@ -224,21 +234,21 @@ test(
       if (previous !== null && layout.twoColumns !== previous) {
         transitions.push({ from: width + 1, to: width, twoColumns: layout.twoColumns });
       }
-      if (!layout.imageInsideColumn) escapes.push(width);
+      if (!layout.sheetInsideColumn) escapes.push(width);
       if (layout.overflow > 0) overflows.push(width);
       // Two columns only: below the breakpoint the sheet fills its column by
       // rule and there is nothing for this to catch. It was measured at 176px
       // on 2026.09.13 at every width from 1025px up, worst at exactly the
       // 1200px `body { max-width }` then carried.
-      if (width >= 769 && layout.imageTrailingGap > 32) {
-        stranded.push({ width, gap: layout.imageTrailingGap });
+      if (width >= 769 && layout.sheetTrailingGap > 32) {
+        stranded.push({ width, gap: layout.sheetTrailingGap });
       }
       previous = layout.twoColumns;
     }
     await page.close();
 
     assert.deepEqual(transitions, [{ from: 768, to: 767, twoColumns: false }]);
-    assert.deepEqual(escapes, [], "the image left its column at these widths");
+    assert.deepEqual(escapes, [], "the sheet left its column at these widths");
     assert.deepEqual(overflows, [], "the page scrolled sideways at these widths");
     assert.deepEqual(
       stranded,
@@ -265,14 +275,14 @@ test("the sheet ends exactly where its own column ends", { skip }, async () => {
 
   for (const row of measured) {
     assert.equal(
-      row.imageRight,
+      row.sheetRight,
       row.columnRight,
-      `at ${row.width}px the sheet ends at ${row.imageRight} and its column at ${row.columnRight}`
+      `at ${row.width}px the sheet ends at ${row.sheetRight} and its column at ${row.columnRight}`
     );
     assert.equal(
-      row.imageWidth,
+      row.sheetWidth,
       600,
-      `the sheet is ${row.imageWidth}px at ${row.width}px rather than its 600px cap`
+      `the sheet is ${row.sheetWidth}px at ${row.width}px rather than its 600px cap`
     );
   }
 });
@@ -345,6 +355,7 @@ test("the footnote is rendered, not merely styled, on the first selection", { sk
   // 2026.09.07 regression escaped through.
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   await page.goto(site.base);
+  await page.waitForSelector('html[data-catalog="ready"]');
   const display = () =>
     page.evaluate(() => getComputedStyle(document.getElementById("showFootNote")).display);
 
@@ -352,10 +363,14 @@ test("the footnote is rendered, not merely styled, on the first selection", { sk
   await page.selectOption("#example", { label: "Shift And Unshift" });
   assert.equal(await display(), "block");
 
-  // The same load answers the other question the stub cannot: the alt is read
-  // off the option's label by a real <select>, not by a hand built stand-in.
+  // The same load answers the other question the stub cannot: the accessible
+  // name is read off the option's label by a real <select>, not by a hand
+  // built stand-in. The frame is a container the page draws into rather than
+  // an image element, so the name is an aria-label where it used to be an alt.
   assert.equal(
-    await page.evaluate(() => document.getElementById("curCheatSheetImg").alt),
+    await page.evaluate(() =>
+      document.getElementById("curCheatSheet").getAttribute("aria-label")
+    ),
     "Shift And Unshift cheat sheet"
   );
   await page.close();

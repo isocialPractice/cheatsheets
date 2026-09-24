@@ -172,11 +172,11 @@ const PAIRS = [
     declaredBy: "div.tools",
   },
   {
-    what: "the frame around the cheatsheet image",
+    what: "the frame around the cheatsheet",
     fg: "--border",
     bg: "--page",
     floor: 3,
-    declaredBy: "div.col img",
+    declaredBy: "div.col div.sheet",
     why: "the sheet's own edges are the mark's navy and near white, so the page has to draw the boundary",
   },
   {
