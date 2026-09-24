@@ -11,26 +11,41 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Migrate the eleven array examples to `javascript/arrays/` under the new convention, as the acceptance test for the manifest pipeline
-  - The existing eleven must render with no hand edited HTML before any new category is added
-  - Each becomes `javascript/arrays/<kebab-name>/` holding a `sheet.json` and the example script the folder already has, with `meta.json` carrying the title at the category and group levels. `node tools/build-manifest.mjs --check` is what says the tree is right
-  - Watch the panel fill warning. Each of the eleven is a full sheet, so each should clear the 85% floor the eleven were measured at, and a migrated document that warns is a document that lost content on the way in
+- [ ] Add hash routing so a cheatsheet has a shareable link and preselects on load
+  - The page keys every option by its slug id now, so the fragment is that slug and needs no second naming scheme. `javascript/arrays/splicing-arrays` is what an option carries and what a link should carry
+  - Both dropdowns are built from the manifest before anything is selected, so a fragment read on load has a catalog to resolve against. Resolve it after the build rather than before, and fall back to the single category preselection when the fragment names nothing in the catalog
+  - Write the fragment on selection as well as read it on load, and leave the reader's own history usable: replacing the entry rather than pushing one keeps the back button on the page they arrived from
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [ ] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
+  - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
+  - The page reads `entry.kind` already and shows the footnote for `run` alone, so what is left here is the hard wired heading blurb and the "Press F12" step
   - From: Cheatsheet Catalog `->` Catalog Cleanup
-- [ ] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
-  - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
-  - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
-  - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Hide the previously shown `optgroup` when the category changes
-  - `selectCheatsheet()` only ever sets one to `display: block`, so with more than one category the example dropdown accumulates stale groups
-  - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Remove the injected `script` element from the previous selection before appending the next one, and inject with `type="module"`
-  - Each selection currently appends another `script` and never removes the last, so globals leak and collide between examples. `console.clear()` hides the symptom rather than the cause
-  - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Remove the `javaScriptArrays/.jpg` initial `src` the markup still ships, and the `javaScriptArrays/.js` reference beside it
-  - Both files were deleted on 2026.09.09 in `cec3805`, the image at 11,859 bytes, while `index.html` kept pointing at one. What the markup calls a placeholder is a live 404 on the published site, carried at `index.html` line 217
-  - The endpoint is no `src` attribute at all rather than an empty one, because the composed sheet replaces this element with a container the page injects an inline `svg` into. Doing both in one change is one edit rather than two, and there is no raster left for a `src` to name
-  - This is the item that makes the page import `api/cheatsheet/` for the first time. The composed box comes from the manifest entry's `width` and `height`, reserved before the sheet is composed into it
-  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [ ] Add the site link directly beneath the README's level 1 heading
+  - From: Preview Links and Example Loading
+- [ ] Note the CC0 1.0 license in `README.md`
+  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the two ported directories scoped out of the waiver, so this most likely wants checking off against the file rather than writing
+  - From: Repository Records
+- [ ] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
+  - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
+  - That sub-bullet came true on 2026.09.24 and the false sentence it was written against is already corrected, so what is left is whether the two routes read as two routes rather than as one paragraph with a warning bolted on
+  - From: Repository Records
+
+### UI/UX Override - the catalog driven page
+
+#### Found Issues
+
+- [ ] The longest example label is cut off in the control on a phone
+  - **Issue**: At 375px the example dropdown reads "Max and Min Function and Sort Obje", cut mid word with nothing to mark the cut, because a `select` computes `text-overflow: clip`. Measured in Chromium at 375x812: the control is 293px wide and spends 38px on its own padding, border and dropdown arrow, leaving 255px of text room against a label that needs 273px. At 1280px the same label fits with roughly a pixel to spare and reads in full, so this is the phone alone. It predates the catalog work - the same eleven labels sat in the hand maintained `optgroup` under the same `select` rules - so nothing regressed here, but nothing covers it either. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.09.24-light-phone-375x812-example-control.png`
+  - **Goal**: Give the control a legible way to run out of room. `text-overflow: ellipsis` on `select` at least marks the cut as a cut; letting the control take the panel's full measure below the breakpoint would avoid the cut outright. Pin whichever is chosen with the measurement above: at 1280px and at 375px, the widest option's text width must not exceed the control's own width less its padding, border and arrow. `tools/test-page-structure-browser.mjs` is where that belongs, beside the width scans it already runs
+  - From: UI/UX Override - the catalog driven page
+- [ ] The sheet's code is too small to read below the 768px breakpoint
+  - **Issue**: The code is drawn at 65.4 sheet pixels in a 3600px square composition, so a reader gets whatever the column scales that to. Measured at 1:1 device pixels: a 1280px viewport gives a 600px sheet and 10.89 CSS px of code, small but readable; 900px gives 476px and 8.64 CSS px; 768px gives 344px and 6.25 CSS px; 375px gives 343px and 6.23 CSS px, which reads as grey texture rather than as text. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.09.24-light-phone-375x812-sheet-code-1x.png`
+  - **Goal**: The queued **Raise the displayed sheet cap from 600 pixels to `min(100%, 900px)`** does not reach this, and that is the point of recording it here: `min(100%, 900px)` resolves to 100% at every width under 900px, so the phone gets exactly what it gets today. What the phone needs is the full size route that item already mentions, reachable from the sheet itself. Decide it alongside that item rather than after it
+  - From: UI/UX Override - the catalog driven page
+- [ ] The eleven examples are offered alphabetically rather than in the order the page taught them
+  - **Issue**: The hand maintained `optgroup` listed them Shift And Unshift, Changing Elements, Splicing Arrays, Concating Arrays, Slicing Arrays, Sorting Arrays, Sort Numbers Array, Compare Array Function, Random Sort Array, Max and Min Value Array, Max and Min Function and Sort Object: a progression from the simplest array edit to sorting objects by property. Built from `cheatsheets.json` they come out Changing Elements, Compare Array Function, Concating Arrays, Max and Min Function and Sort Object, Max and Min Value Array, Random Sort Array, Shift And Unshift, Slicing Arrays, Sort Numbers Array, Sorting Arrays, Splicing Arrays. All eleven labels are present and correct, so the migration held its own terms; what changed is that the first sheet a reader meets is now Changing Elements and the teaching order is gone
+  - **Goal**: No code change is needed. `byOrder` in `tools/build-manifest.mjs` already sorts by a declared `order` before falling back to the id, and `readLevel` already reads `order` from a folder's own `meta.json`; none of the eleven cheatsheet folders carries one, which is why the fallback decides. Add a `meta.json` holding `{ "order": n }` to each of the eleven in the order above, regenerate, and confirm with `node tools/build-manifest.mjs --check`
+  - From: UI/UX Override - the catalog driven page
 
 ## GitHub Pages Deployment
 
@@ -57,17 +72,18 @@ so relative paths resolve on their own.
 
 **Intent**: replace the preview workaround with the real site.
 
+**The image loading states this section spent three days measuring no longer
+exist**, and the dates are worth keeping because they are what the change of
+course was decided against. The probe was patched on 2026.09.08 to read
+`this.status` rather than the reason phrase, which HTTP/2 does not carry; the
+`file://` measurement on 09.09 found `fetch` and `XMLHttpRequest` refused
+alike, so the element was handed the sheet rather than told about it; and the
+09.10 measurement found a shown element with nothing decoded holding a zero
+height box until a stalled request timed out. On 2026.09.24 the page began
+composing its sheet from a document instead of fetching a raster, which
+removed the request all three were about.
+
 - [ ] Add the site link directly beneath the README's level 1 heading
-- [ ] Replace the `XMLHttpRequest` probe that decides a missing image from the response status with an `img.onerror` handler or a `fetch` response check
-  - The probe was patched on 2026.09.08 to read `this.status` instead of the reason phrase, which fixed the broken image icon on the published site but left the probe itself in place. Deleting it is still the endpoint, and this item and **Load the image only when an example is selected** under **Cheatsheet Images** are the two that do it
-  - The probe downloads each image twice, once here and once through the `<img>` element, which is roughly 4 MB per selection at current image sizes
-  - Whatever replaces it has to keep what the patch settled, and that constraint splits by which branch the probe took, because since 2026.09.10 the two branches decide differently. A probe that answers a non-2xx hides the image and the footnote together, a missing sheet meaning a missing example: `a missing cheatsheet image hides both the image and the footnote` in `tools/test-example-selection.mjs` holds that half. A probe that never answers hides neither. It hands the sheet to the image element, which shows it from its own `onload` once it has decoded one, and leaves the footnote to the example script that is fetched separately - `an unanswered probe hands the sheet over without rendering it`, `the image element shows itself once it has decoded the sheet` and `the image element hides itself when it cannot decode what got through` hold that half between them. A page opened as a `file://` URL still works, and it is the only route that reaches the unanswered branch by ordinary use
-  - The `fetch` half of this item is closed. The 2026.09.09 verification measured `fetch("javaScriptArrays/SortingArrays.jpg")` from a `file://` page and it throws `TypeError: Failed to fetch`, refused by the same CORS rule that refuses the `XMLHttpRequest`. A fetch response check would reintroduce the fault the 2026.09.09 entry fixed, so the `img.onerror` route is the only one of the two left
-  - Half the `img.onerror` handler already exists, added on 2026.09.09 to hide the element when it cannot decode what the probe let through. Deleting the probe means giving that handler the footnote and the missing sheet decisions the probe still holds, not writing it from nothing
-  - The blank first option requests `javaScriptArrays/.jpg`, and what that resolves to changed after it was measured. The 2026.09.08 verification found a committed 72x72 image of a single white pixel value answering 200 both locally and on the published site, so the empty selection took the found branch and left a 600x600 white square that showed nothing because it matched the page background, and it concluded that no dropdown option, blank included, resolves to a 404. That file was deleted the next day in `cec3805` while the markup kept the `src`, so the blank option now answers 404 and the missing sheet branch is reached by loading the page at all. A replacement written from the old conclusion is written against a measurement this repository has since invalidated
-  - A browser harness now exists, as `tools/test-page-structure-browser.mjs`, and deliberately covers none of the three rendered states this item turns on - the broken icon measured 2026.09.08, the `file://` page measured 2026.09.09, and the stalled request measured 2026.09.10. Each needs its own origin, scheme or stalling server rather than a viewport, so each belongs to whichever run replaces the probe, and the harness is there to build on. That file's header records the same boundary from its side
-  - Composing the sheet in the page removes the request this probes, so the port may close this item rather than the replacement handler doing it. The states measured below still describe what the page did and are the record either way
-  - The probe writes into the very console the footnote points the reader at, but only from a `file://` page. Measured 2026.09.09: one selection over http leaves the console holding the example's 17 lines and nothing else, while the same selection from a `file://` URL puts two Chromium errors ahead of them - the CORS refusal naming the image URL, and `Failed to load resource: net::ERR_FAILED` - once per selection. The page works either way; the reader following the instruction on screen meets two red lines first. Deleting the probe removes them
 
 ## Page Structure and Responsiveness
 
@@ -87,58 +103,48 @@ Nothing is outstanding here. Two suites hold what the section settled:
 
 ## Cheatsheet Catalog
 
-The category dropdown offers one option, and the inline configuration block
-selects it on load because it is the only one. Both branches of the
-`testEnvironment` condition now do the same thing apart from presetting an
-example, and the image element's initial `src` still names a placeholder file
-the folder no longer holds.
+The page builds both dropdowns from `cheatsheets.json` and composes the chosen
+sheet into a reserved box, so a cheatsheet is added by committing a folder and
+regenerating the manifest rather than by editing the markup. The category is
+selected on arrival only while exactly one exists; the `testEnvironment` block
+and the placeholder `src` beside it are both gone.
 
 **Intent**: let the page carry more than one cheatsheet without hand editing
 the configuration block for each.
 
-The manifest pipeline below is the one prerequisite for every item in **New
-Cheatsheets**. Half of it is in place: `tools/build-manifest.mjs` walks the
-tree, composes every `sheet.json` for its box, writes the committed
-`cheatsheets.json`, and gates the Pages deploy with `--check`. The catalog it
-walks is empty until the eleven array examples are migrated, and nothing reads
-the file yet - the page still carries its `optgroup` by hand, which is what the
-items below take out.
+The manifest pipeline is the one prerequisite for every item in **New
+Cheatsheets**, and as of 2026.09.24 it is in place end to end.
+`tools/build-manifest.mjs` walks the tree, composes every `sheet.json` for its
+box, writes the committed `cheatsheets.json`, and gates the Pages deploy with
+`--check`; the eleven array examples are migrated into `javascript/arrays/` and
+are what the walk finds; and `index.html` reads the file, keying each option by
+its slug id and taking every label from a manifest title, so no path is derived
+from display text anywhere. The page is a module and fetches its own catalog,
+which is what ended the `file://` route - **Repository Records** holds the
+README item that says so.
 
 ### The Manifest Pipeline
 
-- [ ] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
-  - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
-  - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
-- [ ] Hide the previously shown `optgroup` when the category changes
-  - `selectCheatsheet()` only ever sets one to `display: block`, so with more than one category the example dropdown accumulates stale groups
-- [ ] Remove the injected `script` element from the previous selection before appending the next one, and inject with `type="module"`
-  - Each selection currently appends another `script` and never removes the last, so globals leak and collide between examples. `console.clear()` hides the symptom rather than the cause
 - [ ] Add hash routing so a cheatsheet has a shareable link and preselects on load
 
 ### Catalog Cleanup
 
-- [ ] Select the category automatically only while exactly one exists, rather than naming it in the script
-- [ ] Remove the `testEnvironment` block, or reduce it to the one behavior that differs between its branches
-- [ ] Remove the `javaScriptArrays/.jpg` initial `src` the markup still ships, and the `javaScriptArrays/.js` reference beside it
-  - Both files were deleted on 2026.09.09 in `cec3805`, the image at 11,859 bytes, while `index.html` kept pointing at one. What the markup calls a placeholder is a live 404 on the published site, carried at `index.html` line 217
-  - The endpoint is no `src` attribute at all rather than an empty one, because the composed sheet replaces this element with a container the page injects an inline `svg` into. Doing both in one change is one edit rather than two, and there is no raster left for a `src` to name
 - [ ] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
   - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
-- [ ] Migrate the eleven array examples to `javascript/arrays/` under the new convention, as the acceptance test for the manifest pipeline
-  - The existing eleven must render with no hand edited HTML before any new category is added
+  - The page reads `entry.kind` already and shows the footnote for `run` alone, so what is left here is the hard wired heading blurb and the "Press F12" step
 
 ## Example Script Quality
 
 The example scripts are the repository's product: someone reads them to
 learn the method being demonstrated, so a wrong comment teaches the wrong
-thing. Several carry misspellings in the commented output, loop counters are
-declared without `let` or `var` in two places and leak to the global scope,
-and the file header comment is inconsistent across the folder.
+thing. Several carry misspellings in the commented output and the file header
+comment is inconsistent across the folder. The undeclared loop counters are
+fixed: the page injects every payload as a module, and module scope is strict
+mode, so an undeclared counter stopped being a leak and became a failure.
 
 **Intent**: make the examples correct as teaching material.
 
 - [ ] Correct the misspelled words in the commented output in `shiftAndUnshift.js`
-- [ ] Declare the loop counter with `let` in the `optgroup` loop in `index.html` and in the `for (i in cars)` loop in `MaxandMinFunctionandSortObject.js`
 - [ ] Fix the `CONGIF` misspelling in the `index.html` configuration comment
 - [ ] Give every example file the same header comment, or drop it from all of them
 - [ ] Check each example's commented output against what the script actually logs
@@ -185,9 +191,12 @@ commits none of it.
 
 ## Repository Records
 
-The repository has no contributing guidance, and the README describes the
-local preview but not the published site. The LICENSE is CC0 1.0 and is not
-mentioned anywhere in the README.
+The repository has no contributing guidance. The README has caught up with
+most of the rest: it links the published site, carries a **Licence** paragraph
+naming CC0 1.0 and the two ported directories scoped out of the waiver, and
+says that the page needs a server rather than working from disk. What is left
+here is whether a reader meets those facts in a usable order, and how someone
+adds a category.
 
 **Intent**: give the repository the records the automation and a reader both
 expect to find.
@@ -1254,5 +1263,40 @@ generate ideas about generating ideas.
 - [x] Run `--check` from a CI workflow that the Pages deploy job depends on, so a broken manifest cannot publish
   - Any new file under `.github/` needs `git add -f` on this machine, for the reason recorded in the archived Pages items
   - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Migrate the eleven array examples to `javascript/arrays/` under the new convention, as the acceptance test for the manifest pipeline
+  - The existing eleven must render with no hand edited HTML before any new category is added
+  - Each becomes `javascript/arrays/<kebab-name>/` holding a `sheet.json` and the example script the folder already has, with `meta.json` carrying the title at the category and group levels. `node tools/build-manifest.mjs --check` is what says the tree is right
+  - Watch the panel fill warning. Each of the eleven is a full sheet, so each should clear the 85% floor the eleven were measured at, and a migrated document that warns is a document that lost content on the way in
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [x] Build both dropdowns in `index.html` from `cheatsheets.json` rather than from a hand maintained `optgroup`
+  - Fetch the manifest by relative path so it resolves under the `/cheatsheets/` project base path
+  - Key each `option` by its slug id and take its label from the manifest title, so no path is ever derived from display text
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Hide the previously shown `optgroup` when the category changes
+  - `selectCheatsheet()` only ever sets one to `display: block`, so with more than one category the example dropdown accumulates stale groups
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Remove the injected `script` element from the previous selection before appending the next one, and inject with `type="module"`
+  - Each selection currently appends another `script` and never removes the last, so globals leak and collide between examples. `console.clear()` hides the symptom rather than the cause
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Remove the `javaScriptArrays/.jpg` initial `src` the markup still ships, and the `javaScriptArrays/.js` reference beside it
+  - Both files were deleted on 2026.09.09 in `cec3805`, the image at 11,859 bytes, while `index.html` kept pointing at one. What the markup calls a placeholder is a live 404 on the published site, carried at `index.html` line 217
+  - The endpoint is no `src` attribute at all rather than an empty one, because the composed sheet replaces this element with a container the page injects an inline `svg` into. Doing both in one change is one edit rather than two, and there is no raster left for a `src` to name
+  - This is the item that makes the page import `api/cheatsheet/` for the first time. The composed box comes from the manifest entry's `width` and `height`, reserved before the sheet is composed into it
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [x] Replace the `XMLHttpRequest` probe that decides a missing image from the response status with an `img.onerror` handler or a `fetch` response check
+  - Closed by deletion rather than by replacement, which this item's own last bullet named as the likelier ending: composing the sheet in the page removed the image request, so there is no response status to read and nothing for a probe to rule out. The `img` element the handler belonged to is gone with it
+  - What the probe was patched for is settled the same way. There is no broken icon, because nothing is fetched; no `file://` refusal, because the page does not run from `file://` at all; and no stalled request to leave an empty box, because the box is reserved from the manifest and filled by a synchronous composition
+  - From: Preview Links and Example Loading
+- [x] Select the category automatically only while exactly one exists, rather than naming it in the script
+  - Closed by **Build both dropdowns in `index.html` from `cheatsheets.json`**, which took the named category out and had to decide what replaced it. One category is selected on arrival because there is nothing to choose between; a second makes the choice the reader's
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [x] Remove the `testEnvironment` block, or reduce it to the one behavior that differs between its branches
+  - Removed rather than reduced. The one behavior that differed was presetting an example, and it differed by naming a literal the manifest now supplies, so there was nothing left in the block to keep
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [x] Declare the loop counter with `let` in the `optgroup` loop in `index.html` and in the `for (i in cars)` loop in `MaxandMinFunctionandSortObject.js`
+  - Forced by **Remove the injected `script` element from the previous selection**, which injects every payload with `type="module"`. Module scope is strict mode, so an undeclared counter is a `ReferenceError` at run time rather than a global leak
+  - Four counters rather than the two this item names. `max-and-min-value-array.js` carries two more, at `for (i in one)` and `for (i in tempArr)`, and the `optgroup` loop in `index.html` went out with the hand maintained `optgroup` itself
+  - One more strict mode refusal turned up beside them, and it is a parse error rather than a run time one: `sort-numbers-array.js` carried the legacy octal literal `01`, which a module refuses outright. It already evaluated to `1` in sloppy mode, so `1` is what it says now, in the payload and in the document transcribed from it
+  - From: Example Script Quality
 
 </details>
