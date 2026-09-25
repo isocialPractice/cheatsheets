@@ -34,6 +34,9 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 #### Found Issues
 
+- [ ] The assets are not being included in the cheatsheet composition
+  - **Issue**: The logo and footer asset are excluded
+  - **Goal**: Use the [`logo.svg`](assets/logo.svg) and [`footer`](assets/footer.png) assets in the cheatsheet composition
 - [ ] The longest example label is cut off in the control on a phone
   - **Issue**: At 375px the example dropdown reads "Max and Min Function and Sort Obje", cut mid word with nothing to mark the cut, because a `select` computes `text-overflow: clip`. Measured in Chromium at 375x812: the control is 293px wide and spends 38px on its own padding, border and dropdown arrow, leaving 255px of text room against a label that needs 273px. At 1280px the control is 310px, which leaves 272px against the same 273px: within a pixel of the boundary, and the capture shows it rendering in full, so this is the phone alone. It predates the catalog work - the same eleven labels sat in the hand maintained `optgroup` under the same `select` rules - so nothing regressed here, but nothing covers it either. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.09.24-light-phone-375x812-example-control.png`
   - **Goal**: Give the control a legible way to run out of room. `text-overflow: ellipsis` on `select` at least marks the cut as a cut; letting the control take the panel's full measure below the breakpoint would avoid the cut outright. Pin whichever is chosen with the measurement above: at 1280px and at 375px, the widest option's text width must not exceed the control's own width less its padding, border and arrow. `tools/test-page-structure-browser.mjs` is where that belongs, beside the width scans it already runs
