@@ -23,7 +23,7 @@ keys its entries by date, written `YYYY.MM.DD`.
 - [ ] Add the site link directly beneath the README's level 1 heading
   - From: Preview Links and Example Loading
 - [ ] Note the CC0 1.0 license in `README.md`
-  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the two ported directories scoped out of the waiver, so this most likely wants checking off against the file rather than writing
+  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the directories scoped out of the waiver, which **Depend on the napkin-sketch Package** changes from two ports to the vendored package and the ported helper, so this wants checking against the file as it stands when it is worked rather than writing
   - From: Repository Records
 - [ ] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
   - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
@@ -49,6 +49,63 @@ keys its entries by date, written `YYYY.MM.DD`.
   - **Issue**: The hand maintained `optgroup` listed them Shift And Unshift, Changing Elements, Splicing Arrays, Concating Arrays, Slicing Arrays, Sorting Arrays, Sort Numbers Array, Compare Array Function, Random Sort Array, Max and Min Value Array, Max and Min Function and Sort Object: a progression from the simplest array edit to sorting objects by property. Built from `cheatsheets.json` they come out Changing Elements, Compare Array Function, Concating Arrays, Max and Min Function and Sort Object, Max and Min Value Array, Random Sort Array, Shift And Unshift, Slicing Arrays, Sort Numbers Array, Sorting Arrays, Splicing Arrays. All eleven labels are present and correct, so the migration held its own terms; what changed is that the first sheet a reader meets is now Changing Elements and the teaching order is gone
   - **Goal**: No code change is needed. `byOrder` in `tools/build-manifest.mjs` already sorts by a declared `order` before falling back to the id, and `readLevel` already reads `order` from a folder's own `meta.json`; none of the eleven cheatsheet folders carries one, which is why the fallback decides. Add a `meta.json` holding `{ "order": n }` to each of the eleven in the order above, regenerate, and confirm with `node tools/build-manifest.mjs --check`
   - From: UI/UX Override - the catalog driven page
+
+### User Override - the napkin-sketch dependency
+
+Six items, in this order. The re-point needs the three before it: the layer's
+own measuring, its own paint check and the vendored build. The deletion waits
+on the fixture checks the re-point records, and the upstream reports need
+nothing from the others. The set carries over to the next run if it is not
+finished.
+
+- [ ] Give `api/cheatsheet/` its own run measurement, so no sheet run is measured or placed by the drawing API
+  - `compose.mjs` calls the port's `measureText` with a `face`, and the package's ignores it: at a 100 px size the lead-in measures 1573.33 through the package with or without the sheet face, and 1389.40 through the port with it. `MeasureOptions` in the package's `font.d.ts` is `fontSize`, `letterSpacing` and `wordSpacing`, and `layoutText` takes no face either
+  - Measure a run from the committed table in `faces.mjs` in a function the layer exports, with the arithmetic the port's `measureText` uses: each character's advance over units per em times the size, plus letter and word spacing, less the trailing letter space. `capThatFits` and `widestLine` read it, the `Face` typedef moves into `faces.mjs` because the package's types carry none, and nothing in the layer imports a measuring call from the drawing API
+  - Set `fontFamily` on every run from its face, place the wordmark, the title and the subtitle at `x` equal to the centre less half the measured width with `align: "left"`, and stop passing `face` on the element: the port's `svg.mjs` read `el.face` for the centring and for the `font-family` fallback, and the package's writer reads neither
+  - Measured on 2026.10.13 by doing exactly that to the fixture sheet's document by hand: 20 runs carry a face and 3 are centred, the centre less half the width agrees with the port's own layout on all 3, and the SVG matches `tools/fixtures/sheet.svg` byte for byte whether the port or the package writes it
+  - Acceptance: `tools/fixtures/sheet.svg` is byte-identical before and after, with the port still in place, and `tools/test-sheet-faces-browser.mjs` still draws every run within 0.29% of the table. `tools/fixtures/sheet.png.sha256` moves here and is re-pinned with `MCP_FIXTURE_UPDATE=1` once the diff is read: the port's rasterizer advanced its built-in glyphs by the face's widths and scaled them to its cap, no face reaches it after this, and the built-in route was never publishable. `tools/test-sheet-faces.mjs` keeps its cases about the table, moved onto the layer's function, and loses the ones about the built-in alphabet, which belong to the port and go with it
+  - From: Depend on the napkin-sketch Package
+- [ ] Carry the paint refusal in `api/cheatsheet/`, since the package's SVG writer does not
+  - Measured: `fill: "ofwhite"` is written into the markup by the package's `toSVG()` and refused only by `toPNG()`, with `unsupported color "ofwhite"`. The port refused it in both, and the reason stands: the page composes inline SVG and the rasterizer never runs there, so an unreadable paint is a black region with no error anywhere
+  - `composeSheet` checks every fill and stroke in the document it composed with the layer's own colour parser, and raises the message the port raised. `contrast.mjs` needs that parser too, because the package's root entry exports no `parseColor`. It reads the hex forms, since the 22 paints the design language and the worked example's theme declare are all hex, measured on 2026.10.13; it passes an unset paint and the do-not-paint values the port passed; and it refuses everything else
+  - Acceptance: `tools/fixtures/sheet.svg` is byte-identical, and a test composes a sheet through a theme carrying an unreadable paint and asserts the refusal names the paint
+  - From: Depend on the napkin-sketch Package
+- [ ] Vendor the published build into `api/napkin-sketch/` with `tools/vendor-napkin-sketch.mjs`, pinned by version and integrity
+  - `--pin <version>` reads the registry document, verifies the tarball's sha512 against `dist.integrity` with `node:crypto` before reading it, gunzips with `node:zlib`, reads the tar with a minimal ustar reader, and copies the root entry `dist/api/index.js`, the Node only `dist/graphic-design/files.js`, every chunk either imports transitively, the three `package.json` scope markers beside them, `LICENSE` and `THIRD-PARTY-NOTICES.md`, with the `dist/` prefix dropped so the entries' own relative imports resolve unchanged. Chunks are read from the entries' import specifiers rather than from a list, because their names are build hashes; at `1.0.0` that is five chunks, four for the root entry and one more for the files entry. Anything in the folder the pin did not write is deleted
+  - It records `api/napkin-sketch/PIN.json`: name, version, tarball URL, integrity, the two entry paths and a sha256 per vendored file. `--check` hashes the folder against that record with no network and exits non-zero on a file that differs, is missing or is unrecorded; the Pages manifest job runs it beside `build-manifest.mjs --check`, with no install step added
+  - Nothing is installed and nothing is shelled out to, so `php -S localhost:8000` and a bare clone's `node --test` keep working. Measured on 2026.10.13 with the `1.0.0` files laid out this way in a scratch folder: both entries load from relative paths with nothing installed. The scope markers sit under `api/napkin-sketch/`, never at `api/package.json`, which `tools/test-graphic-design-port.mjs` refuses while the port is present
+  - The alternatives were measured against the recorded decisions and refused: a `package.json` with `npm ci` makes Node mandatory and adds an install step; a CDN import reintroduces the kind of dependency the page shed on 2026.09.05; copying one chunk behind a hand written entry is a fork, since the chunk's exports are mangled names that change per build
+  - Record the weight on this item when it lands, gzipped at level 6: five files, 772,665 bytes and 273,169 gzipped at `1.0.0`, against 144,760 and 47,135 for the ten port modules the page loads today. The composition chunk alone is 112,842 and 41,985. That gap is what the upstream request below exists to close, and the figure is re-measured on every pin
+  - From: Depend on the napkin-sketch Package
+- [ ] Re-point every importer at the vendored entry, and keep the ported helper
+  - Measured on 2026.10.13: 38 tracked files name `api/graphic-design` outside the port, `TODO.md` and `CHANGELOG.md`, and 19 of them resolve it when they run. Re-point 18 of those: `api/cheatsheet/compose.mjs` and `contrast.mjs`; `examples/reproduce-sheet.mjs` and `restyle-sheet.mjs`; `tools/build-brand-resources.mjs`, `compose-language-asset.mjs`, `fixtures/shapes.mjs`, `measure-font-widths.mjs`, `test-brand-bridge.mjs`, `test-composition-algorithm.mjs`, `test-design-language-helper.mjs`, `test-render-fixture.mjs`, `test-sheet-faces.mjs`, `test-sheet-faces-browser.mjs` and `test-sheet-raster.mjs`; and the three scripts under `ai-helper/graphic-designer/skills/design-language/scripts/`. The nineteenth, `tools/test-graphic-design-port.mjs`, tests the port itself and goes with it in the next item. Grep before and after, for the path and for the path built from segments, rather than trusting this list
+  - Browser safe code imports `api/napkin-sketch/api/index.js` by relative path; Node only code imports `writeComposition` from `api/napkin-sketch/graphic-design/files.js` by relative path, and the page never reaches the second, which is the same boundary the port drew around `files.mjs`. No bare specifier anywhere, because nothing resolves one without `node_modules`
+  - Three names the package's root entry does not export are replaced rather than reached for: `parseColor` by the layer's parser from the paint item, and `escapeXml` and `isPng` by a line each in the tests that use them. The measuring calls that took a face are replaced by the layer's function from the measuring item, since the package's take none
+  - The ported helper stays and the package's copy is not used: the package resolves the API by package name with a clone's `dist/` as the fallback, and the port carries the walk-up loader, the brand bridge registration root and the `font-family` fix the package still lacks. `analyze-media.mjs` and `brand-resources.mjs` walk up for `api/napkin-sketch/api/index.js` instead, `CHEATSHEET_GRAPHIC_DESIGN_API` names it from outside the tree, and `tools/test-design-language-helper.mjs` asserts the new path where it asserted the old. The helper's eleven calls are all on the root entry: `createComposition`, `rasterizeComposition`, `renderPng`, `decodePng`, `layoutText`, `inlineSvg`, `placeBrand`, `brandMark`, `findBrandSlots`, `parseResources` and `descriptorFromFilename`
+  - The seven import lines in the helper's docs move in the same change, because a generated script copies them: two in `skills/design-language/SKILL.md`, two in `skills/design-language/scripts/template.md`, one in `skills/graphic-design-api/SKILL.md` and two in `skills/graphic-design-api/references/composition.md`
+  - Pin `actions/setup-node@v4` with `node-version: 22` in the Pages manifest job, because the package declares Node 22.12 or later and that job composes every sheet through it. `tools/test-build-manifest.mjs` already allows a setup-node step and refuses only an install
+  - Acceptance: `tools/fixtures/sheet.svg` and `sheet.png.sha256` hold, since the face left the renderer in the measuring item and the two renderers agree once it has; `shapes.svg` and `shapes.png` hold as well, measured on 2026.10.13 by building the shape fixture through the package's own `createComposition`; `node --test` is green on a bare clone with the port still present
+  - From: Depend on the napkin-sketch Package
+- [ ] Delete the port and rescope the records to the package
+  - Remove `api/graphic-design/`, thirteen modules of 6,240 lines and its `API.md`, and `tools/test-graphic-design-port.mjs`, 537 lines, in a commit of their own after the item above is green. The reference becomes the package's own composition pages on its documentation site, linked from the README
+  - `NOTICE` scopes `api/napkin-sketch/` out of the CC0 waiver as MIT, carrying the package's `LICENSE` text in full, and beside it the en-US hyphenation patterns notice from the package's `THIRD-PARTY-NOTICES.md`, because the chunks the page loads bundle those patterns. The same notices place `marked`, `marked-highlight` and `highlight.js` in the Markdown and Node entries, which are not vendored, so they are not carried. `ai-helper/graphic-designer/` keeps its paragraph as it stands
+  - `README.md` says the drawing surface is the published package at the pinned version, that `api/napkin-sketch/` is a vendored copy nothing here edits, how the pin is moved, and that nothing has to be installed; its **Where the Drawing Surface Came From**, **Drawing a Sheet** and **Licence** paragraphs change to match
+  - Every other tracked line that names `api/graphic-design`, or calls the drawing surface the port or ported, is rewritten: the files the re-point item leaves naming it in prose, a typedef or a comment, among them `DESIGN_LANGUAGE.md`, `examples/README.md`, `index.html`, the headers in `api/cheatsheet/`, the comments in `tools/` and the helper's own docs. A typedef that named a port module is dropped, since the vendored build carries no types. The helper's docs state the port's limits as the API's, and `skills/graphic-design-api/SKILL.md` says there are no gradients, filters or patterns; the package draws gradients and effects, so a limit that stays is stated as the design language's
+  - Verification: `git grep -n api/graphic-design` returns only `TODO.md` and `CHANGELOG.md`; `git grep -n -i -w -e ported -e "the port"` returns only those two and lines about the helper, which stays ported; `node --test` is green; the published site composes a sheet after the deploy
+  - From: Depend on the napkin-sketch Package
+- [ ] Take the barrel request and the two local corrections upstream
+  - Ask the upstream repository for a composition-only subpath entry, `./graphic-design` beside the existing `./graphic-design/files`, exporting what `dist/core/graphic-design/index.d.ts` already lists, so a browser that imports the composition API stops fetching the editor. It would also give back `parseColor`, `escapeXml` and `isPng`, which that list carries and the root entry leaves out. The measured difference is 273,169 bytes gzipped against 41,985 for the composition chunk alone. Record the issue URL on this item, and when a release carries the entry, move the pin, vendor that entry instead of the root, and re-measure
+  - Report the arc: upstream's path tokenizer does not list `A`, so `M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1 20 0` passes `toSVG()` with the arc in the markup and draws through `toPNG()` as a polyline of its parameters with no error, where the composition reference says arcs are unsupported. The port's `PATH_TOKEN` correction is the fix, and it is a one line change to `geometry.ts`
+  - Report the family: `analyze-media.mjs` matches a `font-family` attribute and a declaration with one pattern, so an escaped spaced family such as `&quot;Helvetica Neue&quot;` is reported as `&quot`. The `1.0.0` copy still carries the single pattern, read on 2026.10.13, and the port's correction is recorded in the ported helper's README
+  - These are reports and not patches to the vendored copy. Nothing under `api/napkin-sketch/` is ever edited; a fix arrives by moving the pin
+  - From: Depend on the napkin-sketch Package
+
+#### Found Issues
+
+- [ ] The 2026.09.20 changelog entry counts the arc refusal as the second local change to a ported module, and it was the third
+  - **Issue**: `CHANGELOG.md` under `2026.09.20` says `PATH_TOKEN` matching `A` and `a` "is the second local change to a ported module after `font.mjs`". Measured with `git log` on `api/graphic-design/` on 2026.10.13: `23d9239` made `svg.mjs` refuse a paint it cannot read on 2026.09.16, `81a5602` made `font.mjs` measure in a face on 2026.09.17, and `ae977a5` made `geometry.mjs` refuse the arc on 2026.09.20, so the arc was the third. The port section's prose carried the same count until **Depend on the napkin-sketch Package** replaced it with the measured order, and `api/graphic-design/API.md` still calls the face "the one local change to a ported module" but goes with the port, so this changelog sentence is the record left to correct
+  - **Goal**: The 2026.09.20 entry names the arc refusal as the third local change to a ported module, after the paint refusal of 2026.09.16 and the face of 2026.09.17. Nothing else in the entry changes
+  - From: User Override - the napkin-sketch dependency
 
 ## GitHub Pages Deployment
 
@@ -176,7 +233,7 @@ commits none of it.
   - WebP rather than JPEG specifically because these are text dense code renders, where WebP holds small glyph edges better at the same weight
   - Raise an individual render to quality 90 when its code is not legible, rather than raising its dimensions past 1400 pixels
 - [ ] Keep the eleven `javaScriptArrays` images as reference examples and say in the repository what they are
-  - They are what the ported API is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
+  - They are what a composed sheet is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
   - They stay as JPEG. Converting them buys nothing once no page weight depends on them, and re-encoding them re-keys the social ledger for eleven files that are not new content
   - `tools/test-sheet-composition.mjs` re-measures these exact files against the tables in `DESIGN_LANGUAGE.md`, so converting them would break the suite that holds the extraction
 - [ ] Write `tools/cheatsheet.mjs`, the command line that composes a sheet and renders it to a media file
@@ -196,7 +253,7 @@ commits none of it.
 
 The repository has no contributing guidance. The README has caught up with
 most of the rest: it links the published site, carries a **Licence** paragraph
-naming CC0 1.0 and the two ported directories scoped out of the waiver, and
+naming CC0 1.0 and the two directories scoped out of the waiver, and
 says that the page needs a server rather than working from disk. What is left
 here is whether a reader meets those facts in a usable order, and how someone
 adds a category.
@@ -234,9 +291,10 @@ item would otherwise be ambiguous once it is copied into `## Current`.
 - **Every cheatsheet folder holds a `sheet.json`**, the cheatsheet document
   the API composes the graphic from. The document is required; the demo
   payload is not. No folder commits a raster: the page composes its sheet in
-  the browser through `api/graphic-design/`, and a raster is rendered on
-  demand only when something outside the page asks for one, per **Raster
-  Export and Example Images**.
+  the browser through the napkin-sketch package vendored under
+  `api/napkin-sketch/`, and a raster is rendered on demand only when
+  something outside the page asks for one, per **Raster Export and Example
+  Images**.
 - **A category's design language is generated once and archived once.** The
   first item in a category composes the temporary SVG, measures it into
   `DESIGN_LANGUAGE-<category>.md`, and generates the skill that draws every
@@ -653,13 +711,13 @@ failure the asset exists to prevent.
 ### Rendering and Conversion
 
 **Both routes are in `api/cheatsheet/raster.mjs`**, which is Node only and kept
-out of the barrel for the same reason `files.mjs` is kept out of the port's. The
-caller names the route, the scale, the background and the format, and what comes
-back carries a `publishable` field: never true for the built-in route, which has
-no font file and strokes its own alphabet, and true for the browser route only
-at or above the scale floor. `auto` prefers the browser and records the reason
-when it falls back. PNG, JPEG and WebP only; GIF and TIFF are refused rather
-than substituted.
+out of the barrel for the same reason the package keeps `writeComposition`
+behind its own Node entry. The caller names the route, the scale, the background
+and the format, and what comes back carries a `publishable` field: never true
+for the built-in route, which has no font file and strokes its own alphabet, and
+true for the browser route only at or above the scale floor. `auto` prefers the
+browser and records the reason when it falls back. PNG, JPEG and WebP only; GIF
+and TIFF are refused rather than substituted.
 
 One figure was read carefully rather than copied. "A scale of 2 or 3" is device
 pixels per **display** pixel, and `scale` counts composition pixels, of which
@@ -687,137 +745,88 @@ rather than drifts.
 
 ## Port the napkin-sketch Graphic Design API
 
-A sibling repository already holds the drawing surface this roadmap was about
-to write from nothing. `napkin-sketch` carries a graphic design API at
-`src/core/graphic-design/`: 5,227 lines of TypeScript with no runtime
-dependencies, composing rectangles, circles, ellipses, triangles, polygons,
-lines, paths and text into one document and rendering it to SVG or to PNG.
-Porting a reduced version of it is less work than writing an SVG generator, and
-it arrives with its limits already documented.
+This section is finished and superseded. Between 2026.09.15 and 2026.09.21 the
+graphic design API of the sibling `napkin-sketch` repository was hand ported
+into `api/graphic-design/` as dependency free `.mjs`, verified against a bundle
+of the upstream TypeScript, recorded in `api/graphic-design/API.md`, pinned
+against committed fixtures, and followed in by the design language helper at
+`ai-helper/graphic-designer/`. Three behaviours were changed locally on the
+way, in this order: the SVG writer refuses a paint it cannot read, from
+2026.09.16; text is measured in an optional face, from 2026.09.17; and an
+elliptical arc in path data is refused, from 2026.09.20. The port stands at
+6,240 lines in thirteen modules, and the fourteen items that made it are
+archived under `## Complete` with this section's name on them.
 
-**Intent**: give this repository a drawing surface it did not write, in the
-form the page and the Node scripts can both import.
+The port was the interim reading of the user todo it fired on. On 2026.10.12
+the same API was published as `@isocialpractice/napkin-sketch`, and **Depend
+on the napkin-sketch Package** below replaces the port with that package,
+moves the three local changes into `api/cheatsheet/` or upstream, and deletes
+this directory. Nothing is queued here and nothing will be.
 
-The port is what the composition algorithm above calls and what the API below
-is a surface over, so it is worked before either.
+**Intent**: closed. The record of how the surface arrived is in the archived
+items; the record of how it is used now is the section below.
 
-**The surface itself is ported and now in the repository**, as 6,093 lines of
-dependency free `.mjs` under `api/graphic-design/`: `units`, `types`, `color`,
-`geometry`, `font`, `svg`, `compose`, `deflate`, `png`, `raster` and `brand`,
-with `canvas` dropped and a barrel over the rest. It landed at 5,899 and the
-figure has moved twice since, both times for a local edit rather than a
-re-port: the face-aware `font.mjs` on 09.17, and the barrel's header on 09.19
-recording why the Node only half is not exported from it. It is verified against a
-bundle of the upstream TypeScript rather than against a reading of it, and
-`tools/test-graphic-design-port.mjs` holds what porting cost. What is left
-below is everything the port did not settle by landing.
+## Depend on the napkin-sketch Package
 
-**The Node only half landed as `api/graphic-design/files.mjs`**, holding
-`writeComposition` alone: `imageDataUrl` and `mediaTypeOf` serve placed bitmaps
-and the design language allows none. It is deliberately not re-exported from the
-barrel, and the port's suite now holds that boundary from both sides - the
-barrel does not reach it, no browser-safe module reaches it transitively, and it
-imports `node:fs/promises` and `node:path` and nothing else.
+The drawing surface this repository ported is published now.
+`@isocialpractice/napkin-sketch` reached npm on 2026.10.12 at `1.0.0`, MIT,
+with no runtime dependencies, a browser safe root entry and the composition
+API among its exports. The port under `api/graphic-design/` was the interim
+reading of **When `napkin-sketch` has API ready, utilize it as a dependency to
+create new cheatsheets**; this section is the literal one. The package is
+pinned by version and integrity and vendored into `api/napkin-sketch/`, so the
+page still composes with no build step, a bare clone still passes `node --test`
+with nothing installed, and the Pages workflow still installs nothing.
 
-**The render is pinned against committed output**, in `tools/fixtures/` and
-`tools/test-render-fixture.mjs`. Two fixtures: a synthetic document exercising
-every element kind, a clip and a matrix, committed in both formats in full; and
-a real sheet at a named seed, whose SVG and variation report are committed in
-full and whose 930 KB raster is committed as a digest. Rendering twice in one
-process is checked beside them, but it is the weaker half - both renders come
-from the same loaded module, so only a file on disk catches a renderer that
-changed. `MCP_FIXTURE_UPDATE=1` rewrites the expectations once the new output
-has been read.
+**Intent**: draw every sheet through the published package rather than a copy
+of it, and write none of the drawing surface here.
 
-**The font metrics question is settled**, which was the largest of those and
-the one every composition item was waiting on. `font.mjs` now takes an optional
-face and measures in it, with the built-in alphabet as the default so omitting
-one reproduces the port exactly. The route taken was the committed width table
-rather than letting the browser break an unmeasured block, and the figures are
-in **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`. The one
-consequence for the items below: this is the first local change to a ported
-module, so a later diff against upstream reads `font.mjs` as upstream above the
-divider in its header and this repository's below it.
+Measured on 2026.10.13 against the `1.0.0` tarball, gzipped at level 6. Its
+root entry is five files, 772,665 bytes and 273,169 gzipped, against the ten
+port modules the page loads today at 144,760 bytes and 47,135 gzipped; one
+chunk of 112,842 bytes holds the composition renderers and the rest is the
+editor the root barrel pulls in with them. The renderer itself is the same:
+the shape fixture renders byte for byte through either, and so does the sheet
+fixture once the layer places its own text. What differs is local: the
+package's `measureText` ignores a face, its SVG writer passes an unreadable
+paint through, and its path reader draws an elliptical arc as nonsense rather
+than refusing it. Each of those has an item below.
 
-**The surface and its limits are recorded in `api/graphic-design/API.md`**,
-beside the barrel a caller imports, and the record is held honest rather than
-reviewed: `tools/test-graphic-design-port.mjs` fails on an export with no entry,
-on an entry naming a call the port does not have, and on a stated limit the port
-does not enforce.
-
-Writing it turned up a limit that was documented and not carried. An elliptical
-arc was **not** refused - upstream's path tokenizer does not list `A` among its
-command letters, so an arc was skipped by the scan and its seven parameters read
-as coordinates of the command before it. A path with two arcs leaves fourteen
-numbers, which divide evenly into pairs, so it parsed into a polyline of nonsense
-with no error at all; a path with one left an odd number over and raised
-`malformed path data`, naming the string rather than the command. Whether an
-unsupported arc was reported came down to arithmetic. `PATH_TOKEN` now matches
-the letter, which is the second local change to a ported module after
-`font.mjs`, and the case that used to assert the accidental behaviour now
-asserts the stated one.
-
-**The suite is run with a bare `node --test` from the repository root**, which
-is what settles the invocation for tests outside `tools/`: Node walks the tree
-from the working directory, so a test written beside the module it covers is
-found without the command changing. Both forms it replaced were wrong -
-`node --test tools/` resolves the folder as a CommonJS module and exits, and the
-glob form hands Node every `.mjs` in the folder, so it ran
-`measure-font-widths.mjs`, which exits non-zero without Playwright and therefore
-**failed the suite on exactly the bare clone the constraint was written for**.
-`tools/test-suite-invocation.mjs` records the decision and holds the naming the
-bare command depends on. Measured with Playwright hidden: 257 cases, 229 passed,
-28 skipped with the install command as their reason, none failed.
-
-**The worked examples are in `examples/`**: one document, composed through the
-recorded design language and then through a second theme, with
-`tools/test-worked-examples.mjs` checking the claims the README makes about
-them. The pair demonstrates that the two axes are independent - a theme moves
-every paint and not one coordinate, a seed moves geometry and no paint - by
-composing both and comparing rather than by saying so.
-
-**The brand bridge is `tools/build-brand-resources.mjs`**, which reads the
-declaration out of the constants file and writes a `resources.md` the helper's
-own parser reads correctly. All three faults are handled: the misspelled heading
-is matched within an edit distance of two rather than corrected, since a
-constants file is the user's; the asset folder is declared rather than the
-files, so a file's own name is the slot and a key normalizing to no known
-descriptor stops mattering; and only the brand section's lines are read, which
-matters most for the one stray key that is itself a directory key. It writes to
-`.claude/references/`, ignored, and prints the variable that points the helper
-at it.
-
-**The helper is ported too, which finishes this section.**
-`ai-helper/graphic-designer/` holds the two skills, the command, the contract
-file and the four scripts, at the same commit as the surface, and the README
-beside them records what changed on the way in. It landed at that path rather
-than anywhere else because upstream's own `graphic-design-api` skill already
-addressed a script through it, so one of the paths that had to be corrected was
-already correct.
-
-The three edits the item named were all needed. The API is resolved by walking
-up for `api/graphic-design/index.mjs` rather than by package name, which is what
-lets the copy of `brand-resources.mjs` inside a generated skill reach the same
-barrel from four folders down. The two `${CLAUDE_PLUGIN_ROOT}` paths in the
-command became repository paths, and a test now resolves every path the command
-names rather than trusting them. The installer and the plugin manifest did not
-come across.
-
-A fourth edit was not in the item and was load bearing anyway. The registration
-records its paths relative to the folder holding `references/`, and with the
-file in `.claude/references/` that folder is `.claude/` - so every path in it
-resolved one level too deep and found nothing. The brand file itself has the
-same shape and is searched for in the ignored folder first, which is what makes
-the bridge resolve with no environment variable set.
-
-**And one reading defect was found rather than reviewed.** `analyze-media.mjs`
-matched a `font-family` attribute and a `font-family` declaration with one
-pattern. They end differently - an attribute at its closing quote, a declaration
-at the `;` after it - and a family with a space in its name is escaped in the
-markup, so `&quot;Helvetica Neue&quot;` stopped the pattern four characters in
-and the family was reported as `&quot`. Not a name anything resolves, recorded
-in a design language as though measured. It is upstream's defect: every design
-tool that exports a spaced family hits it.
+- [ ] Give `api/cheatsheet/` its own run measurement, so no sheet run is measured or placed by the drawing API
+  - `compose.mjs` calls the port's `measureText` with a `face`, and the package's ignores it: at a 100 px size the lead-in measures 1573.33 through the package with or without the sheet face, and 1389.40 through the port with it. `MeasureOptions` in the package's `font.d.ts` is `fontSize`, `letterSpacing` and `wordSpacing`, and `layoutText` takes no face either
+  - Measure a run from the committed table in `faces.mjs` in a function the layer exports, with the arithmetic the port's `measureText` uses: each character's advance over units per em times the size, plus letter and word spacing, less the trailing letter space. `capThatFits` and `widestLine` read it, the `Face` typedef moves into `faces.mjs` because the package's types carry none, and nothing in the layer imports a measuring call from the drawing API
+  - Set `fontFamily` on every run from its face, place the wordmark, the title and the subtitle at `x` equal to the centre less half the measured width with `align: "left"`, and stop passing `face` on the element: the port's `svg.mjs` read `el.face` for the centring and for the `font-family` fallback, and the package's writer reads neither
+  - Measured on 2026.10.13 by doing exactly that to the fixture sheet's document by hand: 20 runs carry a face and 3 are centred, the centre less half the width agrees with the port's own layout on all 3, and the SVG matches `tools/fixtures/sheet.svg` byte for byte whether the port or the package writes it
+  - Acceptance: `tools/fixtures/sheet.svg` is byte-identical before and after, with the port still in place, and `tools/test-sheet-faces-browser.mjs` still draws every run within 0.29% of the table. `tools/fixtures/sheet.png.sha256` moves here and is re-pinned with `MCP_FIXTURE_UPDATE=1` once the diff is read: the port's rasterizer advanced its built-in glyphs by the face's widths and scaled them to its cap, no face reaches it after this, and the built-in route was never publishable. `tools/test-sheet-faces.mjs` keeps its cases about the table, moved onto the layer's function, and loses the ones about the built-in alphabet, which belong to the port and go with it
+- [ ] Carry the paint refusal in `api/cheatsheet/`, since the package's SVG writer does not
+  - Measured: `fill: "ofwhite"` is written into the markup by the package's `toSVG()` and refused only by `toPNG()`, with `unsupported color "ofwhite"`. The port refused it in both, and the reason stands: the page composes inline SVG and the rasterizer never runs there, so an unreadable paint is a black region with no error anywhere
+  - `composeSheet` checks every fill and stroke in the document it composed with the layer's own colour parser, and raises the message the port raised. `contrast.mjs` needs that parser too, because the package's root entry exports no `parseColor`. It reads the hex forms, since the 22 paints the design language and the worked example's theme declare are all hex, measured on 2026.10.13; it passes an unset paint and the do-not-paint values the port passed; and it refuses everything else
+  - Acceptance: `tools/fixtures/sheet.svg` is byte-identical, and a test composes a sheet through a theme carrying an unreadable paint and asserts the refusal names the paint
+- [ ] Vendor the published build into `api/napkin-sketch/` with `tools/vendor-napkin-sketch.mjs`, pinned by version and integrity
+  - `--pin <version>` reads the registry document, verifies the tarball's sha512 against `dist.integrity` with `node:crypto` before reading it, gunzips with `node:zlib`, reads the tar with a minimal ustar reader, and copies the root entry `dist/api/index.js`, the Node only `dist/graphic-design/files.js`, every chunk either imports transitively, the three `package.json` scope markers beside them, `LICENSE` and `THIRD-PARTY-NOTICES.md`, with the `dist/` prefix dropped so the entries' own relative imports resolve unchanged. Chunks are read from the entries' import specifiers rather than from a list, because their names are build hashes; at `1.0.0` that is five chunks, four for the root entry and one more for the files entry. Anything in the folder the pin did not write is deleted
+  - It records `api/napkin-sketch/PIN.json`: name, version, tarball URL, integrity, the two entry paths and a sha256 per vendored file. `--check` hashes the folder against that record with no network and exits non-zero on a file that differs, is missing or is unrecorded; the Pages manifest job runs it beside `build-manifest.mjs --check`, with no install step added
+  - Nothing is installed and nothing is shelled out to, so `php -S localhost:8000` and a bare clone's `node --test` keep working. Measured on 2026.10.13 with the `1.0.0` files laid out this way in a scratch folder: both entries load from relative paths with nothing installed. The scope markers sit under `api/napkin-sketch/`, never at `api/package.json`, which `tools/test-graphic-design-port.mjs` refuses while the port is present
+  - The alternatives were measured against the recorded decisions and refused: a `package.json` with `npm ci` makes Node mandatory and adds an install step; a CDN import reintroduces the kind of dependency the page shed on 2026.09.05; copying one chunk behind a hand written entry is a fork, since the chunk's exports are mangled names that change per build
+  - Record the weight on this item when it lands, gzipped at level 6: five files, 772,665 bytes and 273,169 gzipped at `1.0.0`, against 144,760 and 47,135 for the ten port modules the page loads today. The composition chunk alone is 112,842 and 41,985. That gap is what the upstream request below exists to close, and the figure is re-measured on every pin
+- [ ] Re-point every importer at the vendored entry, and keep the ported helper
+  - Measured on 2026.10.13: 38 tracked files name `api/graphic-design` outside the port, `TODO.md` and `CHANGELOG.md`, and 19 of them resolve it when they run. Re-point 18 of those: `api/cheatsheet/compose.mjs` and `contrast.mjs`; `examples/reproduce-sheet.mjs` and `restyle-sheet.mjs`; `tools/build-brand-resources.mjs`, `compose-language-asset.mjs`, `fixtures/shapes.mjs`, `measure-font-widths.mjs`, `test-brand-bridge.mjs`, `test-composition-algorithm.mjs`, `test-design-language-helper.mjs`, `test-render-fixture.mjs`, `test-sheet-faces.mjs`, `test-sheet-faces-browser.mjs` and `test-sheet-raster.mjs`; and the three scripts under `ai-helper/graphic-designer/skills/design-language/scripts/`. The nineteenth, `tools/test-graphic-design-port.mjs`, tests the port itself and goes with it in the next item. Grep before and after, for the path and for the path built from segments, rather than trusting this list
+  - Browser safe code imports `api/napkin-sketch/api/index.js` by relative path; Node only code imports `writeComposition` from `api/napkin-sketch/graphic-design/files.js` by relative path, and the page never reaches the second, which is the same boundary the port drew around `files.mjs`. No bare specifier anywhere, because nothing resolves one without `node_modules`
+  - Three names the package's root entry does not export are replaced rather than reached for: `parseColor` by the layer's parser from the paint item, and `escapeXml` and `isPng` by a line each in the tests that use them. The measuring calls that took a face are replaced by the layer's function from the measuring item, since the package's take none
+  - The ported helper stays and the package's copy is not used: the package resolves the API by package name with a clone's `dist/` as the fallback, and the port carries the walk-up loader, the brand bridge registration root and the `font-family` fix the package still lacks. `analyze-media.mjs` and `brand-resources.mjs` walk up for `api/napkin-sketch/api/index.js` instead, `CHEATSHEET_GRAPHIC_DESIGN_API` names it from outside the tree, and `tools/test-design-language-helper.mjs` asserts the new path where it asserted the old. The helper's eleven calls are all on the root entry: `createComposition`, `rasterizeComposition`, `renderPng`, `decodePng`, `layoutText`, `inlineSvg`, `placeBrand`, `brandMark`, `findBrandSlots`, `parseResources` and `descriptorFromFilename`
+  - The seven import lines in the helper's docs move in the same change, because a generated script copies them: two in `skills/design-language/SKILL.md`, two in `skills/design-language/scripts/template.md`, one in `skills/graphic-design-api/SKILL.md` and two in `skills/graphic-design-api/references/composition.md`
+  - Pin `actions/setup-node@v4` with `node-version: 22` in the Pages manifest job, because the package declares Node 22.12 or later and that job composes every sheet through it. `tools/test-build-manifest.mjs` already allows a setup-node step and refuses only an install
+  - Acceptance: `tools/fixtures/sheet.svg` and `sheet.png.sha256` hold, since the face left the renderer in the measuring item and the two renderers agree once it has; `shapes.svg` and `shapes.png` hold as well, measured on 2026.10.13 by building the shape fixture through the package's own `createComposition`; `node --test` is green on a bare clone with the port still present
+- [ ] Delete the port and rescope the records to the package
+  - Remove `api/graphic-design/`, thirteen modules of 6,240 lines and its `API.md`, and `tools/test-graphic-design-port.mjs`, 537 lines, in a commit of their own after the item above is green. The reference becomes the package's own composition pages on its documentation site, linked from the README
+  - `NOTICE` scopes `api/napkin-sketch/` out of the CC0 waiver as MIT, carrying the package's `LICENSE` text in full, and beside it the en-US hyphenation patterns notice from the package's `THIRD-PARTY-NOTICES.md`, because the chunks the page loads bundle those patterns. The same notices place `marked`, `marked-highlight` and `highlight.js` in the Markdown and Node entries, which are not vendored, so they are not carried. `ai-helper/graphic-designer/` keeps its paragraph as it stands
+  - `README.md` says the drawing surface is the published package at the pinned version, that `api/napkin-sketch/` is a vendored copy nothing here edits, how the pin is moved, and that nothing has to be installed; its **Where the Drawing Surface Came From**, **Drawing a Sheet** and **Licence** paragraphs change to match
+  - Every other tracked line that names `api/graphic-design`, or calls the drawing surface the port or ported, is rewritten: the files the re-point item leaves naming it in prose, a typedef or a comment, among them `DESIGN_LANGUAGE.md`, `examples/README.md`, `index.html`, the headers in `api/cheatsheet/`, the comments in `tools/` and the helper's own docs. A typedef that named a port module is dropped, since the vendored build carries no types. The helper's docs state the port's limits as the API's, and `skills/graphic-design-api/SKILL.md` says there are no gradients, filters or patterns; the package draws gradients and effects, so a limit that stays is stated as the design language's
+  - Verification: `git grep -n api/graphic-design` returns only `TODO.md` and `CHANGELOG.md`; `git grep -n -i -w -e ported -e "the port"` returns only those two and lines about the helper, which stays ported; `node --test` is green; the published site composes a sheet after the deploy
+- [ ] Take the barrel request and the two local corrections upstream
+  - Ask the upstream repository for a composition-only subpath entry, `./graphic-design` beside the existing `./graphic-design/files`, exporting what `dist/core/graphic-design/index.d.ts` already lists, so a browser that imports the composition API stops fetching the editor. It would also give back `parseColor`, `escapeXml` and `isPng`, which that list carries and the root entry leaves out. The measured difference is 273,169 bytes gzipped against 41,985 for the composition chunk alone. Record the issue URL on this item, and when a release carries the entry, move the pin, vendor that entry instead of the root, and re-measure
+  - Report the arc: upstream's path tokenizer does not list `A`, so `M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1 20 0` passes `toSVG()` with the arc in the markup and draws through `toPNG()` as a polyline of its parameters with no error, where the composition reference says arcs are unsupported. The port's `PATH_TOKEN` correction is the fix, and it is a one line change to `geometry.ts`
+  - Report the family: `analyze-media.mjs` matches a `font-family` attribute and a declaration with one pattern, so an escaped spaced family such as `&quot;Helvetica Neue&quot;` is reported as `&quot`. The `1.0.0` copy still carries the single pattern, read on 2026.10.13, and the port's correction is recorded in the ported helper's README
+  - These are reports and not patches to the vendored copy. Nothing under `api/napkin-sketch/` is ever edited; a fix arrives by moving the pin
 
 ## Implement Cheatsheet API
 
@@ -830,20 +839,21 @@ category.
 **Intent**: make a cheatsheet something a program composes rather than
 something a person captures.
 
-The port above is this section's prerequisite, along with the composition
-algorithm under **Cheatsheet Composition Language**. The drawing surface now
-exists and is ported, and what this section builds is the cheatsheet layer
-over it: the document, theme and layout models the ported API knows nothing
-about. `createComposition` and its element builders draw shapes; they have no
-notion of a term, a signature or a section.
+The drawing surface is this section's prerequisite, along with the
+composition algorithm under **Cheatsheet Composition Language**. The surface
+is the napkin-sketch package, per **Depend on the napkin-sketch Package**,
+and what this section builds is the cheatsheet layer over it: the document,
+theme and layout models the package knows nothing about. `createComposition`
+and its element builders draw shapes; they have no notion of a term, a
+signature or a section.
 
 ### The Core Model
 
 - [ ] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
 - [ ] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
-  - The roles resolve to concrete values through the ported `parseColor` and `formatColor`, so a theme and a rendered fill cannot disagree about what a color is
+  - The roles resolve to concrete values through the color parser `api/cheatsheet/contrast.mjs` carries, since the package's root entry exports none, so a theme and a rendered fill cannot disagree about what a color is
 - [ ] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
-- [ ] Map the layout model onto the ported element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
+- [ ] Map the layout model onto the package's element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
 - [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
 - [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
 
@@ -858,20 +868,20 @@ notion of a term, a signature or a section.
 
 ### Renderers and Output
 
-- [ ] Compose a document into a ported `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
+- [ ] Compose a document into a napkin-sketch `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
 - [ ] Render a document to an HTML fragment for embedding in a page
   - `toSVG()` already returns the string the page injects, so the fragment is a wrapper around it rather than a second renderer
 - [ ] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
-  - The port already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only `files.mjs` touches disk
+  - The package already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only its `graphic-design/files` entry touches disk
 - [ ] Take the raster route from the call rather than assuming one, and say which route produced a given file
-  - The ported `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
+  - The package's `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
 - [ ] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
-  - The ported `writeComposition(source, dir, name, options)` already covers the second and third
+  - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
 
 ### Embedding the API
 
-- [ ] Confirm the page imports `api/graphic-design/index.mjs` directly, with no build step between
-  - The port delivers the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
+- [ ] Confirm the page reaches the vendored `api/napkin-sketch/api/index.js` through `api/cheatsheet/`, with no build step and no install between
+  - The vendored build is the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
 - [ ] Expose a command line entry point that reads a document file and writes an output file, with the raster backend optional
   - SVG needs no browser and a raster does, which is the whole reason the backend is optional. `tools/cheatsheet.mjs` under **Raster Export and Example Images** is that entry point, and its flags are specified in `.claude/prompts/current-plan.prompt.md`
 - [ ] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
@@ -934,7 +944,7 @@ collector, so a page may use either and a site may use both.
 - [ ] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
   - The mechanism is now concrete: one document composes to `toSVG()`, and the page and the media file are two renders of it rather than two code paths
 - [ ] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
-  - The ported renderers import nothing from Node, so this is satisfied by the port rather than needing a second build of the API. It was speculative before the port settled it
+  - The package's root entry imports nothing from Node, measured on the five files the page loads, so this is satisfied by the dependency rather than needing a second build of the API. It was speculative before the port settled it
 - [ ] Generate a whole site - a menu and one page per entry - from a single JSON data file
 - [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
 - [ ] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
@@ -960,7 +970,7 @@ document by hand.
 - [ ] Generate a new section for an existing website, reusing the scripted tool's insertion points rather than a second mechanism
 - [ ] Generate a whole new site from one source, as the largest of the four outputs
 - [ ] Validate every generated document before rendering, so a malformed generation fails at the model rather than inside a renderer
-  - Validation has to know the ported limits, or a generated document can ask for what the renderer refuses: no gradients, filters or patterns, and no elliptical arc in path data
+  - Validation has to know the limits the design language and the package set, or a generated document can ask for what the renderer draws wrongly: an elliptical arc in path data, which the package draws as nonsense rather than refusing, and a paint its SVG writer passes through unread. The package draws gradients and effects now and the design language allows none, so the validator refuses those on the language's authority
 - [ ] Cache a fetched source by URL so repeated generations do not refetch it
 - [ ] State in the documentation what the helper does not do: it composes what the source carries, and does not invent reference content
 - [ ] Cover the helper with tests driven by recorded fixtures rather than live network calls
@@ -1011,7 +1021,7 @@ generate ideas about generating ideas.
 - [ ] Create 2 new ideas for **Repository Records**
 - [ ] Create 9 new ideas for **New Cheatsheets**
 - [ ] Create 6 new ideas for **Cheatsheet Composition Language**
-- [ ] Create 4 new ideas for **Port the napkin-sketch Graphic Design API**
+- [ ] Create 3 new ideas for **Depend on the napkin-sketch Package**
 - [ ] Create 7 new ideas for **Implement Cheatsheet API**
 - [ ] Create 8 new ideas for **Dedicated cheatsheet website**
 - [ ] Create 5 new ideas for **AI Helper API**

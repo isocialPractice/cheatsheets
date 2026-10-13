@@ -4,6 +4,46 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.13]
+
+### Changed
+
+- **The roadmap depends on the published napkin-sketch package rather than on
+  a copy of it.** The graphic design API this repository hand ported into
+  `api/graphic-design/` reached npm as `@isocialpractice/napkin-sketch` at
+  `1.0.0` on 2026.10.12. `TODO.md` gains **Depend on the napkin-sketch
+  Package**, six items that move the port's local changes into
+  `api/cheatsheet/` or upstream, vendor the pinned build into
+  `api/napkin-sketch/` with nothing installed, re-point every importer, delete
+  the port, and ask upstream for a composition-only entry. They are queued in
+  that order as a user override in `## Current`. No code changes yet.
+
+  Every figure the section states was measured against the `1.0.0` tarball
+  rather than carried over, and the one result its order depends on held:
+  with the three centred runs placed by the layer and the face dropped, the
+  committed sheet fixture comes out byte for byte through the port and through
+  the package alike, and so does the shape fixture.
+
+- **Port the napkin-sketch Graphic Design API is closed rather than renamed.**
+  Its prose becomes a short record of what the port was and what replaces it,
+  and the fourteen archived items that name it keep their `From:` lines. The
+  nineteen lines elsewhere in `TODO.md` that described the port as the live
+  surface are rewritten against the package, and **Create New Ideas** asks for
+  three ideas for the new section instead of four for the closed one.
+
+### Fixed
+
+- **The port's line count had gone stale, and its history had a gap.** The
+  port's section said 6,093 lines and that the figure "has moved twice since"
+  it landed at 5,899. That was the twelve browser safe modules on 2026.09.19,
+  but the figure had moved three times by then, on 09.16, 09.17 and 09.19, and
+  the arc correction on 09.20 moved it to 6,137 without the section following.
+  The closed section states 6,240, all thirteen modules with `files.mjs`, and
+  the order of the three local changes as `git log` records it. The 2026.09.20
+  entry below repeats the miscount, calling the arc refusal the second local
+  change to a ported module when it was the third; that sentence is queued as
+  a found issue rather than corrected here.
+
 ## [2026.09.24]
 
 ### Added
