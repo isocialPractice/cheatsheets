@@ -4,6 +4,190 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.14]
+
+### Added
+
+- **A cheatsheet carries its brand assets.** `assets/logo.svg` and
+  `assets/footer.png` were committed on 2026.09.24 and nothing composed
+  reached them: the masthead set a lone wordmark centred on the canvas axis,
+  and the footer drew a bare navy rectangle where the artwork's lockup goes.
+  Both slots now take the real asset, through a new `api/cheatsheet/brand.mjs`
+  and a `brand` option on `composeSheet`.
+
+  Both slot boxes were measured off `javaScriptArrays/SplicingArrays.jpg` by
+  scanning for the mark's own green, and are recorded as `BRAND_SLOTS` in
+  `language.mjs` and in **The two places a sheet carries an asset rather than
+  shapes** in `DESIGN_LANGUAGE.md`. The masthead mark occupies x 2182 to 2634
+  and y 132 to 374 - 452 by 242, at the wordmark's own ink top, 305 px past the
+  end of the wordmark's text. The footer strip takes the band less the right
+  margin, 0 to 3312, where its text sets at the 154 px cap the follow line
+  measures.
+
+  That also settled what `RUNS.wordmark` records. Its `left` of 550 and `width`
+  of 2084 reach 2634, which is the **lockup** - the wordmark and the mark
+  together - and not the text alone, which is 1327 px wide. `compose.mjs` had
+  recorded the lockup's 208 px offset from the canvas axis, inferred a second
+  element that would make the pair centred, and declined to reproduce the
+  offset without it. The element is real; the inference was not. Nothing in
+  that masthead is centred, and a generated sheet centres the lockup anyway,
+  for the reason the file already gave for the lone wordmark.
+
+  A sheet composes without a brand exactly as it did before - every slot falls
+  back to what it drew - which is what keeps `tools/fixtures/sheet.svg` pinned
+  byte for byte. A document that names its own `followLine` keeps the drawn
+  footer, because the strip carries fixed text.
+
+- **The composed sheet has a route to its own full size, and a bigger cap to
+  start from.** The displayed cap moves from 600 px to `min(100%, 900px)`, and
+  the page's measure moves with it from 1024 to 1324 - the two are one figure,
+  since a 900 px cap inside a 1024 px page is a 600 px sheet capped by its
+  column. Under 900 px that cap resolves to 100%, so a phone gets what it
+  always got: the code is drawn at 65.4 sheet pixels in a 3600 px square, which
+  is 6.23 CSS px at 375 px and reads as grey texture rather than as text. A
+  link under the sheet opens the composition in a tab of its own, at its own
+  3600 px, from a blob of the markup already in memory - no second request and
+  no raster.
+
+- **`tools/vendor-napkin-sketch.mjs`**, which pins a published release of the
+  drawing surface into `api/napkin-sketch/`. `--pin <version>` verifies the
+  tarball against the registry's own SHA-512 before it gunzips a byte, reads
+  the ustar archive, walks the two entries' import specifiers to find the
+  chunks they reach, drops the `dist/` prefix so every relative import resolves
+  unchanged, deletes anything the pin did not write, and records a SHA-256 per
+  file in `api/napkin-sketch/PIN.json`. `--check` hashes the folder against
+  that record with no network, and the Pages workflow runs it beside the
+  manifest check.
+
+  The chunks are read from the entries rather than from a list because their
+  names are build hashes, so a list would silently vendor the wrong set on the
+  next release. At `1.0.0` that is five chunks, four from the root entry and
+  one more from the Node only file writer.
+
+### Changed
+
+- **`api/cheatsheet/` measures its own runs.** The layer carries a `Face`
+  typedef and a `measureRun` of its own, reading the committed width table with
+  the arithmetic the drawing surface used, and nothing here asks that surface
+  how wide anything is any more. Every run reaches it as a `font-family` and an
+  `x`: the three centred runs are placed at the centre less half the measured
+  width and set left aligned, because the published surface reads neither a
+  face on an element nor a width table in its measuring options.
+
+  `tools/fixtures/sheet.svg` is byte identical across the change.
+  `sheet.png.sha256` is not, and that is the whole of what moved: with no face
+  reaching it, the built-in rasterizer advances its single stroke alphabet by
+  its own widths, so runs are about half again as wide and the follow line runs
+  off the canvas. That route was never the publishable one -
+  `api/cheatsheet/raster.mjs` is - and what the digest pins is the geometry,
+  the paints and the element set.
+
+- **The paint refusal is the layer's, with a colour reader to match.**
+  `composeSheet` reads every fill and stroke of the document it composed and
+  raises on one no renderer can read, quoting it. Measured on 2026.10.13:
+  `fill: "ofwhite"` is written straight into the markup by the package's
+  `toSVG()` and refused only by its `toPNG()` - and the page composes inline
+  SVG and never rasterizes, so an unreadable paint would be a black region with
+  no error anywhere. `parseSheetColor` reads the hex forms and nothing else,
+  which is every one of the 22 paints the design language and the worked
+  example's theme declare.
+
+- **The drawing surface is a vendored copy of the published package.**
+  `api/napkin-sketch/` holds `@isocialpractice/napkin-sketch@1.0.0` - two
+  entries, five chunks, three scope markers and the package's own licence and
+  notices - and every importer points at it. The page downloads 772,665 bytes,
+  273,169 gzipped at level 6, where the ten port modules it loaded were 144,760
+  and 47,135. Closing that gap is what the upstream request below is for.
+
+  Nothing in that folder is edited; a fix arrives by moving the pin. The Pages
+  manifest job pins `actions/setup-node@v4` at Node 22, because the package
+  declares 22.12 or later and that job composes every sheet through it. Nothing
+  is installed, so `php -S localhost:8000` and a bare clone's `node --test`
+  both still work.
+
+- **The eleven examples are offered in the order the page taught them**, from
+  the simplest array edit to sorting objects by property. Built from
+  `cheatsheets.json` they came out alphabetically, so the first sheet a reader
+  met was Changing Elements and the teaching order was gone. Each of the eleven
+  folders gains a `meta.json` carrying its `order`; `byOrder` in
+  `tools/build-manifest.mjs` already read one and the fallback to the id was
+  what decided.
+
+- **The widest example label fits the control it is offered in.** At 375 px the
+  dropdown read "Max and Min Function and Sort Obje", cut mid word with nothing
+  marking the cut. Measured in Chromium: the label sets at 273.02 px, a select
+  spends 18 px on padding and border and 18.98 px on its dropdown arrow, so the
+  control needs 310 px to the pixel - and had 310 at 1280 px and 293 at 375 px.
+  The control now takes the panel's whole measure, the panel pads a step
+  tighter at each end, and `text-overflow: ellipsis` marks a cut under about
+  360 px where no padding leaves 310. `tools/test-page-structure-browser.mjs`
+  pins both widths and measures the arrow rather than quoting it.
+
+- **The brand bridge resolves a rooted path against the repository.**
+  `- logo: /assets/logo.svg` in a constants file is a link as a reader writes
+  one, and reading it as a filesystem path sent it to the drive root. From
+  2026.09.24, when the two assets were committed, the bridge reported both as
+  missing while the files sat in the tree it was reading from, and two suite
+  cases had been failing on it.
+
+### Removed
+
+- **The hand port of the graphic design API**, `api/graphic-design/`: thirteen
+  modules of 6,240 lines, its `API.md`, and the 537 line
+  `tools/test-graphic-design-port.mjs` that held it against upstream. The
+  published package replaces it, and the project's own documentation site
+  replaces the reference. `NOTICE` scopes `api/napkin-sketch/` out of the CC0
+  waiver in its place, carries the package's MIT text in full, and adds the
+  en-US hyphenation patterns notice, which is the one third-party notice the
+  vendored chunks actually reach.
+
+### Fixed
+
+- **The 2026.09.20 entry below counted the arc refusal as the second local
+  change to a ported module, and it was the third.** Measured with `git log`:
+  the paint refusal in `svg.mjs` landed 2026.09.16, the face in `font.mjs`
+  2026.09.17, and the arc in `geometry.mjs` 2026.09.20.
+
+- **The new `.js` media type case measured a path no commit since 2026.09.24
+  contains.** `tools/test-pages-media-type.mjs` asked the live site for
+  `javaScriptArrays/ChangingElements.js` and two beside it. Those are where the
+  eleven examples lived until they moved into `javascript/arrays/<slug>/`, and
+  that folder has held only its `.jpg` reference images since. The case passed
+  because the deploy was behind and the old names still answered; the moment it
+  caught up all three would have 404'd and the case would have skipped for
+  good, taking with it the one measurement the vendored `.js` surface rests on.
+  The candidates are the migrated payloads now, and a case with no network of
+  its own asserts every candidate in both lists is in the tree - a 404 means
+  "the deploy has not run yet", which reads identically to a path that is never
+  coming.
+
+- **`tools/vendor-napkin-sketch.mjs` wrote a vendored file wherever its path
+  pointed.** Both halves of that path are the tarball's to choose: it names its
+  own entries, and the modules in it name their own imports. A chunk importing
+  `"../../../../../x.js"` normalizes above `package/`, and an archive carrying
+  an entry at that name handed the copy a file to write there - the `..`
+  segments survived both prefix strips and landed outside
+  `api/napkin-sketch/`. The integrity digest does not reach this: it proves the
+  bytes are the ones the registry published, which says nothing about where
+  their paths point. `vendoredName` now refuses a `..` segment, before the
+  first write, so a pin that stops there leaves nothing half applied.
+
+### Reported upstream
+
+- Three reports against `@isocialpractice/napkin-sketch`, each measured against
+  `1.0.0` rather than remembered:
+  - [#10](https://github.com/isocialPractice/napkin-sketch/issues/10) asks for
+    a composition-only subpath entry, which would also give back `parseColor`,
+    `escapeXml` and `isPng`. The composition chunk is 41,985 gzipped against
+    the 273,169 the root entry reaches.
+  - [#11](https://github.com/isocialPractice/napkin-sketch/issues/11) reports
+    that an elliptical arc draws as a polyline of its own parameters with no
+    error, byte for byte identical to drawing those numbers as a polyline,
+    where the reference says arcs are unsupported.
+  - [#12](https://github.com/isocialPractice/napkin-sketch/issues/12) reports
+    that the helper's `analyze-media.mjs` reads an escaped spaced family as
+    `&quot`, because one pattern serves an attribute and a declaration.
+
 ## [2026.10.13]
 
 ### Changed
@@ -518,7 +702,8 @@ The date of the change is the version, written `YYYY.MM.DD`.
   - Measured with Playwright hidden: 257 cases, 229 passed, 28 skipped with the
     install command as their reason, none failed.
 - `PATH_TOKEN` in `api/graphic-design/geometry.mjs` matches `A` and `a`, which
-  is the second local change to a ported module after `font.mjs`. Writing the
+  is the third local change to a ported module, after the paint refusal in
+  `svg.mjs` on 2026.09.16 and the face in `font.mjs` on 2026.09.17. Writing the
   API reference turned up that the arc limit was documented and not carried:
   upstream's tokenizer does not list the arc among its command letters, so an
   `A` matched neither alternative, was skipped by the scan entirely, and its
