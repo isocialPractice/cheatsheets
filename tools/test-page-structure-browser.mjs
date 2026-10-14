@@ -261,13 +261,17 @@ test(
 test("the sheet ends exactly where its own column ends", { skip }, async () => {
   // The scan above allows one space-4 of slack, which is the right tolerance
   // for a sweep of 921 widths and the wrong one for the claim itself: the
-  // 1024px maximum content width is the row's own measure - 360 for the panel,
-  // a space-4 gap, 600 for the sheet, a space-2 gutter each side - so above
-  // 1024px the two edges are not merely close, they are the same number. They
+  // 1324px maximum content width is the row's own measure - 360 for the panel,
+  // a space-4 gap, 900 for the sheet, a space-2 gutter each side - so above
+  // 1324px the two edges are not merely close, they are the same number. They
   // were as much as 176px apart until 2026.09.14.
-  const page = await openPage(1280, 900);
+  //
+  // Both figures moved on 2026.10.14 when the cap was raised from 600 to 900,
+  // and they moved together on purpose: a 900px cap inside a 1024px page is a
+  // 600px sheet capped by its column, which is the cap it already had.
+  const page = await openPage(1600, 900);
   const measured = [];
-  for (const width of [1280, 1200, 1100, 1025, 1024]) {
+  for (const width of [1600, 1500, 1400, 1325, 1324]) {
     await page.setViewportSize({ width, height: 900 });
     measured.push({ width, ...(await page.evaluate(readLayout)) });
   }
@@ -281,8 +285,8 @@ test("the sheet ends exactly where its own column ends", { skip }, async () => {
     );
     assert.equal(
       row.sheetWidth,
-      600,
-      `the sheet is ${row.sheetWidth}px at ${row.width}px rather than its 600px cap`
+      900,
+      `the sheet is ${row.sheetWidth}px at ${row.width}px rather than its 900px cap`
     );
   }
 });
@@ -292,16 +296,16 @@ test("the page holds its measure and stays centred on a wide screen", { skip }, 
   // so this is the other half of the same change: the cap has to hold, and the
   // page has to keep sitting in the middle of whatever window it is given
   // rather than against one edge of it.
-  const page = await openPage(1280, 900);
+  const page = await openPage(1600, 900);
   const measured = [];
-  for (const width of [1024, 1025, 1100, 1280, 1440, 1920]) {
+  for (const width of [1324, 1325, 1400, 1600, 1800, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     measured.push({ width, ...(await page.evaluate(readLayout)) });
   }
   await page.close();
 
   for (const row of measured) {
-    assert.equal(row.bodyWidth, 1024, `the page is ${row.bodyWidth}px wide at ${row.width}px`);
+    assert.equal(row.bodyWidth, 1324, `the page is ${row.bodyWidth}px wide at ${row.width}px`);
     assert.ok(
       Math.abs(row.bodyLeft - row.bodyMarginRight) < 1,
       `the page sits ${row.bodyLeft}px from the left and ${row.bodyMarginRight}px from the ` +
@@ -312,6 +316,142 @@ test("the page holds its measure and stays centred on a wide screen", { skip }, 
     assert.equal(row.gutter, "16px", `the gutter is ${row.gutter} at ${row.width}px`);
     assert.equal(row.overflow, 0, `the page scrolls sideways at ${row.width}px`);
   }
+});
+
+// What a `select` has to spend before any label is drawn: its padding, its
+// border, and the dropdown arrow, which is drawn by the engine and appears in
+// no computed style. The arrow is measured rather than assumed, by putting a
+// probe control beside the real one with a single option whose text width is
+// known and letting the engine size it: a select at its intrinsic width is
+// exactly that text plus everything else it spends.
+function readControlRoom() {
+  const select = document.getElementById("example");
+  const style = getComputedStyle(select);
+  const face = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const pen = document.createElement("canvas").getContext("2d");
+  pen.font = face;
+
+  const frame =
+    parseFloat(style.paddingLeft) +
+    parseFloat(style.paddingRight) +
+    parseFloat(style.borderLeftWidth) +
+    parseFloat(style.borderRightWidth);
+
+  const probe = document.createElement("select");
+  probe.style.cssText = `font: ${face}; padding: ${style.padding}; border: ${style.border}; width: auto; position: absolute; visibility: hidden`;
+  const sample = document.createElement("option");
+  sample.textContent = "measuring the arrow";
+  probe.appendChild(sample);
+  select.parentNode.appendChild(probe);
+  const arrow = probe.getBoundingClientRect().width - pen.measureText(sample.textContent).width - frame;
+  probe.remove();
+
+  let widest = { label: "", width: 0 };
+  for (const option of select.options) {
+    const width = pen.measureText(option.textContent).width;
+    if (width > widest.width) widest = { label: option.textContent, width };
+  }
+
+  // The panel's own border counts against the control as much as its padding
+  // does, and leaving it out is how 310 reads as 312 and a control with no
+  // slack at all reads as one with two pixels of it.
+  const panel = select.closest("div.tools");
+  const panelStyle = getComputedStyle(panel);
+  return {
+    control: select.getBoundingClientRect().width,
+    panelInner:
+      panel.getBoundingClientRect().width -
+      parseFloat(panelStyle.paddingLeft) -
+      parseFloat(panelStyle.paddingRight) -
+      parseFloat(panelStyle.borderLeftWidth) -
+      parseFloat(panelStyle.borderRightWidth),
+    frame,
+    arrow,
+    textRoom: select.getBoundingClientRect().width - frame - arrow,
+    widest: widest.label,
+    widestWidth: widest.width,
+    textOverflow: style.textOverflow,
+  };
+}
+
+test("the widest example label fits the control it is offered in", { skip }, async () => {
+  // Measured on 2026.09.24 and fixed on 2026.10.14. At 375px the control was
+  // 293px, spent 18px on padding and border and 18.98 on its arrow, and had
+  // 255px left for a label needing 273.02 - so it read "Max and Min Function
+  // and Sort Obje", cut mid word with nothing marking the cut. At 1280px it was
+  // 310 against the same 273.02, one pixel inside the boundary.
+  //
+  // Two changes answer that and this pins both: the control takes the panel's
+  // whole measure rather than its own intrinsic width, and below the breakpoint
+  // the panel pads at space-2 rather than space-3. The arrow is measured here
+  // rather than quoted, because it is engine drawn and appears in no computed
+  // style, and a figure nothing re-measures is a figure that goes stale.
+  const page = await openPage(1600, 900);
+  const measured = [];
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    measured.push({ width, ...(await page.evaluate(readControlRoom)) });
+  }
+  await page.close();
+
+  for (const row of measured) {
+    assert.equal(
+      row.control,
+      row.panelInner,
+      `at ${row.width}px the control is ${row.control}px inside a panel offering ${row.panelInner}px, ` +
+        `so it is not taking the measure it has`
+    );
+    assert.ok(
+      row.widestWidth <= row.textRoom,
+      `at ${row.width}px "${row.widest}" sets at ${row.widestWidth.toFixed(2)}px against the ` +
+        `${row.textRoom.toFixed(2)}px the control leaves once its ${row.frame}px of padding and ` +
+        `border and its ${row.arrow.toFixed(2)}px arrow are taken out`
+    );
+    // The two widths above are the ones the measure reaches. Below about 365px
+    // no padding leaves the 310px the widest label needs, and a select clips by
+    // default, so the cut has to be marked where it cannot be avoided.
+    assert.equal(row.textOverflow, "ellipsis", `the control clips rather than ellipsising at ${row.width}px`);
+  }
+});
+
+test("the sheet offers a route to full size once one is on screen", { skip }, async () => {
+  // The cap raise does not reach a phone - `min(100%, 900px)` is 100% at every
+  // width under 900 - so the link is the whole of the phone's answer, and it
+  // has to be a live blob of the composition rather than a path to a file the
+  // repository does not hold.
+  const page = await openPage(375, 812);
+  const link = await page.evaluate(() => {
+    const anchor = document.getElementById("sheetFullSizeLink");
+    return {
+      shown: getComputedStyle(document.getElementById("sheetFullSize")).display,
+      href: anchor.getAttribute("href"),
+      text: anchor.textContent,
+      target: anchor.getAttribute("target"),
+    };
+  });
+
+  assert.equal(link.shown, "block");
+  assert.match(link.href, /^blob:/);
+  assert.equal(link.text, "Open Sorting Arrays at full size");
+  assert.equal(link.target, "_blank");
+
+  // The blob really is the composition, at its own size: fetching it back is
+  // the only way to say so, since a blob URL says nothing about its contents.
+  const markup = await page.evaluate((url) => fetch(url).then((response) => response.text()), link.href);
+  assert.match(markup, /^<\?xml[^>]*\?>\s*<svg/);
+  assert.match(markup, /<svg[^>]*width="3600"/);
+  assert.match(markup, /<svg[^>]*height="3600"/);
+
+  // And it is taken back down with the sheet, rather than pointing at a
+  // composition the reader has moved on from.
+  await page.selectOption("#example", "");
+  const cleared = await page.evaluate(() => ({
+    shown: getComputedStyle(document.getElementById("sheetFullSize")).display,
+    href: document.getElementById("sheetFullSizeLink").getAttribute("href"),
+  }));
+  assert.equal(cleared.shown, "none");
+  assert.equal(cleared.href, null);
+  await page.close();
 });
 
 test("nothing pushes the page sideways on a phone", { skip }, async () => {
@@ -419,4 +559,75 @@ test("favicon.ico decodes square, in the mark's own colors", { skip }, async () 
     );
   }
   assert.ok(share("#ffffff") > 5, "the highlight is missing from the decoded icon");
+});
+
+// The page's own route to the brand, which is not the one `tools/test-sheet-brand.mjs`
+// drives. That file hands `composeSheet` two assets it read off disk; this one
+// starts a browser at the page and lets it fetch them for itself, so a renamed
+// file, a path that does not resolve under a project base, or a `fetchSheetBrand`
+// that quietly answered nothing is caught. Every sheet would still compose in
+// that state - the slots fall back to a drawn square and a lone wordmark - and
+// nothing else in the suite would go red.
+test("the page fetches its brand assets, and both reach the composed sheet", { skip }, async () => {
+  const page = await openPage(1280, 900);
+  const slots = await page.evaluate(() => {
+    const svg = document.querySelector("#curCheatSheet > svg");
+    const mark = svg.querySelector('[data-name="masthead-mark"]');
+    const footer = svg.querySelector('[data-name="footer-lockup"]');
+    return {
+      markShapes: mark ? mark.querySelectorAll("path, rect").length : 0,
+      markTag: mark?.tagName.toLowerCase() ?? null,
+      footerTag: footer?.tagName.toLowerCase() ?? null,
+      footerHref: (footer?.getAttribute("href") ?? "").slice(0, 21),
+      drawn: [...svg.querySelectorAll("[data-name]")]
+        .map((node) => node.getAttribute("data-name"))
+        .filter((name) => name === "mark-square" || name === "follow-line"),
+    };
+  });
+  await page.close();
+
+  // The logo is inlined as the vector it is rather than rasterised, and the
+  // footer is embedded rather than left as a second request the saved markup
+  // could not resolve.
+  assert.equal(slots.markTag, "g", "the masthead mark is missing, so the logo never reached the page");
+  assert.ok(slots.markShapes > 0, "the masthead mark holds no drawable shape");
+  assert.equal(slots.footerTag, "image", "the footer lockup is missing, so footer.png never reached the page");
+  assert.equal(slots.footerHref, "data:image/png;base64", "the footer strip is not embedded in the markup");
+  // Both slots are either the asset or the fallback, never both at once.
+  assert.deepEqual(slots.drawn, [], "the sheet drew its own footer beside the strip it was given");
+});
+
+test("an asset that does not answer leaves the sheet it drew before", { skip }, async () => {
+  // The state every clone was in until the two files were committed, and the
+  // state a Pages deploy is in if they are not published with it. The sheet is
+  // expected to compose anyway: the brand is fetched beside the catalog rather
+  // than in front of it, and neither slot gates the page.
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const failed = [];
+  page.on("pageerror", (error) => failed.push(error.message));
+  await page.route("**/assets/*", (route) => route.fulfill({ status: 404 }));
+  await page.goto(site.base);
+  await page.waitForSelector('html[data-catalog="ready"]');
+  await page.selectOption("#example", { label: "Sorting Arrays" });
+  await page.waitForSelector("#curCheatSheet > svg");
+  const slots = await page.evaluate(() => {
+    const svg = document.querySelector("#curCheatSheet > svg");
+    const named = [...svg.querySelectorAll("[data-name]")].map((node) =>
+      node.getAttribute("data-name")
+    );
+    return {
+      named,
+      wordmark: svg.querySelector('[data-name="wordmark"]')?.textContent ?? null,
+      codeRuns: named.filter((name) => name.startsWith("code-")).length,
+    };
+  });
+  await page.close();
+
+  assert.deepEqual(failed, [], "a missing asset took the page down rather than falling back");
+  assert.ok(!slots.named.includes("masthead-mark"), "a mark was drawn from an asset that 404ed");
+  assert.ok(!slots.named.includes("footer-lockup"), "a strip was drawn from an asset that 404ed");
+  assert.ok(slots.named.includes("mark-square"), "the drawn footer did not take the strip's place");
+  assert.ok(slots.named.includes("follow-line"), "the drawn follow line did not take the strip's place");
+  assert.equal(slots.wordmark, "practicing.xyz");
+  assert.ok(slots.codeRuns > 10, "the sheet stopped composing when an asset was missing");
 });

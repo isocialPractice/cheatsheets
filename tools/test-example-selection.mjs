@@ -66,6 +66,35 @@ test("the catalog is fetched by relative path, so it resolves under the project 
   assert.doesNotMatch(script, /fetch\("\//);
 });
 
+// The eleven in the order they are taught rather than in the order they sort.
+// "both dropdowns are built from the manifest" below pins the page to whatever
+// the manifest says; this pins what the manifest says, which is the half that
+// was alphabetical until 2026.10.14 and that no fixture covers - the builder's
+// own order test runs on invented trees, and the real order lives in the
+// `order` field of each committed `meta.json`.
+test("the eleven are offered in the order they are taught", () => {
+  const taught = [
+    "Shift And Unshift",
+    "Changing Elements",
+    "Splicing Arrays",
+    "Concating Arrays",
+    "Slicing Arrays",
+    "Sorting Arrays",
+    "Sort Numbers Array",
+    "Compare Array Function",
+    "Random Sort Array",
+    "Max and Min Value Array",
+    "Max and Min Function and Sort Object",
+  ];
+  const offered = manifest.categories.flatMap((category) =>
+    category.cheatsheets.map((sheet) => sheet.title)
+  );
+  assert.deepEqual(offered, taught);
+  // Alphabetical is the fault this replaced, and it is worth naming: the two
+  // orders share a first letter often enough that a spot check would pass.
+  assert.notDeepEqual(offered, [...taught].sort(), "the examples are back in alphabetical order");
+});
+
 test("an option is keyed by the manifest's slug, and labelled from its title", () => {
   assert.match(script, /option\.value = category\.id;/);
   assert.match(script, /option\.textContent = category\.title;/);
@@ -488,6 +517,10 @@ test("every example runs as a module without a strict mode refusal", { skip }, a
 
 test("the sheet is composed into a box reserved at the manifest's own ratio", { skip }, async () => {
   const { page } = await openPage();
+  // Wide enough for the sheet's own cap to be what stops it rather than the
+  // column. `openPage` opens at 1280, which is under the page's 1324px measure,
+  // so there the column is 856 and the 900px cap never binds.
+  await page.setViewportSize({ width: 1600, height: 900 });
   const entry = manifest.categories[0].cheatsheets.find(
     (sheet) => sheet.title === "Sorting Arrays"
   );
@@ -517,8 +550,8 @@ test("the sheet is composed into a box reserved at the manifest's own ratio", { 
   // scales the element off the viewBox instead.
   assert.equal(drawn.width, null);
   assert.equal(drawn.height, null);
-  assert.equal(drawn.frame.width, 600, "the sheet is not at its 600px cap");
-  assert.equal(drawn.frame.height, 600, "the reserved box is not square");
+  assert.equal(drawn.frame.width, 900, "the sheet is not at its 900px cap");
+  assert.equal(drawn.frame.height, 900, "the reserved box is not square");
 });
 
 test("nothing below the sheet moves while the graphic is still in flight", { skip }, async () => {
