@@ -27,8 +27,8 @@ it beside the asset. A destination named in plain words rather than as `$2`
    An SVG gives colors, type, strokes, radii and structure. A PNG gives colors
    only. A JPEG or GIF gives nothing measurable - read the image yourself and
    mark those values **observed**, never measured. If a PNG comes back with an
-   empty palette and a note naming a path, the ported API at
-   `api/graphic-design/` was not reached - run the command from the repository
+   empty palette and a note naming a path, the drawing API at
+   `api/napkin-sketch/` was not reached - run the command from the repository
    root and try again.
 
    The report's `brand` section says where the logo, the wordmark and any

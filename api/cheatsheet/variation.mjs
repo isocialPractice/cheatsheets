@@ -1,7 +1,7 @@
 // Seeded randomness, and the rule about what a seed is allowed to move.
 //
-// **Determinism is a property of this layer, not of the renderers.** The ported
-// renderers are already pure: `toSVG` and `toPNG` read a document and write
+// **Determinism is a property of this layer, not of the renderers.** The
+// surface's renderers are already pure: `toSVG` and `toPNG` read a document and write
 // bytes, touching no clock, no global and no platform source of entropy, so one
 // document renders to identical bytes every time in both formats. What was
 // missing was upstream of them - a composition that chooses anything at random

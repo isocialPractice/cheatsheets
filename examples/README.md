@@ -45,6 +45,9 @@ what it had to fit
   code cap        62 px
   panel fill      93.7%, floor 85%
 
+masthead mark     vector
+footer lockup     image
+
 code fits         true
 runs fit          true
 fills panel       true
@@ -58,16 +61,33 @@ sheet regenerates identically without anyone having to record a figure beside
 it, and the report prints both halves so the number is recoverable.
 
 **Only three figures came from the seed.** Everything else - the canvas, the
-five bands, the three divisions, the flanking rules, the mark square, the
+five bands, the three divisions, the flanking rules, the footer's own box, the
 baselines of the four runs whose text never changes - is the artwork's, fixed
 for every seed. **What a seed moves** in `DESIGN_LANGUAGE.md` says why those
 three and no others.
+
+**The two brand slots say how they were filled.** The artwork sets the brand's
+mark beside the masthead wordmark and draws a footer strip with three social
+icons in it, and this example passes `assets/logo.svg` and `assets/footer.png`
+in so both are drawn rather than stood in for. `vector` means the mark was
+inlined as shapes, which both renderers draw; `image` means the strip was
+placed as pixels, which is the only form that carries an icon over a gradient
+on a surface with no gradients. `drawn` is the fallback, and it is what a clone
+without the assets reports: a lone wordmark centred on the axis and a navy
+rectangle where the strip goes.
 
 **The notes are the composition saying what it gave way on.** This document
 produces two:
 
 ```text
   - The subtitle was stepped down from a 112 px cap to 107 px to fit the 2544 px its region leaves.
+```
+
+Only one, since the footer strip landed: the follow line is fitted and
+reported when the composition sets it as type, and here the artwork's own
+strip is placed instead. Without the assets the report carries a second note:
+
+```text
   - The follow line was stepped down from a 154 px cap to 150 px to fit the 2736 px its region leaves.
 ```
 
@@ -153,7 +173,7 @@ inert under it.
 
 ## Where to read next
 
-- [api/graphic-design/API.md](../api/graphic-design/API.md) - the drawing
+- [the drawing surface's own reference](https://isocialpractice.github.io/napkin-sketch/) - the drawing
   surface: every export and every limit.
 - [DESIGN_LANGUAGE.md](../DESIGN_LANGUAGE.md) - what the sheets are made of,
   and **Composing a sheet** for the algorithm that draws to it.

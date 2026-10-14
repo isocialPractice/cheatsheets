@@ -5,7 +5,7 @@
 //     node tools/build-brand-resources.mjs --print
 //     node tools/build-brand-resources.mjs --constants <file> --out <dir>
 //
-// `api/graphic-design/brand.mjs` can turn a `resources.md` into placeable
+// The drawing surface in `api/napkin-sketch/` can turn a `resources.md` into placeable
 // assets, and the helper that generates a per-asset skill calls it at run
 // time. What neither of them can do is find one, because this repository does
 // not have a `resources.md` - it has a brand declared in a constants file, in
@@ -59,10 +59,10 @@
 // file to change.
 
 import { mkdir, readdir, readFile, writeFile, stat } from "node:fs/promises";
-import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { descriptorFromFilename, parseResources } from "../api/graphic-design/brand.mjs";
+import { descriptorFromFilename, parseResources } from "../api/napkin-sketch/api/index.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -149,6 +149,51 @@ export function findBrandSection(markdown) {
  */
 
 /**
+ * What a declared path opening with a separator is rooted at.
+ *
+ * `- logo: /assets/logo.svg` is a link as a reader writes one, rooted at the
+ * repository. Read as a filesystem path it is `C:\assets\logo.svg` on Windows
+ * and `/assets/logo.svg` on POSIX, neither of which is inside any repository -
+ * so from 2026.09.24, when the two assets were committed at the root, until
+ * 2026.10.14 this bridge reported both as missing while the files sat in the
+ * tree it was reading from, and every brand slot in a composed sheet fell back
+ * to something drawn.
+ *
+ * The root is the folder holding the constants file, unless that folder is a
+ * tool's own dot folder - `.claude/`, `.github/` - in which case it is the
+ * folder holding that. A file at `<repo>/.claude/constants.md` describes the
+ * repository rather than the folder it happens to sit in, which is exactly what
+ * the assets at `<repo>/assets/` show.
+ *
+ * The cost is that a genuinely rooted POSIX path can no longer be declared
+ * here, which is the right way round: a constants section that states its links
+ * are relative to itself has no business naming `/etc`, and a Windows absolute
+ * path still resolves as one.
+ *
+ * @param {string} constantsPath
+ * @returns {string}
+ */
+export function rootFor(constantsPath) {
+  const dir = dirname(resolve(constantsPath));
+  return basename(dir).startsWith(".") ? dirname(dir) : dir;
+}
+
+/**
+ * Resolves one declared path against the constants file and the repository.
+ *
+ * @param {string} declared
+ * @param {string} base The folder holding the constants file.
+ * @param {string} root What a rooted path is rooted at.
+ * @returns {string}
+ */
+function resolveDeclared(declared, base, root) {
+  // Rooted first, because `isAbsolute` answers true for `/x` on Windows too.
+  if (/^[\\/]/.test(declared)) return join(root, declared.replace(/^[\\/]+/, ""));
+  if (isAbsolute(declared)) return declared;
+  return resolve(base, declared);
+}
+
+/**
  * Reads the brand out of a constants file.
  *
  * @param {string} markdown
@@ -159,11 +204,12 @@ export async function readBrand(markdown, constantsPath) {
   const section = findBrandSection(markdown);
   if (!section) return null;
 
-  // The section's own body is handed to the port's parser, so the format this
+  // The section's own body is handed to the surface's parser, so the format this
   // repository writes in and the format the helper reads are the same format
   // read by the same code. Only the scope is this file's decision.
   const parsed = parseResources(section.body);
   const base = dirname(resolve(constantsPath));
+  const declaredRoot = rootFor(constantsPath);
 
   /** @type {BridgedBrand} */
   const brand = {
@@ -176,7 +222,7 @@ export async function readBrand(markdown, constantsPath) {
   };
 
   for (const [key, declared] of Object.entries(parsed.paths)) {
-    const path = isAbsolute(declared) ? declared : resolve(base, declared);
+    const path = resolveDeclared(declared, base, declaredRoot);
     let exists = false;
     try {
       await stat(path);
@@ -191,7 +237,7 @@ export async function readBrand(markdown, constantsPath) {
   // asked whether they share one.
   const declaredFolder = Object.values(parsed.directories)[0];
   if (declaredFolder) {
-    brand.folder = isAbsolute(declaredFolder) ? declaredFolder : resolve(base, declaredFolder);
+    brand.folder = resolveDeclared(declaredFolder, base, declaredRoot);
   } else {
     const folders = new Set(brand.assets.filter((a) => a.exists).map((a) => dirname(a.path)));
     if (folders.size === 1) brand.folder = [...folders][0];

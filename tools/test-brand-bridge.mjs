@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve, sep } from "node:path";
 
-import { parseResources } from "../api/graphic-design/brand.mjs";
+import { parseResources } from "../api/napkin-sketch/api/index.js";
 import {
   DEFAULT_CONSTANTS,
   DEFAULT_OUT,

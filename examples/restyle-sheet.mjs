@@ -22,7 +22,7 @@
 
 import { pathToFileURL } from "node:url";
 
-import { writeComposition } from "../api/graphic-design/files.mjs";
+import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { EMBER, emberTheme } from "./ember-theme.mjs";
 import { SEED, splicingArrays } from "./splicing-arrays.mjs";
@@ -60,13 +60,13 @@ export function geometryOf(variation) {
  * is what was asked for and this is what was drawn - and the two differ
  * wherever `readableInk` substituted an ink for its ground.
  *
- * @param {import('../api/graphic-design/compose.mjs').Composition} composition
+ * @param {import('../api/napkin-sketch/api/index.js').Composition} composition
  * @returns {string[]}
  */
 export function paintsOf(composition) {
   /** @type {string[]} */
   const paints = [];
-  /** @param {import('../api/graphic-design/types.mjs').Element[]} elements */
+  /** @param {import('../api/napkin-sketch/api/index.js').Element[]} elements */
   const walk = (elements) => {
     for (const el of elements) {
       if (el.fill) paints.push(el.fill);

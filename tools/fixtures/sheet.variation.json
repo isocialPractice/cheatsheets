@@ -10,6 +10,10 @@
   "titleCap": 141,
   "subtitleCap": 112,
   "face": "sheet",
+  "brand": {
+    "logo": "drawn",
+    "footer": "drawn"
+  },
   "codeFits": true,
   "runsFit": true,
   "floors": {

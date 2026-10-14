@@ -1,14 +1,18 @@
-// The cheatsheet layer: this repository's own code over the ported drawing
-// surface.
+// The cheatsheet layer: this repository's own code over the drawing surface.
 //
-// `api/graphic-design/` is a port of the napkin-sketch graphic design API and
-// carries that project's notice. It draws rectangles, text and lines and knows
-// nothing about a cheatsheet. Everything here is this repository's own, and it
-// is the half that knows what a sheet is: the design language measured off the
-// eleven images, the faces they are set in, and the algorithm that composes one.
+// `api/napkin-sketch/` is a vendored copy of the published napkin-sketch build
+// and carries that project's notice. It draws rectangles, text and lines and
+// knows nothing about a cheatsheet. Everything here is this repository's own,
+// and it is the half that knows what a sheet is: the design language measured
+// off the eleven images, the faces they are set in, and the algorithm that
+// composes one.
 //
-// The dependency runs one way only. This folder imports the port; the port
-// imports nothing here, which is what lets it still be diffed against upstream.
+// The dependency runs one way only, and it runs through a narrow door. This
+// folder imports the surface; the surface imports nothing here. What crosses
+// the boundary is deliberately small: a composition is built, elements are
+// added, and markup comes back. The measuring, the colour reading and the paint
+// refusal are all this layer's own, which is what let the surface be swapped
+// from a hand port to a pinned package without any of it moving.
 //
 // ```js
 // import { composeSheet } from "./api/cheatsheet/index.mjs";
@@ -30,14 +34,34 @@
 // ```
 //
 // Everything exported here is browser-safe and reaches no further than this
-// folder and the port beside it, so the page loads it with a bare `import` and
+// folder and the drawing surface beside it, so the page loads it with a bare `import` and
 // no build step.
 
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
 
-export { checkPairings, contrastRatio, readableInk, relativeLuminance } from "./contrast.mjs";
+export {
+  dataUrlFrom,
+  fetchSheetBrand,
+  rasterAsset,
+  sheetBrandFrom,
+  vectorAsset,
+  BRAND_FILES,
+} from "./brand.mjs";
 
 export {
+  checkPaints,
+  checkPairings,
+  contrastRatio,
+  parseSheetColor,
+  parseSheetPaint,
+  readableInk,
+  relativeLuminance,
+} from "./contrast.mjs";
+
+export {
+  centredAt,
+  charAdvance,
+  measureRun,
   roleStyle,
   sizeForCap,
   CODE_FACE,
@@ -53,6 +77,7 @@ export {
 
 export {
   BANDS,
+  BRAND_SLOTS,
   CANVAS,
   CENSUS,
   CENSUS_SHARES,

@@ -1,13 +1,13 @@
 ---
 name: graphic-design-api
-description: 'Compose finished graphics in code through the ported graphic-design API in api/graphic-design, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script; and when a project has already registered one, in which case a request like "make a html cheatsheet" or a bare "generate" is drawn by the skill that was generated for it, with its brand assets already wired in. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
+description: 'Compose finished graphics in code through the vendored graphic-design API in api/napkin-sketch, with the visual judgment to make them good. Use when generating or editing a static graphic - a card, poster, banner, social post, badge, diagram, certificate, thumbnail, or template - from a script rather than by hand; when a composition must be produced in both SVG and PNG; when an existing composition script needs its hierarchy, palette, type scale, or spacing improved; or when a design language has to be turned into a working script; and when a project has already registered one, in which case a request like "make a html cheatsheet" or a bare "generate" is drawn by the skill that was generated for it, with its brand assets already wired in. Covers the element vocabulary (rectangles, circles, ellipses, triangles, polygons, paths, styled text, placed media, groups, clipping masks), the 360x360 default page and unit system, the shared text layout both renderers measure with, the 60-30-10 color ratio, type scales, WCAG contrast on a static page, and the limits the API is honest about.'
 ---
 
 # Graphic Design API
 
 Apply professional visual design judgment to graphics that are **composed in
 code**. This is the general design skill pointed at one specific surface: the
-graphic-design API ported into `api/graphic-design/` from the sibling
+graphic-design API vendored into `api/napkin-sketch/` from the sibling
 `napkin-sketch` repository, where a composition is a page and a list of
 elements, and one document renders to both SVG and PNG.
 
@@ -83,7 +83,7 @@ registration as its last step.
 ## The API in one page
 
 ```js
-import { createComposition, placeBrand } from '../api/graphic-design/index.mjs';
+import { createComposition, placeBrand } from '../api/napkin-sketch/api/index.js';
 
 const design = createComposition({ width: 360, height: 360, background: '#f6f7f9' });
 
@@ -112,7 +112,7 @@ background is **transparent** unless set, and the API is **headless** - it
 never touches whatever sketch is open in the app.
 
 Full reference, every property, and every limit stated as the behaviour it
-actually is: `api/graphic-design/API.md`, beside the barrel.
+actually is: the project's own composition pages at <https://isocialpractice.github.io/napkin-sketch/>.
 
 ## Core Decision Framework
 
@@ -273,4 +273,4 @@ Named plainly, because designing around a limit beats discovering it:
 - `references/color-and-type.md` - ratios, scales, and contrast on a static page
 - `references/principles.md` - hierarchy, Gestalt, and whitespace as they apply
   to a composition with no interaction
-- `api/graphic-design/API.md` - the full reference for the ported surface
+- <https://isocialpractice.github.io/napkin-sketch/> - the full reference for the drawing surface

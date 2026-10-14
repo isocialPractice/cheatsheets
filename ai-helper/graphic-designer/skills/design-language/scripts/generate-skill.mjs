@@ -34,7 +34,7 @@
  *
  * Ported from the file of the same name in napkin-sketch (MIT,
  * isocialPractice), commit d43caac191b2dfd532b3311f4ca1ea6969bb002f - the same
- * commit the drawing surface under `api/graphic-design/` came from.
+ * commit the drawing surface under `api/napkin-sketch/` came from.
  *
  * ---
  *

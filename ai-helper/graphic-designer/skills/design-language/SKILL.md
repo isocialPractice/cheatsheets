@@ -1,6 +1,6 @@
 ---
 name: design-language
-description: 'Read an existing graphic and write down the design language it was drawn in, then generate a per-asset skill that can draw more work in that same language. Use when asked to capture, document, extract, or reverse-engineer the visual style of an image (JPG, PNG, SVG, GIF); when a DESIGN_LANGUAGE.md is wanted for a logo, poster, card, social post, or brand asset; when new graphics must match an existing one; or when a repeated graphics task (social posting, thumbnails, banners) should become something a tool can run rather than a brief re-described each time. Covers what to measure in an asset and what cannot be measured, the DESIGN_LANGUAGE.md naming rules, generating the per-asset skill and its scripts, and composing the output through the ported graphic-design API in api/graphic-design.'
+description: 'Read an existing graphic and write down the design language it was drawn in, then generate a per-asset skill that can draw more work in that same language. Use when asked to capture, document, extract, or reverse-engineer the visual style of an image (JPG, PNG, SVG, GIF); when a DESIGN_LANGUAGE.md is wanted for a logo, poster, card, social post, or brand asset; when new graphics must match an existing one; or when a repeated graphics task (social posting, thumbnails, banners) should become something a tool can run rather than a brief re-described each time. Covers what to measure in an asset and what cannot be measured, the DESIGN_LANGUAGE.md naming rules, generating the per-asset skill and its scripts, and composing the output through the vendored graphic-design API in api/napkin-sketch.'
 ---
 
 # Design Language
@@ -172,14 +172,14 @@ load it, so name the asset, the medium, and the occasion.
 
 ### 4. Make the script compose, not describe
 
-The generated script uses the ported graphic-design API under
-`api/graphic-design/`, so the output is a real SVG and a real PNG rather than a
+The generated script uses the vendored graphic-design API under
+`api/napkin-sketch/`, so the output is a real SVG and a real PNG rather than a
 description of one. Load the
 `graphic-design-api` skill for the full surface; the shape is:
 
 ```js
-import { createComposition } from '../api/graphic-design/index.mjs';
-import { writeComposition } from '../api/graphic-design/files.mjs';
+import { createComposition } from '../api/napkin-sketch/api/index.js';
+import { writeComposition } from '../api/napkin-sketch/graphic-design/files.js';
 
 // The language, in one place, so a change is one edit.
 const PALETTE = { paper: '#ffffff', ink: '#1f2328', accent: '#4c8faf' };
@@ -252,7 +252,7 @@ node scripts/brand-resources.mjs --print
 ## Gotchas
 
 - **The analyzer needs to find the API to read a PNG.** It walks up from its
-  own folder for `api/graphic-design/index.mjs`, so running it anywhere inside
+  own folder for `api/napkin-sketch/api/index.js`, so running it anywhere inside
   this repository works, and `CHEATSHEET_GRAPHIC_DESIGN_API` names the barrel
   from outside. If it finds nothing the report says which path it looked for,
   rather than returning an empty palette as if the image had no colors.
@@ -284,7 +284,7 @@ node scripts/brand-resources.mjs --print
 
 | Issue | Solution |
 | --- | --- |
-| PNG palette is empty and a note mentions the API | Run it from inside the repository, or set `CHEATSHEET_GRAPHIC_DESIGN_API` to `api/graphic-design/index.mjs` |
+| PNG palette is empty and a note mentions the API | Run it from inside the repository, or set `CHEATSHEET_GRAPHIC_DESIGN_API` to `api/napkin-sketch/api/index.js` |
 | JPEG or GIF reports no decoder | Re-save as PNG or SVG for measured numbers, or read the image and mark the values observed |
 | SVG palette looks wrong | It is weighted by class references; check whether the file paints with inline attributes instead, and compare against a PNG export |
 | Two assets, one design language | The second writes `DESIGN_LANGUAGE-<stem>.md`; do not merge them unless asked |
@@ -303,4 +303,4 @@ node scripts/brand-resources.mjs --print
 - `scripts/brand-resources.mjs` - the brand resolver, importable as `resolveBrand`
 - `scripts/template.md` - the fill-in-the-blank procedure
 - The `graphic-design-api` skill - the composition API this generates against
-- `api/graphic-design/API.md` - the full reference for the ported surface
+- <https://isocialpractice.github.io/napkin-sketch/> - the full reference for the drawing surface

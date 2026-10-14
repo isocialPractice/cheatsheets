@@ -54,7 +54,7 @@ never write over it, and never write one into `ai-helper/`.
 
 ## What the generated script must do
 
-- Compose through the ported graphic-design API at `api/graphic-design/`, so
+- Compose through the vendored graphic-design API at `api/napkin-sketch/`, so
   the output is a real SVG and a real PNG rather than a description of one.
 - Take the design language from named constants at the top of the file, so
   changing the language is one edit.
@@ -92,7 +92,7 @@ slot, because the empty slot is obviously empty and the invented one is not.
 
 | Symptom | Cause | Answer |
 | --- | --- | --- |
-| PNG palette empty, note names the API | `api/graphic-design/index.mjs` was not reached | Run from inside the repository, or set `CHEATSHEET_GRAPHIC_DESIGN_API` |
+| PNG palette empty, note names the API | `api/napkin-sketch/api/index.js` was not reached | Run from inside the repository, or set `CHEATSHEET_GRAPHIC_DESIGN_API` |
 | Palette is a run of near-identical greys | Anti-aliased edges counted as colors | Drop them; they are edges, not decisions |
 | Type sizes like 5.86, 16.49 | A design tool's scale factor, not intent | Round to the intended scale and say that you did |
 | SVG and PNG palettes rank colors differently | A vector palette is usage-weighted, a raster's is area-weighted | Expected. Say which file was measured |

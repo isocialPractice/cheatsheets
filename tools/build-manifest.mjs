@@ -34,7 +34,8 @@
 //
 // It is committed so that `php -S localhost:8000` remains the whole local
 // workflow. Building it at deploy time would make Node mandatory for anyone
-// opening the page, which is the same constraint the port was written under.
+// opening the page, which is the same constraint the drawing surface is
+// vendored under.
 //
 // It carries no generation timestamp for a narrower reason: `--check` compares
 // the committed file against freshly generated output byte for byte, and a
@@ -76,7 +77,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { composeSheet } from "../api/cheatsheet/index.mjs";
+import { composeSheet, sheetBrandFrom, BRAND_FILES } from "../api/cheatsheet/index.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -430,6 +431,38 @@ async function resolveNamed(dir, named) {
 }
 
 /**
+ * Reads the brand assets the page composes with, from the tree being walked.
+ *
+ * The box this records cannot move with the brand - the canvas is fixed - so
+ * nothing in `cheatsheets.json` depends on this. What does depend on it is
+ * rule 6: the mark takes its slot and the gap beside it out of the measure the
+ * masthead wordmark is fitted to, so a sheet checked without the brand is
+ * checked against a wider masthead than the page draws, and a document whose
+ * wordmark only just fits would pass here and overflow in the browser.
+ *
+ * An asset that is not there is left out, and the slot falls back to what it
+ * drew before. That is a normal state and never a finding: a clone that has
+ * fetched no assets still has a catalog to build.
+ *
+ * @param {string} from Absolute path of the catalog root.
+ * @returns {Promise<import('../api/cheatsheet/brand.mjs').SheetBrand>}
+ */
+export async function readBrandAssets(from) {
+  const read = async (name, encoding) => {
+    try {
+      return await readFile(join(from, ...name.split("/")), encoding);
+    } catch {
+      return undefined;
+    }
+  };
+  const [logoSvg, footerPng] = await Promise.all([
+    read(BRAND_FILES.logo, "utf8"),
+    read(BRAND_FILES.footer),
+  ]);
+  return sheetBrandFrom({ logoSvg, footerPng });
+}
+
+/**
  * Composes every document found under `from` and returns the catalog.
  *
  * @param {string} from Absolute path of the catalog root.
@@ -437,6 +470,7 @@ async function resolveNamed(dir, named) {
  */
 export async function readCatalog(from) {
   const { folders, levels } = await walkCatalog(from);
+  const brand = await readBrandAssets(from);
   /** @type {Sheet[]} */
   const sheets = [];
   /** @type {Finding[]} */
@@ -500,7 +534,7 @@ export async function readCatalog(from) {
     /** @type {{ composition: { width: number, height: number }, variation: any }} */
     let composed;
     try {
-      composed = composeSheet({ ...doc, title }, { seed: doc.seed });
+      composed = composeSheet({ ...doc, title }, { seed: doc.seed, brand });
     } catch (error) {
       findings.push({
         level: "error",

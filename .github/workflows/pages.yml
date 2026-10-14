@@ -27,15 +27,31 @@ jobs:
   # happens on Windows, so a casing mismatch resolves on the machine that made
   # it and 404s only here.
   #
-  # It runs on the repository as committed, with no Node install step. The
-  # script has no dependencies and no package.json by design, which is the same
-  # constraint that keeps php -S localhost:8000 the whole local workflow, so
-  # the runner's own Node is all it needs.
+  # It runs on the repository as committed, with no install step. There is no
+  # package.json and no dependency by design, which is the same constraint that
+  # keeps php -S localhost:8000 the whole local workflow. The Node version is
+  # pinned rather than taken from the runner because this job composes every
+  # sheet through the vendored drawing surface, and that package declares Node
+  # 22.12 or later - a runner that moved under it would fail the deploy with a
+  # syntax error rather than a finding.
+  #
+  # The vendored copy is checked beside the catalog, offline: every file in
+  # api/napkin-sketch/ is hashed against the record in its PIN.json, so a byte
+  # edited there - and nothing there is ever edited - fails here rather than
+  # shipping.
   manifest:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
+
+      - name: Use the Node the vendored package declares
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check the vendored drawing surface against its pin
+        run: node tools/vendor-napkin-sketch.mjs --check
 
       - name: Check the cheatsheet tree and the committed manifest
         run: node tools/build-manifest.mjs --check

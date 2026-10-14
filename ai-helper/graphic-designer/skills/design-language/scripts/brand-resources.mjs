@@ -21,13 +21,13 @@
  *
  * Ported from the file of the same name in napkin-sketch (MIT,
  * isocialPractice), commit d43caac191b2dfd532b3311f4ca1ea6969bb002f - the same
- * commit the drawing surface under `api/graphic-design/` came from.
+ * commit the drawing surface under `api/napkin-sketch/` came from.
  *
  * ---
  *
  * **Three local changes, all of them about where things are.**
  *
- * `loadGraphicApi` resolves `api/graphic-design/index.mjs` by walking up,
+ * `loadGraphicApi` resolves `api/napkin-sketch/api/index.js` by walking up,
  * because there is no `napkin-sketch` package here and no `dist/` to fall
  * back to. It still throws, which is the one failure in this file that is not
  * allowed to degrade: an unresolved *asset* leaves a slot that is drawn as a
@@ -79,21 +79,22 @@ const MEDIA_TYPES = {
 /** Extensions worth reading out of a global assets folder. */
 const ASSET_EXTENSIONS = new Set(Object.keys(MEDIA_TYPES));
 
-/** Where the ported drawing surface sits, relative to the repository root. */
-const API_PATH = ['api', 'graphic-design', 'index.mjs'];
+/** Where the vendored drawing surface sits, relative to the repository root. */
+const API_PATH = ['api', 'napkin-sketch', 'api', 'index.js'];
 
 /** How far up the tree to look for it, from a generated skill's own folder. */
 const API_SEARCH_DEPTH = 12;
 
 /**
- * Finds this repository's ported graphic-design API.
+ * Finds this repository's copy of the graphic-design API.
  *
  * Upstream resolved `napkin-sketch` as a package and fell back to a clone's
- * `dist/`. Neither exists here, so the search walks up from this file for
- * `api/graphic-design/index.mjs`. The walk is what matters rather than the
+ * `dist/`. Neither works here - no `package.json`, no `node_modules` - so the
+ * search walks up from this file for the pinned copy of the published build at
+ * `api/napkin-sketch/api/index.js`. The walk is what matters rather than the
  * path: a generated skill carries a copy of this file into
  * `.claude/skills/<stem>/scripts/`, four folders down, and has to reach the
- * same barrel. `CHEATSHEET_GRAPHIC_DESIGN_API` names it outright for a skill
+ * same entry. `CHEATSHEET_GRAPHIC_DESIGN_API` names it outright for a skill
  * generated outside the tree entirely.
  *
  * **It throws, and that is deliberate.** Every other failure in this file
@@ -125,7 +126,7 @@ export async function loadGraphicApi(from = fileURLToPath(import.meta.url)) {
   throw new Error(
     `graphic-design API not found: no ${API_PATH.join('/')} above ${dirname(from)}. ` +
       'Run this inside a checkout of the cheatsheets repository, or set ' +
-      'CHEATSHEET_GRAPHIC_DESIGN_API to the barrel.'
+      'CHEATSHEET_GRAPHIC_DESIGN_API to the entry.'
   );
 }
 

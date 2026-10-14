@@ -179,11 +179,11 @@ test("a dot directory is never walked", async () => {
 });
 
 test("the named source folders are skipped at the root and nowhere else", async () => {
-  // `api/` at the root is the port. `javascript/api/` would be a perfectly
+  // `api/` at the root is the drawing surface. `javascript/api/` would be a perfectly
   // ordinary category folder, and skipping it by name at any depth would make
   // a cheatsheet about an API unreachable.
   const dir = tree({
-    "api/graphic-design/sheet.json": { ...SHEET },
+    "api/napkin-sketch/sheet.json": { ...SHEET },
     "javascript/meta.json": { title: "JavaScript" },
     "javascript/api/meta.json": { title: "The API" },
     "javascript/api/fetch/sheet.json": { ...SHEET, kind: "none" },

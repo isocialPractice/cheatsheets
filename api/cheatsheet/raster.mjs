@@ -1,8 +1,8 @@
 // Turning a composed sheet into pixels, by one of two routes.
 //
 // **This module is Node-only and is not exported from `index.mjs`**, for the
-// same reason `api/graphic-design/files.mjs` is not exported from the port's
-// barrel: it reaches a headless browser, and a page handed that import fails at
+// same reason the drawing surface keeps its file writer behind a subpath of its
+// own: it reaches a headless browser, and a page handed that import fails at
 // load rather than at the call. A script reaches it by path:
 //
 // ```js
@@ -17,10 +17,10 @@
 //
 // | Route | Draws text with | Good for |
 // | --- | --- | --- |
-// | `builtin` | The port's built-in single stroke alphabet | A shape level regression target |
+// | `builtin` | The drawing surface's built-in single stroke alphabet | A shape level regression target |
 // | `browser` | The real face the design language measured | Anything a person or a timeline sees |
 //
-// The ported `toPNG()` is dependency free, which is what makes it valuable: it
+// The surface's own `toPNG()` is dependency free, which is what makes it valuable: it
 // runs on a clone with nothing installed and produces the same bytes every
 // time, so it pins the geometry. What it cannot do is draw the sheet's type,
 // because it has no font file - it strokes a built-in alphabet instead, and the
@@ -34,8 +34,8 @@
 //
 // ## Scale, and why the floor is a fraction
 //
-// `scale` is device pixels per **composition** pixel, the same unit the port's
-// own `RasterOptions` uses, so scale 1 is the 3600 square the sheet composes
+// `scale` is device pixels per **composition** pixel, the same unit the drawing
+// surface's own `RasterOptions` uses, so scale 1 is the 3600 square the sheet composes
 // at. That is already six times the 600 px the page displays a sheet at, which
 // is what makes the interesting floor a fraction rather than a multiple, and
 // is the trap in reading "a scale of 2 or 3" off the roadmap: that figure is
@@ -181,7 +181,7 @@ export async function resolveChromium() {
 /**
  * Renders a composed sheet to a raster.
  *
- * @param {import('../graphic-design/compose.mjs').Composition} composition
+ * @param {import('../napkin-sketch/api/index.js').Composition} composition
  * @param {RasterSheetOptions} [options]
  * @returns {Promise<SheetRaster>}
  */
@@ -227,9 +227,9 @@ export async function rasterizeSheet(composition, options = {}) {
 }
 
 /**
- * The dependency free route: the port's own rasterizer.
+ * The dependency free route: the drawing surface's own rasterizer.
  *
- * @param {import('../graphic-design/compose.mjs').Composition} composition
+ * @param {import('../napkin-sketch/api/index.js').Composition} composition
  * @param {{ scale: number, background: string | null, format: string, notes: string[] }} config
  * @returns {SheetRaster}
  */
@@ -268,7 +268,7 @@ function builtinRaster(composition, { scale, background, format, notes }) {
  * CSS width, so the vector is rasterised at the target resolution instead of
  * being drawn small and enlarged.
  *
- * @param {import('../graphic-design/compose.mjs').Composition} composition
+ * @param {import('../napkin-sketch/api/index.js').Composition} composition
  * @param {{ chromium: object, scale: number, background: string | null, format: string, quality?: number, notes: string[] }} config
  * @returns {Promise<SheetRaster>}
  */

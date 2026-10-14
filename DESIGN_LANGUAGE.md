@@ -568,8 +568,8 @@ carrying both.
 #### What a generated sheet is measured in
 
 Not naming the artwork's face leaves a generated sheet needing one anyway, and
-the drawing API this repository ported measures its own built-in single-stroke
-alphabet rather than whatever family the SVG asks a browser for. That gap was
+the drawing API this repository draws through measures its own built-in
+single-stroke alphabet rather than whatever family the SVG asks a browser for. That gap was
 settled on 2026.09.17 and the figures are here, because it is a property of
 the sheets rather than of the code that draws them.
 
@@ -655,6 +655,53 @@ independently.
 The mark square in the footer is 292 x 339, flush to the bottom left corner, and
 the follow line clears it by 311 px and ends 275 px short of the right edge.
 
+### The two places a sheet carries an asset rather than shapes
+
+Two of the runs above are not type at all, and both were read as type until they
+were measured on 2026.10.14 by scanning `SplicingArrays.jpg` for the mark's own
+green.
+
+**The masthead is a lockup, not a run.** The wordmark table records it at `left`
+550 and `width` 2084, which reaches 2634 - but the text alone ends at 1877. What
+fills the remaining 757 px is the brand's mark: its green bar runs x 2182 to
+2303 and y 132 to 373, and that bar is the full height of the mark's own square,
+so the asset occupies **2182 to 2634 across and 132 to 374 down** - 452 by 242,
+at the wordmark's own ink top, with **305 px** between the two.
+
+| Part | Left | Right | Width |
+| --- | --- | --- | --- |
+| Wordmark text | 550 | 1877 | 1327 |
+| Gap | 1877 | 2182 | 305 |
+| Mark | 2182 | 2634 | 452 |
+| **Lockup** | **550** | **2634** | **2084** |
+
+The lockup's own centre is 1592, which is **208 px left of the canvas axis**, so
+neither half of it is centred on the axis and nor is the pair. That settles a
+question `api/cheatsheet/compose.mjs` had left open since it was written: it
+recorded the 208 px offset, inferred a second element that would make the pair
+centred, and declined to reproduce the offset without it. The element is real
+and the inference was not - nothing in this masthead is centred.
+
+A generated sheet centres the lockup anyway, and the reason is the face: the
+artwork's is condensed to 0.684 of any stack a generated sheet can name, so a
+generated wordmark is half again as wide as this one and holding the left edge
+at 550 would push the mark off the right of the canvas.
+
+**The footer is one strip.** The mark square, "Follow Me", three social icons
+and a handle are a single lockup of the brand's own rather than a square and a
+line of type beside it. It takes the band less the right margin - **0 to 3312**,
+the full 336 of the footer's height - and at that width its text sets at the
+154 px cap the follow line measures, which is what says the width is right.
+
+One of those icons is drawn over a gradient, and **The colors the sheets are
+drawn in** above already sets the three icon colours aside as brand colours
+rather than colours of this design language. A surface with no gradients cannot
+draw that icon at all, so the strip is placed as pixels or it is not there.
+
+A slot with no asset behind it is drawn as it was before either was read: a lone
+wordmark centred on the canvas axis, and a navy rectangle at the mark square's
+own 292 x 339.
+
 ### The step the sheets are drawn to
 
 The site lays out on an 8px step. A sheet is displayed at 600 px wide, so one
@@ -738,7 +785,7 @@ record, and the decisions it settles. It is implemented in
 `api/cheatsheet/compose.mjs`, drawing on `language.mjs` for the figures,
 `variation.mjs` for the seeded choices, `faces.mjs` for the type and
 `contrast.mjs` for the ink, over the drawing surface documented in
-[api/graphic-design/API.md](api/graphic-design/API.md).
+the drawing surface's own composition pages at <https://isocialpractice.github.io/napkin-sketch/>.
 
 The record of the *renderer* is in that file, and the record of the *face* a
 generated sheet is measured in is **What a generated sheet is measured in**

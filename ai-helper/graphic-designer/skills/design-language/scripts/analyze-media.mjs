@@ -4,7 +4,7 @@
  * Ported from `ai-helper/graphic-designer/skills/design-language/scripts/
  * analyze-media.mjs` in napkin-sketch (MIT, isocialPractice), commit
  * d43caac191b2dfd532b3311f4ca1ea6969bb002f - the same commit the drawing
- * surface under `api/graphic-design/` came from.
+ * surface under `api/napkin-sketch/` came from.
  *
  * Dependency-free and importable, in the shape of the `vectors` plugin's
  * `matlib-script.js`: run it for a report, or import `analyzeMedia` and use the
@@ -23,7 +23,7 @@
  *   colors, the font families and sizes, the stroke weights, the corner radii,
  *   the page box, and how many of each element there are. This is the richer
  *   input, and when both exist it is the one to trust.
- * - **PNG** is decoded through the ported graphic-design API and
+ * - **PNG** is decoded through the vendored graphic-design API and
  *   quantized into a palette. Colors come back accurately; type, spacing and
  *   structure do not exist in a raster and are not invented here.
  * - **JPEG and GIF** have no decoder in this project, exactly as the
@@ -53,7 +53,7 @@
  * upstream. `loadApi` is not: upstream imported `napkin-sketch` by package
  * name and fell back to a clone's `dist/api/index.js`, and this repository is
  * neither. It has no `package.json` at all, and the surface lives at
- * `api/graphic-design/index.mjs` as source rather than as build output, so a
+ * `api/napkin-sketch/api/index.js` as a published build rather than as source, so a
  * loader written against either upstream route would find nothing here and
  * every report would come back with an empty palette and an unmeasured brand.
  *
@@ -98,23 +98,24 @@ export function mediaKind(path) {
   return KINDS[extname(path).toLowerCase()] ?? 'unknown';
 }
 
-/** Where the ported drawing surface sits, relative to the repository root. */
-const API_PATH = ['api', 'graphic-design', 'index.mjs'];
+/** Where the vendored drawing surface sits, relative to the repository root. */
+const API_PATH = ['api', 'napkin-sketch', 'api', 'index.js'];
 
 /** How far up the tree to look for it, from a generated skill's own folder. */
 const API_SEARCH_DEPTH = 12;
 
 /**
- * Finds this repository's ported graphic-design API.
+ * Finds this repository's copy of the graphic-design API.
  *
  * Upstream resolved `napkin-sketch` as a package and fell back to a clone's
- * `dist/`. Neither exists here - the surface was ported into
- * `api/graphic-design/` as dependency free `.mjs`, and this repository has no
- * package to resolve by name - so the search walks up from this file looking
- * for `api/graphic-design/index.mjs`. Walking up rather than joining a fixed
- * relative path is what lets the copy inside a generated skill, four or five
- * folders deeper, reach the same API. `CHEATSHEET_GRAPHIC_DESIGN_API` names
- * the barrel outright, for a skill generated outside the tree entirely.
+ * `dist/`. Neither works here: this repository has no `package.json` and no
+ * `node_modules`, and what it has instead is a pinned copy of the published
+ * build at `api/napkin-sketch/`, vendored by
+ * `tools/vendor-napkin-sketch.mjs`. So the search walks up from this file
+ * looking for that root entry. Walking up rather than joining a fixed relative
+ * path is what lets the copy inside a generated skill, four or five folders
+ * deeper, reach the same API. `CHEATSHEET_GRAPHIC_DESIGN_API` names the entry
+ * outright, for a skill generated outside the tree entirely.
  *
  * It returns `{ api, reason }` rather than the module or null, and the second
  * field is the point. A missing API does not empty the report: brand slots

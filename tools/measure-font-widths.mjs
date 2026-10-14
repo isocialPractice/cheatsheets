@@ -2,11 +2,11 @@
 // Measures a font stack's advance widths in a real engine, so a composition
 // can be laid out in the face a viewer will actually see.
 //
-// **Why this exists.** The ported `api/graphic-design/font.mjs` measures its
-// own built-in single-stroke alphabet, because upstream has no operating
-// system to ask for a font and draws every glyph itself. The SVG writer, on
-// the other hand, emits live `<text>` and names a family, so the browser draws
-// something else entirely. Laying a sheet out from built-in advances and
+// **Why this exists.** The drawing surface measures its own built-in
+// single-stroke alphabet, because upstream has no operating system to ask for a
+// font and draws every glyph itself. Its SVG writer, on the other hand, emits
+// live `<text>` and names a family, so the browser draws something else
+// entirely. Laying a sheet out from built-in advances and
 // rendering it in a grotesque puts every run in the wrong place: measured
 // against the one run of the artwork whose text is known - the lead-in,
 // "Starting Point for Practical Use:", 1481 px wide at a 112 px cap per
@@ -37,7 +37,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { measureText } from "../api/graphic-design/font.mjs";
+import { measureText } from "../api/napkin-sketch/api/index.js";
 
 // Where Playwright is looked for, in order: a local install, then whatever
 // PLAYWRIGHT_MODULE names, then the user scope global. This is the resolution

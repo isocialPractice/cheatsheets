@@ -1,8 +1,8 @@
-// The port's rendering, pinned against committed output.
+// The drawing surface's rendering, pinned against committed output.
 //
 // Every other case in the suite checks the renderers against a property: that a
 // shape appears, that a colour is refused, that two renders in one process
-// match. All of them would still pass if the port started drawing everything
+// match. All of them would still pass if the surface started drawing everything
 // two pixels to the left, because nothing in the repository says where the
 // pixels were supposed to be. This file is what says so.
 //
@@ -18,7 +18,7 @@
 //
 // | Fixture | Pins | Committed as |
 // | --- | --- | --- |
-// | `fixtures/shapes.mjs` | The port: every element kind, a clip, a matrix | Both renders, in full |
+// | `fixtures/shapes.mjs` | The surface: every element kind, a clip, a matrix | Both renders, in full |
 // | The sheet below | The composition layer at a named seed | The SVG in full, the PNG by digest |
 //
 // The sheet's PNG is the one exception to committing bytes, and it is a size
@@ -51,8 +51,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { writeComposition } from "../api/graphic-design/files.mjs";
-import { decodePng, isPng } from "../api/graphic-design/index.mjs";
+import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
+import { decodePng } from "../api/napkin-sketch/api/index.js";
 import { composeSheet } from "../api/cheatsheet/index.mjs";
 import { fixtureComposition } from "./fixtures/shapes.mjs";
 
@@ -94,6 +94,21 @@ const SHEET = {
   ],
 };
 
+/**
+ * Whether a block of bytes opens with the PNG signature.
+ *
+ * Written out here rather than imported, for the same reason as `escapeXml` in
+ * `tools/test-composition-algorithm.mjs`: the published root entry exports no
+ * `isPng`, and the signature is eight bytes that have not changed since 1996.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {boolean}
+ */
+function isPng(bytes) {
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  return bytes?.length >= 8 && signature.every((byte, at) => bytes[at] === byte);
+}
+
 /** @param {Uint8Array} bytes */
 function digest(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
@@ -125,7 +140,7 @@ function pinned(name, actual, why) {
   }
 }
 
-// --- The port's own fixture -------------------------------------------------
+// --- The drawing surface's own fixture --------------------------------------
 
 test("the shapes fixture renders to the SVG that was committed", () => {
   pinned(
@@ -146,7 +161,7 @@ test("and to the PNG that was committed, byte for byte", () => {
 });
 
 test("the fixture actually exercises the surface it claims to", () => {
-  // A fixture that silently stopped covering half the port would keep passing
+  // A fixture that silently stopped covering half the surface would keep passing
   // forever, so what it covers is asserted rather than assumed.
   const doc = fixtureComposition().toDocument();
   const kinds = new Set();
@@ -230,6 +245,19 @@ test("and the variation it reports is the one the fixture was pinned at", () => 
 });
 
 test("and to a PNG whose digest was committed", () => {
+  // **What this raster is, since 2026.10.14.** The composition no longer hands
+  // the drawing surface a face - every run reaches it as an `x` and a family
+  // name, so the layer's own ruler is what placed it - and the built-in
+  // rasterizer therefore advances its single stroke alphabet by its own widths
+  // rather than by the sheet's. Runs are about half again as wide here as they
+  // are in a browser, and the follow line runs off the canvas.
+  //
+  // That is a shape level check and not a picture of a sheet, which is what it
+  // always was: `api/cheatsheet/raster.mjs` is the route to a raster anyone
+  // publishes, because it draws in a real engine in the face the design
+  // language measured. What this pins is that the geometry, the paints and the
+  // element set are stable, and that is worth pinning whatever alphabet fills
+  // them.
   const { composition } = composeSheet(SHEET, { seed: SHEET_SEED });
   const png = composition.toPNG();
   assert.ok(isPng(png));
@@ -281,7 +309,7 @@ test("and writes only the formats it was asked for", async () => {
 });
 
 test("it takes a document as readily as a composition", async () => {
-  // The two are interchangeable everywhere else in the port, and a helper that
+  // The two are interchangeable everywhere else in the surface, and a helper that
   // accepted only one would be the place a caller found that out.
   const dir = mkdtempSync(join(tmpdir(), "cheatsheet-fixture-"));
   try {

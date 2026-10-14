@@ -303,18 +303,26 @@ for (const theme of THEMES) {
 
       // The controls take `font: inherit`, and whether a native control honors
       // that is a question about the engine rather than about the stylesheet.
-      // `max-width: 100%` comes off first: #example wants more width than its
-      // column leaves it, so measured as it sits both faces sit on the cap and
-      // the comparison reads the cap instead of the text.
+      // Both of the rules that size the control come off first, and for one
+      // reason: a control held to its panel's measure is that width in every
+      // face, so the comparison would read the panel instead of the text.
+      // `max-width: 100%` was the only one until 2026.10.14; `width: 100%` is
+      // now the one actually doing it.
       const control = (id) => {
         const select = document.getElementById(id);
-        const before = { family: select.style.fontFamily, max: select.style.maxWidth };
+        const before = {
+          family: select.style.fontFamily,
+          max: select.style.maxWidth,
+          width: select.style.width,
+        };
         const measure = (family) => {
           select.style.maxWidth = "none";
+          select.style.width = "auto";
           select.style.fontFamily = family;
           const width = round(select.getBoundingClientRect().width);
           select.style.fontFamily = before.family;
           select.style.maxWidth = before.max;
+          select.style.width = before.width;
           return width;
         };
         return { asItIs: measure(""), asSerif: measure('"Times New Roman", serif') };

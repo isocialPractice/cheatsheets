@@ -46,9 +46,37 @@ test("the layout collapses to a single column below the 768px breakpoint", () =>
 });
 
 test("the sheet scales down rather than overflowing a narrow screen", () => {
-  assert.match(style, /div\.col div\.sheet\s*\{[^}]*max-width:\s*600px/);
+  // `min(100%, 900px)` is one rule doing what two used to: it caps the sheet at
+  // 900 where there is room and resolves to 100% at every width under it, so
+  // the media query no longer needs a `max-width: 100%` of its own.
+  assert.match(style, /div\.col div\.sheet\s*\{[^}]*max-width:\s*min\(100%,\s*900px\)/);
   assert.match(style, /div\.col div\.sheet\s*\{[^}]*width:\s*100%/);
   assert.match(style, /div\.col div\.sheet\s*\{[^}]*height:\s*auto/);
+});
+
+test("the page's measure is the row it holds, at the sheet's raised cap", () => {
+  // 360 for the panel, a space-4 gap, 900 for the sheet and a space-2 gutter
+  // each side. The cap and the measure are one figure: capping the sheet at 900
+  // inside a 1024px page would cap it at 600 by the column instead.
+  assert.match(style, /body\s*\{[^}]*max-width:\s*1324px/);
+});
+
+test("the control takes its panel's measure and marks a label it cannot show", () => {
+  // Both halves of the cut label, which `tools/test-page-structure-browser.mjs`
+  // measures rather than merely reads.
+  assert.match(style, /\bselect\s*\{[^}]*width:\s*100%/);
+  assert.match(style, /\bselect\s*\{[^}]*text-overflow:\s*ellipsis/);
+});
+
+test("the sheet offers a route to its own full size", () => {
+  // The cap raise cannot reach a phone, where `min(100%, 900px)` is 100% at
+  // every width. The link is what does.
+  assert.match(html, /id="sheetFullSize"/);
+  assert.match(html, /id="sheetFullSizeLink"[^>]*target="_blank"[^>]*rel="noopener"/);
+  assert.match(html, /URL\.createObjectURL/);
+  // A blob URL holds its bytes until it is revoked, and one composition per
+  // selection accumulates for as long as the reader stays on the page.
+  assert.match(html, /URL\.revokeObjectURL/);
 });
 
 test("the sheet's box is reserved before anything is composed into it", () => {

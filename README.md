@@ -18,12 +18,12 @@ The examples used are based on examples from:
      - MDN Web Docs - [Sorting Arrays](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort)
 
 **Drawing a Sheet**
-A cheatsheet is composed rather than screenshotted. `api/graphic-design/` is the
-drawing surface and [API.md](api/graphic-design/API.md) is its reference, every
-export and every limit; `api/cheatsheet/` is the layer that knows what a sheet
-is, drawn to [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md). Both are dependency free
-`.mjs` a browser imports with no build step. Worked examples are in
-[examples/](examples/README.md).
+A cheatsheet is composed rather than screenshotted. `api/napkin-sketch/` is the
+drawing surface, and `api/cheatsheet/` is the layer that knows what a sheet is,
+drawn to [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md). Nothing has to be installed:
+the browser imports both by relative path with no build step, and
+`php -S localhost:8000` is still the whole local workflow. Worked examples are
+in [examples/](examples/README.md).
 
 **The Catalog**
 Every cheatsheet is a folder holding a `sheet.json`, at `<category>/<sheet>/`
@@ -40,14 +40,29 @@ it before it publishes, which is where a casing mismatch is caught - those
 resolve on Windows and 404 on the published site.
 
 **Where the Drawing Surface Came From**
-It was not written here. `api/graphic-design/` is a hand port of the graphic
-design API from [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch),
-a sibling repository, and `ai-helper/graphic-designer/` is a port of the design
-language helper that sits on top of it - it reads one finished graphic into a
+It was not written here. `api/napkin-sketch/` is a vendored copy of the
+published [`@isocialpractice/napkin-sketch`](https://www.npmjs.com/package/@isocialpractice/napkin-sketch)
+build, pinned at `1.0.0`, and the project's own documentation site is the
+reference for what it draws. Nothing in that folder is edited - the pin moves
+instead:
+
+```bash
+node tools/vendor-napkin-sketch.mjs --pin <version>   # fetch and record a release
+node tools/vendor-napkin-sketch.mjs --check           # hash the folder against the record
+```
+
+`--pin` verifies the tarball against the registry's own SHA-512 before it
+unpacks a byte, copies the two entries this repository uses and whatever they
+import, and records a digest per file in `api/napkin-sketch/PIN.json`. `--check`
+reads that record with no network, and the Pages workflow runs it before it
+publishes. It replaced a hand port of the same surface, which was removed once
+the package was published.
+
+`ai-helper/graphic-designer/` is still a hand port, of the design language
+helper that sits on top of that surface - it reads one finished graphic into a
 written design language and generates a skill that can draw more work in it. See
 [ai-helper/graphic-designer/README.md](ai-helper/graphic-designer/README.md) for
-what changed on the way in. Every ported module names the upstream file and the
-commit it was taken at, so the two can still be diffed.
+what changed on the way in.
 
 **Tests**
 Run the suite from the repository root with `node --test`, no path and no glob
@@ -57,7 +72,8 @@ with the install command as their reason.
 
 **Licence**
 This repository is CC0 1.0 Universal ([LICENSE](LICENSE)), with two directories
-scoped out of that waiver: `api/graphic-design/` and `ai-helper/graphic-designer/`
-are ports from [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch)
-and stay under its MIT licence. [NOTICE](NOTICE) carries the copyright line and
-the permission text in full.
+scoped out of that waiver: `api/napkin-sketch/` is a vendored copy of
+[`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch) and
+`ai-helper/graphic-designer/` is a port from it, and both stay under its MIT
+licence. [NOTICE](NOTICE) carries the copyright line, the permission text in
+full, and the one bundled notice the vendored chunks reach.

@@ -21,6 +21,15 @@
 // font, and **The size gives, never the letterform** records why the answer is
 // a smaller title rather than a squeezed one.
 //
+// **The two brand assets are part of the claim.** The artwork sets its mark
+// beside the masthead wordmark and draws a footer strip with three social
+// icons in it, and until the assets reached the composition this example drew
+// a lone wordmark and a navy rectangle in their place - which looked like the
+// design language falling short and was the assets never being read. Both are
+// passed in from `assets/` here. Either one that is not on disk is left out
+// and its slot draws what it drew before, so a clone missing them still runs
+// this.
+//
 // The three free figures come from the seed, which is the sheet's own slug, so
 // running this twice produces the same bytes twice. `restyle-sheet.mjs` beside
 // this file takes the same document and the same seed through a second theme.
@@ -29,11 +38,36 @@
 // a demonstration rather than an artifact, and the eleven kept images are
 // what the repository carries as reference.
 
-import { pathToFileURL } from "node:url";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { writeComposition } from "../api/graphic-design/files.mjs";
+import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
+import { sheetBrandFrom, BRAND_FILES } from "../api/cheatsheet/brand.mjs";
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { SEED, splicingArrays } from "./splicing-arrays.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * The repository's own brand assets, or an empty brand where they are not
+ * there. Read once, because an example is one composition.
+ *
+ * @returns {Promise<import('../api/cheatsheet/brand.mjs').SheetBrand>}
+ */
+export async function brandAssets() {
+  const read = async (name, encoding) => {
+    try {
+      return await readFile(join(root, ...name.split("/")), encoding);
+    } catch {
+      return undefined;
+    }
+  };
+  return sheetBrandFrom({
+    logoSvg: await read(BRAND_FILES.logo, "utf8"),
+    footerPng: await read(BRAND_FILES.footer),
+  });
+}
 
 /**
  * Composes the sheet and reports what the composition chose.
@@ -41,10 +75,11 @@ import { SEED, splicingArrays } from "./splicing-arrays.mjs";
  * Exported so `tools/test-worked-examples.mjs` checks the example itself
  * rather than a copy of it that can drift from what a reader runs.
  *
+ * @param {import('../api/cheatsheet/brand.mjs').SheetBrand} [brand]
  * @returns {ReturnType<typeof composeSheet>}
  */
-export function reproduce() {
-  return composeSheet(splicingArrays, { seed: SEED });
+export function reproduce(brand = {}) {
+  return composeSheet(splicingArrays, { seed: SEED, brand });
 }
 
 /**
@@ -67,6 +102,9 @@ export function report(variation) {
     `  title cap       ${variation.titleCap} px, against the artwork's 141`,
     `  code cap        ${variation.codeCap} px`,
     `  panel fill      ${(variation.panelFill * 100).toFixed(1)}%, floor ${variation.floors.panelFill * 100}%`,
+    "",
+    `masthead mark     ${variation.brand.logo}`,
+    `footer lockup     ${variation.brand.footer}`,
     "",
     `code fits         ${variation.codeFits}`,
     `runs fit          ${variation.runsFit}`,
@@ -94,7 +132,7 @@ async function main(argv) {
   // route to a raster anyone publishes.
   const formats = argv.includes("--raster") ? ["svg", "png"] : ["svg"];
 
-  const { composition, variation } = reproduce();
+  const { composition, variation } = reproduce(await brandAssets());
   const written = await writeComposition(composition, out, "splicing-arrays", { formats });
 
   console.log(report(variation).join("\n"));

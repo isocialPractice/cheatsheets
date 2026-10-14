@@ -338,6 +338,52 @@ export const RUNS = {
 };
 
 /**
+ * The two places the sheets carry a brand asset rather than drawn shapes.
+ *
+ * Both were measured on `javaScriptArrays/SplicingArrays.jpg` on 2026.10.14,
+ * by scanning the artwork for the mark's own green and reading the extents.
+ * Until then the algorithm drew neither - it set a lone wordmark in the
+ * masthead and a bare navy rectangle in the footer - because nothing resolved
+ * the assets the repository had.
+ *
+ * **`logo` is the second masthead element**, and it is the one
+ * `compose.mjs` named and could not draw. The mark's green bar runs x 2182 to
+ * 2303 and y 132 to 373, and that bar is the full height of the mark's own
+ * square, so the asset occupies 2182 to 2634 across and 132 to 374 down: 452
+ * by 242, at the same ink top the wordmark is placed from. The wordmark's own
+ * ink ends at 1877, so `gap` is the 305 px between the two.
+ *
+ * That also settles what {@link RUNS}`.wordmark` records. Its `left` of 550 and
+ * `width` of 2084 reach 2634, which is the **lockup** - the wordmark and the
+ * asset together - and not the text alone, which is 1327 px wide. The lockup
+ * is 208 px left of the canvas axis, so neither half of it is centred on the
+ * axis and the pair is not either. A generated lockup is centred anyway, for
+ * the reason `compose.mjs` already gives for the lone wordmark: the artwork's
+ * face is condensed to 0.684 of the stack a generated sheet can name, so a
+ * generated wordmark is half again as wide as the artwork's and holding its
+ * left edge at 550 would run the asset off the right of the canvas.
+ *
+ * **`footer` is the whole footer lockup** - the mark square and the follow
+ * line, which in the artwork is one strip of the brand's own: a mark, "Follow
+ * Me", three social icons and a handle. It takes the band less the right
+ * margin, 0 to 3312, which at the asset's own 752 by 51 sets its text at a
+ * 154 px cap - the cap {@link RUNS}`.followLine` measures. One of those icons
+ * is drawn over a gradient, which this design language has no way to draw at
+ * all, so the strip is the only form that carries it.
+ *
+ * A slot with no asset behind it is drawn as it always was.
+ */
+export const BRAND_SLOTS = {
+  logo: { width: 452, height: 242, gap: 305, top: RUNS.wordmark.inkTop },
+  footer: {
+    x: 0,
+    y: BANDS.footer.y,
+    width: CANVAS - DIVISIONS.rightMargin.width,
+    height: BANDS.footer.height,
+  },
+};
+
+/**
  * The ranges the code panel is free within, from **How closely the eleven
  * repeat** and **The faces**.
  *
@@ -434,6 +480,7 @@ export const SHEET_LANGUAGE = {
   contrast: CONTRAST,
   rules: RULES,
   markSquare: MARK_SQUARE,
+  brandSlots: BRAND_SLOTS,
   insets: INSETS,
   runs: RUNS,
   panelFreedom: PANEL_FREEDOM,

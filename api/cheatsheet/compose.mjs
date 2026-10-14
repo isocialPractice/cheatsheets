@@ -1,8 +1,8 @@
 // The composition algorithm: a cheatsheet document and the extracted design
 // language in, a composition variation out.
 //
-// This is the first code in the repository that *calls* the ported drawing
-// surface rather than describing it. It builds the six regions **The sheets**
+// This is the first code in the repository that *calls* the drawing surface
+// rather than describing it. It builds the six regions **The sheets**
 // in `DESIGN_LANGUAGE.md` measured - a masthead, a heading band, a code panel,
 // a green divider and a footer down the canvas, with a green spine, the panel
 // and a right margin across it - and fills them from a document.
@@ -89,11 +89,17 @@
 // **Implement Cheatsheet API** in `TODO.md`, and it is deliberately not
 // invented here. When it lands, this algorithm is what it composes through.
 
-import { createComposition } from "../graphic-design/compose.mjs";
-import { measureText } from "../graphic-design/font.mjs";
+import { createComposition, placeBrand } from "../napkin-sketch/api/index.js";
 
-import { checkPairings, readableInk } from "./contrast.mjs";
-import { CODE_FACE, SHEET_FACE, TYPE_ROLES, sizeForCap } from "./faces.mjs";
+import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
+import {
+  centredAt,
+  measureRun,
+  CODE_FACE,
+  SHEET_FACE,
+  TYPE_ROLES,
+  sizeForCap,
+} from "./faces.mjs";
 import { SHEET_LANGUAGE } from "./language.mjs";
 import { Variation } from "./variation.mjs";
 
@@ -186,13 +192,13 @@ function codeLines(code) {
  * @param {string} text
  * @param {number} cap
  * @param {number} maxWidth
- * @param {import('../graphic-design/font.mjs').Face} face
+ * @param {import('./faces.mjs').Face} face
  * @param {number} floor
  * @returns {{ cap: number, fits: boolean }}
  */
 function capThatFits(text, cap, maxWidth, face, floor) {
   if (maxWidth <= 0) return { cap, fits: true };
-  const width = (at) => measureText(text, { fontSize: sizeForCap(at, face), face });
+  const width = (at) => measureRun(text, { fontSize: sizeForCap(at, face), face });
   let fitted = Math.round(cap);
   while (fitted > floor && width(fitted) > maxWidth) fitted -= 1;
   return { cap: fitted, fits: width(fitted) <= maxWidth };
@@ -203,14 +209,14 @@ function capThatFits(text, cap, maxWidth, face, floor) {
  *
  * @param {CodeLine[]} lines
  * @param {number} cap
- * @param {import('../graphic-design/font.mjs').Face} face
+ * @param {import('./faces.mjs').Face} face
  * @returns {number}
  */
 function widestLine(lines, cap, face) {
   const fontSize = sizeForCap(cap, face);
   let widest = 0;
   for (const line of lines) {
-    const width = measureText(line.text, { fontSize, face });
+    const width = measureRun(line.text, { fontSize, face });
     if (width > widest) widest = width;
   }
   return widest;
@@ -232,6 +238,7 @@ function widestLine(lines, cap, face) {
  * @property {number} titleCap
  * @property {number} subtitleCap
  * @property {string} face
+ * @property {Record<string, string>} brand How each brand slot was filled: `vector`, `image` or `drawn`.
  * @property {boolean} codeFits Whether every line of the example fits the panel.
  * @property {boolean} runsFit Whether every display run fits its region above its floor.
  * @property {typeof SHEET_LANGUAGE['floors']} floors The floors this variation was held to.
@@ -247,8 +254,9 @@ function widestLine(lines, cap, face) {
  * @typedef {object} ComposeOptions
  * @property {number | string} [seed] Selects the variation. Identical seeds compose identically.
  * @property {typeof SHEET_LANGUAGE} [language]
- * @property {import('../graphic-design/font.mjs').Face} [face]
- * @property {import('../graphic-design/font.mjs').Face} [codeFace]
+ * @property {import('./faces.mjs').Face} [face]
+ * @property {import('./faces.mjs').Face} [codeFace]
+ * @property {import('./brand.mjs').SheetBrand} [brand] Assets for the two brand slots. Each is optional.
  */
 
 /**
@@ -256,7 +264,7 @@ function widestLine(lines, cap, face) {
  *
  * @param {SheetDocument} doc
  * @param {ComposeOptions} [options]
- * @returns {{ composition: import('../graphic-design/compose.mjs').Composition, variation: VariationReport }}
+ * @returns {{ composition: import('../napkin-sketch/api/index.js').Composition, variation: VariationReport }}
  */
 export function composeSheet(doc, options = {}) {
   if (!doc || typeof doc.title !== "string" || doc.title.length === 0) {
@@ -267,8 +275,29 @@ export function composeSheet(doc, options = {}) {
   const face = options.face ?? SHEET_FACE;
   const codeFace = options.codeFace ?? CODE_FACE;
   const variation = new Variation(options.seed);
-  const { bands, divisions, colors, syntax, rules, runs, markSquare, insets, panelFreedom } =
-    language;
+  const {
+    bands,
+    divisions,
+    colors,
+    syntax,
+    rules,
+    runs,
+    markSquare,
+    insets,
+    panelFreedom,
+  } = language;
+  const slots = language.brandSlots ?? SHEET_LANGUAGE.brandSlots;
+  const brand = options.brand ?? {};
+  /**
+   * What each slot ended up holding, for the report.
+   *
+   * `drawn` is not a failure and is the state every slot was in before the
+   * assets resolved: the masthead sets a lone wordmark and the footer draws a
+   * navy square beside a line of type.
+   *
+   * @type {Record<string, string>}
+   */
+  const brandModes = { logo: "drawn", footer: "drawn" };
   // A caller may pass a replacement language, and one written before the floors
   // existed carries none. Falling back to the recorded floors rather than to no
   // floors at all keeps the guarantee: a language can move a floor, but it
@@ -295,7 +324,7 @@ export function composeSheet(doc, options = {}) {
    * Draws a run of text, substituting the ink where the ground demands it and
    * recording the pairing that was actually drawn.
    *
-   * @param {Omit<import('../graphic-design/types.mjs').TextElement, 'type'> & { name: string, fill: string }} element
+   * @param {Omit<import('../napkin-sketch/api/index.js').TextElement, 'type'> & { name: string, fill: string }} element
    * @param {string} ground
    */
   const drawText = (element, ground) => {
@@ -357,12 +386,21 @@ export function composeSheet(doc, options = {}) {
   });
 
   // --- The masthead --------------------------------------------------------
-  // The artwork's wordmark sits 208.5 px left of the canvas axis, and that is
-  // not an offset to reproduce: a second masthead element sits to its right on
-  // every one of the eleven, and the pair is what is centred. A document has no
-  // way to declare that element yet, so a wordmark alone is centred on its own.
-  // Reproducing the measured offset without the thing that balances it would
-  // put a lone run visibly off centre and call it fidelity.
+  // The masthead is a lockup rather than a run: on every one of the eleven the
+  // wordmark has the brand's mark beside it, and `RUNS.wordmark` records the
+  // pair - `left` 550 and `width` 2084 reach 2634, where the mark's letters
+  // end, while the text alone is 1327 px wide. The whole lockup sits 208 px
+  // left of the canvas axis, so neither half of it is centred and nor is the
+  // pair.
+  //
+  // What is drawn here is centred anyway, and the reason is the face. The
+  // artwork is set in something condensed to 0.684 of the stack a generated
+  // sheet can name, so a generated wordmark is half again as wide as the
+  // artwork's; holding the lockup's left edge at the measured 550 would push
+  // the mark off the right of the canvas. Centring the lockup is the same
+  // decision this took when it had no mark to draw and centred the wordmark
+  // alone - it is now taken with the measurement that settles it rather than
+  // on an assumption that the pair was centred.
   const wordmark = doc.wordmark ?? DEFAULT_RUNS.wordmark;
   // Every display run is fitted the same way and every one of them can fail the
   // same way, so the note is written once here rather than five times below.
@@ -392,21 +430,62 @@ export function composeSheet(doc, options = {}) {
     return fitted.cap;
   };
 
-  const mastheadCap = displayCap(
-    "wordmark",
-    wordmark,
-    runs.wordmark.cap,
-    language.canvas - insets.mastheadPadding * 2
-  );
+  // The mark takes its slot and the gap beside it out of the measure the
+  // wordmark is fitted to, so a long wordmark steps down rather than running
+  // into the mark.
+  const markPlaced = Boolean(brand.logo);
+  const mastheadRoom =
+    language.canvas -
+    insets.mastheadPadding * 2 -
+    (markPlaced ? slots.logo.width + slots.logo.gap : 0);
+  const mastheadCap = displayCap("wordmark", wordmark, runs.wordmark.cap, mastheadRoom);
+  const mastheadSize = sizeForCap(mastheadCap, face);
+
+  // The mark is placed before the wordmark is drawn, and that order is the
+  // whole of how the fallback stays honest: an asset that holds no drawable
+  // shape reports it rather than drawing, and the wordmark then goes back to
+  // the middle of the canvas instead of sitting at the left edge of a lockup
+  // whose other half is missing.
+  //
+  // Measured rather than centred by the renderer, because the lockup is two
+  // elements and only one of them is text: the wordmark is set left aligned at
+  // the lockup's own left edge and the mark takes the far end.
+  const wordmarkWidth = measureRun(wordmark, { fontSize: mastheadSize, face });
+  const lockupLeft =
+    (language.canvas - (wordmarkWidth + slots.logo.gap + slots.logo.width)) / 2;
+  if (markPlaced) {
+    const placed = placeBrand(
+      composition,
+      {
+        x: lockupLeft + wordmarkWidth + slots.logo.gap,
+        y: slots.logo.top,
+        width: slots.logo.width,
+        height: slots.logo.height,
+      },
+      brand.logo,
+      { name: "masthead-mark", alt: brand.logo.alt ?? wordmark }
+    );
+    brandModes.logo = placed.placed ? placed.mode : "drawn";
+    for (const note of placed.notes) notes.push(`The masthead mark: ${note}`);
+    if (!placed.placed) {
+      notes.push("The masthead mark held nothing drawable, so the wordmark is set on its own.");
+    }
+  }
+  const lockedUp = brandModes.logo !== "drawn";
   drawText(
     {
       name: "wordmark",
-      x: language.canvas / 2,
+      // Left aligned either way: a lockup starts at its own left edge, and a
+      // lone wordmark is centred by the arithmetic here rather than by the
+      // renderer, which no longer has a face to centre it with.
+      x: lockedUp
+        ? lockupLeft
+        : centredAt(wordmark, language.canvas / 2, mastheadSize, face),
       y: runs.wordmark.baseline,
       text: wordmark,
-      align: "center",
-      face,
-      fontSize: sizeForCap(mastheadCap, face),
+      align: "left",
+      fontFamily: face.fontFamily,
+      fontSize: mastheadSize,
       fontWeight: TYPE_ROLES.masthead.fontWeight,
       fill: colors.white,
     },
@@ -438,15 +517,16 @@ export function composeSheet(doc, options = {}) {
   // The title is set across the canvas less both flanking rules, which is the
   // measure the artwork placed the rules against.
   const titleCap = displayCap("title", doc.title, runs.title.cap, rules.measure);
+  const titleSize = sizeForCap(titleCap, face);
   drawText(
     {
       name: "title",
-      x: language.canvas / 2,
+      x: centredAt(doc.title, language.canvas / 2, titleSize, face),
       y: runs.title.baseline,
       text: doc.title,
-      align: "center",
-      face,
-      fontSize: sizeForCap(titleCap, face),
+      align: "left",
+      fontFamily: face.fontFamily,
+      fontSize: titleSize,
       fontWeight: TYPE_ROLES.title.fontWeight,
       fill: colors.heading,
     },
@@ -458,15 +538,16 @@ export function composeSheet(doc, options = {}) {
   let subtitleCap = runs.subtitle.cap;
   if (doc.subtitle) {
     subtitleCap = displayCap("subtitle", doc.subtitle, runs.subtitle.cap, rules.measure);
+    const subtitleSize = sizeForCap(subtitleCap, face);
     drawText(
       {
         name: "subtitle",
-        x: language.canvas / 2,
+        x: centredAt(doc.subtitle, language.canvas / 2, subtitleSize, face),
         y: runs.subtitle.baseline,
         text: doc.subtitle,
-        align: "center",
-        face,
-        fontSize: sizeForCap(subtitleCap, face),
+        align: "left",
+        fontFamily: face.fontFamily,
+        fontSize: subtitleSize,
         fontWeight: TYPE_ROLES.leadIn.fontWeight,
         fill: colors.heading,
       },
@@ -493,7 +574,7 @@ export function composeSheet(doc, options = {}) {
       y: runs.leadIn.baseline,
       text: leadIn,
       align: "left",
-      face,
+      fontFamily: face.fontFamily,
       fontSize: sizeForCap(leadInCap, face),
       fontWeight: TYPE_ROLES.leadIn.fontWeight,
       fill: colors.heading,
@@ -685,7 +766,7 @@ export function composeSheet(doc, options = {}) {
         y: bands.code.y + topPadding + codeCap + lineSpacing * index,
         text: line.text,
         align: "left",
-        face: codeFace,
+        fontFamily: codeFace.fontFamily,
         fontSize: codeSize,
         fill: roleColor(syntax, line.role),
       },
@@ -694,37 +775,82 @@ export function composeSheet(doc, options = {}) {
   });
 
   // --- The footer ----------------------------------------------------------
-  composition.rect({
-    name: "mark-square",
-    x: markSquare.x,
-    y: markSquare.y,
-    width: markSquare.width,
-    height: markSquare.height,
-    fill: colors.navy,
-  });
+  // The artwork's footer is one strip: a mark square, "Follow Me", three social
+  // icons and a handle, drawn as a single lockup. The asset is that strip, so
+  // where it is present it replaces both of the things drawn in its place - the
+  // navy square and the line of type - rather than sitting beside them and
+  // giving the sheet two marks.
+  //
+  // **A document that names its own follow line keeps the drawn footer.** The
+  // asset carries fixed text, so a sheet asking to say something else cannot be
+  // given it, and the text route is the only one that can. The icons are then
+  // not drawn at all, which is the trade and is why the default is the asset.
+  //
+  // One consequence worth naming: a placed strip carries no pairing into
+  // `checkPairings` below, because contrast is measured over runs of text and
+  // the strip is pixels. The artwork's own footer is the one place the eleven
+  // break the site's contrast rule - the handle sigil is green on white at
+  // 2.80:1, recorded under **The one place the sheets break the site's own
+  // rule** - so the strip carries that break in with it, unmeasured and
+  // unrepainted. It is the artwork, exactly as drawn.
+  const footerAsset = doc.followLine === undefined ? brand.footer : null;
+  if (footerAsset) {
+    const placed = placeBrand(composition, slots.footer, footerAsset, {
+      name: "footer-lockup",
+      alt: footerAsset.alt ?? DEFAULT_RUNS.followLine,
+    });
+    brandModes.footer = placed.placed ? placed.mode : "drawn";
+    for (const note of placed.notes) notes.push(`The footer lockup: ${note}`);
+    if (!placed.placed) {
+      notes.push("The footer lockup held nothing drawable, so the mark square and follow line are drawn.");
+    }
+  }
 
-  const followLine = doc.followLine ?? DEFAULT_RUNS.followLine;
-  const followX = markSquare.x + markSquare.width + insets.followLineFromMark;
-  const followCap = displayCap(
-    "follow line",
-    followLine,
-    runs.followLine.cap,
-    language.canvas - followX - divisions.rightMargin.width
-  );
-  drawText(
-    {
-      name: "follow-line",
-      x: followX,
-      y: runs.followLine.baseline,
-      text: followLine,
-      align: "left",
-      face,
-      fontSize: sizeForCap(followCap, face),
-      fontWeight: TYPE_ROLES.followLine.fontWeight,
+  if (brandModes.footer === "drawn") {
+    composition.rect({
+      name: "mark-square",
+      x: markSquare.x,
+      y: markSquare.y,
+      width: markSquare.width,
+      height: markSquare.height,
       fill: colors.navy,
-    },
-    colors.white
-  );
+    });
+
+    const followLine = doc.followLine ?? DEFAULT_RUNS.followLine;
+    const followX = markSquare.x + markSquare.width + insets.followLineFromMark;
+    const followCap = displayCap(
+      "follow line",
+      followLine,
+      runs.followLine.cap,
+      language.canvas - followX - divisions.rightMargin.width
+    );
+    drawText(
+      {
+        name: "follow-line",
+        x: followX,
+        y: runs.followLine.baseline,
+        text: followLine,
+        align: "left",
+        fontFamily: face.fontFamily,
+        fontSize: sizeForCap(followCap, face),
+        fontWeight: TYPE_ROLES.followLine.fontWeight,
+        fill: colors.navy,
+      },
+      colors.white
+    );
+  }
+
+  // --- The paints the sheet was actually drawn in --------------------------
+  // Read off the finished document rather than checked as each element is
+  // added, for the same reason the contrast below is: what a run was asked for
+  // is not always what it was drawn in, and a check of the request would pass a
+  // sheet on the strength of a colour that is not in it.
+  //
+  // This is the refusal the drawing surface does not reliably make. Its SVG
+  // writer passes a colour it cannot read straight through to the markup, where
+  // the page draws it as a black region with no error anywhere, and only its
+  // rasterizer objects - and the page never rasterizes.
+  checkPaints(composition.toDocument());
 
   // --- The contrast the sheet was actually drawn at ------------------------
   // Measured after the fact rather than before, because the ink a run ends up
@@ -755,6 +881,7 @@ export function composeSheet(doc, options = {}) {
       titleCap,
       subtitleCap,
       face: face.name,
+      brand: brandModes,
       codeFits,
       runsFit,
       floors,

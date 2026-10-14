@@ -32,12 +32,127 @@
 // fill, and the first thing anyone would do about that is raise the floor -
 // which would take the text rule with it.
 //
-// Everything here is browser-safe and reaches no further than the ported
-// colour parser beside it.
-
-import { parseColor } from "../graphic-design/color.mjs";
+// ## The colour reader is this layer's own
+//
+// It used to be the drawing surface's `parseColor`. The published package this
+// surface is becoming exports no such function from its root entry, so a
+// ratio measured through it would stop being measurable the moment the surface
+// moved - and the ratio is the whole of what this module does.
+//
+// So {@link parseSheetColor} is here instead, and it is narrower than the one
+// it replaces on purpose. **It reads the hex forms and nothing else.** All 22
+// paints the design language and the worked example's theme declare are hex,
+// measured on 2026.10.13, so the named keywords, `rgb()` and `hsl()` would be
+// code nothing in this repository reaches - and a reader that quietly accepts
+// a form the design language never writes is a reader that will one day accept
+// a typo for one. A replacement language that wants `rebeccapurple` is told to
+// write it as hex, which is what every colour this repository records already
+// is.
+//
+// Everything here is browser-safe and imports nothing outside this folder.
 
 import { COLORS, CONTRAST, SHEET_LANGUAGE } from "./language.mjs";
+
+/** The hex forms, which are the only forms this design language writes. */
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/;
+
+/**
+ * The values that mean "do not paint", which are not errors.
+ *
+ * The same set the drawing surface's own reader passes: a composition may
+ * legitimately leave a fill or a stroke unset, and `""`, `none` and
+ * `transparent` all say so in markup.
+ */
+const UNPAINTED = new Set(["", "none", "transparent"]);
+
+/**
+ * A colour as red, green, blue and alpha.
+ *
+ * @typedef {{ r: number, g: number, b: number, a: number }} Rgba
+ */
+
+/**
+ * Reads one of the hex forms, and refuses everything else.
+ *
+ * The message is the one the drawing surface raises, quoting what was written,
+ * because it is the message this repository's tests and its readers already
+ * know and the fault it reports is the same fault.
+ *
+ * @param {string} input
+ * @returns {Rgba}
+ * @throws if `input` is not `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`.
+ */
+export function parseSheetColor(input) {
+  const value = String(input).trim().toLowerCase();
+  const hex = HEX.exec(value);
+  if (!hex) throw new Error(`graphic-design: unsupported color "${input}"`);
+  const h = hex[1];
+  const expand = (c) => parseInt(c + c, 16);
+  if (h.length <= 4) {
+    return {
+      r: expand(h[0]),
+      g: expand(h[1]),
+      b: expand(h[2]),
+      a: h.length === 4 ? expand(h[3]) / 255 : 1,
+    };
+  }
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+    a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1,
+  };
+}
+
+/**
+ * A paint, or `null` where there is deliberately none.
+ *
+ * @param {string | null | undefined} input
+ * @returns {Rgba | null}
+ * @throws if `input` is a value that is neither a paint nor an absence of one.
+ */
+export function parseSheetPaint(input) {
+  if (input === null || input === undefined) return null;
+  const value = String(input).trim().toLowerCase();
+  if (UNPAINTED.has(value)) return null;
+  const rgba = parseSheetColor(value);
+  return rgba.a <= 0 ? null : rgba;
+}
+
+/**
+ * Raises on the first paint in a composed document the renderers cannot read.
+ *
+ * **Why this is the layer's job and not the renderer's.** Upstream lets the SVG
+ * writer pass a colour straight through to the markup, on the reasoning that a
+ * browser is the better parser, and catches a misspelling in the rasterizer
+ * instead. The hand port that preceded the vendored copy disagreed and refused
+ * in both. The published package agrees with upstream: measured on 2026.10.13, `fill: "ofwhite"` is written into the
+ * markup by its `toSVG()` and refused only by its `toPNG()`.
+ *
+ * That difference matters here and nowhere else. The page composes its sheet as
+ * inline SVG and the rasterizer never runs, so an unreadable paint is a black
+ * region with no error attached to it anywhere. Checking the document this
+ * layer composed is what keeps the refusal whichever surface draws it.
+ *
+ * Every element is read, groups included: a group carries the common paint
+ * props and SVG inherits them into its children, so a misspelling on a wrapper
+ * reaches the artwork exactly as one on a leaf does.
+ *
+ * @param {{ background?: string, elements: Array<Record<string, any>> }} doc
+ * @throws if any fill, stroke or page background is not a colour this reads.
+ */
+export function checkPaints(doc) {
+  parseSheetPaint(doc.background);
+  /** @param {Array<Record<string, any>>} elements */
+  const walk = (elements) => {
+    for (const el of elements) {
+      parseSheetPaint(el.fill);
+      parseSheetPaint(el.stroke);
+      if (el.type === "group") walk(el.children ?? []);
+    }
+  };
+  walk(doc.elements ?? []);
+}
 
 /**
  * One channel of a colour, linearised.
@@ -67,7 +182,7 @@ function channel(eightBit) {
  * @returns {number}
  */
 export function relativeLuminance(color) {
-  const { r, g, b } = parseColor(color);
+  const { r, g, b } = parseSheetColor(color);
   return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
 }
 

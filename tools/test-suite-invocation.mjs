@@ -41,7 +41,7 @@
 // the item this file closes was queued for the day a test wanted to sit beside
 // the module it covers. A path or a glob would have to be edited on that day.
 // The bare command would not: Node walks the tree from the working directory,
-// so `api/graphic-design/test-svg.mjs` is found the moment it is written, and
+// so `api/cheatsheet/test-compose.mjs` is found the moment it is written, and
 // the command in this header stays true.
 //
 // Three more things fall out of it, all of which the cases below hold:

@@ -28,8 +28,8 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { measureText } from "../api/graphic-design/font.mjs";
-import { composeSheet, SHEET_FACE, sizeForCap } from "../api/cheatsheet/index.mjs";
+import { measureText } from "../api/napkin-sketch/api/index.js";
+import { composeSheet, measureRun, CODE_FACE, SHEET_FACE, sizeForCap } from "../api/cheatsheet/index.mjs";
 
 // Where Playwright is looked for, in order: a local install, then whatever
 // PLAYWRIGHT_MODULE names, then the user scope global. Identical to
@@ -121,6 +121,23 @@ async function measureInBrowser(svg) {
   return boxes;
 }
 
+/**
+ * The face a run was measured in, by the family it names.
+ *
+ * Both faces in this design language name the same family and carry the same
+ * table, so the code face and the text face measure a run identically - but the
+ * lookup is written as a lookup rather than as one face so a second family
+ * is a table entry here and not a bug nobody notices.
+ *
+ * @param {{ fontFamily?: string }} element
+ */
+function faceOf(element) {
+  for (const face of [SHEET_FACE, CODE_FACE]) {
+    if (face.fontFamily === element.fontFamily) return face;
+  }
+  return SHEET_FACE;
+}
+
 test("the browser draws each run at the width the committed table predicted", { skip }, async () => {
   const { composition } = composeSheet(DOC, { seed: "splice-array" });
   const drawn = await measureInBrowser(composition.toSVG());
@@ -137,9 +154,12 @@ test("the browser draws each run at the width the committed table predicted", { 
     if (element.type !== "text") continue;
     const box = drawn[element.name];
     assert.ok(box, `${element.name} was not drawn at all`);
-    const predicted = measureText(element.text, {
+    // The element carries no face since 2026.10.14 - it carries the family its
+    // face names - so the ruler is handed the layer's face by name here, which
+    // is the one the composition measured with.
+    const predicted = measureRun(element.text, {
       fontSize: element.fontSize,
-      face: element.face ?? SHEET_FACE,
+      face: faceOf(element),
     });
     const share = Math.abs(box.width - predicted) / predicted;
     if (share > worst.share) worst = { name: element.name, share };
@@ -168,9 +188,11 @@ test("and the built-in alphabet would have missed every one of them", { skip }, 
 
   for (const element of composition.elements) {
     if (element.type !== "text") continue;
-    const face = element.face ?? SHEET_FACE;
-    // The built-in alphabet at the size whose cap matches this run's, which is
-    // what the port measured with before it took a face.
+    const face = faceOf(element);
+    // The built-in alphabet at the size whose cap matches this run's. The
+    // drawing surface is still asked for this one figure, because the claim is
+    // about *its* alphabet: this is the only case here that is about the thing
+    // on the other side of the boundary rather than about the table.
     const cap = (element.fontSize * face.capHeight) / face.unitsPerEm;
     const builtin = measureText(element.text, { fontSize: (cap * 15) / 11 });
     const share = Math.abs(drawn[element.name].width - builtin) / drawn[element.name].width;

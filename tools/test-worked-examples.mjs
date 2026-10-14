@@ -49,7 +49,7 @@ const readme = readFileSync(join(root, "examples", "README.md"), "utf8");
 /**
  * An element from a composition, by the name the algorithm gave it.
  *
- * @param {import('../api/graphic-design/compose.mjs').Composition} composition
+ * @param {import('../api/napkin-sketch/api/index.js').Composition} composition
  * @param {string} name
  */
 function named(composition, name) {

@@ -101,7 +101,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { createComposition, rasterizeComposition } from "../api/graphic-design/index.mjs";
+import { createComposition, rasterizeComposition } from "../api/napkin-sketch/api/index.js";
 import { CAP_SHARE } from "../api/cheatsheet/compose.mjs";
 import { SHEET_FACE, sizeForCap } from "../api/cheatsheet/faces.mjs";
 import { CENSUS, censusFor, SHEET_LANGUAGE } from "../api/cheatsheet/language.mjs";
@@ -305,7 +305,7 @@ function codeRows(language) {
  * the palette's, and only the second of those a theme replaces.
  *
  * @param {{ category?: string, language?: typeof SHEET_LANGUAGE }} [options]
- * @returns {{ composition: import('../api/graphic-design/compose.mjs').Composition, census: Record<string, { hex: string, share: number }>, areas: Record<string, number> }}
+ * @returns {{ composition: import('../api/napkin-sketch/api/index.js').Composition, census: Record<string, { hex: string, share: number }>, areas: Record<string, number> }}
  */
 export function composeLanguageAsset(options = {}) {
   const category = options.category ?? "sheets";
@@ -378,7 +378,13 @@ export function composeLanguageAsset(options = {}) {
       x: run.box.left,
       y: run.baseline,
       text: run.name,
-      face: SHEET_FACE,
+      // The family rather than the face. The drawing surface reads a
+      // `fontFamily` and has nowhere to put a width table, so a face handed to
+      // it is silently dropped and the run records the surface's own default -
+      // `Helvetica` where this asset means to record the stack the design
+      // language names. The same change `api/cheatsheet/compose.mjs` made on
+      // 2026.10.14, for the same reason.
+      fontFamily: SHEET_FACE.fontFamily,
       fontSize: sizeForCap(run.box.cap),
       fill: null,
     });
@@ -427,7 +433,7 @@ export function composeLanguageAsset(options = {}) {
  * takes. A figure computed back out of the rectangles would agree with the
  * arithmetic above and prove nothing about what was drawn.
  *
- * @param {import('../api/graphic-design/compose.mjs').Composition} composition
+ * @param {import('../api/napkin-sketch/api/index.js').Composition} composition
  * @param {number} [scale]
  * @param {Record<string, { hex: string, share: number }>} [census] The census
  *   the composition was drawn against, which is what names the colors to count.
@@ -462,7 +468,7 @@ export function measureShares(composition, scale = 0.25, census = CENSUS) {
  * column is only meaningful beside it - a reading at a quarter is not a cheaper
  * version of the full size one, it is a different measurement.
  *
- * @param {import('../api/graphic-design/compose.mjs').Composition} composition
+ * @param {import('../api/napkin-sketch/api/index.js').Composition} composition
  * @param {number} [scale]
  * @param {Record<string, { hex: string, share: number }>} [census]
  */

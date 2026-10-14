@@ -90,7 +90,7 @@ test("and each of the four files under scripts/ records where it came from", () 
   //
   // The fourth is `template.md`, a fill-in procedure rather than a script. The
   // port changed a path in it exactly as it did in the other three - its import
-  // block reaches `api/graphic-design/` instead of a `napkin-sketch` package -
+  // block reaches the copy under `api/` instead of a `napkin-sketch` package -
   // so it needs the line for the same reason they do, not an exemption from it.
   const files = readdirSync(scripts);
   assert.equal(files.length, 4, "NOTICE counts four files under scripts/");
@@ -171,7 +171,21 @@ test("no prose imports the drawing API by package name", () => {
 
 /* --- 2. The loader, which is the edit that fails quietly ------------------ */
 
-test("both scripts resolve the ported barrel", async () => {
+test("both scripts resolve the vendored entry", async () => {
+  // The path moved on 2026.10.14, from a hand port's barrel to the pinned copy of
+  // the published build. The loader walks up for it rather than joining a fixed
+  // relative path, so what this proves is that the walk still lands on
+  // something that answers - which is the half that fails quietly.
+  // Both scripts carry their own copy of the path, because a generated skill
+  // takes a copy of each into a folder of its own - so the path is asserted in
+  // both rather than in whichever one happened to be read.
+  for (const name of ["analyze-media.mjs", "brand-resources.mjs"]) {
+    assert.match(
+      readFileSync(join(scripts, name), "utf8"),
+      /const API_PATH = \['api', 'napkin-sketch', 'api', 'index\.js'\];/,
+      `${name} does not look for the vendored entry`
+    );
+  }
   const api = await loadGraphicApi();
   for (const name of ["createComposition", "parseResources", "findBrandSlots", "decodePng", "inlineSvg"]) {
     assert.equal(typeof api[name], "function", `the barrel the loader found has no ${name}`);
@@ -347,13 +361,14 @@ test("an asset generates a skill that runs and draws both formats", () => {
 
 test("a skill generated outside the repository still finds the API, given the variable", () => {
   // The walk up ends at the drive root, so a skill generated into a temporary
-  // folder has no `api/graphic-design/` above it. That is the case
+  // folder has no `api/napkin-sketch/` above it. That is the case
   // `CHEATSHEET_GRAPHIC_DESIGN_API` exists for, and it is the only route left
-  // once the package name is gone.
+  // once the package name is gone - the helper keeps its own loader rather than
+  // resolving the package by name, because there is nothing here to resolve.
   const dir = mkdtempSync(join(tmpdir(), "cheatsheet-helper-away-"));
   try {
-    const barrel = join(root, "api", "graphic-design", "index.mjs");
-    const env = { ...process.env, CHEATSHEET_GRAPHIC_DESIGN_API: barrel };
+    const entry = join(root, "api", "napkin-sketch", "api", "index.js");
+    const env = { ...process.env, CHEATSHEET_GRAPHIC_DESIGN_API: entry };
     execFileSync(
       process.execPath,
       [join(scripts, "generate-skill.mjs"), ASSET, "--to", join(dir, "skills"), "--no-register", "--force"],

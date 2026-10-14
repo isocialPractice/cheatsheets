@@ -6,9 +6,9 @@ something you decided; nothing here is meant to be guessed.
 > Ported from `ai-helper/graphic-designer/skills/design-language/scripts/template.md`
 > in napkin-sketch (MIT, isocialPractice), commit
 > `d43caac191b2dfd532b3311f4ca1ea6969bb002f` - the same commit the drawing
-> surface under `api/graphic-design/` came from. What changed is a path, as it
+> surface under `api/napkin-sketch/` came from. What changed is a path, as it
 > is in every file of this port: the import block in **5. Write the composing
-> script** reaches `api/graphic-design/` by relative path, because there is no
+> script** reaches `api/napkin-sketch/` by relative path, because there is no
 > `napkin-sketch` package here to import and no `dist/` to fall back to.
 
 ## 0. Inputs
@@ -95,8 +95,8 @@ description: '<what asset this is the language of, in what medium, and the occas
 ## 5. Write the composing script
 
 ```js
-import { createComposition } from '../api/graphic-design/index.mjs';
-import { writeComposition } from '../api/graphic-design/files.mjs';
+import { createComposition } from '../api/napkin-sketch/api/index.js';
+import { writeComposition } from '../api/napkin-sketch/graphic-design/files.js';
 import { resolveBrand } from './brand-resources.mjs';
 
 const PALETTE = { paper: '<hex>', ink: '<hex>', accent: '<hex>' };

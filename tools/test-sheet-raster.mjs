@@ -24,7 +24,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-import { createComposition, decodePng, isPng } from "../api/graphic-design/index.mjs";
+import { createComposition, decodePng } from "../api/napkin-sketch/api/index.js";
 import { composeSheet, DISPLAY_SCALE } from "../api/cheatsheet/index.mjs";
 import {
   DEFAULT_SCALE,
@@ -34,6 +34,21 @@ import {
   rasterizeSheet,
   resolveChromium,
 } from "../api/cheatsheet/raster.mjs";
+
+/**
+ * Whether a block of bytes opens with the PNG signature.
+ *
+ * Written out here rather than imported, for the same reason as `escapeXml` in
+ * `tools/test-composition-algorithm.mjs`: the published root entry exports no
+ * `isPng`, and the signature is eight bytes that have not changed since 1996.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {boolean}
+ */
+function isPng(bytes) {
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  return bytes?.length >= 8 && signature.every((byte, at) => bytes[at] === byte);
+}
 
 /** @param {Uint8Array} bytes */
 function digest(bytes) {

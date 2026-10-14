@@ -7,7 +7,7 @@ stops being a brief somebody re-explains and becomes a script with a name.
 Ported from `ai-helper/graphic-designer/` in the sibling `napkin-sketch`
 repository (MIT, isocialPractice), commit
 `d43caac191b2dfd532b3311f4ca1ea6969bb002f` - the same commit the drawing
-surface under `api/graphic-design/` came from. It is the last piece of that
+surface under `api/napkin-sketch/` came from. It is the last piece of that
 port: the surface draws, and this is what decides what to draw.
 
 ```text
@@ -63,7 +63,7 @@ is recorded in the header of each file it touched.
   `napkin-sketch` and fell back to a clone's `dist/`. This repository has no
   `package.json` and no build step, so `analyze-media.mjs` and
   `brand-resources.mjs` walk up from their own folder for
-  `api/graphic-design/index.mjs`. The walk is what lets the copy of
+  `api/napkin-sketch/api/index.js`. The walk is what lets the copy of
   `brand-resources.mjs` inside a generated skill, four folders deeper, reach the
   same barrel; `CHEATSHEET_GRAPHIC_DESIGN_API` names it outright from outside
   the tree.

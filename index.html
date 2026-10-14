@@ -50,14 +50,22 @@
   box-sizing: border-box;
  }
  /* The maximum width is the row's own measure rather than a round number: 360
-    for the panel column, a 32px gap and 600 for the sheet is 992, and a
-    space-2 gutter each side makes 1024 - 128 whole 8px steps. At the old
-    1200px the sheet's column grew to the remaining width while the sheet
-    inside it stayed capped at 600px and left aligned, so up to 176px of empty
-    ground sat to the right of the frame at every width from 1025px up. */
+    for the panel column, a 32px gap and 900 for the sheet is 1292, and a
+    space-2 gutter each side makes 1324. At the old 1200px the sheet's column
+    grew to the remaining width while the sheet inside it stayed capped and
+    left aligned, so up to 176px of empty ground sat to the right of the frame
+    at every width from 1025px up.
+
+    The measure moved from 1024 to 1324 when the sheet's cap moved from 600 to
+    900: the two are one figure, and leaving the page at 1024 would have capped
+    the sheet at 600 by the column rather than by its own rule. 1324 is the one
+    length on the page that is not a whole number of 8px steps - 165.5 of them -
+    because 900 is the round number the cap was raised to rather than a step
+    multiple, and moving the cap to 896 to recover the step would be choosing
+    the grid over the thing the grid is for. */
  body {
   margin: 0 auto;
-  max-width: 1024px;
+  max-width: 1324px;
   padding: var(--space-2);
   background: var(--page);
   color: var(--text);
@@ -88,8 +96,13 @@
   margin: 0 0 var(--space-2);
   padding-left: var(--space-3);
  }
+ /* A space-2 padding rather than the space-3 this carried until 2026.10.14.
+    The panel is 360px wide and spends its border and padding before the
+    dropdown inside it gets anything: at space-3 that left 310px, which is to
+    the pixel what the widest example label needs, so the control had no slack
+    at all and none on a phone. */
  div.tools {
-  padding: var(--space-3);
+  padding: var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
  }
@@ -101,13 +114,35 @@
  label {
   color: var(--text-secondary);
  }
+ /* A select sizes itself to its widest option and is then clamped by the
+    column, so the two rules below are the two halves of one problem: how the
+    control behaves when its widest label does not fit.
+
+    "width: 100%" takes the panel's whole measure instead of the control's own
+    intrinsic width. Measured in Chromium: the widest label,
+    "Max and Min Function and Sort Object", sets at 273.02px, and a select
+    spends 18px on padding and border and a further 18.98px on its dropdown
+    arrow, so the control needs 310px to the pixel. Left intrinsic it asked for
+    exactly that and got 310 at 1280px against the 310 the panel had, and 293
+    at 375px, which cut the label mid word. With the panel padding a step
+    tighter at each end the measure is 326 and 325, so the control has about
+    15px of slack where it had none.
+
+    "text-overflow: ellipsis" is what happens when even that is not enough. A
+    select computes "clip" by default, so the label simply stopped mid word
+    with nothing to say it had been cut; under about 360px no padding leaves
+    310px, and a marked cut is the honest end of that.
+    `tools/test-page-structure-browser.mjs` pins both figures, and measures the
+    arrow rather than quoting it. */
  select {
+  width: 100%;
   padding: var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--page);
   color: var(--text);
   font: inherit;
+  text-overflow: ellipsis;
  }
  select:focus-visible {
   outline: 2px solid var(--accent);
@@ -160,10 +195,25 @@
  div.col div.sheet {
   display: block;
   width: 100%;
-  max-width: 600px;
+  max-width: min(100%, 900px);
   height: auto;
   aspect-ratio: 1 / 1;
   border: 1px solid var(--border);
+ }
+ /* The route to full size, which is the half of the cap raise the cap cannot
+    reach. "min(100%, 900px)" resolves to 100% at every width under 900px, so a
+    phone gets exactly what it got before: the code is drawn at 65.4 sheet
+    pixels in a 3600px square, which is 6.23 CSS px at 375px and reads as grey
+    texture rather than as text. The composition is already in memory as SVG, so
+    the sheet opens in a tab of its own at whatever size the reader zooms it to,
+    with no second request and no raster. */
+ p.full-size {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+ }
+ p.full-size a {
+  color: var(--accent);
  }
  /* The composed graphic carries its own width and height in sheet pixels,
     which the script strips so the element scales off the viewBox instead.
@@ -183,8 +233,13 @@
    flex: 1 1 auto;
    width: 100%;
   }
-  div.col div.sheet {
-   max-width: 100%;
+  /* A step tighter again below the breakpoint, where the panel is as wide as
+     the page and the page is all the room there is. At 375px the gutter leaves
+     343, the panel's border takes 2 and a space-1 padding takes 16, so the
+     control gets 325 against the 310 the widest label needs. A space-2 padding
+     would leave 309 - one pixel short, which is the whole of this. */
+  div.tools {
+   padding: var(--space-1);
   }
  }
 </style>
@@ -220,6 +275,7 @@
   </div>
   <div class="col">
    <div class="sheet" id="curCheatSheet" role="img" aria-label="" style="display: none"></div>
+   <p class="full-size" id="sheetFullSize" style="display:none"><a id="sheetFullSizeLink" href="" target="_blank" rel="noopener">Open this sheet at full size</a></p>
   </div>
 </div>
 <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
@@ -228,23 +284,32 @@
 
 <script type="module">
 // The page composes its own graphic. `api/cheatsheet/` is this repository's
-// layer over the ported drawing surface in `api/graphic-design/`, both of them
-// plain modules with no build step, so the sheet arrives as an inline `svg`
-// drawn here rather than as a raster fetched from the repository.
+// layer over the drawing surface vendored into `api/napkin-sketch/`, both of
+// them loaded by relative path with no build step and nothing installed, so the
+// sheet arrives as an inline `svg` drawn here rather than as a raster fetched
+// from the repository.
 //
 // That is the reason this script is a module and the reason the page now has
 // to be served: `import` and `fetch` are both refused a `file://` document
 // under the same CORS rule, so `php -S localhost:8000` stops being optional.
-import { composeSheet } from "./api/cheatsheet/index.mjs";
+import { composeSheet, fetchSheetBrand } from "./api/cheatsheet/index.mjs";
 
 // The catalog, by relative path so it resolves under the `/cheatsheets/`
 // project base path on Pages as well as at the root of a local server.
 const MANIFEST = "cheatsheets.json";
 
+// The brand assets, fetched once for the page rather than once per selection:
+// the mark the masthead sets beside its wordmark, and the footer strip with the
+// social icons. A sheet composes without them - every slot falls back to what
+// it drew before - so this never gates the catalog.
+let brand = {};
+
 const categorySelect = document.getElementById("category");
 const exampleSelect = document.getElementById("example");
 const exampleStep = document.getElementById("selectExample");
 const sheetBox = document.getElementById("curCheatSheet");
+const fullSize = document.getElementById("sheetFullSize");
+const fullSizeLink = document.getElementById("sheetFullSizeLink");
 const showFootNote = document.getElementById("showFootNote");
 const catalogError = document.getElementById("catalogError");
 
@@ -312,7 +377,41 @@ function selectCheatsheet() {
  exampleStep.style.display = chosen ? "" : "none";
 }
 
-/** Takes the sheet and the footnote back down. */
+// The blob URL the full size link points at, so it can be revoked when the next
+// selection replaces it. A blob URL holds its bytes alive until it is revoked
+// or the document goes away, and the sheets are a few kilobytes of markup each,
+// so leaving them behind would accumulate one composition per selection for as
+// long as the reader stays on the page.
+let fullSizeUrl = null;
+
+/**
+ * Reserves the full size link's line, in the same breath as the sheet's box.
+ *
+ * The link sits between the sheet and the footnote, so revealing it only once
+ * the composition landed pushed everything below it down by its own height -
+ * the one layout shift the reservation above exists to prevent, reintroduced
+ * underneath the thing it protects. The title is known before the document is
+ * fetched, so the final text is set here and only the blob waits.
+ */
+function reserveFullSize(title) {
+ // The sheet is a graphic with no text layer a screen reader can follow, so the
+ // link says which sheet it opens rather than leaving "full size" to stand on
+ // its own in a list of links.
+ fullSizeLink.textContent = `Open ${title} at full size`;
+ fullSizeLink.removeAttribute("href");
+ fullSize.style.visibility = "hidden";
+ fullSize.style.display = "block";
+}
+
+/** Points the full size link at the composition that is on screen. */
+function offerFullSize(svgText) {
+ if (fullSizeUrl) URL.revokeObjectURL(fullSizeUrl);
+ fullSizeUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
+ fullSizeLink.href = fullSizeUrl;
+ fullSize.style.visibility = "visible";
+}
+
+/** Takes the sheet, the footnote and the full size link back down. */
 function clearSheet() {
  // Taking the sheet down is a selection like any other, so a composition still
  // on its way has been moved on from too and must not draw itself into a frame
@@ -322,6 +421,12 @@ function clearSheet() {
  sheetBox.replaceChildren();
  sheetBox.setAttribute("aria-label", "");
  showFootNote.style.display = "none";
+ fullSize.style.display = "none";
+ if (fullSizeUrl) {
+  URL.revokeObjectURL(fullSizeUrl);
+  fullSizeUrl = null;
+ }
+ fullSizeLink.removeAttribute("href");
 }
 
 /**
@@ -340,14 +445,16 @@ async function showSheet(entry, token) {
  sheetBox.style.aspectRatio = `${entry.width} / ${entry.height}`;
  sheetBox.setAttribute("aria-label", `${entry.title} cheat sheet`);
  sheetBox.style.display = "block";
+ reserveFullSize(entry.title);
 
  const response = await fetch(`${entry.path}/sheet.json`);
  if (!response.ok) throw new Error(`${entry.path}/sheet.json answered ${response.status}`);
  const doc = await response.json();
  if (token !== current) return;
- const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed });
+ const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed, brand });
 
- const parsed = new DOMParser().parseFromString(composition.toSVG(), "image/svg+xml");
+ const markup = composition.toSVG();
+ const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
  const svg = parsed.documentElement;
  // The composition is 3600 square in sheet pixels. The viewBox carries that,
  // so the attributes are dropped and the stylesheet scales the element to the
@@ -355,6 +462,9 @@ async function showSheet(entry, token) {
  svg.removeAttribute("width");
  svg.removeAttribute("height");
  sheetBox.replaceChildren(document.importNode(svg, true));
+ // The link gets the markup as it was composed, width and height intact, so the
+ // tab it opens shows the sheet at its own 3600px rather than at the column's.
+ offerFullSize(markup);
 }
 
 /** Runs the chosen example, and draws its sheet. */
@@ -398,6 +508,7 @@ async function selectExample() {
   if (token !== current) return;
   sheetBox.style.display = "none";
   sheetBox.replaceChildren();
+  fullSize.style.display = "none";
  }
 }
 
@@ -405,7 +516,11 @@ categorySelect.addEventListener("change", selectCheatsheet);
 exampleSelect.addEventListener("change", selectExample);
 
 try {
- const response = await fetch(MANIFEST);
+ // Both in flight together: the brand is not a precondition of the catalog,
+ // and awaiting it in turn would put two more round trips in front of the
+ // first sheet a reader can choose.
+ const [response, assets] = await Promise.all([fetch(MANIFEST), fetchSheetBrand()]);
+ brand = assets;
  if (!response.ok) throw new Error(`${MANIFEST} answered ${response.status}`);
  buildDropdowns(await response.json());
  // Named by the catalog rather than in the script. One category is selected on

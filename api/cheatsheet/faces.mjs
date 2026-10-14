@@ -1,14 +1,16 @@
 // The faces a generated cheatsheet is measured in.
 //
-// This is not part of the port. `api/graphic-design/` is a copy of the
-// napkin-sketch drawing surface and carries that project's notice; everything
-// under `api/cheatsheet/` is this repository's own, measured from its own
-// artwork and its own engine. The port depends on nothing here - a face is a
-// plain object it accepts, not a module it imports.
+// This is not part of the drawing surface. `api/napkin-sketch/` is a vendored
+// copy of the published napkin-sketch build and carries that project's notice;
+// everything under `api/cheatsheet/` is this repository's own, measured from its
+// own artwork and its own engine. The surface depends on nothing here, and since
+// 2026.10.14 nothing here asks the surface how wide anything is: a face is a
+// table this layer reads with its own ruler, and what reaches the surface is an
+// `x` and a `font-family`.
 //
-// **The question this file answers.** `font.mjs` measures a built-in
+// **The question this file answers.** The surface measures a built-in
 // single-stroke alphabet, because upstream draws every glyph itself and has no
-// operating system to ask for a font. The SVG writer emits live `<text>` and
+// operating system to ask for a font. Its SVG writer emits live `<text>` and
 // names a family, so a browser draws something else. Laid out from built-in
 // advances, a run lands nowhere near where it was measured to land: against the
 // lead-in, the one run of artwork whose text is known - "Starting Point for
@@ -221,9 +223,31 @@ const STACK_ADVANCES = {
 };
 
 /**
+ * A face: a width table and the vertical metrics that go with it.
+ *
+ * **Declared here rather than imported, and that is the point.** The drawing
+ * API this layer sits on is a dependency that can be swapped, and the published
+ * package it is becoming does not carry this type at all - its own measuring
+ * options are a size and two spacings, with nowhere to name a face. A layer
+ * whose central type lived in a dependency would lose the type the moment the
+ * dependency moved, so the face is this repository's own and is handed to the
+ * drawing surface only as the numbers it needs: a family name and an `x`.
+ *
+ * @typedef {object} Face
+ * @property {string} [name]
+ * @property {number} unitsPerEm
+ * @property {number} capHeight
+ * @property {number} xHeight
+ * @property {number} descender
+ * @property {Record<string, number>} advances
+ * @property {number} [fallbackAdvance]
+ * @property {string} [fontFamily]
+ */
+
+/**
  * The face a generated sheet is measured and drawn in.
  *
- * @type {import('../graphic-design/font.mjs').Face}
+ * @type {Face}
  */
 export const SHEET_FACE = {
   name: "sheet",
@@ -248,7 +272,7 @@ export const SHEET_FACE = {
  * face is proportional, so generated code is set proportionally and never to a
  * grid.
  *
- * @type {import('../graphic-design/font.mjs').Face}
+ * @type {Face}
  */
 export const CODE_FACE = { ...SHEET_FACE, name: "sheet-code" };
 
@@ -291,6 +315,88 @@ export const TYPE_ROLES = {
 };
 
 /**
+ * Advance of one character in composition units, before letter spacing.
+ *
+ * Read as an own property, because {@link STACK_ADVANCES} is an object literal
+ * and a lookup for `constructor` or `toString` otherwise finds a function on
+ * `Object.prototype`. The division then yields `NaN`, which propagates through
+ * every width on the line and raises nowhere.
+ *
+ * @param {string} char
+ * @param {number} fontSize
+ * @param {Face} [face]
+ * @returns {number}
+ */
+export function charAdvance(char, fontSize, face = SHEET_FACE) {
+  const advance = Object.prototype.hasOwnProperty.call(face.advances, char)
+    ? face.advances[char]
+    : (face.fallbackAdvance ?? FALLBACK_ADVANCE);
+  return (advance / face.unitsPerEm) * fontSize;
+}
+
+/**
+ * Width of a run of text in composition units, in the face it will be drawn in.
+ *
+ * **This is the layer's own ruler, and it has to be.** The drawing surface
+ * measures too, but it measures the alphabet *it* draws: upstream has no
+ * operating system to ask for a font, so its options are a size and two
+ * spacings and there is nowhere to name a face at all. A run measured there and
+ * drawn in a browser lands nowhere near where it was measured to land - 62% too
+ * wide against the one run of artwork whose text is known.
+ *
+ * The hand port that preceded the vendored copy papered over that by taking a
+ * `face`, which was a local change and the only reason the two ever agreed. It
+ * is also a change a published release cannot carry. Measuring here instead
+ * is what lets the drawing surface be swapped for the published package without
+ * any of this moving: nothing in `api/cheatsheet/` asks the surface how wide
+ * anything is, and every run reaches it as an `x` and a `font-family`.
+ *
+ * The arithmetic is the surface's own, character by character with the trailing
+ * letter space taken back off, so a sheet measured here composes to the same
+ * bytes it composed to when the surface measured it.
+ *
+ * @param {string} text
+ * @param {object} options
+ * @param {number} options.fontSize
+ * @param {number} [options.letterSpacing]
+ * @param {number} [options.wordSpacing]
+ * @param {Face} [options.face]
+ * @returns {number}
+ */
+export function measureRun(text, options) {
+  const spacing = options.letterSpacing ?? 0;
+  const wordSpacing = options.wordSpacing ?? 0;
+  const face = options.face ?? SHEET_FACE;
+  let width = 0;
+  for (const char of text) {
+    width += charAdvance(char, options.fontSize, face) + spacing;
+    if (char === " ") width += wordSpacing;
+  }
+  // The trailing letter space is a gap after the last glyph, not part of the
+  // run, so a centred line stays centred.
+  return Math.max(0, width - (text.length > 0 ? spacing : 0));
+}
+
+/**
+ * Where a run starts, given where it is to be centred.
+ *
+ * Centring used to be the renderer's job, through an `align` of `center` and a
+ * face on the element for it to measure with. The published drawing surface
+ * reads neither, so the composition works the left edge out itself and places
+ * every run left aligned. The arithmetic is the one the renderer did - the
+ * centre less half the measured width - so the coordinates are unchanged.
+ *
+ * @param {string} text
+ * @param {number} centre
+ * @param {number} fontSize
+ * @param {Face} [face]
+ * @returns {number}
+ */
+export function centredAt(text, centre, fontSize, face = SHEET_FACE) {
+  return centre - measureRun(text, { fontSize, face }) / 2;
+}
+
+/**
  * The font size at which a face reaches a given cap height.
  *
  * The design language records cap heights rather than font sizes, because a cap
@@ -299,7 +405,7 @@ export const TYPE_ROLES = {
  * stack, which is the residual recorded above.
  *
  * @param {number} cap Cap height in composition units.
- * @param {import('../graphic-design/font.mjs').Face} [face]
+ * @param {Face} [face]
  * @returns {number}
  */
 export function sizeForCap(cap, face = SHEET_FACE) {
@@ -311,8 +417,8 @@ export function sizeForCap(cap, face = SHEET_FACE) {
  * element.
  *
  * @param {keyof TYPE_ROLES | string} name
- * @param {import('../graphic-design/font.mjs').Face} [face]
- * @returns {{ face: import('../graphic-design/font.mjs').Face, fontSize: number, fontWeight: number }}
+ * @param {Face} [face]
+ * @returns {{ face: Face, fontSize: number, fontWeight: number }}
  */
 export function roleStyle(name, face = SHEET_FACE) {
   const role = Object.prototype.hasOwnProperty.call(TYPE_ROLES, name)

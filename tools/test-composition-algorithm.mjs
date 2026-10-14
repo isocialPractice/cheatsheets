@@ -48,15 +48,38 @@ import {
   SYNTAX,
   TOKENS,
   TYPE_ROLES,
+  centredAt,
+  checkPaints,
   composeSheet,
   contrastRatio,
+  parseSheetColor,
+  parseSheetPaint,
   readableInk,
   seedFrom,
   sizeForCap,
   splitmix32,
   Variation,
 } from "../api/cheatsheet/index.mjs";
-import { escapeXml } from "../api/graphic-design/index.mjs";
+
+/**
+ * XML escaping, as the SVG writer does it.
+ *
+ * Written out here rather than imported: the published drawing surface's root
+ * entry exports no `escapeXml`, and a test that needed one line of a dependency
+ * is a test that should carry the line. The five characters are the ones an
+ * attribute or a text node cannot hold.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeXml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
 
 /**
  * A document with enough code to fill the panel, as all eleven sheets have.
@@ -236,8 +259,17 @@ test("both flanking rules are drawn as a pair flush to each edge", () => {
 test("the title is centred on the canvas axis and fits between the rules", () => {
   const { composition, variation } = composeSheet(DOC, { seed: 1 });
   const title = named(composition, "title");
-  assert.equal(title.x, CANVAS / 2);
-  assert.equal(title.align, "center");
+  // Centred by the composition rather than by the renderer: since 2026.10.14
+  // no element carries a face, so there is nothing for a renderer to centre a
+  // run with and the left edge is worked out here. The arithmetic is the one
+  // the renderer did - the axis less half the measured width - so the ink is
+  // where it was.
+  assert.equal(title.align, "left");
+  assert.equal(
+    title.x,
+    centredAt(title.text, CANVAS / 2, title.fontSize),
+    "the title is not centred on the canvas axis"
+  );
   assert.equal(title.y, RUNS.title.baseline);
   // This title is long enough that it has to be stepped down, and the report
   // has to say so rather than leaving a caller to notice.
@@ -295,10 +327,76 @@ test("and a role naming an inherited property takes plain rather than a function
   assert.doesNotThrow(() => composition.toSVG());
 });
 
+/* --- The paint refusal ----------------------------------------------------- */
+
+test("a theme carrying a paint nothing can read is refused, by name", () => {
+  // The acceptance case for moving the refusal into this layer. The drawing
+  // surface this sits on writes an unreadable colour straight into the markup
+  // and objects only when it rasterizes - and the page composes inline SVG and
+  // never rasterizes, so the fault reaches a reader as a black region with no
+  // error attached to it anywhere.
+  //
+  // `ofwhite` rather than `nosuchcolour`: a misspelling of a colour this
+  // repository actually declares is the fault this is for, and a word nobody
+  // would type tests a narrower thing.
+  const unreadable = {
+    ...SHEET_LANGUAGE,
+    colors: { ...SHEET_LANGUAGE.colors, white: "ofwhite" },
+  };
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, language: unreadable }),
+    /unsupported color "ofwhite"/
+  );
+
+  // A paint on the background is read as well as a paint on an element: the
+  // page's own ground is the composition's background and nothing else looks
+  // at it.
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, language: { ...SHEET_LANGUAGE, colors: { ...SHEET_LANGUAGE.colors, navy: "mavy" } } }),
+    /unsupported color "mavy"/
+  );
+});
+
+test("the reader takes the hex forms and the absences, and nothing else", () => {
+  // Narrower than the drawing surface's reader on purpose: all 22 paints the
+  // design language and the worked example's theme declare are hex, so a named
+  // keyword here would be code nothing reaches - and a reader that accepts a
+  // form this repository never writes is one that will accept a typo for one.
+  assert.deepEqual(parseSheetColor("#4DAE51"), { r: 77, g: 174, b: 81, a: 1 });
+  assert.deepEqual(parseSheetColor("#fff"), { r: 255, g: 255, b: 255, a: 1 });
+  assert.equal(parseSheetColor("#00000080").a, 128 / 255);
+
+  // The absences a composition may legitimately carry.
+  for (const absent of [undefined, null, "", "none", "transparent", "#00000000"]) {
+    assert.equal(parseSheetPaint(absent), null, `${String(absent)} was not read as an absent paint`);
+  }
+
+  // And everything else, including the keywords the surface's own reader takes.
+  for (const refused of ["rebeccapurple", "white", "rgb(0 0 0)", "#ff", "#1234567"]) {
+    assert.throws(() => parseSheetPaint(refused), /unsupported color/, `"${refused}" was accepted`);
+  }
+});
+
+test("a paint on a group is read, because SVG inherits it into the children", () => {
+  // The masthead mark is inlined as a group, so a wrapper is a real shape here
+  // rather than a hypothetical one.
+  assert.throws(
+    () => checkPaints({ elements: [{ type: "group", fill: "ofwhite", children: [] }] }),
+    /unsupported color "ofwhite"/
+  );
+  assert.throws(
+    () => checkPaints({ elements: [{ type: "group", children: [{ type: "rect", stroke: "ofwhite" }] }] }),
+    /unsupported color "ofwhite"/
+  );
+});
+
 test("every code line is set in the code face, proportionally", () => {
   const { composition } = composeSheet(DOC, { seed: 1 });
   const first = named(composition, "code-0");
-  assert.equal(first.face.name, "sheet-code");
+  // The face is the layer's own and never reaches the drawing surface, so what
+  // the element carries is the family that face names and the surface can use.
+  assert.equal(first.face, undefined, "a face is still being handed to the drawing surface");
+  assert.equal(first.fontFamily, CODE_FACE.fontFamily);
   assert.equal(first.align, "left");
 });
 

@@ -1,11 +1,11 @@
-// The fixture document the port's render is pinned against.
+// The fixture document the drawing surface's render is pinned against.
 //
 // A module rather than a JSON file, because it has to be *built* through the
 // authoring surface a caller uses. A committed document would pin the
 // renderers alone and let `rect()`, `group()` or the element defaults change
 // underneath them without a single case turning red.
 //
-// It is deliberately small and deliberately ugly. Every element kind the port
+// It is deliberately small and deliberately ugly. Every element kind the surface
 // draws appears exactly once, at coordinates chosen to land on and between
 // pixel boundaries, so a change to the flattener, the stroker, the clipper or
 // the colour parser moves bytes. What it is not is a picture of anything: a
@@ -14,9 +14,9 @@
 //
 // The cheatsheet fixture beside it, in `tools/test-render-fixture.mjs`, is the
 // other half - that one is a real sheet at a named seed, and pins the
-// composition layer rather than the port.
+// composition layer rather than the surface.
 
-import { createComposition } from "../../api/graphic-design/compose.mjs";
+import { createComposition } from "../../api/napkin-sketch/api/index.js";
 
 /** The document, built fresh each call so no test can mutate another's. */
 export function fixtureComposition() {
@@ -68,7 +68,7 @@ export function fixtureComposition() {
     strokeWidth: 2,
   });
   design.line({ name: "rule", x1: 8, y1: 80, x2: 232, y2: 80, stroke: "#4dae51", strokeWidth: 3 });
-  // No `A` command: an elliptical arc is refused by the port on purpose, and a
+  // No `A` command: an elliptical arc is unsupported on purpose, and a
   // fixture that used one would be a fixture that never renders.
   design.path({
     name: "curve",

@@ -1,32 +1,24 @@
-// Checks on the faces a generated sheet is measured in, and on the one local
-// change made to the ported `font.mjs` to accept them.
+// Checks on the faces a generated sheet is measured in, and on the ruler that
+// measures them.
 //
-// Two separable things are under test here and it is worth saying which is
-// which, because they fail for different reasons:
+// **One thing is under test here now, where there used to be two.** The cases
+// about the drawing surface's own `font.mjs` - a face optional everywhere, and
+// omitting one reproducing the built-in alphabet exactly - belonged to a hand
+// translation of that surface, and they went with it on 2026.10.14 when the
+// surface became a pinned copy of a published release and the composition
+// stopped measuring through it at all.
 //
-//   1. **The port still behaves as it was ported.** A face is optional
-//      everywhere, and omitting one has to reproduce the built-in alphabet
-//      exactly. If that stops holding, a later diff against upstream stops
-//      being readable and the port quietly became a fork.
-//   2. **The committed width table is still the table that was measured.**
-//      `api/cheatsheet/faces.mjs` carries numbers read out of a browser once.
-//      Nothing re-reads them at run time, so the only thing standing between a
-//      typo and a sheet laid out wrong is a check against figures the artwork
-//      independently supplies.
+// What is left is the half this repository owns: **the committed width table is
+// still the table that was measured**, and the ruler reading it is still the
+// arithmetic a renderer would have used. `api/cheatsheet/faces.mjs` carries
+// numbers read out of a browser once and nothing re-reads them at run time, so
+// the only thing standing between a typo and a sheet laid out wrong is a check
+// against figures the artwork independently supplies.
 //
 // Run with: node --test tools/test-sheet-faces.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  BUILTIN_FACE,
-  charWidth,
-  fontMetrics,
-  layoutText,
-  lineStrokes,
-  measureText,
-  wrapText,
-} from "../api/graphic-design/font.mjs";
 import {
   CODE_FACE,
   SHEET_CONDENSATION,
@@ -35,6 +27,9 @@ import {
   STACK_CAP_HEIGHT,
   STACK_UNITS_PER_EM,
   TYPE_ROLES,
+  centredAt,
+  charAdvance,
+  measureRun,
   roleStyle,
   sizeForCap,
 } from "../api/cheatsheet/faces.mjs";
@@ -47,69 +42,66 @@ const LEAD_IN = { text: "Starting Point for Practical Use:", width: 1481, cap: 1
 
 const SAMPLE = "Splicing Array Elements: items.splice(1, 2, 'demo'); // (4) ~50%";
 
-test("naming no face measures exactly what the built-in face measures", () => {
-  // The whole backward-compatibility claim in one case. Sizes chosen to include
-  // a fraction, because the conversion is a division and a rounding bug would
-  // hide at whole numbers.
-  for (const size of [1, 8, 16, 37.5, 152.727, 1000]) {
-    assert.equal(
-      measureText(SAMPLE, { fontSize: size }),
-      measureText(SAMPLE, { fontSize: size, face: BUILTIN_FACE }),
-      `measureText disagrees with itself at ${size}`
-    );
-    assert.deepEqual(
-      fontMetrics(size, "bold", "italic"),
-      fontMetrics(size, "bold", "italic", BUILTIN_FACE),
-      `fontMetrics disagrees with itself at ${size}`
-    );
-    for (const char of ["W", " ", "i", "@", "é"]) {
-      assert.equal(charWidth(char, size), charWidth(char, size, BUILTIN_FACE));
-    }
+test("the ruler is the sum of the table, scaled, and nothing else", () => {
+  // The arithmetic is checked against the table rather than against the drawing
+  // surface that used to do it, because the surface is a dependency and this is
+  // the layer's own ruler now. Summed independently here: a width that stopped
+  // being the table's sum would be a sheet laid out by something other than the
+  // figures `DESIGN_LANGUAGE.md` records.
+  const size = sizeForCap(LEAD_IN.cap, SHEET_FACE);
+  let expected = 0;
+  for (const char of LEAD_IN.text) {
+    expected += (SHEET_FACE.advances[char] / SHEET_FACE.unitsPerEm) * size;
   }
+  assert.equal(measureRun(LEAD_IN.text, { fontSize: size, face: SHEET_FACE }), expected);
+  assert.equal(measureRun("", { fontSize: size }), 0);
 });
 
-test("and lays out and strokes identically too", () => {
-  const options = { x: 10, y: 20, fontSize: 24, lineHeight: 1.4, align: "justify", baseline: "top", maxWidth: 200 };
-  assert.deepEqual(layoutText(SAMPLE, options), layoutText(SAMPLE, { ...options, face: BUILTIN_FACE }));
-  assert.deepEqual(
-    lineStrokes("Wig", 0, 0, { fontSize: 24 }),
-    lineStrokes("Wig", 0, 0, { fontSize: 24, face: BUILTIN_FACE })
-  );
+test("the trailing letter space is a gap after the run, not part of it", () => {
+  // A centred run stays centred because of this one subtraction: counted in,
+  // half a letter space of nothing would shift every centred line left.
+  const size = 100;
+  const spacing = 7;
+  const plain = measureRun(SAMPLE, { fontSize: size, face: SHEET_FACE });
+  const spaced = measureRun(SAMPLE, { fontSize: size, face: SHEET_FACE, letterSpacing: spacing });
+  assert.ok(Math.abs(spaced - (plain + spacing * ([...SAMPLE].length - 1))) < 1e-9);
+
+  // Word spacing is added per space and is not taken back off, because it is
+  // inside the run rather than after it.
+  const worded = measureRun(SAMPLE, { fontSize: size, face: SHEET_FACE, wordSpacing: 5 });
+  assert.ok(Math.abs(worded - (plain + 5 * (SAMPLE.match(/ /g) ?? []).length)) < 1e-9);
+});
+
+test("centring puts the middle of the measured run on the point it is given", () => {
+  const size = sizeForCap(141, SHEET_FACE);
+  const text = "Splicing Arrays";
+  const left = centredAt(text, 1800, size, SHEET_FACE);
+  const width = measureRun(text, { fontSize: size, face: SHEET_FACE });
+  assert.ok(Math.abs(left + width / 2 - 1800) < 1e-9);
 });
 
 test("a character the face does not carry falls back rather than measuring zero", () => {
   // Non-ASCII is outside the committed table. Measuring it as nothing would let
   // a line of it overflow its region silently, which is worse than measuring it
   // approximately.
-  assert.ok(charWidth("é", 100, SHEET_FACE) > 0);
-  assert.equal(charWidth("é", 100, SHEET_FACE), charWidth("0", 100, SHEET_FACE));
+  assert.ok(charAdvance("é", 100, SHEET_FACE) > 0);
+  assert.equal(charAdvance("é", 100, SHEET_FACE), charAdvance("0", 100, SHEET_FACE));
   // And an inherited property is not a glyph, however much a lookup on an
   // object literal wants to answer for it. Without the own-property guard,
   // `advances["constructor"]` is a function and the arithmetic returns NaN,
   // which propagates through every width on the line rather than raising.
   for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
-    const width = charWidth(key, 100, SHEET_FACE);
-    assert.ok(Number.isFinite(width), `charWidth("${key}") is ${width}`);
-    assert.equal(width, charWidth("0", 100, SHEET_FACE), `"${key}" did not take the fallback advance`);
+    const width = charAdvance(key, 100, SHEET_FACE);
+    assert.ok(Number.isFinite(width), `charAdvance("${key}") is ${width}`);
+    assert.equal(width, charAdvance("0", 100, SHEET_FACE), `"${key}" did not take the fallback advance`);
   }
-});
-
-test("the built-in alphabet is wrong for these sheets, which is why a face exists", () => {
-  // The measurement that settled the route. If this ever came back near 1481,
-  // the whole of `faces.mjs` would be unnecessary - so it is asserted rather
-  // than assumed, in the direction that matters.
-  const builtin = measureText(LEAD_IN.text, { fontSize: (LEAD_IN.cap * 15) / 11 });
-  assert.ok(
-    builtin > LEAD_IN.width * 1.5,
-    `the built-in alphabet predicts ${builtin.toFixed(0)} px for a run the artwork measures at ${LEAD_IN.width}`
-  );
 });
 
 test("the committed table reproduces what the browser measured", () => {
   // `node tools/measure-font-widths.mjs` read 2165 px for this run in Chromium.
   // The table rounds each advance to a whole unit per em, so the sum drifts by
   // a fraction of a pixel over 33 characters and no more than that.
-  const width = measureText(LEAD_IN.text, {
+  const width = measureRun(LEAD_IN.text, {
     fontSize: sizeForCap(LEAD_IN.cap, SHEET_FACE),
     face: SHEET_FACE,
   });
@@ -120,7 +112,7 @@ test("the committed table reproduces what the browser measured", () => {
 });
 
 test("and the condensation it records is the one the artwork implies", () => {
-  const width = measureText(LEAD_IN.text, {
+  const width = measureRun(LEAD_IN.text, {
     fontSize: sizeForCap(LEAD_IN.cap, SHEET_FACE),
     face: SHEET_FACE,
   });
@@ -172,23 +164,13 @@ test("the code face is the text face, because the sheets' code is proportional",
   // 0.023 for the line-spacing control. A monospaced code face here would be an
   // invention.
   assert.deepEqual(CODE_FACE.advances, SHEET_FACE.advances);
-  const widths = ["i", "W", "m", "l", "."].map((c) => charWidth(c, 100, CODE_FACE));
+  const widths = ["i", "W", "m", "l", "."].map((c) => charAdvance(c, 100, CODE_FACE));
   assert.ok(new Set(widths).size > 1, "the code face advances every character equally, so it is a grid");
 });
 
 test("a face names the family it was measured from, so the two cannot diverge", () => {
   assert.equal(SHEET_FACE.fontFamily, SHEET_FONT_FAMILY);
   assert.equal(CODE_FACE.fontFamily, SHEET_FONT_FAMILY);
-  assert.equal(BUILTIN_FACE.fontFamily, undefined, "the built-in face draws its own glyphs and names no family");
-});
-
-test("wrapping breaks where the face says, not where the built-in alphabet does", () => {
-  const text = "Add and remove array elements in a single call";
-  const options = { fontSize: sizeForCap(112, SHEET_FACE) };
-  const inFace = wrapText(text, 1200, { ...options, face: SHEET_FACE });
-  const inBuiltin = wrapText(text, 1200, options);
-  assert.notDeepEqual(inFace, inBuiltin, "the two faces break identically, so the face is not reaching wrapText");
-  assert.ok(inFace.every((line) => measureText(line, { ...options, face: SHEET_FACE }) <= 1200));
 });
 
 test("an unknown type role is refused by name rather than returning a default", () => {
