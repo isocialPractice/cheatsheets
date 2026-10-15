@@ -338,10 +338,13 @@ test("the committed copy matches its own pin", async () => {
 });
 
 test("the scope markers are inside the vendored folder and nowhere above it", async () => {
-  // `api/package.json` would put the port beside this copy into module scope
-  // too, which `tools/test-graphic-design-port.mjs` refuses while the port is
-  // there. Each marker is what makes a `.js` file next to it load as a module
-  // in a repository that has no package.json at all.
+  // A marker belongs with the copy it scopes. `api/package.json` would reach
+  // every sibling under `api/` as well - `api/cheatsheet/` today - and declare
+  // this repository's own source a module as a side effect of vendoring
+  // somebody else's, which is why the assertions below are as much about where
+  // a marker is *not* as where it is. Each marker is what makes a `.js` file
+  // next to it load as a module in a repository that has no package.json at
+  // all.
   const { pin: record } = await check();
   for (const marker of MARKERS) {
     assert.ok(record.files[marker], `${marker} is not in the pin`);

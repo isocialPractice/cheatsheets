@@ -690,8 +690,19 @@ at 550 would push the mark off the right of the canvas.
 **The footer is one strip.** The mark square, "Follow Me", three social icons
 and a handle are a single lockup of the brand's own rather than a square and a
 line of type beside it. It takes the band less the right margin - **0 to 3312**,
-the full 336 of the footer's height - and at that width its text sets at the
-154 px cap the follow line measures, which is what says the width is right.
+the full 336 of the footer's height - and at that width its text sets at a
+**149 px cap** against the 154 the follow line measures, and starts at **x 602**
+against the artwork's 604, which is what says the width is right.
+
+**The ground under the mark belongs to the asset, not to the slot.** The
+artwork does not inset its mark: it sets it 192 px into a navy block that is
+itself flush to the bottom left corner and fills the band, so what reaches the
+trim is a ground and the mark is held off it. Until 2026.10.15 the asset was a
+tight crop that began at the mark, so a placed strip put the green bar at x 0
+on page white - the one element on a sheet whose own ink touched the edge. The
+asset now carries that ground, the lockup inset 46 of its own 799 columns,
+which lands the bar at 191. The inset cannot live here or in `language.mjs`,
+because only the asset knows where its own mark ends.
 
 One of those icons is drawn over a gradient, and **The colors the sheets are
 drawn in** above already sets the three icon colours aside as brand colours

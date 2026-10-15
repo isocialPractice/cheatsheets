@@ -36,8 +36,9 @@
 /**
  * An asset resolved far enough for {@link placeBrand} to draw it.
  *
- * The shape is the port's own `BrandSource`, restated here so a caller of this
- * layer does not have to reach into the drawing surface for a typedef.
+ * The shape is `BrandSource` from the vendored surface, restated here so a
+ * caller of this layer does not have to reach into `api/napkin-sketch/` for a
+ * typedef.
  *
  * @typedef {{ kind: 'vector', svg: string, alt?: string }
  *   | { kind: 'raster', dataUrl: string, alt?: string }} BrandAsset
@@ -87,10 +88,20 @@ export function rasterAsset(bytes, mime = "image/png", alt) {
 /**
  * Base64 data URL for a block of bytes.
  *
- * `btoa` where there is one and `Buffer` where there is not, which is the same
- * guard `raster.mjs` carries for the decode side and for the same reason: the
- * two halves of the port run in a browser and in Node, and neither global is in
- * both. The 32 KB stride is what keeps `String.fromCharCode` off the argument
+ * `btoa` where there is one and `Buffer` where there is not, because this
+ * module composes in a browser and in Node and only one of the two globals is
+ * in both. The second arm is a fallback nothing in the supported range now
+ * reaches: `btoa` has been a Node global since 16, the package declares
+ * `node >=22.12` and the Pages job pins 22. It is kept because it costs a
+ * line, and because the arm that is never taken is the cheap half of the pair.
+ *
+ * The decode side carries the same two, and it is worth saying where, because
+ * it is not where this comment used to send a reader: `raster.mjs` in this
+ * folder has neither global. It is the vendored surface's own rasterizer that
+ * reaches for `atob` and falls back to `globalThis.Buffer`, for exactly the
+ * reason above.
+ *
+ * The 32 KB stride is what keeps `String.fromCharCode` off the argument
  * count limit - a 10 KB logo is fine spread in one call and a 2 MB asset is a
  * `RangeError`, so the stride is there for the asset nobody has added yet.
  *

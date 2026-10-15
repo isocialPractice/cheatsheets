@@ -1,13 +1,14 @@
 // Checks on the two routes a composed sheet becomes pixels by.
 //
 // The property under test is not "does it produce an image" - both routes
-// obviously do - but that **the result says what it is**. A raster drawn in the
-// port's built-in single stroke alphabet and one drawn by a real engine in the
-// face the design language measured are both PNGs of a cheatsheet, they are
-// roughly the same size, and at a glance in a file browser they look alike. One
-// of them may be posted and the other may not, and the only thing standing
-// between the two is the `publishable` field the caller is handed back. So most
-// of what is checked below is that field and the notes beside it.
+// obviously do - but that **the result says what it is**. A raster drawn in
+// the surface's built-in single stroke alphabet and one drawn by a real
+// engine in the face the design language measured are both PNGs of a
+// cheatsheet, they are roughly the same size, and at a glance in a file
+// browser they look alike. One of them may be posted and the other may not,
+// and the only thing standing between the two is the `publishable` field the
+// caller is handed back. So most of what is checked below is that field and
+// the notes beside it.
 //
 // The dependency free cases run everywhere. The browser cases resolve Chromium
 // at run time and skip with the install command as their reason where it is

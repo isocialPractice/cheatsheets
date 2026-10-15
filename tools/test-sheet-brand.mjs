@@ -72,9 +72,10 @@ test("the repository's own two assets resolve into placeable sources", () => {
 });
 
 test("a data URL round trips through whichever encoder this runtime has", async () => {
-  // `btoa` in a browser and `Buffer` in Node, which is the guard `raster.mjs`
-  // carries on the decode side. The bytes are the real PNG rather than a made
-  // up block, so the magic number is there to recognise at the far end.
+  // `btoa` in a browser and `Buffer` in Node, which is the pair the vendored
+  // surface's own rasterizer carries on the decode side - not `raster.mjs` in
+  // this folder, which has neither. The bytes are the real PNG rather than a
+  // made up block, so the magic number is there to recognise at the far end.
   const bytes = new Uint8Array(await readFile(join(root, BRAND_FILES.footer)));
   const url = dataUrlFrom(bytes, "image/png");
   const back = Uint8Array.from(globalThis.Buffer.from(url.slice(url.indexOf(",") + 1), "base64"));
@@ -100,8 +101,9 @@ test("the mark is inlined beside the wordmark, and the pair is centred", () => {
 
   const mark = named(composition, "masthead-mark");
   assert.ok(mark, "nothing named masthead-mark was drawn");
-  // A group of shapes rather than an image: both renderers draw the port's
-  // inlined vector, and only one of them draws a raster without a decoder.
+  // A group of shapes rather than an image: both renderers draw the vendored
+  // surface's inlined vector, and only one of them draws a raster without a
+  // decoder.
   assert.equal(mark.type, "group");
   assert.ok(mark.children.length > 0, "the mark group holds no shapes");
 
@@ -177,6 +179,52 @@ test("the footer strip replaces the mark square and the follow line", () => {
   assert.equal(named(composition, "follow-line"), undefined);
 });
 
+test("the footer plate reaches the sheet's trim, and holds the mark off it", async () => {
+  // The artwork's footer is a navy block flush to the bottom left corner,
+  // filling the band, with the mark set 192 px into it. Until 2026.10.15 the
+  // asset was a tight crop beginning at the mark, so what met the trim was the
+  // green bar itself - the one element on a sheet whose own ink touched the
+  // edge. This reads pixels back rather than a figure, because the inset lives
+  // inside the PNG: `BRAND_SLOTS.footer.x` is 0 before the fix and after it,
+  // so no constant here would have moved.
+  const { composition } = composeSheet(DOC, { seed: "brand", brand: assets });
+  const { rasterizeComposition } = await import("../api/napkin-sketch/api/index.js");
+  const scale = 0.25;
+  const raster = rasterizeComposition(composition.toDocument(), { scale });
+  const at = (x, y) => {
+    const i = (y * raster.width + x) * 4;
+    return [raster.data[i], raster.data[i + 1], raster.data[i + 2]];
+  };
+  const near = ([r, g, b], [tr, tg, tb], tol) =>
+    Math.abs(r - tr) <= tol && Math.abs(g - tg) <= tol && Math.abs(b - tb) <= tol;
+  const navy = [0x00, 0x01, 0x32];
+  const green = [0x4d, 0xae, 0x51];
+
+  const top = Math.round(BRAND_SLOTS.footer.y * scale);
+  const bottom = Math.round((BRAND_SLOTS.footer.y + BRAND_SLOTS.footer.height) * scale) - 1;
+  const middle = Math.round((top + bottom) / 2);
+
+  // The plate meets the trim, and fills the band rather than floating in it.
+  for (const row of [top, middle, bottom]) {
+    assert.ok(
+      near(at(0, row), navy, 40),
+      `the footer's left trim is rgb(${at(0, row)}) at row ${row}, not the plate's navy`
+    );
+  }
+
+  // And the mark is held off that trim by the artwork's own inset.
+  let firstGreen = -1;
+  for (let x = 0; x < raster.width && firstGreen < 0; x++) {
+    if (near(at(x, middle), green, 50)) firstGreen = x;
+  }
+  assert.ok(firstGreen > 0, "no green bar was found across the footer band");
+  const inComposition = firstGreen / scale;
+  assert.ok(
+    Math.abs(inComposition - 192) <= 8,
+    `the mark's green bar starts at x ${inComposition} rather than the artwork's 192`
+  );
+});
+
 test("a document with its own follow line keeps the drawn footer", () => {
   // The strip carries fixed text, so a sheet that asks to say something else
   // cannot be given it. The drawn route is the only one that can.
@@ -214,7 +262,7 @@ test("a sheet composed with no brand is the sheet it was before", () => {
 });
 
 test("an asset holding no drawable shape falls back rather than leaving a hole", () => {
-  // A vector the port can parse and find nothing in. The wordmark has to go
+  // A vector the surface can parse and find nothing in. The wordmark has to go
   // back to the middle of the canvas, not sit at the left edge of a lockup
   // whose other half was never drawn - which is why the mark is placed before
   // the wordmark is set.

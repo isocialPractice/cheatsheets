@@ -9,10 +9,10 @@
 // This repository has no `package.json` and nothing installed. `php -S
 // localhost:8000` is the whole local workflow, `node --test` runs on a bare
 // clone, and the page imports its drawing surface by relative path with no
-// build step. Those are the constraints the port was written under and they
-// have not moved; what has moved is that the surface is now published, so the
-// copy can be a *pinned* copy of a release rather than a translation somebody
-// maintains.
+// build step. Those are the constraints that forced a copy in the first place
+// and they have not moved; what has moved is that the surface is now
+// published, so the copy can be a *pinned* copy of a release rather than a
+// translation somebody maintains.
 //
 // Three alternatives were measured against those constraints and refused:
 //
@@ -42,9 +42,11 @@
 // `THIRD-PARTY-NOTICES.md`. The markers are not optional: each is
 // `{"type":"module"}`, and with no `package.json` anywhere above them a `.js`
 // file is CommonJS and both entries fail to load at all. They sit **inside**
-// `api/napkin-sketch/` and never at `api/package.json`, which would put the
-// port beside them into module scope as well - something
-// `tools/test-graphic-design-port.mjs` refuses while the port is there.
+// `api/napkin-sketch/` and never at `api/package.json`, because a marker
+// belongs with the copy it scopes: one at `api/` would reach every sibling
+// under it - `api/cheatsheet/` today and whatever is added beside it - and
+// declare the module type of this repository's own source as a side effect of
+// vendoring somebody else's.
 //
 // **The `dist/` prefix is dropped** on the way in, so `../chunks/chunk-X.js`
 // resolves exactly as it did inside the package and not one line of vendored
@@ -83,9 +85,9 @@ export const PIN_NAME = "PIN.json";
  * The two entries, as paths inside the vendored folder.
  *
  * The first is browser safe and is what the page loads. The second needs
- * `node:fs` and is the same boundary the port drew around its own `files.mjs`:
- * a browser handed `node:fs` fails at load rather than at the call, so the page
- * never reaches it.
+ * `node:fs`, which is why the package keeps it behind a subpath of its own
+ * rather than in the root entry: a browser handed `node:fs` fails at load
+ * rather than at the call, so the page never reaches it.
  */
 export const ENTRIES = {
   api: "api/index.js",

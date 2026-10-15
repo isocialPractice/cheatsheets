@@ -4,6 +4,103 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.15]
+
+### Fixed
+
+- **The footer mark no longer meets the sheet's trim.** The artwork's footer
+  is a navy block flush to the bottom left corner, filling the band, with the
+  mark set 192 px into it - so what reaches the edge is a ground, and the mark
+  is held off it. `assets/footer.png` was a tight 752 by 51 crop that began at
+  the mark itself, so a placed strip put the green bar at x 0 against page
+  white: the one element on a sheet whose own ink touched the trim, and at the
+  page's 900 px render it met the frame's own border.
+
+  The asset now carries that ground - the same lockup, inset 46 columns into a
+  navy plate, on a 799 by 81 frame. Scanned at the 3600 square against
+  `javaScriptArrays/SplicingArrays.jpg`, the composed green bar now starts at
+  **x 191** against the artwork's 192, the plate reaches x 0 and both band
+  edges, and the follow line starts at **x 602** against the artwork's 604.
+  Before the change the strip began at x 0 and its follow line at 437.
+
+  **The inset is the asset's and not the slot's**, which is why the fix is an
+  image rather than a figure. `BRAND_SLOTS.footer.x` is 0 before it and after
+  it: only the asset knows where its own mark ends - 93 of its 799 columns, a
+  proportion no constant could derive - so a plate drawn by `compose.mjs`
+  would have to guess that edge and would notch visibly wherever it guessed
+  wrong. The 799 by 81 is also what keeps the plate flush. It is a shade wider
+  than the slot's own 3312 by 336 ratio, so `contain` fits to the width and
+  leaves no half-pixel of page white down the trim, which an exactly
+  proportioned frame did leave.
+
+  `tools/test-sheet-brand.mjs` pins it by reading pixels back out of the
+  rasterizer rather than by asserting a constant, because no constant moved.
+  Put the old asset back and it fails on the trim column being white.
+
+- **Six source lines no longer name the deleted graphic-design port as
+  something a reader can still go and look at.** The port became the pinned
+  `@isocialpractice/napkin-sketch` copy on 2026.10.14, and that turn's
+  verification grep passed only because it could not see them: four sat in
+  files that were still untracked, and two wrote `port's`, which
+  `-w "the port"` does not match. One of the two is split across a line break,
+  so no line-based grep could have found it at all.
+
+  `api/cheatsheet/brand.mjs` now restates `BrandSource` from the vendored
+  surface and points at `api/napkin-sketch/`; `tools/test-sheet-brand.mjs` and
+  `tools/test-sheet-raster.mjs` name the surface where they named the port.
+  The two scope-marker comments in `tools/vendor-napkin-sketch.mjs` and
+  `tools/test-vendor-napkin-sketch.mjs` keep their decision and lose their
+  reason, which cited `tools/test-graphic-design-port.mjs` - a file the same
+  turn deleted. They now state it on its own terms: a marker belongs with the
+  copy it scopes, and one at `api/package.json` would reach every sibling and
+  declare this repository's own source a module as a side effect of vendoring
+  somebody else's.
+
+  Two further lines in `tools/vendor-napkin-sketch.mjs` were outside the six
+  and had to go for the verification to pass - one calling the constraints the
+  port's, one pointing at the port's own `files.mjs` for a boundary the
+  package draws itself. The grep now returns only `TODO.md`, `CHANGELOG.md`
+  and lines about the design language helper, which stays ported.
+
+- **`brand.mjs` no longer sends a reader to `raster.mjs` for a guard that is
+  not in it.** The comment on `dataUrlFrom` explained its `btoa`/`Buffer` pair
+  as "the same guard `raster.mjs` carries for the decode side", and
+  `tools/test-sheet-brand.mjs` repeated it. No `raster.mjs` in the tree holds
+  either global - the one that did was `api/graphic-design/raster.mjs`,
+  deleted in the same turn those comments were written, so a reader was being
+  sent to the only `raster.mjs` there is to find something that was never in
+  it. Both now explain the pair on its own terms and name where the decode
+  side actually lives: the vendored surface's own rasterizer, which reaches
+  for `atob` and falls back to `globalThis.Buffer`.
+
+### Measured
+
+- **The `Buffer` arm in `dataUrlFrom` is a branch nothing reaches.** Measured
+  while the comment above was being rewritten, because it decided how much of
+  it survived: `btoa` has been a Node global since 16, the vendored package
+  declares `node >=22.12`, and `.github/workflows/pages.yml` pins 22. The arm
+  is kept - it costs a line, and the arm never taken is the cheap half of the
+  pair - but the comment now says it is a fallback rather than implying both
+  halves are live.
+
+- **The footer strip's text sets at a 149 px cap**, against the 154 the follow
+  line measures, and the strip is 3 per cent short of the artwork rather than
+  3 per cent over as it was. `DESIGN_LANGUAGE.md` and `language.mjs` both
+  carried the round 154 as though the asset produced it; neither did, before
+  or after. The figures recorded now are the measured ones.
+
+### Verified
+
+- **The published site composes a sheet through the vendored package** - the
+  half of the 2026.10.14 deploy that no run could check from inside the turn
+  that pushed it, since the build runs on the server minutes afterwards.
+  Driven against <https://isocialpractice.github.io/cheatsheets/>: the catalog
+  reaches `ready`, selecting an example draws `#curCheatSheet > svg` with 65
+  descendants, and `api/napkin-sketch/api/index.js` with its four chunks all
+  answer 200 as `application/javascript`. No request failed, and the console
+  carried only the example's own output. The media type ruled out beforehand
+  was not the risk it looked like: both extensions serve as JavaScript.
+
 ## [2026.10.14]
 
 ### Added

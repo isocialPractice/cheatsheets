@@ -366,10 +366,32 @@ export const RUNS = {
  * **`footer` is the whole footer lockup** - the mark square and the follow
  * line, which in the artwork is one strip of the brand's own: a mark, "Follow
  * Me", three social icons and a handle. It takes the band less the right
- * margin, 0 to 3312, which at the asset's own 752 by 51 sets its text at a
- * 154 px cap - the cap {@link RUNS}`.followLine` measures. One of those icons
- * is drawn over a gradient, which this design language has no way to draw at
- * all, so the strip is the only form that carries it.
+ * margin, 0 to 3312, which at the asset's own 799 by 81 sets its text at a
+ * 149 px cap against the 154 {@link RUNS}`.followLine` measures, and starts
+ * that text at x 602 against the artwork's 604. One of those icons is drawn
+ * over a gradient, which this design language has no way to draw at all, so
+ * the strip is the only form that carries it.
+ *
+ * **The asset carries its own navy ground, which is why `x` stays 0.** The
+ * artwork's footer is a navy block flush to the bottom left corner, filling
+ * the band top to bottom, with the mark set 192 px into it - so what reaches
+ * the sheet's trim is a shape and the mark is held off it. Until 2026.10.15
+ * the asset was a tight 752 by 51 crop that began at the mark itself, so a
+ * placed strip put the green bar at x 0 on page white: the one element on a
+ * sheet whose own ink touched the edge, and at the page's 900 px render it
+ * met the frame's border. The asset is now that same lockup inset 46 px into
+ * a navy plate that fills the frame, which lands the green bar at 191 against
+ * the artwork's 192 and the plate flush to x 0 and to both band edges.
+ *
+ * The inset is the asset's to hold rather than this slot's, and that is the
+ * whole reason the fix is an image and not a figure here. Only the asset
+ * knows where its own mark ends - 93 of its 799 columns, a proportion no
+ * constant here could derive - so a plate drawn by `compose.mjs` would have
+ * to guess that edge, and would notch visibly wherever it guessed wrong. The
+ * 799 by 81 is also what keeps the plate flush: it is a shade wider than the
+ * slot's own 3312 by 336 ratio, so `contain` fits to the width and leaves no
+ * half-pixel of page white down the trim, which an exactly proportioned asset
+ * did leave.
  *
  * A slot with no asset behind it is drawn as it always was.
  */
