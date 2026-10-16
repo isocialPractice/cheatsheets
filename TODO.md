@@ -11,24 +11,39 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Add hash routing so a cheatsheet has a shareable link and preselects on load
-  - The page keys every option by its slug id now, so the fragment is that slug and needs no second naming scheme. `javascript/arrays/splicing-arrays` is what an option carries and what a link should carry
-  - Both dropdowns are built from the manifest before anything is selected, so a fragment read on load has a catalog to resolve against. Resolve it after the build rather than before, and fall back to the single category preselection when the fragment names nothing in the catalog
-  - Write the fragment on selection as well as read it on load, and leave the reader's own history usable: replacing the entry rather than pushing one keeps the back button on the page they arrived from
-  - From: Cheatsheet Catalog `->` The Manifest Pipeline
-- [ ] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
-  - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
-  - The page reads `entry.kind` already and shows the footnote for `run` alone, so what is left here is the hard wired heading blurb and the "Press F12" step
-  - From: Cheatsheet Catalog `->` Catalog Cleanup
-- [ ] Add the site link directly beneath the README's level 1 heading
-  - From: Preview Links and Example Loading
-- [ ] Note the CC0 1.0 license in `README.md`
-  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the directories scoped out of the waiver, which **Depend on the napkin-sketch Package** changes from two ports to the vendored package and the ported helper, so this wants checking against the file as it stands when it is worked rather than writing
-  - From: Repository Records
-- [ ] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
-  - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
-  - That sub-bullet came true on 2026.09.24 and the false sentence it was written against is already corrected, so what is left is whether the two routes read as two routes rather than as one paragraph with a warning bolted on
-  - From: Repository Records
+- [ ] Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - This is the first item in a new category, so it is the one that generates that category's design language and skill, per **Conventions for every item in this section**: compose the temporary SVG with `tools/compose-language-asset.mjs`, measure it into `DESIGN_LANGUAGE-html-css.md`, and generate the skill that every later `html-css/` sheet is drawn to
+  - `kind: read` renders the source as text, so this item needs no `demo/` folder. The first `embed` payload in the category is the **Common Browser Built-in APIs** item further down it
+  - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`, which fails a missing title, a path that is not lower case kebab, a `kind` that disagrees with the folder and a sheet whose composition will not fit its own margins
+  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant: a sheet composed as SVG is drawn rather than captured, so the constant binds on the composition
+  - From: New Cheatsheets `->` HTML/CSS
+- [ ] Correct the misspelled words in the commented output in `javascript/arrays/shift-and-unshift/shift-and-unshift.js`
+  - The item named `shiftAndUnshift.js` at the repository root until 2026.10.16, which is where the file sat before the catalog migration moved it on 2026.09.24. The path above is the one that exists
+  - From: Example Script Quality
+- [ ] Fix the `CONGIF` misspelling in the `index.html` configuration comment
+  - Check before working it. Measured 2026.10.16: `CONGIF` appears nowhere in the repository, and `index.html` has no configuration comment left to carry it - it went out with the `testEnvironment` block when the page began reading `cheatsheets.json` on 2026.09.24. If that still holds, close this by verification rather than by writing
+  - From: Example Script Quality
+- [ ] Give every example file the same header comment, or drop it from all of them
+  - Eleven files, now at `javascript/arrays/<slug>/<slug>.js`. Each is injected as a module, so whatever is chosen has to survive module scope and strict mode
+  - From: Example Script Quality
+- [ ] Check each example's commented output against what the script actually logs
+  - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
+  - From: Example Script Quality
+
+### UI/UX Override - hash routing and the console guidance
+
+#### Found Issues
+
+- [ ] A dead fragment stays in the address bar once the catalog holds a second category
+  - **Issue**: `index.html` clears a fragment that resolved to nothing only as a side effect of the single category preselection - `writeFragment("")` is reached from `selectCheatsheet()`, which the start up block calls only when `applyFragment()` failed **and** `categorySelect.options.length === 2`. Measured in Chromium on 2026.10.16 against the catalog served with one extra category appended in memory: `#javascript/arrays/no-such-sheet` arrives with no category chosen, no example and no sheet, all correct, but keeps `#javascript/arrays/no-such-sheet` in the address bar instead of emptying it. A live link still resolves and draws with two categories, so the routing scales; only the refusal leaks. The committed one category catalog clears it correctly, which is why the suite is green today and why this activates silently on the first run that adds a category. `tools/test-example-selection.mjs` already states the requirement this breaks, in the comment on **a fragment naming nothing in the catalog arrives as if it were absent**: a reader who copied the address bar from there would pass the dead link on
+  - **Goal**: Resolve to [dead-fragment-survives-a-second-category.prompt.md](.claude/prompts/dead-fragment-survives-a-second-category.prompt.md)
+  - From: UI/UX Override - hash routing and the console guidance
+- [ ] Correct the "Cheatsheat" misspelling in the first instruction in `index.html`
+  - **Issue**: `index.html:259` reads `<li>Select Cheatsheat from dropdown.</li>`. It is the first line of the Instructions panel and the first instruction a reader is given, on screen from the moment the page opens and in every capture this verification took. The word is "Cheatsheet", as the `<label for="category">Select Cheatsheet</label>` four lines below it already has it. Measured 2026.10.16: `Cheatsheat` appears once in the repository and in no todo item, so nothing queued reaches it - the two misspelling items under `## Current` name a different file and a comment that no longer exists
+  - **Goal**: Change the one occurrence to "Cheatsheet" so the step and the label beneath it agree. `tools/test-page-structure.mjs` reads the page source and is where an assertion pinning the two spellings to each other would sit, if one is wanted
+  - From: UI/UX Override - hash routing and the console guidance
 
 ## GitHub Pages Deployment
 
@@ -66,7 +81,9 @@ height box until a stalled request timed out. On 2026.09.24 the page began
 composing its sheet from a document instead of fetching a raster, which
 removed the request all three were about.
 
-- [ ] Add the site link directly beneath the README's level 1 heading
+Nothing is outstanding here either, as of 2026.10.16: the site link is the
+first thing under the README's level 1 heading, where a reader meets it before
+anything else the file has to say.
 
 ## Page Structure and Responsiveness
 
@@ -108,13 +125,20 @@ README item that says so.
 
 ### The Manifest Pipeline
 
-- [ ] Add hash routing so a cheatsheet has a shareable link and preselects on load
+Nothing is outstanding here. The pipeline was in place end to end on
+2026.09.24, and 2026.10.16 added the last thing it was missing as a reader
+facing feature: a cheatsheet is addressable by the slug its option already
+carried, so `index.html#javascript/arrays/splicing-arrays` opens the page with
+that sheet drawn. `tools/test-example-selection.mjs` holds the cases.
 
 ### Catalog Cleanup
 
-- [ ] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
-  - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
-  - The page reads `entry.kind` already and shows the footnote for `run` alone, so what is left here is the hard wired heading blurb and the "Press F12" step
+Nothing is outstanding here. The `testEnvironment` block and the placeholder
+`src` went with the manifest work, and on 2026.10.16 the three lines telling the
+reader to open a console stopped being hard wired: the heading blurb, the third
+step in the panel and the footnote are now shown together from the selected
+entry's `kind`, so only a cheatsheet with a payload to inject asks for a
+console.
 
 ## Example Script Quality
 
@@ -127,7 +151,7 @@ mode, so an undeclared counter stopped being a leak and became a failure.
 
 **Intent**: make the examples correct as teaching material.
 
-- [ ] Correct the misspelled words in the commented output in `shiftAndUnshift.js`
+- [ ] Correct the misspelled words in the commented output in `javascript/arrays/shift-and-unshift/shift-and-unshift.js`
 - [ ] Fix the `CONGIF` misspelling in the `index.html` configuration comment
 - [ ] Give every example file the same header comment, or drop it from all of them
 - [ ] Check each example's commented output against what the script actually logs
@@ -171,19 +195,17 @@ commits none of it.
 
 ## Repository Records
 
-The repository has no contributing guidance. The README has caught up with
-most of the rest: it links the published site, carries a **Licence** paragraph
-naming CC0 1.0 and the two directories scoped out of the waiver, and
-says that the page needs a server rather than working from disk. What is left
-here is whether a reader meets those facts in a usable order, and how someone
-adds a category.
+The repository has no contributing guidance. The README has caught up with the
+rest of it: it leads with the published site link, describes the published site
+and a local server as two routes for two different readers, says plainly that
+`file://` gives a blank page rather than a degraded one, and carries a
+**Licence** paragraph naming CC0 1.0 and the two directories scoped out of the
+waiver. What is left here is how someone adds a category, and a standing
+constant nothing can currently follow.
 
 **Intent**: give the repository the records the automation and a reader both
 expect to find.
 
-- [ ] Note the CC0 1.0 license in `README.md`
-- [ ] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
-  - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
 - [ ] Record how a new cheatsheet category is added, once the catalog work settles the shape
 - [ ] Settle the `## Social Media Posting` constant, which nothing can currently follow
   - **Issue**: measured 2026.10.15. The rule asks every run to record this session's routes with `cross-os-social doctor --workspace mcp-todo --json`, and to check the recipe for drift before drafting. Every command, `--version` included, exits with `The build is older than the source it came from, so this would run the previous behaviour without saying so. Run \`npm run build\` first.` The shim on `PATH` resolves to the globally linked `cross-os-automation-mcp`, so the stale build is in that package and not in this repository
@@ -1287,5 +1309,23 @@ generate ideas about generating ideas.
   - **Issue**: the brand strip reaches the sheet and is drawn at the artwork's own size, but it starts one pixel further left than the artwork does. Measured off the green bar of the mark at the strip's left end, scanned in a canvas at 3600 square from both the composed sheet and `javaScriptArrays/SplicingArrays.jpg`: the artwork sets that bar at x 192 to 291, inside a navy block that bleeds to the canvas edge behind it, while the composed sheet sets it at x 0 to 105 with page white around it. The mark therefore touches the sheet's left edge, where every other element on the sheet holds a margin, and at the page's 900px render it meets the frame's own border. The size is not the fault: the mark stands 213 px against the artwork's 199 and the follow line 215 against 205, so the strip is within seven percent of the artwork it was measured off, and it is centred in its band with 55 px above and 56 below
   - **Goal**: either give `BRAND_SLOTS.footer` an `x` inset so the asset clears the edge - it is `x: 0` today, and the asset is a tight crop of the lockup that starts at the mark - or carry the artwork's navy block in `assets/footer.png` so that what bleeds to the edge is a shape rather than the mark itself. The second keeps the slot arithmetic as it is and is the closer reading of the artwork
   - From: UI/UX Override - the footer mark sits on the sheet's trim edge
+- [x] Add hash routing so a cheatsheet has a shareable link and preselects on load
+  - The page keys every option by its slug id now, so the fragment is that slug and needs no second naming scheme. `javascript/arrays/splicing-arrays` is what an option carries and what a link should carry
+  - Both dropdowns are built from the manifest before anything is selected, so a fragment read on load has a catalog to resolve against. Resolve it after the build rather than before, and fall back to the single category preselection when the fragment names nothing in the catalog
+  - Write the fragment on selection as well as read it on load, and leave the reader's own history usable: replacing the entry rather than pushing one keeps the back button on the page they arrived from
+  - From: Cheatsheet Catalog `->` The Manifest Pipeline
+- [x] Show the console instructions only for a cheatsheet whose payload actually runs in the browser
+  - The heading blurb, the "Press F12" step and `#showFootNote` are hard wired, and most of the new catalog is not a runnable browser script
+  - The page reads `entry.kind` already and shows the footnote for `run` alone, so what is left here is the hard wired heading blurb and the "Press F12" step
+  - From: Cheatsheet Catalog `->` Catalog Cleanup
+- [x] Add the site link directly beneath the README's level 1 heading
+  - From: Preview Links and Example Loading
+- [x] Note the CC0 1.0 license in `README.md`
+  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the directories scoped out of the waiver, which **Depend on the napkin-sketch Package** changes from two ports to the vendored package and the ported helper, so this wants checking against the file as it stands when it is worked rather than writing
+  - From: Repository Records
+- [x] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
+  - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
+  - That sub-bullet came true on 2026.09.24 and the false sentence it was written against is already corrected, so what is left is whether the two routes read as two routes rather than as one paragraph with a warning bolted on
+  - From: Repository Records
 
 </details>
