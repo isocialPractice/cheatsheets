@@ -4,6 +4,93 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.16]
+
+### Added
+
+- **A cheatsheet has a shareable link.** The page keyed every option by its
+  slug already, so the fragment is that slug and needed no second naming
+  scheme: `index.html#javascript/arrays/splicing-arrays` opens the page with
+  that sheet selected and drawn. The fragment is resolved after both dropdowns
+  are built rather than before, which is what makes resolving it a lookup in
+  the catalog instead of a second walk of the manifest, and a fragment naming
+  nothing there - a renamed folder, a hand typed link - falls back to the
+  arrival the page would have had without one rather than sitting empty behind
+  a failure the reader cannot see.
+
+  The category travels with the entry for this, rather than being read off the
+  front of the slug. The slug is a path that happens to open with its category,
+  so splitting it would appear to work until a folder moved, and then it would
+  send an arrival by link to a category that does not exist - quietly, and on
+  that one route only. It is the same fault the manifest's own ids were brought
+  in to end.
+
+- **The selection is written back to the address bar**, so what is on screen is
+  what a reader copies. `history.replaceState` rather than an assignment to
+  `location.hash`, which pushes: with a push per selection, a reader who looked
+  at four cheatsheets would need four presses of the back button to leave by
+  the way they came in. The fragment tracks the selection in both directions -
+  changing the category, choosing the blank option and arriving on a dead slug
+  all clear it - so it never names a sheet the page is not showing.
+
+### Fixed
+
+- **The page no longer asks every reader to open a console.** Three lines said
+  to: the paragraph under the rule, the third step in the instructions panel,
+  and the footnote at the bottom. Only the footnote was conditional; the other
+  two were in the markup unconditionally, and the footnote points back up at
+  them - "the methods mentioned up top" - so a cheatsheet with no payload kept
+  both of the instructions that did not apply, and the one line that did know
+  the kind was the one that went.
+
+  Only a `kind: "run"` cheatsheet has a payload injected, and the catalog
+  recognises `read`, `embed` and `none` besides, so the three are now shown and
+  hidden together from the selected entry's kind. They are restored to `""`
+  rather than to `"block"` because one of them is an `li`: block takes its
+  marker with it, and the step would have come back as an unnumbered line in a
+  numbered list.
+
+### Changed
+
+- **The README leads with the site link**, directly under the level 1 heading,
+  and describes the two ways to view the examples as two routes. The published
+  site and a local server are for two different readers - one reading the
+  examples, one working on the page that draws them - and they had been one
+  paragraph with the server requirement bolted onto the end of it. The
+  `file://` warning is now part of the local server route and says what it
+  actually costs: not a degraded view of the page, a blank one.
+
+### Verified
+
+- **The README's licence paragraph is accurate as it stands.** It names CC0 1.0
+  Universal against `LICENSE`, scopes out `api/napkin-sketch/` as the vendored
+  package and `ai-helper/graphic-designer/` as the hand port, puts both under
+  MIT, and points at `NOTICE`. Checked against all three files rather than
+  rewritten, which is what the item asked for: the two directories it names are
+  what the vendoring left behind, and `NOTICE` carries the copyright line, the
+  permission text in full and the bundled notice the vendored chunks reach.
+
+### Tested
+
+- Twenty one cases for the two page changes, in `tools/test-example-selection.mjs`
+  and `tools/test-page-structure.mjs`. The claims a parse can reach are read off
+  the source text, so a bare clone still holds the page to them; the rest run in
+  Chromium on the terms the suite already settled.
+- A third synthetic route, `/drawn/`, answers the manifest with one entry's
+  `kind` changed to `none` and its payload dropped. All eleven committed
+  cheatsheets are runnable scripts, so the page's behaviour for the other three
+  kinds had nothing in the repository to read it against; the folder is left
+  alone, so the document still fetches and composes.
+- The link cases cover an arrival by fragment, a fragment into the second
+  category, a dead slug, a percent escaped slug and a malformed one. The last
+  is there because `decodeURIComponent("%zz")` throws and the call sits in the
+  page's top level start up block, where an unguarded throw would take the
+  catalog down and show the reader the "could not be loaded" paragraph instead.
+- `history.length` is measured across four selections rather than the mechanism
+  being trusted, and `getComputedStyle` is read for the step's `list-item`
+  rather than the inline property, because an inline assignment cannot tell a
+  rendered marker from a string.
+
 ## [2026.10.15]
 
 ### Fixed

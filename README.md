@@ -1,15 +1,41 @@
 # Cheat Sheet Practical Use Example Output
 
-**Preview in Browser**<br> 
-Click the link below to preview in browser: **NOTE** \- *opens in current tab*. <br>
 [Preview Cheat Sheet Examples](https://isocialpractice.github.io/cheatsheets/index.html)
+\- *opens in the current tab*.
 
-**Download and Preview**<br>
-The terminal will output the examples illustrated from the social media cheat sheet posts.
-Download repo, start a localhost (php -S localhost:8000) and open in browser, follow the instructions on page, then open terminal to see the results.
-A local server is required rather than convenient. The page reads its catalog with
-`fetch` and imports the drawing surface as a module, and a browser refuses both to a
-`file://` document, so opening `index.html` straight from disk no longer works.
+**Two Ways to View the Examples**
+They are for two different readers, so they are listed as two routes rather
+than as one with a caveat attached. The published site is for reading the
+examples; a local server is for working on the page that draws them. Nobody
+needs both.
+
+**1. The Published Site**<br>
+Follow the link under the title. Pick a cheatsheet from the first dropdown and
+an example from the second, and the sheet is composed in the browser. Where an
+example is a script, the page says so and asks for the console; the script's
+output - the illustrated examples from the cheat sheet posts - goes there. A
+cheatsheet that runs nothing is drawn without any of that being mentioned.
+Nothing is downloaded and nothing is installed.
+
+The address bar follows the selection, so a cheatsheet can be linked to
+directly. The fragment is the cheatsheet's own path, as in
+`index.html#javascript/arrays/splicing-arrays`, and a link naming one that has
+since been renamed or removed opens the page as though it carried no fragment
+at all.
+
+**2. A Local Server**<br>
+For anyone changing the page, the catalog or a sheet. Clone the repository,
+serve the root, and open the address it prints:
+
+```bash
+php -S localhost:8000
+```
+
+A server is required rather than convenient, and this is the part worth reading
+twice: the page reads its catalog with `fetch` and imports the drawing surface
+as a module, and a browser refuses both to a `file://` document. Opening
+`index.html` straight from disk does not give a degraded view of the page, it
+gives a blank one.
 
 **Source for Examples**
 The examples used are based on examples from:

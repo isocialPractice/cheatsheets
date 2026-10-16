@@ -149,6 +149,68 @@ test("the markup ships a container rather than an image with a src", () => {
   assert.doesNotMatch(html, /curCheatSheetImg/);
 });
 
+test("a link's fragment is the option's own slug, with nothing derived from it", () => {
+  // The same rule the option values follow, for the same reason: the slug is
+  // the one name a cheatsheet has, so a fragment built out of a title or out
+  // of the category and the folder would be a second scheme to keep in step.
+  assert.match(script, /writeFragment\(entry\.id\)/);
+  assert.doesNotMatch(script, /writeFragment\([^)]*\.title/);
+});
+
+test("the category a fragment selects is read off the entry, not off the slug", () => {
+  // `javascript/arrays/splicing-arrays` opens with its category, so splitting
+  // the slug would appear to work right up until a folder is renamed. The
+  // category is recorded beside the entry when the dropdowns are built.
+  assert.match(script, /cheatsheets\.set\(entry\.id,\s*\{\s*\.\.\.entry,\s*category:\s*category\.id\s*\}\)/);
+  assert.match(script, /cheatsheets\.get\(slug\)\.category/);
+});
+
+test("the fragment replaces the history entry rather than pushing one", () => {
+  // Assigning `location.hash` pushes, so a reader who looked at four
+  // cheatsheets would need four presses of the back button to leave by the way
+  // they came in. `tools/test-example-selection.mjs` measures the count; this
+  // is the mechanism that keeps it at one.
+  assert.match(script, /history\.replaceState\(/);
+  assert.doesNotMatch(script, /history\.pushState\(/);
+  assert.doesNotMatch(script, /location\.hash\s*=/);
+});
+
+test("the fragment is resolved after the dropdowns are built, not before", () => {
+  // The resolution is a lookup in `cheatsheets`, which is filled by
+  // `buildDropdowns`, so the order is the whole of why it can be a lookup.
+  const build = script.indexOf("buildDropdowns(await response.json())");
+  const resolve = script.indexOf("applyFragment()", build);
+  assert.ok(build > 0, "expected the catalog to be built in the start up block");
+  assert.ok(resolve > build, "the fragment is resolved before the catalog it resolves against");
+});
+
+test("a fragment that names nothing falls back to the arrival without one", () => {
+  // `applyFragment` reports whether it selected anything, and the single
+  // category preselection is what runs when it did not. Without the report a
+  // stale link would leave the page empty with nothing on screen to explain it.
+  assert.match(script, /if\s*\(!applyFragment\(\)\s*&&\s*categorySelect\.options\.length\s*===\s*2\)/);
+});
+
+test("the console guidance ships hidden rather than hard wired on", () => {
+  // All three lines, in the markup rather than in the script: a page whose
+  // instructions are correct only after the first selection would still be
+  // telling every arriving reader to open a console.
+  for (const id of ["consoleIntro", "consoleStep", "showFootNote"]) {
+    assert.match(
+      html,
+      new RegExp(`id="${id}"[^>]*style="display:none"`),
+      `#${id} is not hidden in the markup`
+    );
+  }
+});
+
+test("the console guidance is shown for a run payload and for nothing else", () => {
+  assert.match(script, /showConsoleGuidance\(entry\.kind === "run"\)/);
+  // `""` and not `"block"`: one of the three is an `li`, and block takes its
+  // marker with it, so the step would lose the "3." that makes it a step.
+  assert.match(script, /line\.style\.display = shown \? "" : "none"/);
+});
+
 test("the XMLHttpRequest probe is gone with the request it was probing", () => {
   // Composing the sheet in the page removes the image request, so there is no
   // status to read and nothing for the probe to rule out.
@@ -232,30 +294,48 @@ function twoCategories() {
   };
 }
 
+// The second entry marked as a sheet that runs nothing, which the real catalog
+// has no example of: all eleven are `kind: "run"`, and the builder recognizes
+// `read`, `embed` and `none` besides. The folder is left as it is, so the
+// document still fetches and composes; only the kind and the payload change,
+// which is exactly what the console guidance reads.
+const DRAWN_INDEX = 1;
+
+function kindsMixed() {
+  const sheets = manifest.categories[0].cheatsheets.map((sheet, index) =>
+    index === DRAWN_INDEX ? { ...sheet, kind: "none", payload: null } : sheet
+  );
+  return { canvas: manifest.canvas, categories: [{ ...manifest.categories[0], cheatsheets: sheets }] };
+}
+
 // How long `/slow/` holds a cheatsheet document back. Long enough that the
 // reserved frame can be measured before the graphic lands, short enough that
 // the case costs the suite nothing worth noticing.
 const SLOW_DOCUMENT_MS = 400;
 
-// Serve the repository, and only the repository, with two synthetic routes.
+// Serve the repository, and only the repository, with three synthetic routes.
 // A request under `/two/` is answered from the same files, except for the
-// manifest, which comes back holding two categories instead of one. A request
-// under `/slow/` is answered from the same files as well, except that a
-// cheatsheet document is held back for a moment: the reserved box is only
-// observable while the document is in flight, and over loopback the frame and
-// the graphic otherwise land too close together to measure between. Both the
-// page and its imports resolve relative to the document, so either prefix
-// carries through the whole tree without a second copy of anything.
+// manifest, which comes back holding two categories instead of one. `/drawn/`
+// is the same again with one entry's `kind` changed, because the committed
+// catalog is eleven runnable scripts and the page's behaviour for the other
+// three kinds has nothing in it to read. A request under `/slow/` is answered
+// from the same files as well, except that a cheatsheet document is held back
+// for a moment: the reserved box is only observable while the document is in
+// flight, and over loopback the frame and the graphic otherwise land too close
+// together to measure between. Both the page and its imports resolve relative
+// to the document, so any prefix carries through the whole tree without a
+// second copy of anything.
 function serveRepository() {
   const server = createServer(async (request, response) => {
     const requested = decodeURIComponent(request.url.split("?")[0]);
     const doubled = requested.startsWith("/two/");
     const slowed = requested.startsWith("/slow/");
-    const prefix = doubled ? "/two" : slowed ? "/slow" : "";
+    const mixed = requested.startsWith("/drawn/");
+    const prefix = doubled ? "/two" : slowed ? "/slow" : mixed ? "/drawn" : "";
     const path = prefix ? requested.slice(prefix.length) : requested;
-    if (doubled && path === "/cheatsheets.json") {
+    if (path === "/cheatsheets.json" && (doubled || mixed)) {
       response.writeHead(200, { "content-type": TYPES[".json"] });
-      response.end(JSON.stringify(twoCategories()));
+      response.end(JSON.stringify(doubled ? twoCategories() : kindsMixed()));
       return;
     }
     if (slowed && path.endsWith("/sheet.json")) {
@@ -651,6 +731,230 @@ test("selecting the blank option takes the sheet back down", { skip }, async () 
   assert.equal(state.children, 0);
   assert.equal(state.label, "");
   assert.equal(state.footnote, "none");
+});
+
+// ---------------------------------------------------------------------------
+// Hash routing. The slug a link carries, and what the address bar says back.
+// ---------------------------------------------------------------------------
+
+/** Who is selected, and what the address bar is showing for it. */
+function readSelection() {
+  return {
+    category: document.getElementById("category").value,
+    example: document.getElementById("example").value,
+    hash: location.hash,
+  };
+}
+
+test("a link's fragment selects the cheatsheet it names", { skip }, async () => {
+  const slug = "javascript/arrays/splicing-arrays";
+  const { page } = await openPage(`#${slug}`);
+  await page.waitForSelector("#curCheatSheet > svg");
+  const state = await page.evaluate(readSelection);
+  const label = await page.getAttribute("#curCheatSheet", "aria-label");
+  await page.close();
+
+  assert.equal(state.category, "javascript");
+  assert.equal(state.example, slug);
+  // The graphic as well as the dropdown: a link that set the control and drew
+  // nothing would read as working from the address bar alone.
+  assert.equal(label, "Splicing Arrays cheat sheet");
+  assert.equal(state.hash, `#${slug}`);
+});
+
+test("a fragment resolves against the category it belongs to, not the first one", { skip }, async () => {
+  // The second category under `/two/` holds the back half of the eleven, so a
+  // link into it only works if the category travelled with the entry. Reading
+  // the category off the front of the slug would send every one of these to
+  // `javascript`, where the option does not exist.
+  const slug = twoCategories().categories[1].cheatsheets[0].id;
+  const { page } = await openPage(`two/#${slug}`);
+  await page.waitForSelector("#curCheatSheet > svg");
+  const state = await page.evaluate(readSelection);
+  const shown = await page.evaluate(() =>
+    [...document.getElementById("example").getElementsByTagName("optgroup")].map(
+      (group) => group.style.display
+    )
+  );
+  await page.close();
+
+  assert.equal(state.category, "second");
+  assert.equal(state.example, slug);
+  assert.deepEqual(shown, ["none", "block"]);
+});
+
+test("a fragment naming nothing in the catalog arrives as if it were absent", { skip }, async () => {
+  // A renamed folder, a hand typed link, a slug from an older catalog. The
+  // page falls back to the single category preselection rather than sitting
+  // empty behind a fragment the reader cannot see failing.
+  const { page } = await openPage("#javascript/arrays/no-such-sheet");
+  const state = await page.evaluate(readSelection);
+  await page.close();
+
+  assert.equal(state.category, "javascript");
+  assert.equal(state.example, "");
+  // And the dead slug is cleared rather than kept as evidence of the typo.
+  // The fragment is a statement about what is on screen, so one naming a sheet
+  // the page is not showing is the exact inconsistency the fragment exists to
+  // prevent - and a reader who copied the address bar from here would pass the
+  // dead link on. What went wrong is still in their history and in whatever
+  // sent them; the address bar is not the place to keep it.
+  assert.equal(state.hash, "");
+});
+
+test("a percent escaped fragment resolves to the same cheatsheet", { skip }, async () => {
+  // A slash is legal in a fragment and the page writes one, but a client that
+  // escapes it on the way out should not produce a dead link.
+  const { page } = await openPage("#javascript%2Farrays%2Fsorting-arrays");
+  await page.waitForSelector("#curCheatSheet > svg");
+  const state = await page.evaluate(readSelection);
+  await page.close();
+
+  assert.equal(state.example, "javascript/arrays/sorting-arrays");
+});
+
+test("a malformed fragment is turned down rather than throwing", { skip }, async () => {
+  // `decodeURIComponent("%zz")` throws, and the call sits in the page's top
+  // level start up block, so an unguarded one would take the catalog down with
+  // it and the reader would get the "could not be loaded" paragraph.
+  const { page } = await openPage("#%zz");
+  const state = await page.evaluate(() => ({
+    category: document.getElementById("category").value,
+    example: document.getElementById("example").value,
+    error: getComputedStyle(document.getElementById("catalogError")).display,
+  }));
+  await page.close();
+
+  assert.equal(state.error, "none");
+  assert.equal(state.category, "javascript");
+  assert.equal(state.example, "");
+});
+
+test("the address bar follows the selection the reader makes", { skip }, async () => {
+  const { page } = await openPage();
+  const hash = () => page.evaluate(() => location.hash);
+
+  assert.equal(await hash(), "");
+  await page.selectOption("#example", { label: "Concating Arrays" });
+  assert.equal(await hash(), "#javascript/arrays/concating-arrays");
+
+  await page.selectOption("#example", { label: "Slicing Arrays" });
+  assert.equal(await hash(), "#javascript/arrays/slicing-arrays");
+
+  // Nothing is selected any more, so the fragment names nothing. A link copied
+  // here should be the page rather than the last sheet the reader closed.
+  await page.selectOption("#example", "");
+  assert.equal(await hash(), "");
+  await page.close();
+});
+
+test("changing the category clears the fragment with the selection", { skip }, async () => {
+  const { page } = await openPage("two/");
+  await page.selectOption("#category", "javascript");
+  await page.selectOption("#example", { index: 1 });
+  await page.waitForSelector("#curCheatSheet > svg");
+
+  await page.selectOption("#category", "second");
+  const state = await page.evaluate(readSelection);
+  await page.close();
+
+  assert.equal(state.example, "");
+  assert.equal(state.hash, "");
+});
+
+test("looking at four cheatsheets leaves the back button where it was", { skip }, async () => {
+  // The reason `replaceState` is used rather than an assignment to
+  // `location.hash`. With a push per selection the reader's way out of the
+  // page recedes by one every time they change their mind.
+  const { page } = await openPage();
+  const length = () => page.evaluate(() => history.length);
+  const entries = await length();
+
+  for (const label of ["Sorting Arrays", "Slicing Arrays", "Random Sort Array", "Sorting Arrays"]) {
+    await page.selectOption("#example", { label });
+  }
+  const after = await length();
+  await page.close();
+
+  assert.equal(after, entries, `${after - entries} history entries were pushed by four selections`);
+});
+
+// ---------------------------------------------------------------------------
+// The console guidance, which is three lines about one thing.
+// ---------------------------------------------------------------------------
+
+/** Whether each line telling the reader to open the console is rendered. */
+function readConsoleGuidance() {
+  const shown = (id) => getComputedStyle(document.getElementById(id)).display !== "none";
+  return {
+    intro: shown("consoleIntro"),
+    step: shown("consoleStep"),
+    footnote: shown("showFootNote"),
+  };
+}
+
+test("nothing asks for the console before a cheatsheet is chosen", { skip }, async () => {
+  const { page } = await openPage();
+  const guidance = await page.evaluate(readConsoleGuidance);
+  await page.close();
+
+  assert.deepEqual(guidance, { intro: false, step: false, footnote: false });
+});
+
+test("the console guidance follows the selected cheatsheet's kind", { skip }, async () => {
+  const sheets = manifest.categories[0].cheatsheets;
+  const { page } = await openPage("drawn/");
+  const guidance = () => page.evaluate(readConsoleGuidance);
+
+  // A script the page injects: all three lines are true, so all three show.
+  await page.selectOption("#example", sheets[0].id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.deepEqual(await guidance(), { intro: true, step: true, footnote: true });
+
+  // A sheet that runs nothing. The fault this closes: the heading blurb and
+  // the third step were in the markup unconditionally, so the page told the
+  // reader to open a console that nothing would ever write to, and the
+  // footnote underneath pointed back up at an instruction that did not apply.
+  await page.selectOption("#example", sheets[DRAWN_INDEX].id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.deepEqual(await guidance(), { intro: false, step: false, footnote: false });
+
+  // And back, so the hiding is a state rather than a one way door.
+  await page.selectOption("#example", sheets[0].id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.deepEqual(await guidance(), { intro: true, step: true, footnote: true });
+  await page.close();
+});
+
+test("the step keeps its number when it comes back", { skip }, async () => {
+  // `display: block` on an `li` takes its marker with it, so the third step
+  // would return as an unnumbered line in a numbered list.
+  const { page } = await openPage();
+  await page.selectOption("#example", { label: "Sorting Arrays" });
+  const display = await page.evaluate(
+    () => getComputedStyle(document.getElementById("consoleStep")).display
+  );
+  await page.close();
+
+  assert.equal(display, "list-item");
+});
+
+test("a sheet that runs nothing has no script element injected for it", { skip }, async () => {
+  // The guidance above is only honest if it matches what the page does, and
+  // what it does is inject for `run` alone.
+  const sheets = manifest.categories[0].cheatsheets;
+  const { page } = await openPage("drawn/");
+  const injected = () =>
+    page.evaluate(() => document.querySelectorAll("body > script[src]").length);
+
+  await page.selectOption("#example", sheets[DRAWN_INDEX].id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.equal(await injected(), 0);
+
+  await page.selectOption("#example", sheets[0].id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.equal(await injected(), 1);
+  await page.close();
 });
 
 test("a catalog that cannot be read says so rather than failing silently", { skip }, async () => {

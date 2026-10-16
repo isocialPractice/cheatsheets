@@ -99,6 +99,23 @@ test("the page loads its logic as a module, which is what lets it import the API
   assert.match(html, /<script\s+type="module"\s*>/);
 });
 
+test("the console guidance is three addressable lines rather than three fixed ones", () => {
+  // The footnote already had an id because it was already conditional. The
+  // other two carried the same instruction unconditionally, so a cheatsheet
+  // with no payload asked its reader to open a console for nothing.
+  assert.match(html, /<p id="consoleIntro"/);
+  assert.match(html, /<li id="consoleStep"/);
+  assert.match(html, /<p id="showFootNote"/);
+});
+
+test("a cheatsheet is addressable by the slug its option carries", () => {
+  // The page writes the fragment as well as reading it, so a reader can copy
+  // what is on screen out of the address bar.
+  assert.match(html, /function fragmentSlug\(\)/);
+  assert.match(html, /function writeFragment\(/);
+  assert.match(html, /history\.replaceState\(/);
+});
+
 test("nothing derives a path from an option's display text any more", () => {
   // The catalog keys every option by its slug id, so the helper that stripped
   // the spaces out of a label to build a file name has no caller left. It went
