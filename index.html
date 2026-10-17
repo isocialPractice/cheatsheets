@@ -256,7 +256,7 @@
   <div class="tools">
    <h3>Instructions</h3>
     <ol>
-     <li>Select Cheatsheat from dropdown.</li>
+     <li>Select Cheatsheet from dropdown.</li>
      <li>Select the example from next dropdown.</li>
      <li id="consoleStep" style="display:none">Press "F12" and select console tab to see results.</li>
     </ol>
@@ -420,7 +420,15 @@ function writeFragment(slug) {
  */
 function applyFragment() {
  const slug = fragmentSlug();
- if (!slug) return false;
+ if (!slug) {
+  // The refusal clears the address bar itself rather than leaving it to the
+  // preselection below, which only runs while the catalog holds one category:
+  // add a second and the dead slug would sit there as a link worth copying.
+  // Guarded on the hash so an ordinary arrival, which had nothing to refuse,
+  // still writes no history entry at all.
+  if (location.hash) writeFragment("");
+  return false;
+ }
  categorySelect.value = cheatsheets.get(slug).category;
  // Neither assignment fires `change`, so both handlers are called by hand -
  // the category's first, because revealing the group the example sits in is

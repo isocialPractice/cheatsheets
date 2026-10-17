@@ -4,6 +4,36 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.17]
+
+### Fixed
+
+- **A dead fragment is cleared where it is refused, not where it happens to be
+  noticed.** `applyFragment()` returned `false` and left the address bar alone;
+  the slug was wiped afterwards by `selectCheatsheet()`, which the start up
+  block calls only when the fragment failed **and** the catalog holds exactly
+  one category. That second condition is the whole catalog today, so the
+  behaviour read as correct - and `#javascript/arrays/no-such-sheet` against a
+  two category catalog arrived with nothing selected, nothing drawn, and the
+  refused slug still in the address bar for the reader to copy and pass on. The
+  refusal now clears it itself, guarded on `location.hash` so an arrival with
+  no fragment still writes no history entry at all. A malformed escape reaches
+  the same branch, which is correct: it is a fragment naming nothing by another
+  route.
+
+  The regression is pinned against the suite's existing two category fixture
+  rather than the committed one, because the committed catalog passes this
+  either way - the preselection covers for it, and would go on doing so until
+  the first run that adds a category.
+
+- **The first instruction on the page is spelled the way its own label is.**
+  "Select Cheatsheat from dropdown." sat four lines above
+  `<label for="category">Select Cheatsheet</label>`, naming the same control
+  two different ways, at the top of the instructions panel and on screen from
+  the moment the page opens. The pair is now pinned to each other in
+  `tools/test-page-structure.mjs`, so a later rewording of one that leaves the
+  other behind is caught in the suite instead of on screen.
+
 ## [2026.10.16]
 
 ### Added

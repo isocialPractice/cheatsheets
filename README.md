@@ -21,7 +21,8 @@ The address bar follows the selection, so a cheatsheet can be linked to
 directly. The fragment is the cheatsheet's own path, as in
 `index.html#javascript/arrays/splicing-arrays`, and a link naming one that has
 since been renamed or removed opens the page as though it carried no fragment
-at all.
+at all, with the dead slug cleared out of the address bar rather than left
+there for the reader to copy and pass on.
 
 **2. A Local Server**<br>
 For anyone changing the page, the catalog or a sheet. Clone the repository,

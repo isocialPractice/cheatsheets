@@ -108,6 +108,16 @@ test("the console guidance is three addressable lines rather than three fixed on
   assert.match(html, /<p id="showFootNote"/);
 });
 
+test("the first instruction spells the control the way its label does", () => {
+  // The step and the label sit four lines apart and named two different
+  // things: "Select Cheatsheat from dropdown." above "Select Cheatsheet".
+  // The pair is pinned rather than the step alone, so a later rewording of
+  // one that leaves the other behind is caught here instead of on screen.
+  assert.match(html, /<li>Select Cheatsheet from dropdown\.<\/li>/);
+  assert.match(html, /<label for="category">Select Cheatsheet<\/label>/);
+  assert.doesNotMatch(html, /Cheatsheat/);
+});
+
 test("a cheatsheet is addressable by the slug its option carries", () => {
   // The page writes the fragment as well as reading it, so a reader can copy
   // what is on screen out of the address bar.
