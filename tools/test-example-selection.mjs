@@ -802,6 +802,21 @@ test("a fragment naming nothing in the catalog arrives as if it were absent", { 
   assert.equal(state.hash, "");
 });
 
+test("a dead fragment is cleared even when no category is preselected", { skip }, async () => {
+  // The one category catalog clears this by way of the preselection calling
+  // `selectCheatsheet()`, so the case above passes without the refusal itself
+  // doing anything. With two categories nothing is preselected, which is the
+  // arrival that proves the fragment is cleared where it is refused rather
+  // than downstream of something that happens to run beside it.
+  const { page } = await openPage("two/#javascript/arrays/no-such-sheet");
+  const state = await page.evaluate(readSelection);
+  await page.close();
+
+  assert.equal(state.category, "");
+  assert.equal(state.example, "");
+  assert.equal(state.hash, "");
+});
+
 test("a percent escaped fragment resolves to the same cheatsheet", { skip }, async () => {
   // A slash is legal in a fragment and the page writes one, but a client that
   // escapes it on the way out should not produce a dead link.
@@ -828,6 +843,58 @@ test("a malformed fragment is turned down rather than throwing", { skip }, async
   assert.equal(state.error, "none");
   assert.equal(state.category, "javascript");
   assert.equal(state.example, "");
+});
+
+test("a malformed fragment is cleared too, where no category is preselected", { skip }, async () => {
+  // The case above is turned down but says nothing about the address bar, and
+  // against one category the preselection would clear it either way. With two
+  // categories nothing is preselected, so this is the arrival that reads the
+  // refusal's own clearing. A malformed escape is not a slug and is not worth
+  // copying as a link, so it leaves no fragment behind.
+  const { page } = await openPage("two/#%zz");
+  const state = await page.evaluate(readSelection);
+  const error = await page.evaluate(
+    () => getComputedStyle(document.getElementById("catalogError")).display
+  );
+  await page.close();
+
+  assert.equal(error, "none");
+  assert.equal(state.category, "");
+  assert.equal(state.example, "");
+  assert.equal(state.hash, "");
+});
+
+test("an arrival with no fragment writes nothing to the address bar", { skip }, async () => {
+  // The arrival most readers make, and the one the refusal must not touch:
+  // nothing was named, so nothing is cleared, and the back button still means
+  // "the page before this one" rather than this page without its fragment. A
+  // new page sits on `about:blank`, which stands in for wherever the reader
+  // came from.
+  //
+  // What this does not pin is the `location.hash` guard in front of the
+  // clearing. `replaceState` pushes no entry either way, so making the call
+  // unconditional leaves the length and the back destination identical -
+  // measured, not assumed. The guard saves a pointless call rather than a
+  // history entry, and no test can tell the two versions apart here.
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const entries = await page.evaluate(() => history.length);
+
+  await page.goto(site.base);
+  await page.waitForSelector('html[data-catalog="ready"]');
+  const state = await page.evaluate(readSelection);
+  const after = await page.evaluate(() => history.length);
+
+  await page.goBack();
+  const left = page.url();
+  await page.close();
+
+  assert.equal(state.hash, "");
+  assert.equal(
+    after,
+    entries + 1,
+    `the arrival wrote ${after - entries - 1} history entries beyond itself`
+  );
+  assert.equal(left, "about:blank", "one press of back leaves by the way the reader came in");
 });
 
 test("the address bar follows the selection the reader makes", { skip }, async () => {

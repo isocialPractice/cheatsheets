@@ -32,18 +32,14 @@ keys its entries by date, written `YYYY.MM.DD`.
   - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
   - From: Example Script Quality
 
-### UI/UX Override - hash routing and the console guidance
+### UI/UX Override - refused fragment and instruction spelling
 
 #### Found Issues
 
-- [ ] A dead fragment stays in the address bar once the catalog holds a second category
-  - **Issue**: `index.html` clears a fragment that resolved to nothing only as a side effect of the single category preselection - `writeFragment("")` is reached from `selectCheatsheet()`, which the start up block calls only when `applyFragment()` failed **and** `categorySelect.options.length === 2`. Measured in Chromium on 2026.10.16 against the catalog served with one extra category appended in memory: `#javascript/arrays/no-such-sheet` arrives with no category chosen, no example and no sheet, all correct, but keeps `#javascript/arrays/no-such-sheet` in the address bar instead of emptying it. A live link still resolves and draws with two categories, so the routing scales; only the refusal leaks. The committed one category catalog clears it correctly, which is why the suite is green today and why this activates silently on the first run that adds a category. `tools/test-example-selection.mjs` already states the requirement this breaks, in the comment on **a fragment naming nothing in the catalog arrives as if it were absent**: a reader who copied the address bar from there would pass the dead link on
-  - **Goal**: Resolve to [dead-fragment-survives-a-second-category.prompt.md](.claude/prompts/dead-fragment-survives-a-second-category.prompt.md)
-  - From: UI/UX Override - hash routing and the console guidance
-- [ ] Correct the "Cheatsheat" misspelling in the first instruction in `index.html`
-  - **Issue**: `index.html:259` reads `<li>Select Cheatsheat from dropdown.</li>`. It is the first line of the Instructions panel and the first instruction a reader is given, on screen from the moment the page opens and in every capture this verification took. The word is "Cheatsheet", as the `<label for="category">Select Cheatsheet</label>` four lines below it already has it. Measured 2026.10.16: `Cheatsheat` appears once in the repository and in no todo item, so nothing queued reaches it - the two misspelling items under `## Current` name a different file and a comment that no longer exists
-  - **Goal**: Change the one occurrence to "Cheatsheet" so the step and the label beneath it agree. `tools/test-page-structure.mjs` reads the page source and is where an assertion pinning the two spellings to each other would sit, if one is wanted
-  - From: UI/UX Override - hash routing and the console guidance
+- [ ] The refusal's `location.hash` guard is credited with preventing a history entry it could never write
+  - **Issue**: `applyFragment()` guards its `writeFragment("")` with `if (location.hash)`, and the comment above it gives the reason as "so an ordinary arrival, which had nothing to refuse, still writes no history entry at all". `writeFragment` records through `history.replaceState`, which replaces the current entry and never pushes one, so there is no entry for the guard to prevent. Measured 2026.10.17 by serving `index.html` twice, once as committed and once with the guard removed so the clearing is unconditional: both arrivals take `history.length` from 1 to 2, both leave the address bar with no fragment, and both land on `about:blank` after one press of back. The behaviour the guard is credited with holds without it
+  - **Goal**: Keep the guard, which still saves a pointless `replaceState` on every bare arrival, and reword the comment to claim that rather than a history entry it prevents. The measurement is recorded in `tools/test-example-selection.mjs` under "an arrival with no fragment writes nothing to the address bar", which says what it does and does not pin; keep the two statements in agreement
+  - From: UI/UX Override - refused fragment and instruction spelling
 
 ## GitHub Pages Deployment
 
@@ -1327,5 +1323,13 @@ generate ideas about generating ideas.
   - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
   - That sub-bullet came true on 2026.09.24 and the false sentence it was written against is already corrected, so what is left is whether the two routes read as two routes rather than as one paragraph with a warning bolted on
   - From: Repository Records
+- [x] A dead fragment stays in the address bar once the catalog holds a second category
+  - **Issue**: `index.html` clears a fragment that resolved to nothing only as a side effect of the single category preselection - `writeFragment("")` is reached from `selectCheatsheet()`, which the start up block calls only when `applyFragment()` failed **and** `categorySelect.options.length === 2`. Measured in Chromium on 2026.10.16 against the catalog served with one extra category appended in memory: `#javascript/arrays/no-such-sheet` arrives with no category chosen, no example and no sheet, all correct, but keeps `#javascript/arrays/no-such-sheet` in the address bar instead of emptying it. A live link still resolves and draws with two categories, so the routing scales; only the refusal leaks. The committed one category catalog clears it correctly, which is why the suite is green today and why this activates silently on the first run that adds a category. `tools/test-example-selection.mjs` already states the requirement this breaks, in the comment on **a fragment naming nothing in the catalog arrives as if it were absent**: a reader who copied the address bar from there would pass the dead link on
+  - **Goal**: Resolve to [dead-fragment-survives-a-second-category.prompt.md](.claude/prompts/dead-fragment-survives-a-second-category.prompt.md)
+  - From: UI/UX Override - hash routing and the console guidance
+- [x] Correct the "Cheatsheat" misspelling in the first instruction in `index.html`
+  - **Issue**: `index.html:259` reads `<li>Select Cheatsheat from dropdown.</li>`. It is the first line of the Instructions panel and the first instruction a reader is given, on screen from the moment the page opens and in every capture this verification took. The word is "Cheatsheet", as the `<label for="category">Select Cheatsheet</label>` four lines below it already has it. Measured 2026.10.16: `Cheatsheat` appears once in the repository and in no todo item, so nothing queued reaches it - the two misspelling items under `## Current` name a different file and a comment that no longer exists
+  - **Goal**: Change the one occurrence to "Cheatsheet" so the step and the label beneath it agree. `tools/test-page-structure.mjs` reads the page source and is where an assertion pinning the two spellings to each other would sit, if one is wanted
+  - From: UI/UX Override - hash routing and the console guidance
 
 </details>
