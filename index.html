@@ -424,8 +424,9 @@ function applyFragment() {
   // The refusal clears the address bar itself rather than leaving it to the
   // preselection below, which only runs while the catalog holds one category:
   // add a second and the dead slug would sit there as a link worth copying.
-  // Guarded on the hash so an ordinary arrival, which had nothing to refuse,
-  // still writes no history entry at all.
+  // Guarded on the hash because an ordinary arrival has nothing to refuse:
+  // `replaceState` pushes no entry either way, so what the guard saves is the
+  // call, not a history entry.
   if (location.hash) writeFragment("");
   return false;
  }

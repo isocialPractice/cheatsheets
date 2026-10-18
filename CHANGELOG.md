@@ -4,6 +4,28 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.18]
+
+### Fixed
+
+- **The refusal's hash guard is credited with what it actually saves.** The
+  comment above `if (location.hash) writeFragment("")` in `applyFragment()`
+  gave the guard's reason as keeping an ordinary arrival from writing "no
+  history entry at all", and the 2026.10.17 entry below repeats that wording.
+  `writeFragment` records through `history.replaceState`, which replaces the
+  current entry and never pushes one, so there was never an entry for the
+  guard to prevent: serving the page with the clearing made unconditional
+  takes `history.length` from 1 to 2 exactly as the committed version does,
+  leaves the address bar with no fragment, and lands on `about:blank` after
+  one press of back. The guard stays, because skipping a `replaceState` that
+  has nothing to clear is still worth the branch, and the comment now claims
+  the saved call rather than the entry.
+
+  No test changed. `tools/test-example-selection.mjs` already recorded the
+  measurement under "an arrival with no fragment writes nothing to the address
+  bar", including the note that no test can tell the two versions apart, so
+  the code was the only one of the two statements out of step.
+
 ## [2026.10.17]
 
 ### Fixed

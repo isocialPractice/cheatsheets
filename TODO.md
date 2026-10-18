@@ -32,15 +32,6 @@ keys its entries by date, written `YYYY.MM.DD`.
   - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
   - From: Example Script Quality
 
-### UI/UX Override - refused fragment and instruction spelling
-
-#### Found Issues
-
-- [ ] The refusal's `location.hash` guard is credited with preventing a history entry it could never write
-  - **Issue**: `applyFragment()` guards its `writeFragment("")` with `if (location.hash)`, and the comment above it gives the reason as "so an ordinary arrival, which had nothing to refuse, still writes no history entry at all". `writeFragment` records through `history.replaceState`, which replaces the current entry and never pushes one, so there is no entry for the guard to prevent. Measured 2026.10.17 by serving `index.html` twice, once as committed and once with the guard removed so the clearing is unconditional: both arrivals take `history.length` from 1 to 2, both leave the address bar with no fragment, and both land on `about:blank` after one press of back. The behaviour the guard is credited with holds without it
-  - **Goal**: Keep the guard, which still saves a pointless `replaceState` on every bare arrival, and reword the comment to claim that rather than a history entry it prevents. The measurement is recorded in `tools/test-example-selection.mjs` under "an arrival with no fragment writes nothing to the address bar", which says what it does and does not pin; keep the two statements in agreement
-  - From: UI/UX Override - refused fragment and instruction spelling
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -1331,5 +1322,9 @@ generate ideas about generating ideas.
   - **Issue**: `index.html:259` reads `<li>Select Cheatsheat from dropdown.</li>`. It is the first line of the Instructions panel and the first instruction a reader is given, on screen from the moment the page opens and in every capture this verification took. The word is "Cheatsheet", as the `<label for="category">Select Cheatsheet</label>` four lines below it already has it. Measured 2026.10.16: `Cheatsheat` appears once in the repository and in no todo item, so nothing queued reaches it - the two misspelling items under `## Current` name a different file and a comment that no longer exists
   - **Goal**: Change the one occurrence to "Cheatsheet" so the step and the label beneath it agree. `tools/test-page-structure.mjs` reads the page source and is where an assertion pinning the two spellings to each other would sit, if one is wanted
   - From: UI/UX Override - hash routing and the console guidance
+- [x] The refusal's `location.hash` guard is credited with preventing a history entry it could never write
+  - **Issue**: `applyFragment()` guards its `writeFragment("")` with `if (location.hash)`, and the comment above it gives the reason as "so an ordinary arrival, which had nothing to refuse, still writes no history entry at all". `writeFragment` records through `history.replaceState`, which replaces the current entry and never pushes one, so there is no entry for the guard to prevent. Measured 2026.10.17 by serving `index.html` twice, once as committed and once with the guard removed so the clearing is unconditional: both arrivals take `history.length` from 1 to 2, both leave the address bar with no fragment, and both land on `about:blank` after one press of back. The behaviour the guard is credited with holds without it
+  - **Goal**: Keep the guard, which still saves a pointless `replaceState` on every bare arrival, and reword the comment to claim that rather than a history entry it prevents. The measurement is recorded in `tools/test-example-selection.mjs` under "an arrival with no fragment writes nothing to the address bar", which says what it does and does not pin; keep the two statements in agreement
+  - From: UI/UX Override - refused fragment and instruction spelling
 
 </details>
