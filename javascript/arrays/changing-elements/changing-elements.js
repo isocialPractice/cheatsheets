@@ -1,5 +1,3 @@
-// JavaScript Document
-
 var arrayToChange = [1, 2, 3, 4];
 arrayToChange[2] = .44; // 1,2,.44,4
 console.log(arrayToChange); // (4) [1, 2, 0.44, 4]
@@ -14,7 +12,7 @@ nestArrayToChange[1][1] = 22.2;
 nestArrayToChange[2] = ["c", "d", ["abc", "xyz"]];
 nestArrayToChange[3] = "new item";
 
-console.log(nestArrayToChange); // (4) [Array(1), Array(4), Array(3), new item]
+console.log(nestArrayToChange); // (4) [Array(1), Array(4), Array(3), 'new item']
 console.log(nestArrayToChange[0]); // [1]
 
 console.log(nestArrayToChange[1]); // (4) [1, 22.2, 3, 4]

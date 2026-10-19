@@ -3,11 +3,11 @@ var ONE = [3, 1, 4, 1, 5];
 var a = [...ONE].sort((a, b) => a - b); // 1, 1, 3, 4, 5
 // ONE and all future array using spread syntax keep original value.
 console.log(ONE); // (5) [3, 1, 4, 1, 5]
-console.log(a); // (5) [1, 1, 3, 4, 5]
+console.log(a); // (5) [1, 1, 3, 4, 5]
 
 var TWO = ["80", "c", "a", 40, 1, 5, 200];
 var b = [...TWO].sort().sort((a, b) => a - b);
-console.log(b); // (7) [1, 5, 40, '80', 200, 'a', 'c']
+console.log(b); // (7) [1, 5, 40, '80', 200, 'a', 'c']
 
 var THREE = [
   { name: "Edward", value: 37 },

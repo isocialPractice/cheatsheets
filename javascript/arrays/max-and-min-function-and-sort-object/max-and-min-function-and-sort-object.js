@@ -3,7 +3,8 @@ function findMin(arr) { return Math.min.apply(null, arr); }
 function findMax(arr) { return Math.max.apply(null, arr); }
 var b = findMin(A); // 1
 var c = findMax(A); // 2500
-console.log(b); console.log(c);
+console.log(b); // 1
+console.log(c); // 2500
 
 var B = [{i: "c", I: 3}, {i: "b", I: 1}, {i: "a", I: 2}];
 B.sort( function(a, b) {  return a.I - b.I; });
@@ -21,6 +22,5 @@ cars.sort( function(a, b) {
    if (x > y) { return   1; }   
    // else essentially 
     return 0;    });
-console.log(cars); // {type:"BMW", year:2010} {type:"Saab", year:2001} {type:"Volvo", year:2016}    
-for (let i in cars) { console.log(cars[i].type + " " + cars[i].year); }
-// BMW 2010, Saab 2001, Volvo 2016
+console.log(cars); // (3) [{...}, {...}, {...}]
+for (let i in cars) { console.log(cars[i].type + " " + cars[i].year); } // BMW 2010, Saab 2001, Volvo 2016

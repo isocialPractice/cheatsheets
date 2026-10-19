@@ -1,0 +1,26 @@
+<!-- Same folder, and the one to reach for first -->
+<a href="pricing.html">Pricing</a>
+
+<!-- Up one folder, then down into another -->
+<a href="../about/team.html">The team</a>
+
+<!-- From the site root, whichever page asks -->
+<a href="/docs/install.html">Install</a>
+
+<!-- A fragment on this page, matching an id below -->
+<a href="#forms">Jump to forms</a>
+<h2 id="forms">Forms</h2>
+
+<!-- Off site. rel pairs with target, not instead of it -->
+<a href="https://example.com/"
+   target="_blank" rel="noopener noreferrer">Example</a>
+
+<!-- Not a link at all: no href makes it a placeholder -->
+<a>Nothing happens here</a>
+
+<nav aria-label="Primary">
+  <ul>
+    <li><a href="/" aria-current="page">Home</a></li>
+    <li><a href="/docs/">Docs</a></li>
+  </ul>
+</nav>

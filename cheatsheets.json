@@ -153,6 +153,91 @@
           "order": 11
         }
       ]
+    },
+    {
+      "id": "html-css",
+      "title": "HTML/CSS",
+      "order": 2,
+      "cheatsheets": [
+        {
+          "id": "html-css/general-html-overview/document-structure",
+          "path": "html-css/general-html-overview/document-structure",
+          "title": "Document Structure",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/document-structure/document-structure.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "document-structure",
+          "order": 1
+        },
+        {
+          "id": "html-css/general-html-overview/text-content",
+          "path": "html-css/general-html-overview/text-content",
+          "title": "Text Content",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/text-content/text-content.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "text-content",
+          "order": 2
+        },
+        {
+          "id": "html-css/general-html-overview/links-and-navigation",
+          "path": "html-css/general-html-overview/links-and-navigation",
+          "title": "Links and Navigation",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/links-and-navigation/links-and-navigation.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "links-and-navigation",
+          "order": 3
+        },
+        {
+          "id": "html-css/general-html-overview/images-and-media",
+          "path": "html-css/general-html-overview/images-and-media",
+          "title": "Images and Media",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/images-and-media/images-and-media.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "images-and-media",
+          "order": 4
+        },
+        {
+          "id": "html-css/general-html-overview/forms-and-inputs",
+          "path": "html-css/general-html-overview/forms-and-inputs",
+          "title": "Forms and Inputs",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/forms-and-inputs/forms-and-inputs.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "forms-and-inputs",
+          "order": 5
+        },
+        {
+          "id": "html-css/general-html-overview/tables-and-data",
+          "path": "html-css/general-html-overview/tables-and-data",
+          "title": "Tables and Data",
+          "kind": "read",
+          "group": "general-html-overview",
+          "groupTitle": "General HTML Overview",
+          "payload": "html-css/general-html-overview/tables-and-data/tables-and-data.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "tables-and-data",
+          "order": 6
+        }
+      ]
     }
   ]
 }

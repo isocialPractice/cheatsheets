@@ -267,11 +267,20 @@ after(async () => {
 //
 // The viewport clears the page's own 1324px measure, so the sheet reaches its
 // 900px cap rather than whatever width its column had left over.
+//
+// The category is named rather than relied on, and the example is named rather
+// than taken by index. The page preselects a category only while the catalog
+// holds one, and it has held two since the `html-css` category landed on
+// 2026.10.19, so `#selectExample` ships hidden; an index into `#example` also
+// counts the options of every category rather than the shown one, so it stops
+// meaning "the first sheet offered" the moment a category is added above the
+// one intended.
 async function openSheet(width = 1400, height = 1000) {
   const page = await browser.newPage({ viewport: { width, height } });
   await page.goto(site.base);
   await page.waitForSelector('html[data-catalog="ready"]');
-  await page.selectOption("#example", { index: 1 });
+  await page.selectOption("#category", "javascript");
+  await page.selectOption("#example", { label: "Shift And Unshift" });
   await page.waitForSelector("#curCheatSheet > svg");
   const frame = await page.evaluate(() => {
     const box = document.getElementById("curCheatSheet");

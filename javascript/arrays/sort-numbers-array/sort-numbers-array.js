@@ -1,11 +1,10 @@
-// JavaScript Document
 var A = [2, 50, 3, 1, 25, 33, 8, 73, 12];
 A.sort(function(a,b) {return a - b;});
-console.log(A);
+console.log(A); // (9) [1, 2, 3, 8, 12, 25, 33, 50, 73]
 var B = [2, 3, 25, 33, "w", "b"];
-console.log(B.sort()); // [2, 25, 3, 33, 'b', 'w']
-console. log(B.sort(function(a, b) {return a - b;})); // [2, 3, 25, 33, 'b', 'w']
-console.log(B.reverse()); // ['w', 'b', 33, 25, 3, 2]
+console.log(B.sort()); // (6) [2, 25, 3, 33, 'b', 'w']
+console. log(B.sort(function(a, b) {return a - b;})); // (6) [2, 3, 25, 33, 'b', 'w']
+console.log(B.reverse()); // (6) ['w', 'b', 33, 25, 3, 2]
 
 
 var ONE = [
@@ -27,7 +26,7 @@ IMPORTANT - if below lines omitted ONE is:
   [3, 10, 23, 33], ['one', 'and', 'two'], ['z', 1, 2, 'a', 10]
 */
 var two = ONE[2].sort(function(a, b) {return b - a;}); // WILL BE LAST VALUE OF ONE
-console.log(two); //  [20, 10] 
+console.log(two); // (2) [20, 10]
 console.log(ONE.sort(function(a, b) { // WILL BE LAST VALUE OF ONE 
  a.sort(); b.sort(); // IMPORTANT - sort a and b first
  a.sort(function(a, b) { return a - b; }); 

@@ -1,5 +1,5 @@
-// NOTE - a “_” at the end of illustrations is final value at index.
-// NOTE - the count of “*” at end means matches prior/future iteration.
+// NOTE - a "_" at the end of illustrations is final value at index.
+// NOTE - the count of "*" at end means matches prior/future iteration.
 var ONE = [40, 100, 1, 5, 25, 10];
 var two = [...ONE];
 function randomSort(x, y) { 
@@ -28,5 +28,6 @@ function randomSort(x, y) {
  }      
 }
 randomSort(ONE, two);
-console.log(ONE); // r, a, n, s, e, q
-console.log("Example output " + two); // 25, 100, 40, 10, 1, 5
+// NOTE - ONE is a random order of 40, 100, 1, 5, 25, 10, different every run.
+console.log(ONE);
+console.log("Example output " + two); // Example output 25,100,40,10,1,5

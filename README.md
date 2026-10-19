@@ -52,6 +52,15 @@ the browser imports both by relative path with no build step, and
 `php -S localhost:8000` is still the whole local workflow. Worked examples are
 in [examples/](examples/README.md).
 
+A category gets a design language of its own, recorded at the root as
+`DESIGN_LANGUAGE-<category>.md` - the first is
+[DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md). It is derived from
+the global record rather than being a second opinion about it: a category with
+no artwork has nothing to measure, so `tools/compose-language-asset.mjs`
+composes the record into a temporary SVG and the helper under
+`ai-helper/graphic-designer/` measures that. `javascript` is the exception and
+needs no file, because `DESIGN_LANGUAGE.md` was measured off its own images.
+
 **The Catalog**
 Every cheatsheet is a folder holding a `sheet.json`, at `<category>/<sheet>/`
 or `<category>/<group>/<sheet>/`, with the human readable titles in a

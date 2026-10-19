@@ -158,10 +158,16 @@ after(async () => {
 // select until that fetch has answered - `data-catalog` on the root is what the
 // page sets when it has - and the graphic is composed from the chosen sheet's
 // own document, so the frame holds a reserved box before it holds any ink.
+//
+// The category is named rather than relied on. The page preselects one only
+// while the catalog holds a single category, and it has held two since the
+// `html-css` category landed on 2026.10.19, so `#selectExample` ships hidden
+// and a selection made straight on `#example` has no visible control to make.
 async function openPage(width, height) {
   const page = await browser.newPage({ viewport: { width, height } });
   await page.goto(site.base);
   await page.waitForSelector('html[data-catalog="ready"]');
+  await page.selectOption("#category", "javascript");
   await page.selectOption("#example", { label: "Sorting Arrays" });
   await page.waitForSelector("#curCheatSheet > svg");
   return page;
@@ -500,6 +506,9 @@ test("the footnote is rendered, not merely styled, on the first selection", { sk
     page.evaluate(() => getComputedStyle(document.getElementById("showFootNote")).display);
 
   assert.equal(await display(), "none");
+  // The category first: nothing is preselected once the catalog holds more
+  // than one, so the example control ships hidden.
+  await page.selectOption("#category", "javascript");
   await page.selectOption("#example", { label: "Shift And Unshift" });
   assert.equal(await display(), "block");
 
@@ -608,6 +617,7 @@ test("an asset that does not answer leaves the sheet it drew before", { skip }, 
   await page.route("**/assets/*", (route) => route.fulfill({ status: 404 }));
   await page.goto(site.base);
   await page.waitForSelector('html[data-catalog="ready"]');
+  await page.selectOption("#category", "javascript");
   await page.selectOption("#example", { label: "Sorting Arrays" });
   await page.waitForSelector("#curCheatSheet > svg");
   const slots = await page.evaluate(() => {

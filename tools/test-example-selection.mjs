@@ -72,27 +72,50 @@ test("the catalog is fetched by relative path, so it resolves under the project 
 // was alphabetical until 2026.10.14 and that no fixture covers - the builder's
 // own order test runs on invented trees, and the real order lives in the
 // `order` field of each committed `meta.json`.
-test("the eleven are offered in the order they are taught", () => {
-  const taught = [
-    "Shift And Unshift",
-    "Changing Elements",
-    "Splicing Arrays",
-    "Concating Arrays",
-    "Slicing Arrays",
-    "Sorting Arrays",
-    "Sort Numbers Array",
-    "Compare Array Function",
-    "Random Sort Array",
-    "Max and Min Value Array",
-    "Max and Min Function and Sort Object",
-  ];
-  const offered = manifest.categories.flatMap((category) =>
-    category.cheatsheets.map((sheet) => sheet.title)
+test("the examples are offered in the order they are taught", () => {
+  // One record per category, keyed by the category's own id, because a single
+  // flat list stopped saying anything the moment a second category landed on
+  // 2026.10.19: a title appended to the end of it would read as taught last
+  // whichever category it belonged to.
+  const taught = {
+    javascript: [
+      "Shift And Unshift",
+      "Changing Elements",
+      "Splicing Arrays",
+      "Concating Arrays",
+      "Slicing Arrays",
+      "Sorting Arrays",
+      "Sort Numbers Array",
+      "Compare Array Function",
+      "Random Sort Array",
+      "Max and Min Value Array",
+      "Max and Min Function and Sort Object",
+    ],
+    "html-css": [
+      "Document Structure",
+      "Text Content",
+      "Links and Navigation",
+      "Images and Media",
+      "Forms and Inputs",
+      "Tables and Data",
+    ],
+  };
+  assert.deepEqual(
+    manifest.categories.map((category) => category.id),
+    Object.keys(taught),
+    "the catalog's categories are not the ones this case holds an order for"
   );
-  assert.deepEqual(offered, taught);
-  // Alphabetical is the fault this replaced, and it is worth naming: the two
-  // orders share a first letter often enough that a spot check would pass.
-  assert.notDeepEqual(offered, [...taught].sort(), "the examples are back in alphabetical order");
+  for (const category of manifest.categories) {
+    const offered = category.cheatsheets.map((sheet) => sheet.title);
+    assert.deepEqual(offered, taught[category.id]);
+    // Alphabetical is the fault this replaced, and it is worth naming: the two
+    // orders share a first letter often enough that a spot check would pass.
+    assert.notDeepEqual(
+      offered,
+      [...taught[category.id]].sort(),
+      `the ${category.id} examples are back in alphabetical order`
+    );
+  }
 });
 
 test("an option is keyed by the manifest's slug, and labelled from its title", () => {
@@ -281,7 +304,12 @@ const TYPES = {
   ".ico": "image/vnd.microsoft.icon",
 };
 
-/** The eleven, split across two categories, pointing at the real folders. */
+/** The first category on its own, pointing at the real folders. */
+function oneCategory() {
+  return { canvas: manifest.canvas, categories: [manifest.categories[0]] };
+}
+
+/** The first category's sheets, split across two, pointing at the real folders. */
 function twoCategories() {
   const sheets = manifest.categories[0].cheatsheets;
   const half = Math.ceil(sheets.length / 2);
@@ -292,6 +320,22 @@ function twoCategories() {
       { id: "second", title: "Second Category", cheatsheets: sheets.slice(half) },
     ],
   };
+}
+
+/**
+ * Selects a category, which is what a reader does before an example.
+ *
+ * The page preselects a category only while the catalog holds one, and the
+ * committed catalog has held two since the `html-css` category landed on
+ * 2026.10.19. So `#selectExample` ships hidden on the real catalog, and a
+ * `selectOption("#example", ...)` with no category named first waits out
+ * Playwright's timeout on a control nothing has revealed.
+ *
+ * Cases that are about the arrival itself rather than about a selection do not
+ * call this: they go to `/one/` or `/two/` and read what the page chose.
+ */
+async function chooseCategory(page, id = "javascript") {
+  await page.selectOption("#category", id);
 }
 
 // The second entry marked as a sheet that runs nothing, which the real catalog
@@ -313,29 +357,35 @@ function kindsMixed() {
 // the case costs the suite nothing worth noticing.
 const SLOW_DOCUMENT_MS = 400;
 
-// Serve the repository, and only the repository, with three synthetic routes.
+// Serve the repository, and only the repository, with four synthetic routes.
 // A request under `/two/` is answered from the same files, except for the
-// manifest, which comes back holding two categories instead of one. `/drawn/`
-// is the same again with one entry's `kind` changed, because the committed
-// catalog is eleven runnable scripts and the page's behaviour for the other
-// three kinds has nothing in it to read. A request under `/slow/` is answered
-// from the same files as well, except that a cheatsheet document is held back
-// for a moment: the reserved box is only observable while the document is in
-// flight, and over loopback the frame and the graphic otherwise land too close
-// together to measure between. Both the page and its imports resolve relative
-// to the document, so any prefix carries through the whole tree without a
-// second copy of anything.
+// manifest, which comes back holding two categories built out of the first
+// one's sheets. `/one/` is the opposite and is the newer of the two: the
+// committed catalog held one category until 2026.10.19 and holds two now, so
+// the single category arrival - which is the one the page's preselection is
+// about - is the shape that needs a fixture, where the pair used to.
+// `/drawn/` is the catalog again with one entry's `kind` changed, because the
+// committed `javascript` category is eleven runnable scripts and the page's
+// behaviour for the other three kinds had nothing in it to read. A request
+// under `/slow/` is answered from the same files as well, except that a
+// cheatsheet document is held back for a moment: the reserved box is only
+// observable while the document is in flight, and over loopback the frame and
+// the graphic otherwise land too close together to measure between. Both the
+// page and its imports resolve relative to the document, so any prefix carries
+// through the whole tree without a second copy of anything.
 function serveRepository() {
   const server = createServer(async (request, response) => {
     const requested = decodeURIComponent(request.url.split("?")[0]);
     const doubled = requested.startsWith("/two/");
+    const single = requested.startsWith("/one/");
     const slowed = requested.startsWith("/slow/");
     const mixed = requested.startsWith("/drawn/");
-    const prefix = doubled ? "/two" : slowed ? "/slow" : mixed ? "/drawn" : "";
+    const prefix = doubled ? "/two" : single ? "/one" : slowed ? "/slow" : mixed ? "/drawn" : "";
     const path = prefix ? requested.slice(prefix.length) : requested;
-    if (path === "/cheatsheets.json" && (doubled || mixed)) {
+    if (path === "/cheatsheets.json" && (doubled || single || mixed)) {
       response.writeHead(200, { "content-type": TYPES[".json"] });
-      response.end(JSON.stringify(doubled ? twoCategories() : kindsMixed()));
+      const served = doubled ? twoCategories() : single ? oneCategory() : kindsMixed();
+      response.end(JSON.stringify(served));
       return;
     }
     if (slowed && path.endsWith("/sheet.json")) {
@@ -445,7 +495,9 @@ test("an option's value is the slug, which no label could be turned into", { ski
 });
 
 test("the only category is selected on arrival, and its group is shown", { skip }, async () => {
-  const { page } = await openPage();
+  // `/one/`, because the committed catalog holds two categories and so says
+  // nothing about this arrival any more.
+  const { page } = await openPage("one/");
   const state = await page.evaluate(() => ({
     category: document.getElementById("category").value,
     step: document.getElementById("selectExample").style.display,
@@ -521,6 +573,7 @@ test("changing the category takes the sheet of the category being left down", { 
 
 test("one script element is injected per selection, not one more each time", { skip }, async () => {
   const { page } = await openPage();
+  await chooseCategory(page);
   const injected = () =>
     page.evaluate(() =>
       [...document.body.querySelectorAll("script[src]")].map((element) => ({
@@ -563,6 +616,7 @@ async function settles(holds) {
 
 test("the injected module runs, and its output reaches the console", { skip }, async () => {
   const { page, logged } = await openPage();
+  await chooseCategory(page);
   await page.selectOption("#example", { label: "Slicing Arrays" });
   // The payload's first statements log `['B']` and `['B', 'C']`. Seeing them
   // is what says the module was fetched, parsed and executed rather than
@@ -578,6 +632,11 @@ test("every example runs as a module without a strict mode refusal", { skip }, a
   // `for (i in ...)` counter while one carried the octal literal `01`. The
   // first throws at run time and the second refuses to parse at all, so a page
   // that injects modules has to be held to every payload rather than one.
+  //
+  // Every category, not the first: a payload that is read rather than injected
+  // runs no module and still composes a sheet, so walking the whole catalog is
+  // what holds each kind it actually carries rather than the one kind it
+  // carried when this case was written.
   const { page } = await openPage();
   const failures = [];
   page.on("pageerror", (error) => failures.push(String(error)));
@@ -585,9 +644,12 @@ test("every example runs as a module without a strict mode refusal", { skip }, a
     if (message.type() === "error") failures.push(message.text());
   });
 
-  for (const sheet of manifest.categories[0].cheatsheets) {
-    await page.selectOption("#example", sheet.id);
-    await page.waitForSelector("#curCheatSheet > svg");
+  for (const category of manifest.categories) {
+    await chooseCategory(page, category.id);
+    for (const sheet of category.cheatsheets) {
+      await page.selectOption("#example", sheet.id);
+      await page.waitForSelector("#curCheatSheet > svg");
+    }
   }
   await new Promise((resolve) => setTimeout(resolve, 500));
   await page.close();
@@ -597,6 +659,7 @@ test("every example runs as a module without a strict mode refusal", { skip }, a
 
 test("the sheet is composed into a box reserved at the manifest's own ratio", { skip }, async () => {
   const { page } = await openPage();
+  await chooseCategory(page);
   // Wide enough for the sheet's own cap to be what stops it rather than the
   // column. `openPage` opens at 1280, which is under the page's 1324px measure,
   // so there the column is 856 and the 900px cap never binds.
@@ -643,6 +706,7 @@ test("nothing below the sheet moves while the graphic is still in flight", { ski
   // sheet would jump down the moment the composition landed. The `/slow/`
   // route is what opens that window wide enough to read.
   const { page } = await openPage("slow/");
+  await chooseCategory(page);
   const read = () =>
     page.evaluate(() => ({
       graphic: document.querySelector("#curCheatSheet > svg") !== null,
@@ -681,6 +745,7 @@ test("a selection the reader moved on from does not land on top of the one they 
   // Held back here rather than through `/slow/`, which delays every document
   // alike and so keeps the two in the order they were asked in.
   const { page } = await openPage();
+  await chooseCategory(page);
   await page.route("**/sorting-arrays/sheet.json", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, SLOW_DOCUMENT_MS));
     await route.continue();
@@ -715,6 +780,7 @@ test("a selection the reader moved on from does not land on top of the one they 
 
 test("selecting the blank option takes the sheet back down", { skip }, async () => {
   const { page } = await openPage();
+  await chooseCategory(page);
   await page.selectOption("#example", { label: "Sorting Arrays" });
   await page.waitForSelector("#curCheatSheet > svg");
 
@@ -787,7 +853,7 @@ test("a fragment naming nothing in the catalog arrives as if it were absent", { 
   // A renamed folder, a hand typed link, a slug from an older catalog. The
   // page falls back to the single category preselection rather than sitting
   // empty behind a fragment the reader cannot see failing.
-  const { page } = await openPage("#javascript/arrays/no-such-sheet");
+  const { page } = await openPage("one/#javascript/arrays/no-such-sheet");
   const state = await page.evaluate(readSelection);
   await page.close();
 
@@ -832,7 +898,7 @@ test("a malformed fragment is turned down rather than throwing", { skip }, async
   // `decodeURIComponent("%zz")` throws, and the call sits in the page's top
   // level start up block, so an unguarded one would take the catalog down with
   // it and the reader would get the "could not be loaded" paragraph.
-  const { page } = await openPage("#%zz");
+  const { page } = await openPage("one/#%zz");
   const state = await page.evaluate(() => ({
     category: document.getElementById("category").value,
     example: document.getElementById("example").value,
@@ -899,6 +965,7 @@ test("an arrival with no fragment writes nothing to the address bar", { skip }, 
 
 test("the address bar follows the selection the reader makes", { skip }, async () => {
   const { page } = await openPage();
+  await chooseCategory(page);
   const hash = () => page.evaluate(() => location.hash);
 
   assert.equal(await hash(), "");
@@ -934,6 +1001,10 @@ test("looking at four cheatsheets leaves the back button where it was", { skip }
   // `location.hash`. With a push per selection the reader's way out of the
   // page recedes by one every time they change their mind.
   const { page } = await openPage();
+  // Before the baseline is read. Choosing a category replaces the fragment
+  // rather than pushing one, so it costs no entry either way, but a baseline
+  // taken after it is the honest one to count four selections against.
+  await chooseCategory(page);
   const length = () => page.evaluate(() => history.length);
   const entries = await length();
 
@@ -997,6 +1068,7 @@ test("the step keeps its number when it comes back", { skip }, async () => {
   // `display: block` on an `li` takes its marker with it, so the third step
   // would return as an unnumbered line in a numbered list.
   const { page } = await openPage();
+  await chooseCategory(page);
   await page.selectOption("#example", { label: "Sorting Arrays" });
   const display = await page.evaluate(
     () => getComputedStyle(document.getElementById("consoleStep")).display
@@ -1022,6 +1094,60 @@ test("a sheet that runs nothing has no script element injected for it", { skip }
   await page.waitForSelector("#curCheatSheet > svg");
   assert.equal(await injected(), 1);
   await page.close();
+});
+
+test("a committed read cheatsheet draws, injects nothing and asks for no console", { skip }, async () => {
+  // The case above makes the same claim against `/drawn/`, which is the real
+  // catalog with one entry's `kind` rewritten in memory. This one makes it
+  // against a `read` cheatsheet that is actually committed, which the catalog
+  // has held since the `html-css` category landed on 2026.10.19 - so the claim
+  // is now about a folder on disk rather than about a manifest a test invented.
+  //
+  // Three things in one case because they are one behaviour: `read` renders
+  // the payload as source rather than running it, so the graphic is composed,
+  // no script element is appended, and the three lines of console guidance
+  // stay down.
+  const category = manifest.categories.find((entry) => entry.id === "html-css");
+  assert.ok(category, "the catalog no longer holds the html-css category");
+  const { page } = await openPage();
+  await chooseCategory(page, "html-css");
+
+  const seen = [];
+  for (const sheet of category.cheatsheets) {
+    assert.equal(sheet.kind, "read", `${sheet.id} is ${sheet.kind} rather than read`);
+    await page.selectOption("#example", sheet.id);
+    await page.waitForSelector("#curCheatSheet > svg");
+    seen.push(
+      await page.evaluate(() => ({
+        drawn: document.querySelector("#curCheatSheet > svg > title")?.textContent,
+        label: document.getElementById("curCheatSheet").getAttribute("aria-label"),
+        injected: document.querySelectorAll("body > script[src]").length,
+        guidance: Object.values(
+          (() => {
+            const shown = (id) =>
+              getComputedStyle(document.getElementById(id)).display !== "none";
+            return {
+              intro: shown("consoleIntro"),
+              step: shown("consoleStep"),
+              footnote: shown("showFootNote"),
+            };
+          })()
+        ),
+      }))
+    );
+  }
+  await page.close();
+
+  for (const [index, sheet] of category.cheatsheets.entries()) {
+    assert.equal(seen[index].drawn, sheet.title, `${sheet.id} drew the wrong graphic`);
+    assert.equal(seen[index].label, `${sheet.title} cheat sheet`);
+    assert.equal(seen[index].injected, 0, `${sheet.id} had a script injected for it`);
+    assert.deepEqual(
+      seen[index].guidance,
+      [false, false, false],
+      `${sheet.id} asked the reader for a console nothing will write to`
+    );
+  }
 });
 
 test("a catalog that cannot be read says so rather than failing silently", { skip }, async () => {

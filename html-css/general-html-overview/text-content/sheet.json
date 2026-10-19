@@ -1,0 +1,33 @@
+{
+  "title": "Text Content",
+  "subtitle": "Headings, prose and the three kinds of list",
+  "kind": "read",
+  "seed": "text-content",
+  "code": [
+    { "text": "<h1>One page, one h1</h1>" },
+    { "text": "<h2>Sections descend without skipping a level</h2>" },
+    { "text": "<h3>So an h3 sits under an h2, never on its own</h3>" },
+    { "text": "" },
+    { "text": "<p>A paragraph is the default block of prose. Mark a word" },
+    { "text": "  <em>for stress</em> and a word <strong>for importance</strong>;" },
+    { "text": "  neither of those is a font choice.</p>" },
+    { "text": "" },
+    { "text": "<p>Code reads as code in <code>element.append(child)</code>," },
+    { "text": "  and a borrowed phrase as <q>a short inline quotation</q>.</p>" },
+    { "text": "" },
+    { "text": "<ul>", "role": "keyword" },
+    { "text": "  <li>An unordered list, where order carries no meaning</li>" },
+    { "text": "  <li>Every child is an li, and nothing else may be</li>" },
+    { "text": "</ul>", "role": "keyword" },
+    { "text": "" },
+    { "text": "<ol start=\"3\">", "role": "identifier" },
+    { "text": "  <li>An ordered list numbers from start</li>" },
+    { "text": "  <li>Which makes this item 4</li>" },
+    { "text": "</ol>", "role": "keyword" },
+    { "text": "" },
+    { "text": "<dl>", "role": "keyword" },
+    { "text": "  <dt>Term</dt>" },
+    { "text": "  <dd>The description that belongs to that term</dd>" },
+    { "text": "</dl>", "role": "keyword" }
+  ]
+}

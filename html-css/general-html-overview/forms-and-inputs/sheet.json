@@ -1,0 +1,33 @@
+{
+  "title": "Forms and Inputs",
+  "subtitle": "A label for every control",
+  "kind": "read",
+  "seed": "forms-and-inputs",
+  "code": [
+    { "text": "<form action=\"/signup\" method=\"post\">", "role": "identifier" },
+    { "text": "  <!-- for matches the input's id, and that is the pairing -->", "role": "comment" },
+    { "text": "  <label for=\"email\">Email</label>", "role": "identifier" },
+    { "text": "  <input id=\"email\" name=\"email\" type=\"email\"", "role": "identifier" },
+    { "text": "         autocomplete=\"email\" required>", "role": "string" },
+    { "text": "" },
+    { "text": "  <label for=\"pass\">Password</label>", "role": "identifier" },
+    { "text": "  <input id=\"pass\" name=\"password\" type=\"password\"", "role": "identifier" },
+    { "text": "         minlength=\"12\" required>", "role": "string" },
+    { "text": "" },
+    { "text": "  <fieldset>", "role": "keyword" },
+    { "text": "    <legend>Plan</legend>" },
+    { "text": "    <!-- One name across both, so the two are one choice -->", "role": "comment" },
+    { "text": "    <label><input type=\"radio\" name=\"plan\" value=\"free\"", "role": "identifier" },
+    { "text": "                  checked> Free</label>" },
+    { "text": "    <label><input type=\"radio\" name=\"plan\" value=\"pro\">", "role": "identifier" },
+    { "text": "      Pro</label>" },
+    { "text": "  </fieldset>", "role": "keyword" },
+    { "text": "" },
+    { "text": "  <label for=\"note\">Anything else</label>", "role": "identifier" },
+    { "text": "  <textarea id=\"note\" name=\"note\" rows=\"4\"></textarea>", "role": "identifier" },
+    { "text": "" },
+    { "text": "  <!-- type=submit, because a bare button submits as well -->", "role": "comment" },
+    { "text": "  <button type=\"submit\">Create account</button>", "role": "identifier" },
+    { "text": "</form>", "role": "keyword" }
+  ]
+}

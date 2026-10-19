@@ -1,0 +1,25 @@
+<form action="/signup" method="post">
+  <!-- for matches the input's id, and that is the pairing -->
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email"
+         autocomplete="email" required>
+
+  <label for="pass">Password</label>
+  <input id="pass" name="password" type="password"
+         minlength="12" required>
+
+  <fieldset>
+    <legend>Plan</legend>
+    <!-- One name across both, so the two are one choice -->
+    <label><input type="radio" name="plan" value="free"
+                  checked> Free</label>
+    <label><input type="radio" name="plan" value="pro">
+      Pro</label>
+  </fieldset>
+
+  <label for="note">Anything else</label>
+  <textarea id="note" name="note" rows="4"></textarea>
+
+  <!-- type=submit, because a bare button submits as well -->
+  <button type="submit">Create account</button>
+</form>

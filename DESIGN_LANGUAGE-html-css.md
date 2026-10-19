@@ -1,0 +1,182 @@
+# Design Language: html-css
+
+The design language every cheatsheet in the `html-css/` category is drawn to.
+
+It is a **derivation** of `DESIGN_LANGUAGE.md`, not a second opinion about it.
+The global record was measured off eleven hand composed images; this category
+has no artwork of its own and never will, because a sheet here is composed in
+the browser rather than drawn and exported. So the asset that was measured is
+one `tools/compose-language-asset.mjs` composed out of the global record, and
+every figure below is what an analyzer read back off that asset.
+
+That indirection is the point. The design language helper refuses to invent a
+value its source did not give it, which is the property worth keeping; a
+category with nothing drawn has nothing to point it at. Composing the record
+into an asset and measuring that keeps the refusal intact and still answers the
+question, and it makes the two records checkable against each other rather than
+merely consistent in prose.
+
+## How to reproduce every figure here
+
+Three commands, in order. Nothing below was read by eye.
+
+```bash
+node tools/compose-language-asset.mjs --category html-css --report
+node ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs \
+  ".tmp/language-asset/html-css.svg" --colors 12 --markdown
+node ai-helper/graphic-designer/skills/design-language/scripts/generate-skill.mjs \
+  ".tmp/language-asset/html-css.svg" --to .claude/skills
+```
+
+The asset goes to `.tmp/`, which is ignored, because it is an **input to a
+measurement** rather than an artifact: a committed copy would be a second
+record of figures `DESIGN_LANGUAGE.md` already holds, and two records drift.
+The generated skill goes to `.claude/skills/html-css/`, ignored for the same
+reason - it is derived from this file, so this file is what is kept.
+
+Measured 2026.10.19, at the asset's full 3600 px size.
+
+## The page
+
+3600 by 3600, square. Margin 241.
+
+Not 3601. The eleven source images are 3601 square and that extra pixel is
+export rounding, which matters here because 3600 divides cleanly by the 48 px
+step the sheets and the site share and 3601 does not. A sheet in this category
+is composed at 3600.
+
+## Palette
+
+Two measurements of the same six colours, and they disagree on purpose. The
+first is how often the asset **references** a colour, which is what the file
+declares. The second is how much page each one **covers**, taken by rendering
+the file, and it is the one the roles come from - because "which colour is the
+ground" is a question about area.
+
+| Colour | Referenced | Covers | Role |
+| --- | --- | --- | --- |
+| `#000132` | 7.1% | 61.8% | Ground, and the ink on paper |
+| `#FFFFFF` | 7.1% | 28.6% | Paper |
+| `#4DAE51` | 14.3% | 5.7% | Accent |
+| `#414143` | 19.1% | 1.7% | Display type on paper |
+| `#B4BEC8` | 38.1% | 0.6% | Comment ink in the code panel |
+| `#ADF8B7` | 14.3% | 0.2% | Identifier ink in the code panel |
+
+The ordering inverts almost exactly between the two columns, which is the whole
+reason both are recorded. Comment grey is referenced more than any other colour
+and covers less than one percent of the page; the navy ground is referenced
+twice and covers three fifths of it. A generated graphic carrying the right
+colours in the wrong proportions produces the right swatches and the wrong
+roles, and only the area column catches that.
+
+### The 60-30-10 to hold work against
+
+61.8 / 28.6 / 5.7, navy to white to green, with the three ink colours summing
+to 2.5%. A sheet in this category that lands outside that shape is outside the
+language however correct its hex values are.
+
+The remaining 0.9% is the antialiasing of the asset's own edges, spread over
+six near colours none of which reaches 0.3%. None of them carries a role.
+
+## Type
+
+- Family: the sheet face, as `DESIGN_LANGUAGE.md` records it under **The
+  faces**. The asset names `Helvetica Neue` because that is the family the
+  composition sets, and the measuring happens in the face that will draw the
+  text.
+- Sizes measured: **305.98**, **214.19**, **196.11**, **155.77**.
+
+Those four are display, head, body and caption, and they are sizes rather than
+cap heights. The composition works in cap heights and converts, so a size here
+is the converted figure and not a token to set type at directly: the tokens are
+in `api/cheatsheet/language.mjs`, which is this repository's global record in
+the form code reads.
+
+The asset carries its type as `text` elements with **no fill**. They draw
+nothing and exist so that one file can carry both halves of the record - an
+element is either a letterform or an area, and the palette above is an area
+measurement. Without them an analyzer reports no sizes at all and invents a
+type scale, which is the exact failure the asset exists to prevent.
+
+## Strokes and radii
+
+None. The asset declares no stroke width and no corner radius, and that is a
+measurement rather than an omission: the mark the global palette was sampled
+from is a filled square with square corners and no thin strokes, so the
+language is dense, flat and orthogonal. A rounded or stroked sheet in this
+category is a drift.
+
+## Brand slots
+
+Read from the asset's own layer names, so these are positions that were marked
+rather than guessed at from pixels.
+
+| Slot | Region | Box (x, y, w, h) | Page share | How | Confidence |
+| --- | --- | --- | --- | --- | --- |
+| `logo` | bottom-left | 0, 3264, 288, 336 | 0.8% | named | 0.95 |
+
+One slot, not two. The footer mark square is named because the global record
+gives it a box and a colour; the wordmark is **not** named, because a slot is
+found from the extent of what was drawn and the asset draws nothing there - the
+record says the wordmark is "in white and green" without saying how much of
+each, so inventing a share would be inventing a figure. A declared slot that
+can never resolve is worse than an undeclared one.
+
+What fills the slot comes from the **Brand Resources** section of
+`.claude/constants.md`, by way of `node tools/build-brand-resources.mjs`.
+Nothing in this file names a brand value, and nothing in this file should: the
+language is the geometry and the colour, and the brand is configuration.
+
+## What this category adds on top of the global record
+
+The global record was measured off eleven JavaScript sheets, every one a
+`kind: run` payload. This category is where two of the four payload kinds first
+appear, and that changes what the code panel carries rather than how it is
+drawn.
+
+- **`kind: read` sets markup in the panel, not statements.** The panel's
+  syntax roles are unchanged - `plain`, `comment`, `identifier`, `keyword`,
+  `string`, `number`, with the colours the palette above gives them - but the
+  mapping onto markup is this category's to fix, and it is fixed here.
+
+  **A `sheet.json` carries one role per line, not one per token**, so the rule
+  is about lines. A line takes the role of the most specific thing it
+  introduces, tested in this order:
+
+  | A line that | Takes | Which reads as |
+  | --- | --- | --- |
+  | opens `<!--` | `comment` | Comment grey |
+  | is a wrapped attribute, continuing a tag opened above it | `string` | Amber |
+  | carries an attribute anywhere in it | `identifier` | Pale green |
+  | is nothing but tags once the tags are removed | `keyword` | Pale yellow |
+  | holds prose between its tags | plain | White |
+
+  Structure comes out yellow, configuration green, content white, and the
+  six sheets in the category land between three and sixteen lines of each.
+  `number` goes unused, and is left unused rather than forced: with a role per
+  line there is no markup line that is a bare number, and inventing one would
+  put a colour on the sheet that nothing on it means.
+- **A `read` sheet needs no `demo/` folder.** The payload is rendered as
+  source text, so the one readable file beside `sheet.json` is the whole of it.
+  The first `embed` payload in the category is **Common Browser Built-in
+  APIs**, and the category's structure deliberately lands before its hardest
+  payload kind does.
+- **The panel fill floor applies as it does everywhere.** A sheet whose example
+  is short enough to leave the panel emptier than the eleven were is reported
+  by `node tools/build-manifest.mjs --check` as a warning rather than refused,
+  because a sparse panel is inside every margin and failing it would refuse a
+  short cheatsheet for being short.
+
+## What the source could not say
+
+- **Nothing about a raster.** The asset is an SVG, so colours, type, strokes,
+  radii and structure are all declared values rather than observations. That is
+  the better case; it is recorded because the opposite case - a JPEG, which
+  tells an analyzer nothing measurable - is what the global record had to work
+  from.
+- **The generated skill's own output sits at a different ratio.** Its default
+  composition is a poster rather than a cheatsheet, and measures 98.1% navy to
+  1.5% white. Paper and ink agree with this record exactly; the accent reads a
+  shade off because a placed brand asset supplies its own green. That is the
+  poster's ratio and not this language's, and the skill is the tool rather than
+  the record.

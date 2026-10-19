@@ -197,7 +197,14 @@ const THEMES = [
 // are appended from `cheatsheets.json`, so a page read before that fetch has
 // answered has no `optgroup` and no option for the chrome cases below to
 // measure. `data-catalog` on the root is what the page sets when it has.
-async function openPage(theme, { choose = "Sorting Arrays" } = {}) {
+//
+// The category is chosen rather than relied on. The page preselects one only
+// while the catalog holds a single category, and since the `html-css` category
+// landed on 2026.10.19 it holds two - so `#selectExample` ships hidden, and a
+// selection made straight on `#example` waits thirty seconds for a control
+// nothing has revealed. Naming the category is what a reader does and is now
+// what a test has to do.
+async function openPage(theme, { choose = "Sorting Arrays", category = "javascript" } = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
     colorScheme: theme.scheme,
@@ -205,6 +212,7 @@ async function openPage(theme, { choose = "Sorting Arrays" } = {}) {
   await page.goto(site.base);
   await page.waitForSelector('html[data-catalog="ready"]');
   if (choose) {
+    await page.selectOption("#category", category);
     await page.selectOption("#example", { label: choose });
     await page.waitForSelector("#curCheatSheet > svg");
   }
@@ -308,6 +316,16 @@ for (const theme of THEMES) {
       // face, so the comparison would read the panel instead of the text.
       // `max-width: 100%` was the only one until 2026.10.14; `width: 100%` is
       // now the one actually doing it.
+      //
+      // A probe option is added for the measurement and taken off again, which
+      // is what makes the comparison about the face. A select is as wide as its
+      // widest option, and which option that is can change between two faces:
+      // with `JavaScript` and `HTML/CSS` both on offer from 2026.10.19 the
+      // serif's widest was not the stack's widest, the two maxima landed 2px
+      // apart, and the case failed for having nothing left to read. One string
+      // in both faces cannot reorder, and it is the same string `widthIn`
+      // measures a span with, so the two readings are comparable.
+      const PROBE = "Select Cheatsheet from dropdown";
       const control = (id) => {
         const select = document.getElementById(id);
         const before = {
@@ -315,6 +333,12 @@ for (const theme of THEMES) {
           max: select.style.maxWidth,
           width: select.style.width,
         };
+        // Appended to the select rather than into an optgroup: every group in
+        // `#example` but the chosen category's is hidden, and a hidden group's
+        // options are not what the control sizes itself to.
+        const probe = document.createElement("option");
+        probe.textContent = PROBE;
+        select.appendChild(probe);
         const measure = (family) => {
           select.style.maxWidth = "none";
           select.style.width = "auto";
@@ -325,7 +349,9 @@ for (const theme of THEMES) {
           select.style.width = before.width;
           return width;
         };
-        return { asItIs: measure(""), asSerif: measure('"Times New Roman", serif') };
+        const widths = { asItIs: measure(""), asSerif: measure('"Times New Roman", serif') };
+        probe.remove();
+        return widths;
       };
 
       // A wider face needs more room than the one it replaced, so the longest

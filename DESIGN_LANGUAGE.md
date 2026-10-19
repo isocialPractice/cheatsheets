@@ -31,10 +31,16 @@ says so rather than averaging them.
 > `tools/test-composition-algorithm.mjs` checks the two records against each
 > other, so a figure edited here and not there fails rather than drifts.
 > **Composing a sheet** below is the algorithm's own record - what a seed
-> moves, what it may not, and the three floors it is held to. What is still
-> outstanding is under **Cheatsheet Composition Language** in `TODO.md`:
-> composing a sheet from a `sheet.json`, and a temporary SVG for a category with
-> no artwork to measure.
+> moves, what it may not, and the three floors it is held to.
+>
+> **A category with no artwork has a language of its own.**
+> `tools/compose-language-asset.mjs` composes this record into a temporary SVG
+> and the design language helper measures that, so a per-category record is a
+> derivation of this document rather than a second opinion about it. The first
+> one is [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md), recorded
+> on 2026.10.19 when that category's first six cheatsheets landed. `javascript`
+> has none and needs none: this document was measured off its own eleven
+> images, so its language is the global record.
 
 ## Source
 

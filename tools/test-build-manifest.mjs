@@ -883,11 +883,46 @@ test("--print writes the manifest to standard output and not to disk", async () 
 /* --- The repository itself ----------------------------------------------- */
 
 test("the repository's own tree passes the check", async () => {
-  // Empty today: no folder holds a `sheet.json` until the eleven array
-  // examples are migrated. That is the tree the Pages workflow runs against on
-  // every push until then, so it is the case worth holding rather than the one
-  // to wait out.
+  // No longer the empty case this was written for. The eleven array examples
+  // migrated into `javascript/arrays/` on 2026.09.24 and the `html-css`
+  // category landed on 2026.10.19, so the check now walks seventeen committed
+  // documents across two categories and composes every one of them. That is
+  // the tree the Pages workflow runs against on every push, which is why the
+  // case is here rather than left to the workflow.
   assert.equal(await quietly(["--check"]), 0);
+});
+
+test("every category after the first carries its own design language", async () => {
+  // The convention under **New Cheatsheets** in `TODO.md`: a category's design
+  // language is generated once, by its first item, and recorded at the root as
+  // `DESIGN_LANGUAGE-<category>.md`.
+  //
+  // `javascript` is the exception and the reason the rule reads "after the
+  // first": the global `DESIGN_LANGUAGE.md` was measured off the eleven
+  // `javaScriptArrays/*.jpg`, which are that category's own artwork, so its
+  // language is the global record rather than a derivation of it. Every
+  // category after it has no artwork and derives one.
+  const { readdirSync } = await import("node:fs");
+  const { folders } = await walkCatalog(root);
+  const categories = [...new Set(folders.map((folder) => folder.segments[0]))].sort();
+  const recorded = new Set(readdirSync(root).filter((name) => /^DESIGN_LANGUAGE-.+\.md$/.test(name)));
+
+  const missing = categories
+    .filter((id) => id !== "javascript")
+    .filter((id) => !recorded.has(`DESIGN_LANGUAGE-${id}.md`));
+  assert.deepEqual(
+    missing,
+    [],
+    "these categories hold cheatsheets and no design language, so their sheets are " +
+      "drawn to a language that was never written down"
+  );
+
+  // And nothing is recorded for a category the catalog does not hold, which is
+  // what would be left behind by a folder renamed without its record.
+  const orphaned = [...recorded].filter(
+    (name) => !categories.includes(name.slice("DESIGN_LANGUAGE-".length, -".md".length))
+  );
+  assert.deepEqual(orphaned, [], "these name a category the catalog no longer holds");
 });
 
 test("the committed manifest matches what the repository generates", async () => {
