@@ -44,24 +44,75 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ### User Overrides
 
-- [ ] Utilize
-  [Clean Language Accents](https://isocialpractice.github.io/napkin-sketch/api/markdown/index.html#for-agents)
-  as a local vendor of `napkin-sketch`
- - **Issue**: Code syntax highlighting is incorrect
- - **Goal**: Apply code syntax highligting using `napkin-sketch` **clean language accents** feature
- - From: Depend on the `napkin-sketch` Package
-- [ ] Re-vendor `@isocialpractice/napkin-sketch@1.0.1` into vendored into `api/napkin-sketch/`
-  - **User Note**: Reported issues have been marked resolved in
-    `napkin-sketch`, and scripts added to `package.json` of `napkin-sketch` to
-    asset with re-vendoring dependency
- - **Issue**: Issues found from 2026.10.14 reported to
-   [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch)
-   - [#10](https://github.com/isocialPractice/napkin-sketch/issues/10)
-   - [#11](https://github.com/isocialPractice/napkin-sketch/issues/11)
-   - [#12](https://github.com/isocialPractice/napkin-sketch/issues/12)
- - **Goal**: Re-vendor dependency `@isocialpractice/napkin-sketch@1.0.1` using
-   helper scripts provided by `napkin-sketch` package
- - From: Depend on the `napkin-sketch` Package
+#### Found Issues
+
+- [ ] Re-vendor `@isocialpractice/napkin-sketch` at `1.1.0` with the package's own `vendor` command
+  - **Issue**: `api/napkin-sketch/` holds `1.0.0`, copied on 2026.10.14 by
+    this repository's own `tools/vendor-napkin-sketch.mjs` and recorded in
+    `PIN.json`. The three issues reported from here that day are fixed and
+    released upstream in `1.1.0`, on 2026.10.19:
+    [#10](https://github.com/isocialPractice/napkin-sketch/issues/10) a
+    `graphic-design` entry of its own,
+    [#11](https://github.com/isocialPractice/napkin-sketch/issues/11) an
+    elliptical arc refused rather than drawn as a polyline, and
+    [#12](https://github.com/isocialPractice/napkin-sketch/issues/12) a quoted
+    font family read as its name rather than as `&quot`. The same release adds
+    `napkin-sketch vendor`, made for re-vendoring a copy like this one. There is
+    no `1.0.1`: npm holds `1.0.0` and `1.1.0`, and `1.1.0` carries the fixes.
+  - **Goal**: `api/napkin-sketch/` is written by `napkin-sketch vendor` at
+    `1.1.0`, recorded in its `VENDOR.json` and checked by its
+    `VENDOR-CHECK.mjs`, and holds the parts this repository uses:
+    `graphic-design` - the entry #10 was filed for, about 49 KB gzipped against
+    the main entry's 270 KB - `graphic-design/files`, and `markdown` for the
+    item below. The imports in `api/cheatsheet/` move from
+    `napkin-sketch/api/index.js` to the `graphic-design` entry wherever it
+    exports what they import.
+  - **`vendor` never writes into a folder it did not write**, and this one was
+    written by `tools/vendor-napkin-sketch.mjs`. Remove the old folder first
+    rather than vendoring over it. `napkin-sketch vendor --list` names every
+    part and what it costs a page.
+  - The old mechanism goes with the old folder: `tools/vendor-napkin-sketch.mjs`,
+    `tools/test-vendor-napkin-sketch.mjs`, the `--check` step in
+    `.github/workflows/pages.yml` - which becomes
+    `node api/napkin-sketch/VENDOR-CHECK.mjs`, plain node with no install - the
+    vendoring lines in `README.md`, and every other place that names `PIN.json`
+    or `vendor-napkin-sketch` outside `.tmp/`.
+  - `ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs`
+    reads a quoted font family itself, which is the fix #12 made upstream.
+    Compare it with the helper `vendor --ai-helper` copies, and keep one reading,
+    not two.
+  - Every test passes and the site composes as it did.
+    `tools/test-pages-media-type.mjs` reads the vendored copy, so it is the
+    first to say whether the layout moved.
+  - From: Depend on the `napkin-sketch` Package
+- [ ] Color code by token with napkin-sketch's Clean Language Accents
+  - **Issue**: Code syntax highlighting is incorrect. A code line in a composed
+    sheet takes one `role` for the whole line - `plain`, `comment`,
+    `identifier`, `keyword`, `string` or `number` - set by hand in `sheet.json`
+    and drawn by `roleColor()` in `api/cheatsheet/compose.mjs`. So a line
+    holding a keyword, an identifier and a string is drawn in one color, and a
+    line given the wrong role is wrong from end to end.
+    `Wrapped Attribute Colour 1`, in the UI/UX override below, is one such
+    line.
+  - **Goal**: Code in a composed sheet is colored token by token with
+    [Clean Language Accents](https://isocialpractice.github.io/napkin-sketch/api/markdown/index.html#for-agents),
+    from the `markdown` part the item above vendors, in the colors
+    `DESIGN_LANGUAGE.md` already gives each role. The palette stays; only how
+    a token's color is chosen changes.
+  - Per the page's **For agents**: import the `markdown` entry once before
+    drawing, name languages by id, install a language before the text using it
+    is drawn, and read `missing` from `accentRuns`, so a sheet in a language
+    nobody installed says so rather than drawing plain.
+  - Decide whether the per-line `role` stays as the fallback for a language
+    with no grammar, or goes; 17 sheets set one today. Record the decision in
+    `DESIGN_LANGUAGE.md`, where the **General CSS Overview** item in the
+    regular queue will read it before writing its own per-line mapping.
+  - **The UI/UX override below is about the per-line rule this replaces.**
+    Work its items against the result: say whether token colors settle
+    `Wrapped Attribute Colour 1` and the per-role counts, and what still
+    applies where they do not.
+  - Depends on the item above, which brings the `markdown` part in.
+  - From: Depend on the `napkin-sketch` Package
 
 ### UI/UX Override - the markup panel and the bare arrival
 
