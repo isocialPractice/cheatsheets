@@ -4,6 +4,162 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.19]
+
+### Added
+
+- **The `html-css` category, and with it the second category the catalog has
+  ever held.** Six cheatsheets under a **General HTML Overview** group at
+  `html-css/general-html-overview/`, every one `kind: read`: document
+  structure, text content, links and navigation, images and media, forms and
+  inputs, and tables and data. Each folder holds a `sheet.json`, a `meta.json`
+  for its order, and one readable `.html` payload the page renders as source
+  text. No folder commits a raster; the graphic is composed in the browser
+  through `api/cheatsheet/`, as every sheet in the catalog is.
+
+  The sheet count is the subject's own, from the conventions under **New
+  Cheatsheets**: a subject becomes between one and eight cheatsheets, each
+  taking a different area of focus, so `general-html-overview` is the group and
+  the six areas are the cheatsheets. `node tools/build-manifest.mjs --check`
+  passes on the result, which is seventeen documents across two categories, and
+  every one of them is composed rather than taken on trust.
+
+- **A design language for the category, derived rather than invented.**
+  [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md) records the
+  palette by reference share and by area, the four measured type sizes, the one
+  named brand slot and the 60-30-10 the category's work is held against. Every
+  figure in it came off an asset `tools/compose-language-asset.mjs` composed
+  out of `DESIGN_LANGUAGE.md`, because a category drawn in the browser has no
+  artwork to measure and the way out is to compose the record rather than relax
+  the helper's refusal to invent a value. Measured at full size the asset puts
+  navy at 61.8% of the page against the recorded 60.97%, white at 28.6%, green
+  at 5.7%, and the three ink colours within 0.2 points of their shares.
+
+  It also fixes the one thing the global record could not: how a `sheet.json`
+  carries markup. A document gives one role per **line**, not one per token, so
+  the category's rule is read in that order - a comment is `comment`, a wrapped
+  attribute line is `string`, a line carrying an attribute is `identifier`, a
+  line that is nothing but tags is `keyword`, and a line of prose is plain.
+  `number` is recorded as unused rather than forced onto a line that does not
+  mean it.
+
+  The generated skill is at `.claude/skills/html-css/`, which is ignored:
+  it is derived from the committed record, so the record is what is kept.
+
+- **`tools/test-example-comments.mjs`, which holds every example's commented
+  output to what the example actually logs.** Twenty four cases. Each payload
+  runs in a `vm` context with a `"use strict";` prologue and `lineOffset: -1`
+  so the strictness is the module's the page injects and a stack frame still
+  names the line the committed file holds; the `console.log` replacement reads
+  that line off the frame and renders each argument at the call, before
+  anything can mutate it. The rendering is the browser console's own notation,
+  stated in the file rather than borrowed from a Chrome release no test on this
+  machine can observe.
+
+  A trailing comment opening `NOTE`, `IMPORTANT`, `WILL BE` or `WOULD BE` is a
+  remark and is not compared, which is the examples' own convention rather than
+  a new one: some lines have nothing to claim, like a value that is random
+  every run. A line hit more than once joins its outputs with `", "`, which is
+  how the one looping example already wrote its claim.
+
+- **A `/one/` route in `tools/test-example-selection.mjs`**, serving the
+  committed catalog's first category on its own. The fixtures have inverted:
+  `/two/` existed because the real catalog held one category, and the single
+  category arrival - which is the only arrival the page's preselection is about
+  - is now the shape that needs one.
+
+- **Two cases pinning what this run added.** A committed `read` cheatsheet
+  draws, has no script element injected for it and asks for no console, which
+  until today could only be asserted against `/drawn/` and a manifest a test
+  rewrote in memory. And every category after the first carries its own
+  `DESIGN_LANGUAGE-<category>.md`, with nothing recorded for a category the
+  catalog no longer holds, so the next category added without its language
+  fails rather than being drawn to one nobody wrote down.
+
+### Fixed
+
+- **The eleven examples' commented output, 48 of whose 87 claims were wrong.**
+  Measured by running the checker above against the committed files: 22 were
+  substantively wrong, and the other 26 differed from the console by a
+  character nobody can see. What it found:
+
+  - `sorting-arrays.js` carried eight claims written for an array the file does
+    not hold. `ONE[0]` is `[20, 0, 1, 1000]` and the comment said
+    `[2, 0, 10, 3]`; sorted it is `[0, 1, 1000, 20]` and the comment said
+    `[0, 1, 10, 2]`, twice. Five more gave a four element array a count of
+    three.
+  - `shift-and-unshift.js` said `appple` where the console writes `apple`, and
+    gave three array logs as bare comma lists rather than as what the console
+    shows.
+  - `changing-elements.js` showed a string inside an array unquoted.
+  - `random-sort-array.js` claimed `r, a, n, s, e, q` for a randomly shuffled
+    array. It is a remark now, saying the order is random and different every
+    run, because no comment can pin that one.
+  - `max-and-min-function-and-sort-object.js` wrote three object literals out
+    by hand where the console shows `(3) [{...}, {...}, {...}]`. The detail is
+    not lost: the loop below it logs the three, and its claim moved onto the
+    line that makes it.
+  - `sort-numbers-array.js` left four array logs without their element count,
+    and one log with no comment at all.
+  - `splicing-arrays.js` ended a claim with a semicolon that is not in the
+    output.
+  - **Thirty six lines across six files carried a character that is not
+    ASCII**: 34 non-breaking spaces, almost all of them sitting between the
+    `(n)` count and the bracket where the console writes an ordinary space, and
+    16 curly quotes over five lines. Either is exactly as wrong as a miscounted
+    element and neither is visible to a reader; between them they account for
+    26 of the 48 wrong claims. All eleven files are plain ASCII now, and a case
+    per file holds them there.
+
+  The one correction outside a comment is in `shift-and-unshift.js`, where
+  `bannana` was a data value the comments were faithfully reproducing. Spelling
+  it correctly in the comment alone would have made the comment wrong, so the
+  array element is `banana` and the claims follow it. `sheet.json` for that
+  cheatsheet carries the same correction, because the drawn sheet shows the
+  same code.
+
+- **The `// JavaScript Document` header is gone from the five files that had
+  it.** The queued item offered the choice of giving all eleven the same header
+  or dropping it from all, and dropping is what the header is worth: it is an
+  editor artifact, it says nothing the file name does not, six of the eleven
+  never had it, and the `sheet.json` documents that mirror these files already
+  omitted it. All eleven now open with the example's own first line.
+
+- **Four browser tests assumed a catalog with one category, and the page
+  deliberately behaves differently with two.** `index.html` preselects a
+  category only while `categorySelect.options.length === 2`, so
+  `#selectExample` ships hidden the moment a second lands and a
+  `selectOption("#example", ...)` with no category named first waits out
+  Playwright's timeout. Forty one cases failed on that, across
+  `test-example-selection.mjs`, `test-page-structure-browser.mjs`,
+  `test-sheet-footer-browser.mjs` and `test-theme-rendering-browser.mjs`. The
+  page is right and the tests were measuring the old catalog: each now names
+  the category, as a reader does, and the three cases that were about the
+  preselection itself go to `/one/`.
+
+  Two of them needed more than a selection. `test-sheet-footer-browser.mjs`
+  took its example by `{ index: 1 }`, which counts the options of every
+  category rather than the shown one, so it stopped meaning "the first sheet
+  offered" as soon as a category was added; it names the sheet now. And
+  `test-theme-rendering-browser.mjs` reads a native control's face by comparing
+  its intrinsic width against a serif, which needs the two faces to disagree -
+  with `JavaScript` and `HTML/CSS` both on offer the serif's widest option was
+  not the stack's widest, the two maxima landed 2px apart, and the case failed
+  for having nothing left to read. It measures a probe option now, one string
+  in both faces, which cannot reorder.
+
+- **`Fix the CONGIF misspelling in the index.html configuration comment` closed
+  by verification, as its own text asked.** Re-measured today: `CONGIF` appears
+  nowhere in the repository outside `TODO.md` and the roadmap plan that record
+  the item, and `index.html` holds no configuration comment to carry it - that
+  block went out with `testEnvironment` on 2026.09.24. Nothing was written.
+
+- **A stale comment in `tools/test-build-manifest.mjs`.** "the repository's own
+  tree passes the check" described itself as holding an empty tree "until the
+  eleven array examples are migrated". They migrated on 2026.09.24. It now says
+  what the check actually walks, which is seventeen documents in two
+  categories.
+
 ## [2026.10.18]
 
 ### Fixed
