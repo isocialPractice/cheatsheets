@@ -11,26 +11,56 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
+- [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
   - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
-  - This is the first item in a new category, so it is the one that generates that category's design language and skill, per **Conventions for every item in this section**: compose the temporary SVG with `tools/compose-language-asset.mjs`, measure it into `DESIGN_LANGUAGE-html-css.md`, and generate the skill that every later `html-css/` sheet is drawn to
-  - `kind: read` renders the source as text, so this item needs no `demo/` folder. The first `embed` payload in the category is the **Common Browser Built-in APIs** item further down it
-  - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`, which fails a missing title, a path that is not lower case kebab, a `kind` that disagrees with the folder and a sheet whose composition will not fit its own margins
-  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant: a sheet composed as SVG is drawn rather than captured, so the constant binds on the composition
+  - The category exists, so this item generates no design language and no skill. It is drawn to `DESIGN_LANGUAGE-html-css.md`, which `General HTML Overview` recorded on 2026.10.19, and the skill at `.claude/skills/html-css/` is already generated and ignored
+  - The sheet count makes the subject a group and its six areas the cheatsheets under it, at `html-css/general-css-overview/<area>/`, which is the shape the first item settled
+  - A role is assigned per line and not per token. For CSS that reads as: a comment is `comment`, a selector or an at-rule is `keyword`, a declaration is `identifier`, and a wrapped value line is `string`. The HTML mapping is recorded in the design language; add the CSS one beside it rather than leaving it to be re-derived
+  - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`
+  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant
   - From: New Cheatsheets `->` HTML/CSS
-- [ ] Correct the misspelled words in the commented output in `javascript/arrays/shift-and-unshift/shift-and-unshift.js`
-  - The item named `shiftAndUnshift.js` at the repository root until 2026.10.16, which is where the file sat before the catalog migration moved it on 2026.09.24. The path above is the one that exists
+- [ ] Record how a new cheatsheet category is added, once the catalog work settles the shape
+  - Unblocked on 2026.10.19: `html-css` is a category that was really added, so the record is written from what was actually done rather than from the rule. The item above adds a second subject to it, which is what exercises the record while it is being written
+  - The steps that are easy to lose, in the order they were taken: compose the category's asset with `node tools/compose-language-asset.mjs --category <id>`, measure it into `DESIGN_LANGUAGE-<id>.md` with the analyzer under `ai-helper/graphic-designer/`, generate the skill into `.claude/skills/`, write `meta.json` at every level, write one `sheet.json` and one payload per cheatsheet, then regenerate and gate the manifest
+  - `javascript` is the exception worth stating: its language is the global `DESIGN_LANGUAGE.md`, because that was measured off its own eleven images
+  - `node --test tools/test-build-manifest.mjs` already fails a category with no design language, so the record describes a gate rather than a convention nobody checks
+  - From: Repository Records
+- [ ] Close the two sloppy spellings the comment check measured but did not cover
+  - `console. log(` in `javascript/arrays/sort-numbers-array/sort-numbers-array.js` parses and runs; it is the only call in the eleven written that way
+  - `"Orage"` in `javascript/arrays/splicing-arrays/splicing-arrays.js` is a data value, so correcting it means correcting the four claims that faithfully report it, and `sheet.json` for that cheatsheet as well. That is the same shape as the `bannana` correction on 2026.10.19, which is the precedent to follow
+  - `node --test tools/test-example-comments.mjs` is what says the claims still match afterwards
   - From: Example Script Quality
-- [ ] Fix the `CONGIF` misspelling in the `index.html` configuration comment
-  - Check before working it. Measured 2026.10.16: `CONGIF` appears nowhere in the repository, and `index.html` has no configuration comment left to carry it - it went out with the `testEnvironment` block when the page began reading `cheatsheets.json` on 2026.09.24. If that still holds, close this by verification rather than by writing
-  - From: Example Script Quality
-- [ ] Give every example file the same header comment, or drop it from all of them
-  - Eleven files, now at `javascript/arrays/<slug>/<slug>.js`. Each is injected as a module, so whatever is chosen has to survive module scope and strict mode
-  - From: Example Script Quality
-- [ ] Check each example's commented output against what the script actually logs
-  - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
-  - From: Example Script Quality
+- [ ] Keep the eleven `javaScriptArrays` images as reference examples and say in the repository what they are
+  - They are what a composed sheet is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
+  - They stay as JPEG. Converting them buys nothing once no page weight depends on them, and re-encoding them re-keys the social ledger for eleven files that are not new content
+  - `tools/test-sheet-composition.mjs` re-measures these exact files against the tables in `DESIGN_LANGUAGE.md`, so converting them would break the suite that holds the extraction
+  - Unblocked on 2026.10.19: the roadmap held this until a second category existed, because what the eleven are for reads differently once a category is drawn rather than captured. One is
+  - From: Raster Export and Example Images
+- [ ] Add a `graphic-designer` collaborator when a sheet composition or a rendered image is created
+  - Required by the collaborators constant in `.claude/constants.md`. A composed sheet is drawn rather than captured, so the constant binds on the composition as much as on the render
+  - A run records the commit mode and the automation commits, so the deliverable here is the record a committer reads rather than a commit this run makes. Write it where the item above is writing how a category is added
+  - From: Raster Export and Example Images
+
+### UI/UX Override - the markup panel and the bare arrival
+
+#### Resolve Issues
+
+- [ ] Wrapped Attribute Colour 1
+  - **Issue**: One line of one cheatsheet takes a syntax role the category's own rule does not give it, and the inconsistency is visible in the rendered panel. `html-css/general-html-overview/forms-and-inputs/sheet.json` row 15, `                  checked> Free</label>`, declares no role and so draws `plain` white. It continues the `<label><input` opened on row 14, which carries no closing `>`, so the rule in `DESIGN_LANGUAGE-html-css.md` reaches "is a wrapped attribute, continuing a tag opened above it" before it reaches the prose test and gives the line `string`, which is amber. The same panel draws two lines of exactly that shape amber, the `autocomplete="email" required>` and `minlength="12" required>` continuations, so a reader scanning for where a tag carries on gets two of three and the attribute `checked` is set in the colour the sheet reserves for prose. A sibling sheet settles which colour was meant: `links-and-navigation` row 16 is the same construction - wrapped attributes, the `>` that closes the tag, then prose and a closing tag - and is declared `string`. Measured 2026.10.19 over `php -S localhost:8000` at the page's 900px cap, by applying the rule's own table to all 130 non-blank lines in the six sheets: 129 agree and this one does not. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.19-crop-html-wrapped-attributes-1x.png`
+  - **Goal**: Resolve to [wrapped-attribute-colour.prompt.md](.claude/prompts/wrapped-attribute-colour.prompt.md)
+  - From: New Cheatsheets `->` HTML/CSS
+
+#### Found Issues
+
+- [ ] The design language's count of lines per role holds for one role of the three it names
+  - **Issue**: `DESIGN_LANGUAGE-html-css.md` says under **What this category adds on top of the global record** that "Structure comes out yellow, configuration green, content white, and the six sheets in the category land between three and sixteen lines of each". Counted across the six on 2026.10.19, that holds for yellow alone: `keyword` runs 3, 3, 3, 5, 12, 16, which is where both ends of the quoted range come from. Green runs 1, 5, 5, 8, 9, 10 and white runs 1, 1, 3, 4, 4, 14, so both fall below three - Text Content carries one green line, and Links and Navigation and Images and Media carry one white line each. Two roles are absent from a sheet altogether: Text Content has no comment and no `string` line. The figure reads as a measurement of all three and is a measurement of one
+  - **Goal**: Replace the single range with the three the sheets actually land in, or state the range per role, so the next category measured against this document is held to a figure that was taken rather than to one that fits only yellow. The **General CSS Overview** item under `## Current` says it is drawn to this document, so it is the item that would inherit the wrong figure
+  - From: UI/UX Override - the markup panel and the bare arrival
+- [ ] The first dropdown arrives blank, which is also what a dropdown looks like when it failed to load
+  - **Issue**: The catalog holds two categories, so nothing is preselected and `#category` sits on its `<option value="" style="display:none">`. The control renders as a bordered box with a chevron and no text in it, and it is the first interactive thing on the page. Observed 2026.10.19 at 1400x1000 and at 375x812 in `arrival-1400x1000.png` and `arrival-375x812.png`. A reader is not stuck - the `Select Cheatsheet` label sits above it and step 1 beside it - but the control itself is the one element that could name the choice and says nothing, and a blank control is the same shape a control takes when its options never arrived. The right-hand column is 0px high rather than an empty frame, so nothing there reads as a failure; this is the only part of the arrival that can be misread. Noted beside it: `#category` hides its blank option and `#example` does not, so the second dropdown offers a selectable empty row and the first does not
+  - **Goal**: Give the first control a placeholder its closed state can show - a `disabled selected` option reading something like `Choose a category` - rather than a hidden empty one, and settle whether the two controls should treat their blank option alike. `tools/test-page-structure.mjs` reads the page source and is where an assertion over the placeholder would sit
+  - From: UI/UX Override - the markup panel and the bare arrival
 
 ## GitHub Pages Deployment
 
@@ -131,17 +161,30 @@ console.
 
 The example scripts are the repository's product: someone reads them to
 learn the method being demonstrated, so a wrong comment teaches the wrong
-thing. Several carry misspellings in the commented output and the file header
-comment is inconsistent across the folder. The undeclared loop counters are
-fixed: the page injects every payload as a module, and module scope is strict
-mode, so an undeclared counter stopped being a leak and became a failure.
+thing. The undeclared loop counters are fixed: the page injects every payload
+as a module, and module scope is strict mode, so an undeclared counter stopped
+being a leak and became a failure.
 
 **Intent**: make the examples correct as teaching material.
 
-- [ ] Correct the misspelled words in the commented output in `javascript/arrays/shift-and-unshift/shift-and-unshift.js`
-- [ ] Fix the `CONGIF` misspelling in the `index.html` configuration comment
-- [ ] Give every example file the same header comment, or drop it from all of them
-- [ ] Check each example's commented output against what the script actually logs
+Nothing is outstanding here as of 2026.10.19, and the section's own claim is
+now held by a test rather than by reading. `tools/test-example-comments.mjs`
+runs every `kind: run` payload and compares each trailing comment against what
+the call logged: 48 of 87 claims were wrong when it was first pointed at them,
+22 substantively and 26 by an invisible character. The header comment went
+rather than being made uniform, which the item offered as the alternative, and
+all eleven files are plain ASCII with a case per file holding them there.
+
+Two faults were measured here and left for later rather than worked, because
+the four items queued named neither: `javascript/arrays/sort-numbers-array` has
+a `console. log` with a space after the dot, and
+`javascript/arrays/splicing-arrays` holds `"Orage"` as a data value. Both are
+queued below.
+
+- [ ] Close the two sloppy spellings the comment check measured but did not cover
+  - `console. log(` in `javascript/arrays/sort-numbers-array/sort-numbers-array.js` parses and runs; it is the only call in the eleven written that way
+  - `"Orage"` in `javascript/arrays/splicing-arrays/splicing-arrays.js` is a data value, so correcting it means correcting the four claims that faithfully report it, and `sheet.json` for that cheatsheet as well. That is the same shape as the `bannana` correction on 2026.10.19, which is the precedent to follow
+  - `node --test tools/test-example-comments.mjs` is what says the claims still match afterwards
 
 ## Raster Export and Example Images
 
@@ -263,9 +306,20 @@ item would otherwise be ambiguous once it is copied into `## Current`.
 The `html-css/` category. Forces the first `embed` payloads and the first sub
 group, so it is built second.
 
-- [ ] Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
+**The category exists as of 2026.10.19**, and three things it settled hold for
+every item left in it. Its design language is recorded at
+`DESIGN_LANGUAGE-html-css.md`, derived from the global record by
+`tools/compose-language-asset.mjs` rather than measured off artwork, and every
+sheet here is drawn to it; the generated skill is at `.claude/skills/html-css/`
+and is an artifact, so the committed record is the one to read. A subject's
+sheet count makes that subject a group and its areas of focus the cheatsheets
+under it, which is what `general-html-overview` became - so the first sub group
+arrived with the first item rather than with **HTML APIs**. And a `sheet.json`
+assigns a role per line and not per token, by the rule the design language
+fixes: a comment is `comment`, a wrapped attribute line `string`, a line
+carrying an attribute `identifier`, a line that is nothing but tags `keyword`,
+and a line of prose plain.
+
 - [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
   - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
@@ -1326,5 +1380,25 @@ generate ideas about generating ideas.
   - **Issue**: `applyFragment()` guards its `writeFragment("")` with `if (location.hash)`, and the comment above it gives the reason as "so an ordinary arrival, which had nothing to refuse, still writes no history entry at all". `writeFragment` records through `history.replaceState`, which replaces the current entry and never pushes one, so there is no entry for the guard to prevent. Measured 2026.10.17 by serving `index.html` twice, once as committed and once with the guard removed so the clearing is unconditional: both arrivals take `history.length` from 1 to 2, both leave the address bar with no fragment, and both land on `about:blank` after one press of back. The behaviour the guard is credited with holds without it
   - **Goal**: Keep the guard, which still saves a pointless `replaceState` on every bare arrival, and reword the comment to claim that rather than a history entry it prevents. The measurement is recorded in `tools/test-example-selection.mjs` under "an arrival with no fragment writes nothing to the address bar", which says what it does and does not pin; keep the two statements in agreement
   - From: UI/UX Override - refused fragment and instruction spelling
+- [x] **Wrapped Attribute Colour**: Add the **General HTML Overview** cheatsheet at `html-css/general-html-overview/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - This is the first item in a new category, so it is the one that generates that category's design language and skill, per **Conventions for every item in this section**: compose the temporary SVG with `tools/compose-language-asset.mjs`, measure it into `DESIGN_LANGUAGE-html-css.md`, and generate the skill that every later `html-css/` sheet is drawn to
+  - `kind: read` renders the source as text, so this item needs no `demo/` folder. The first `embed` payload in the category is the **Common Browser Built-in APIs** item further down it
+  - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`, which fails a missing title, a path that is not lower case kebab, a `kind` that disagrees with the folder and a sheet whose composition will not fit its own margins
+  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant: a sheet composed as SVG is drawn rather than captured, so the constant binds on the composition
+  - From: New Cheatsheets `->` HTML/CSS
+- [x] Correct the misspelled words in the commented output in `javascript/arrays/shift-and-unshift/shift-and-unshift.js`
+  - The item named `shiftAndUnshift.js` at the repository root until 2026.10.16, which is where the file sat before the catalog migration moved it on 2026.09.24. The path above is the one that exists
+  - From: Example Script Quality
+- [x] Fix the `CONGIF` misspelling in the `index.html` configuration comment
+  - Check before working it. Measured 2026.10.16: `CONGIF` appears nowhere in the repository, and `index.html` has no configuration comment left to carry it - it went out with the `testEnvironment` block when the page began reading `cheatsheets.json` on 2026.09.24. If that still holds, close this by verification rather than by writing
+  - From: Example Script Quality
+- [x] Give every example file the same header comment, or drop it from all of them
+  - Eleven files, now at `javascript/arrays/<slug>/<slug>.js`. Each is injected as a module, so whatever is chosen has to survive module scope and strict mode
+  - From: Example Script Quality
+- [x] Check each example's commented output against what the script actually logs
+  - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
+  - From: Example Script Quality
 
 </details>
