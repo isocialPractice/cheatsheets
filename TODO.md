@@ -42,6 +42,27 @@ keys its entries by date, written `YYYY.MM.DD`.
   - A run records the commit mode and the automation commits, so the deliverable here is the record a committer reads rather than a commit this run makes. Write it where the item above is writing how a category is added
   - From: Raster Export and Example Images
 
+### User Overrides
+
+- [ ] Utilize
+  [Clean Language Accents](https://isocialpractice.github.io/napkin-sketch/api/markdown/index.html#for-agents)
+  as a local vendor of `napkin-sketch`
+ - **Issue**: Code syntax highlighting is incorrect
+ - **Goal**: Apply code syntax highligting using `napkin-sketch` **clean language accents** feature
+ - From: Depend on the `napkin-sketch` Package
+- [ ] Re-vendor `@isocialpractice/napkin-sketch@1.0.1` into vendored into `api/napkin-sketch/`
+  - **User Note**: Reported issues have been marked resolved in
+    `napkin-sketch`, and scripts added to `package.json` of `napkin-sketch` to
+    asset with re-vendoring dependency
+ - **Issue**: Issues found from 2026.10.14 reported to
+   [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch)
+   - [#10](https://github.com/isocialPractice/napkin-sketch/issues/10)
+   - [#11](https://github.com/isocialPractice/napkin-sketch/issues/11)
+   - [#12](https://github.com/isocialPractice/napkin-sketch/issues/12)
+ - **Goal**: Re-vendor dependency `@isocialpractice/napkin-sketch@1.0.1` using
+   helper scripts provided by `napkin-sketch` package
+ - From: Depend on the `napkin-sketch` Package
+
 ### UI/UX Override - the markup panel and the bare arrival
 
 #### Resolve Issues
@@ -755,7 +776,7 @@ this directory on 2026.10.14. Nothing is queued here and nothing will be.
 **Intent**: closed. The record of how the surface arrived is in the archived
 items; the record of how it is used now is the section below.
 
-## Depend on the napkin-sketch Package
+## Depend on the `napkin-sketch` Package
 
 This section is finished. Between 2026.10.13 and 2026.10.14 the hand port of
 the graphic design API was replaced by the published package it was a copy of.
@@ -797,7 +818,7 @@ something a person captures.
 
 The drawing surface is this section's prerequisite, along with the
 composition algorithm under **Cheatsheet Composition Language**. The surface
-is the napkin-sketch package, per **Depend on the napkin-sketch Package**,
+is the napkin-sketch package, per **Depend on the `napkin-sketch` Package**,
 and what this section builds is the cheatsheet layer over it: the document,
 theme and layout models the package knows nothing about. `createComposition`
 and its element builders draw shapes; they have no notion of a term, a
@@ -977,7 +998,7 @@ generate ideas about generating ideas.
 - [ ] Create 2 new ideas for **Repository Records**
 - [ ] Create 9 new ideas for **New Cheatsheets**
 - [ ] Create 6 new ideas for **Cheatsheet Composition Language**
-- [ ] Create 3 new ideas for **Depend on the napkin-sketch Package**
+- [ ] Create 3 new ideas for **Depend on the `napkin-sketch` Package**
 - [ ] Create 7 new ideas for **Implement Cheatsheet API**
 - [ ] Create 8 new ideas for **Dedicated cheatsheet website**
 - [ ] Create 5 new ideas for **AI Helper API**
@@ -1289,19 +1310,19 @@ generate ideas about generating ideas.
   - Set `fontFamily` on every run from its face, place the wordmark, the title and the subtitle at `x` equal to the centre less half the measured width with `align: "left"`, and stop passing `face` on the element: the port's `svg.mjs` read `el.face` for the centring and for the `font-family` fallback, and the package's writer reads neither
   - Measured on 2026.10.13 by doing exactly that to the fixture sheet's document by hand: 20 runs carry a face and 3 are centred, the centre less half the width agrees with the port's own layout on all 3, and the SVG matches `tools/fixtures/sheet.svg` byte for byte whether the port or the package writes it
   - Acceptance: `tools/fixtures/sheet.svg` is byte-identical before and after, with the port still in place, and `tools/test-sheet-faces-browser.mjs` still draws every run within 0.29% of the table. `tools/fixtures/sheet.png.sha256` moves here and is re-pinned with `MCP_FIXTURE_UPDATE=1` once the diff is read: the port's rasterizer advanced its built-in glyphs by the face's widths and scaled them to its cap, no face reaches it after this, and the built-in route was never publishable. `tools/test-sheet-faces.mjs` keeps its cases about the table, moved onto the layer's function, and loses the ones about the built-in alphabet, which belong to the port and go with it
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Carry the paint refusal in `api/cheatsheet/`, since the package's SVG writer does not
   - Measured: `fill: "ofwhite"` is written into the markup by the package's `toSVG()` and refused only by `toPNG()`, with `unsupported color "ofwhite"`. The port refused it in both, and the reason stands: the page composes inline SVG and the rasterizer never runs there, so an unreadable paint is a black region with no error anywhere
   - `composeSheet` checks every fill and stroke in the document it composed with the layer's own colour parser, and raises the message the port raised. `contrast.mjs` needs that parser too, because the package's root entry exports no `parseColor`. It reads the hex forms, since the 22 paints the design language and the worked example's theme declare are all hex, measured on 2026.10.13; it passes an unset paint and the do-not-paint values the port passed; and it refuses everything else
   - Acceptance: `tools/fixtures/sheet.svg` is byte-identical, and a test composes a sheet through a theme carrying an unreadable paint and asserts the refusal names the paint
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Vendor the published build into `api/napkin-sketch/` with `tools/vendor-napkin-sketch.mjs`, pinned by version and integrity
   - `--pin <version>` reads the registry document, verifies the tarball's sha512 against `dist.integrity` with `node:crypto` before reading it, gunzips with `node:zlib`, reads the tar with a minimal ustar reader, and copies the root entry `dist/api/index.js`, the Node only `dist/graphic-design/files.js`, every chunk either imports transitively, the three `package.json` scope markers beside them, `LICENSE` and `THIRD-PARTY-NOTICES.md`, with the `dist/` prefix dropped so the entries' own relative imports resolve unchanged. Chunks are read from the entries' import specifiers rather than from a list, because their names are build hashes; at `1.0.0` that is five chunks, four for the root entry and one more for the files entry. Anything in the folder the pin did not write is deleted
   - It records `api/napkin-sketch/PIN.json`: name, version, tarball URL, integrity, the two entry paths and a sha256 per vendored file. `--check` hashes the folder against that record with no network and exits non-zero on a file that differs, is missing or is unrecorded; the Pages manifest job runs it beside `build-manifest.mjs --check`, with no install step added
   - Nothing is installed and nothing is shelled out to, so `php -S localhost:8000` and a bare clone's `node --test` keep working. Measured on 2026.10.13 with the `1.0.0` files laid out this way in a scratch folder: both entries load from relative paths with nothing installed. The scope markers sit under `api/napkin-sketch/`, never at `api/package.json`, which `tools/test-graphic-design-port.mjs` refuses while the port is present
   - The alternatives were measured against the recorded decisions and refused: a `package.json` with `npm ci` makes Node mandatory and adds an install step; a CDN import reintroduces the kind of dependency the page shed on 2026.09.05; copying one chunk behind a hand written entry is a fork, since the chunk's exports are mangled names that change per build
   - Record the weight on this item when it lands, gzipped at level 6: five files, 772,665 bytes and 273,169 gzipped at `1.0.0`, against 144,760 and 47,135 for the ten port modules the page loads today. The composition chunk alone is 112,842 and 41,985. That gap is what the upstream request below exists to close, and the figure is re-measured on every pin
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Re-point every importer at the vendored entry, and keep the ported helper
   - Measured on 2026.10.13: 38 tracked files name `api/graphic-design` outside the port, `TODO.md` and `CHANGELOG.md`, and 19 of them resolve it when they run. Re-point 18 of those: `api/cheatsheet/compose.mjs` and `contrast.mjs`; `examples/reproduce-sheet.mjs` and `restyle-sheet.mjs`; `tools/build-brand-resources.mjs`, `compose-language-asset.mjs`, `fixtures/shapes.mjs`, `measure-font-widths.mjs`, `test-brand-bridge.mjs`, `test-composition-algorithm.mjs`, `test-design-language-helper.mjs`, `test-render-fixture.mjs`, `test-sheet-faces.mjs`, `test-sheet-faces-browser.mjs` and `test-sheet-raster.mjs`; and the three scripts under `ai-helper/graphic-designer/skills/design-language/scripts/`. The nineteenth, `tools/test-graphic-design-port.mjs`, tests the port itself and goes with it in the next item. Grep before and after, for the path and for the path built from segments, rather than trusting this list
   - Browser safe code imports `api/napkin-sketch/api/index.js` by relative path; Node only code imports `writeComposition` from `api/napkin-sketch/graphic-design/files.js` by relative path, and the page never reaches the second, which is the same boundary the port drew around `files.mjs`. No bare specifier anywhere, because nothing resolves one without `node_modules`
@@ -1310,23 +1331,23 @@ generate ideas about generating ideas.
   - The seven import lines in the helper's docs move in the same change, because a generated script copies them: two in `skills/design-language/SKILL.md`, two in `skills/design-language/scripts/template.md`, one in `skills/graphic-design-api/SKILL.md` and two in `skills/graphic-design-api/references/composition.md`
   - Pin `actions/setup-node@v4` with `node-version: 22` in the Pages manifest job, because the package declares Node 22.12 or later and that job composes every sheet through it. `tools/test-build-manifest.mjs` already allows a setup-node step and refuses only an install
   - Acceptance: `tools/fixtures/sheet.svg` and `sheet.png.sha256` hold, since the face left the renderer in the measuring item and the two renderers agree once it has; `shapes.svg` and `shapes.png` hold as well, measured on 2026.10.13 by building the shape fixture through the package's own `createComposition`; `node --test` is green on a bare clone with the port still present
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Delete the port and rescope the records to the package
   - Remove `api/graphic-design/`, thirteen modules of 6,240 lines and its `API.md`, and `tools/test-graphic-design-port.mjs`, 537 lines, in a commit of their own after the item above is green. The reference becomes the package's own composition pages on its documentation site, linked from the README
   - `NOTICE` scopes `api/napkin-sketch/` out of the CC0 waiver as MIT, carrying the package's `LICENSE` text in full, and beside it the en-US hyphenation patterns notice from the package's `THIRD-PARTY-NOTICES.md`, because the chunks the page loads bundle those patterns. The same notices place `marked`, `marked-highlight` and `highlight.js` in the Markdown and Node entries, which are not vendored, so they are not carried. `ai-helper/graphic-designer/` keeps its paragraph as it stands
   - `README.md` says the drawing surface is the published package at the pinned version, that `api/napkin-sketch/` is a vendored copy nothing here edits, how the pin is moved, and that nothing has to be installed; its **Where the Drawing Surface Came From**, **Drawing a Sheet** and **Licence** paragraphs change to match
   - Every other tracked line that names `api/graphic-design`, or calls the drawing surface the port or ported, is rewritten: the files the re-point item leaves naming it in prose, a typedef or a comment, among them `DESIGN_LANGUAGE.md`, `examples/README.md`, `index.html`, the headers in `api/cheatsheet/`, the comments in `tools/` and the helper's own docs. A typedef that named a port module is dropped, since the vendored build carries no types. The helper's docs state the port's limits as the API's, and `skills/graphic-design-api/SKILL.md` says there are no gradients, filters or patterns; the package draws gradients and effects, so a limit that stays is stated as the design language's
   - Verification: `git grep -n api/graphic-design` returns only `TODO.md` and `CHANGELOG.md`; `git grep -n -i -w -e ported -e "the port"` returns only those two and lines about the helper, which stays ported; `node --test` is green; the published site composes a sheet after the deploy
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Take the barrel request and the two local corrections upstream
   - Ask the upstream repository for a composition-only subpath entry, `./graphic-design` beside the existing `./graphic-design/files`, exporting what `dist/core/graphic-design/index.d.ts` already lists, so a browser that imports the composition API stops fetching the editor. It would also give back `parseColor`, `escapeXml` and `isPng`, which that list carries and the root entry leaves out. The measured difference is 273,169 bytes gzipped against 41,985 for the composition chunk alone. Record the issue URL on this item, and when a release carries the entry, move the pin, vendor that entry instead of the root, and re-measure
   - Report the arc: upstream's path tokenizer does not list `A`, so `M 0 0 A 5 5 0 0 1 10 10 A 5 5 0 0 1 20 0` passes `toSVG()` with the arc in the markup and draws through `toPNG()` as a polyline of its parameters with no error, where the composition reference says arcs are unsupported. The port's `PATH_TOKEN` correction is the fix, and it is a one line change to `geometry.ts`
   - Report the family: `analyze-media.mjs` matches a `font-family` attribute and a declaration with one pattern, so an escaped spaced family such as `&quot;Helvetica Neue&quot;` is reported as `&quot`. The `1.0.0` copy still carries the single pattern, read on 2026.10.13, and the port's correction is recorded in the ported helper's README
   - These are reports and not patches to the vendored copy. Nothing under `api/napkin-sketch/` is ever edited; a fix arrives by moving the pin
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
   - Filed 2026.10.14 against `isocialPractice/napkin-sketch`: the subpath entry is [#10](https://github.com/isocialPractice/napkin-sketch/issues/10), the arc is [#11](https://github.com/isocialPractice/napkin-sketch/issues/11), the family pattern is [#12](https://github.com/isocialPractice/napkin-sketch/issues/12). Each was re-measured against the vendored `1.0.0` before it was filed
 - [x] The 2026.09.20 changelog entry counts the arc refusal as the second local change to a ported module, and it was the third
-  - **Issue**: `CHANGELOG.md` under `2026.09.20` says `PATH_TOKEN` matching `A` and `a` "is the second local change to a ported module after `font.mjs`". Measured with `git log` on `api/graphic-design/` on 2026.10.13: `23d9239` made `svg.mjs` refuse a paint it cannot read on 2026.09.16, `81a5602` made `font.mjs` measure in a face on 2026.09.17, and `ae977a5` made `geometry.mjs` refuse the arc on 2026.09.20, so the arc was the third. The port section's prose carried the same count until **Depend on the napkin-sketch Package** replaced it with the measured order, and `api/graphic-design/API.md` still calls the face "the one local change to a ported module" but goes with the port, so this changelog sentence is the record left to correct
+  - **Issue**: `CHANGELOG.md` under `2026.09.20` says `PATH_TOKEN` matching `A` and `a` "is the second local change to a ported module after `font.mjs`". Measured with `git log` on `api/graphic-design/` on 2026.10.13: `23d9239` made `svg.mjs` refuse a paint it cannot read on 2026.09.16, `81a5602` made `font.mjs` measure in a face on 2026.09.17, and `ae977a5` made `geometry.mjs` refuse the arc on 2026.09.20, so the arc was the third. The port section's prose carried the same count until **Depend on the `napkin-sketch` Package** replaced it with the measured order, and `api/graphic-design/API.md` still calls the face "the one local change to a ported module" but goes with the port, so this changelog sentence is the record left to correct
   - **Goal**: The 2026.09.20 entry names the arc refusal as the third local change to a ported module, after the paint refusal of 2026.09.16 and the face of 2026.09.17. Nothing else in the entry changes
   - From: User Override - the napkin-sketch dependency
 - [x] Raise the displayed sheet cap from 600 pixels to `min(100%, 900px)` and give the composed sheet a route to full size
@@ -1337,7 +1358,7 @@ generate ideas about generating ideas.
   - The last line of **Delete the port and rescope the records to the package** acceptance, and the one half of it this run could not do: the deploy runs on the server after the push, minutes after the run that made it ends
   - Open <https://isocialpractice.github.io/cheatsheets/>, choose an example, and confirm a sheet is drawn. The surface it draws through is `api/napkin-sketch/`, so a failure here is a fetch or a media type rather than a composition: the vendored files are `.js` where everything else the page loads is `.mjs`, and Pages has never been measured on that extension
   - Check the browser console for a module that would not load, and `api/napkin-sketch/api/index.js` in the network panel for the media type it came back as
-  - From: Depend on the napkin-sketch Package
+  - From: Depend on the `napkin-sketch` Package
 - [x] Stop six source lines naming the deleted port as something a reader can still go and look at
   - **Issue**: **Delete the port and rescope the records to the package** set its own verification as `git grep -n -i -w -e ported -e "the port"` returning only `TODO.md`, `CHANGELOG.md` and lines about the helper, which stays ported. Six lines fail it, and the grep passed because it cannot see any of them: four sit in files that are still untracked, and two use `port's`, which `-w "the port"` does not match. `api/cheatsheet/brand.mjs` line 39 calls the `BrandAsset` typedef "the port's own `BrandSource`" and line 92 explains a guard by "the two halves of the port"; `tools/test-sheet-brand.mjs` line 103 says both renderers draw "the port's inlined vector" and line 217 offers "a vector the port can parse"; `tools/test-sheet-raster.mjs` line 5 describes one raster route as "the port's built-in single stroke alphabet", and that file is named in the re-point item's own list; and `tools/vendor-napkin-sketch.mjs` lines 46-47 with `tools/test-vendor-napkin-sketch.mjs` lines 301-302 both say the scope markers sit inside the folder because `tools/test-graphic-design-port.mjs` "refuses" one above it - a file the same turn deleted, so the stated reason for a live decision now points at nothing
   - **Goal**: Rewrite each to name the vendored surface, in the terms the rest of the layer now uses: a typedef restated from the package, a guard explained on its own terms, the surface's built-in alphabet. For the two scope marker comments the decision stands and only its reason has expired - the markers belong with the copy they scope - so state that rather than citing a deleted test. Re-run the item's own verification with a grep that can see what the first one could not: `git grep` plus the untracked files, and `port's` as well as `the port`
@@ -1362,7 +1383,7 @@ generate ideas about generating ideas.
 - [x] Add the site link directly beneath the README's level 1 heading
   - From: Preview Links and Example Loading
 - [x] Note the CC0 1.0 license in `README.md`
-  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the directories scoped out of the waiver, which **Depend on the napkin-sketch Package** changes from two ports to the vendored package and the ported helper, so this wants checking against the file as it stands when it is worked rather than writing
+  - Check before working it. The README carries a **Licence** paragraph naming CC0 1.0 and the directories scoped out of the waiver, which **Depend on the `napkin-sketch` Package** changes from two ports to the vendored package and the ported helper, so this wants checking against the file as it stands when it is worked rather than writing
   - From: Repository Records
 - [x] Describe both ways to view the examples in `README.md`: the published site, and a local server for anyone working on the page
   - Say plainly that opening `index.html` as a `file://` URL will stop working once the page fetches its manifest, so a local server stops being optional
