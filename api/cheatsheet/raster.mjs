@@ -181,7 +181,7 @@ export async function resolveChromium() {
 /**
  * Renders a composed sheet to a raster.
  *
- * @param {import('../napkin-sketch/api/index.js').Composition} composition
+ * @param {import('../napkin-sketch/graphic-design/index.js').Composition} composition
  * @param {RasterSheetOptions} [options]
  * @returns {Promise<SheetRaster>}
  */
@@ -229,7 +229,7 @@ export async function rasterizeSheet(composition, options = {}) {
 /**
  * The dependency free route: the drawing surface's own rasterizer.
  *
- * @param {import('../napkin-sketch/api/index.js').Composition} composition
+ * @param {import('../napkin-sketch/graphic-design/index.js').Composition} composition
  * @param {{ scale: number, background: string | null, format: string, notes: string[] }} config
  * @returns {SheetRaster}
  */
@@ -268,7 +268,7 @@ function builtinRaster(composition, { scale, background, format, notes }) {
  * CSS width, so the vector is rasterised at the target resolution instead of
  * being drawn small and enlarged.
  *
- * @param {import('../napkin-sketch/api/index.js').Composition} composition
+ * @param {import('../napkin-sketch/graphic-design/index.js').Composition} composition
  * @param {{ chromium: object, scale: number, background: string | null, format: string, quality?: number, notes: string[] }} config
  * @returns {Promise<SheetRaster>}
  */

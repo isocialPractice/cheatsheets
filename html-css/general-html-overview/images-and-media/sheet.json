@@ -2,6 +2,7 @@
   "title": "Images and Media",
   "subtitle": "What alt text is for, and what it is not",
   "kind": "read",
+  "language": "html",
   "seed": "images-and-media",
   "code": [
     { "text": "<!-- alt says what the image is for, not what it holds -->", "role": "comment" },

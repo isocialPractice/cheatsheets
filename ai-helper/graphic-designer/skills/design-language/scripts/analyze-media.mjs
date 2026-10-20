@@ -57,16 +57,18 @@
  * loader written against either upstream route would find nothing here and
  * every report would come back with an empty palette and an unmeasured brand.
  *
- * A second local change sits beside it. `analyzeSvg` matched a `font-family`
- * attribute and a `font-family` declaration with one pattern, and the two end
- * differently: an attribute ends at its closing quote, a declaration at the
- * `;` after it. A family with a space in its name is quoted in the CSS and so
- * escaped in the markup, and `&quot;Helvetica Neue&quot;` carries a semicolon
- * of its own - so the pattern stopped four characters in and the family was
- * reported as `&quot`. That is not a name anything can resolve, and it reached
- * the design language as one. The two forms are now two branches, and
- * {@link decodeEntities} reads the attribute back. It is upstream's bug rather
- * than this port's: every design tool that exports a spaced family hits it.
+ * There was a second local change beside it, and it is gone. `analyzeSvg`
+ * matched a `font-family` attribute and a `font-family` declaration with one
+ * pattern, and the two end differently: an attribute ends at its closing
+ * quote, a declaration at the `;` after it. A family with a space in its name
+ * is quoted in the CSS and so escaped in the markup, and
+ * `&quot;Helvetica Neue&quot;` carries a semicolon of its own - so the pattern
+ * stopped four characters in and the family was reported as `&quot`. That was
+ * always upstream's bug rather than this copy's, it was reported as
+ * [#12](https://github.com/isocialPractice/napkin-sketch/issues/12), and
+ * `1.1.0` released the fix. The family reading and {@link decodeEntities}
+ * below are now upstream's own, so there is one reading of a quoted family in
+ * this repository and not two.
  *
  * The replacement walks up for that path and returns a **reason** alongside
  * the module. That second field is the load bearing half. A report that only
@@ -110,8 +112,8 @@ const API_SEARCH_DEPTH = 12;
  * Upstream resolved `napkin-sketch` as a package and fell back to a clone's
  * `dist/`. Neither works here: this repository has no `package.json` and no
  * `node_modules`, and what it has instead is a pinned copy of the published
- * build at `api/napkin-sketch/`, vendored by
- * `tools/vendor-napkin-sketch.mjs`. So the search walks up from this file
+ * build at `api/napkin-sketch/`, written there by the package's own
+ * `napkin-sketch vendor`. So the search walks up from this file
  * looking for that root entry. Walking up rather than joining a fixed relative
  * path is what lets the copy inside a generated skill, four or five folders
  * deeper, reach the same API. `CHEATSHEET_GRAPHIC_DESIGN_API` names the entry
@@ -159,27 +161,23 @@ async function loadApi() {
   };
 }
 
-/** The five entities XML requires an attribute value to escape. */
-const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const XML_ENTITIES = { quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' };
 
 /**
- * Decodes the entities an SVG writer escapes an attribute with.
+ * XML's five named escapes and its numeric references, as the characters they
+ * stand for.
  *
- * A family name with a space in it is quoted - `"Helvetica Neue", Arial` - and
- * an attribute cannot carry a raw double quote, so every writer emits
- * `&quot;Helvetica Neue&quot;`. Read as text that is a family called
- * `&quot;Helvetica Neue&quot;`, which is worse than no answer: it goes into a
- * design language and out again into a `font-family` no browser resolves.
- *
- * Numeric references are decoded too, because a writer is free to use them.
+ * Upstream's own reader, taken from `1.1.0`, where the fix this file used to
+ * carry locally was released. The one difference is the `export`, which
+ * upstream does not have: `tools/test-design-language-helper.mjs` holds this to
+ * `&quot;a&quot;` decoding back to `"a"`, and a reading nothing can call is a
+ * reading nothing can check.
  */
 export function decodeEntities(value) {
-  return String(value).replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, body) => {
-    if (body[0] === '#') {
-      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
-      return Number.isFinite(code) && code > 0 ? String.fromCodePoint(code) : whole;
-    }
-    return ENTITIES[body.toLowerCase()] ?? whole;
+  return String(value).replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (whole, hex, dec, name) => {
+    if (name) return XML_ENTITIES[name] ?? whole;
+    const code = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
   });
 }
 
@@ -314,16 +312,32 @@ export function analyzeSvg(text, limit) {
     if (!counts.has(hex)) count(hex);
   }
 
-  // Two forms, read as two branches because they end differently: an attribute
-  // runs to its closing quote and a declaration to the `;` or `}` after it.
-  // One pattern for both is what truncated an escaped family at the semicolon
-  // inside `&quot;`, so the attribute branch is matched first and decoded.
+  // A family list is written two ways, and each ends somewhere else. An
+  // attribute ends at its closing quote, and a family quoted inside it is
+  // escaped - `&quot;` carries a semicolon, so reading to the next `;` cut
+  // `"Helvetica Neue"` down to `&quot`. A declaration, in a `style` attribute
+  // or a `<style>` block, ends at a `;` or `}` outside any quoted name, and
+  // inside an attribute it is escaped the same way. So each is read to its own
+  // end, a declaration only once the escapes around it are decoded, and the
+  // lists are put back in document order, since the first family found is the
+  // one a generated skill displays in.
+  const familyLists = [];
+  for (const match of text.matchAll(/(?<![\w-])font-family\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    familyLists.push({ at: match.index, list: decodeEntities(match[1] ?? match[2]) });
+  }
+  const sheets = [
+    ...text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi),
+    ...text.matchAll(/(?<![\w-])style\s*=\s*(?:"([^"]*)"|'([^']*)')/gi),
+  ];
+  for (const sheet of sheets) {
+    const css = decodeEntities(sheet[1] ?? sheet[2]);
+    for (const match of css.matchAll(/(?<![\w-])font-family\s*:\s*((?:"[^"]*"|'[^']*'|[^;}"'])+)/gi)) {
+      familyLists.push({ at: sheet.index + match.index, list: match[1] });
+    }
+  }
   const families = new Set();
-  for (const match of text.matchAll(/font-family\s*(?:=\s*"([^"]*)"|:\s*"?([^";}]+))/gi)) {
-    const family = decodeEntities(match[1] ?? match[2] ?? '')
-      .replace(/["']/g, '')
-      .split(',')[0]
-      .trim();
+  for (const { list } of familyLists.sort((a, b) => a.at - b.at)) {
+    const family = list.split(',')[0].replace(/["']/g, '').trim();
     if (family) families.add(family);
   }
 

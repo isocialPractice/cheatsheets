@@ -2,6 +2,7 @@
   "title": "Forms and Inputs",
   "subtitle": "A label for every control",
   "kind": "read",
+  "language": "html",
   "seed": "forms-and-inputs",
   "code": [
     { "text": "<form action=\"/signup\" method=\"post\">", "role": "identifier" },
@@ -18,7 +19,7 @@
     { "text": "    <legend>Plan</legend>" },
     { "text": "    <!-- One name across both, so the two are one choice -->", "role": "comment" },
     { "text": "    <label><input type=\"radio\" name=\"plan\" value=\"free\"", "role": "identifier" },
-    { "text": "                  checked> Free</label>" },
+    { "text": "                  checked> Free</label>", "role": "string" },
     { "text": "    <label><input type=\"radio\" name=\"plan\" value=\"pro\">", "role": "identifier" },
     { "text": "      Pro</label>" },
     { "text": "  </fieldset>", "role": "keyword" },

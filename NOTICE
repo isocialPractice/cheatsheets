@@ -12,16 +12,18 @@ and `ai-helper/graphic-designer/` is CC0, and those two are MIT.
 api/napkin-sketch/
 ------------------
 
-A vendored copy of the published `@isocialpractice/napkin-sketch` build, taken
-from the npm registry at the version its own `PIN.json` records and verified
-against the registry's SHA-512 before it was unpacked. It is the two entries
-the repository uses - the root API and the Node only file writer - the chunks
-they import, three `package.json` scope markers, and the package's own
-`LICENSE` and `THIRD-PARTY-NOTICES.md`.
+A vendored copy of the published `@isocialpractice/napkin-sketch` build,
+written by the package's own `napkin-sketch vendor` at the version its
+`VENDOR.json` records and verified against the registry's SHA-512 before it was
+unpacked. It is the four parts the repository uses - the composition API, its
+Node only file writer, the Markdown and accent reader, and the whole API, which
+is where the accent functions are exported from - the chunks they import, four
+`package.json` scope markers, and the package's own `LICENSE` and
+`THIRD-PARTY-NOTICES.md` scoped to what those parts owe.
 
-Nothing here is edited. `tools/vendor-napkin-sketch.mjs --check` hashes every
+Nothing here is edited. `node api/napkin-sketch/VENDOR-CHECK.mjs` hashes every
 file against that record, and the Pages workflow runs it; a fix arrives by
-moving the pin, never by changing a line in the folder.
+vendoring a newer version into the same folder, never by changing a line in it.
 
 It replaced a hand port of `src/core/graphic-design/` from the same project,
 taken at commit d43caac191b2dfd532b3311f4ca1ea6969bb002f, which was removed on
@@ -44,8 +46,9 @@ ported.
 
 The published package carries a copy of this helper as well, and it is not the
 one used. This one keeps a walk-up loader for a repository with no
-`node_modules`, a brand bridge registration root, and a reading correction to
-`analyze-media.mjs` that the published copy still lacks.
+`node_modules` and a brand bridge registration root. The reading correction to
+`analyze-media.mjs` that it also used to keep was reported upstream and
+released in `1.1.0`, so that part of the file is the published copy's again.
 
 Source: https://github.com/isocialPractice/napkin-sketch
 
@@ -77,15 +80,16 @@ SOFTWARE.
 What the vendored build bundles in turn
 ---------------------------------------
 
-The package's own `THIRD-PARTY-NOTICES.md` is in `api/napkin-sketch/` and
-covers everything the project ships. One entry in it reaches the chunks this
-repository actually vendors, and it is reproduced here because the MIT notice
-above does not cover it.
+The package's own `THIRD-PARTY-NOTICES.md` is in `api/napkin-sketch/`, written
+by `napkin-sketch vendor` and scoped to the four parts vendored here. All four
+of the notices it names - `marked`, `marked-highlight`, `highlight.js` and the
+en-US hyphenation patterns - are carried in full in that file, because the
+Markdown entry vendored on 2026.10.20 bundles the first three. None of them is
+covered by the MIT notice above, which is isocialPractice's own.
 
-`marked`, `marked-highlight` and `highlight.js` are the other three it names.
-Those are bundled into the Markdown and Node entries, which this repository
-does not vendor, so their notices are left where they are rather than carried
-across.
+Until that day only the hyphenation patterns reached the vendored chunks, and
+the notice below is the copy made then. It is kept rather than deferred to the
+file above because it is the one the chunk the page loads carries.
 
 
 The en-US hyphenation patterns

@@ -139,9 +139,12 @@ drawn.
   `string`, `number`, with the colours the palette above gives them - but the
   mapping onto markup is this category's to fix, and it is fixed here.
 
-  **A `sheet.json` carries one role per line, not one per token**, so the rule
-  is about lines. A line takes the role of the most specific thing it
-  introduces, tested in this order:
+  **A `sheet.json` carries one role per line, not one per token**, and from
+  2026.10.20 that is the fallback rather than what draws - see **How a token
+  takes its colour** in `DESIGN_LANGUAGE.md`. The rule below is still the
+  rule: it is what a panel falls back to when no grammar reads the example,
+  and it is what every sheet in this category declares. A line takes the role
+  of the most specific thing it introduces, tested in this order:
 
   | A line that | Takes | Which reads as |
   | --- | --- | --- |
@@ -151,11 +154,36 @@ drawn.
   | is nothing but tags once the tags are removed | `keyword` | Pale yellow |
   | holds prose between its tags | plain | White |
 
-  Structure comes out yellow, configuration green, content white, and the
-  six sheets in the category land between three and sixteen lines of each.
+  Structure comes out yellow, configuration green and content white, and
+  `tools/test-sheet-syntax-roles.mjs` holds every sheet in the category to the
+  table above.
+
+  **How many lines of each the six sheets hold, counted over all 130 non-blank
+  lines on 2026.10.20**, one figure per sheet in ascending order:
+
+  | Role | Lines per sheet | Range | Of 130 |
+  | --- | --- | --- | --- |
+  | `keyword` | 3, 3, 3, 5, 12, 16 | 3 to 16 | 42 |
+  | `identifier` | 1, 5, 5, 8, 9, 10 | 1 to 10 | 38 |
+  | plain | 1, 1, 2, 4, 4, 14 | 1 to 14 | 26 |
+  | `comment` | 0, 1, 1, 3, 4, 6 | 0 to 6 | 15 |
+  | `string` | 0, 0, 1, 1, 3, 4 | 0 to 4 | 9 |
+  | `number` | 0, 0, 0, 0, 0, 0 | - | 0 |
+
+  **Each row is its own range, and the document used to give one for all of
+  them.** It read "the six sheets in the category land between three and
+  sixteen lines of each", which is `keyword`'s range and only `keyword`'s: both
+  ends of it come from that row. Green reaches 1 and white reaches 1, so both
+  fall under the lower end, and two roles are missing from a sheet entirely -
+  Text Content carries no comment and no `string` line. A figure that fits one
+  row of six is not a measurement of the table, and the next category measured
+  against this document would have been held to it.
+
   `number` goes unused, and is left unused rather than forced: with a role per
   line there is no markup line that is a bare number, and inventing one would
-  put a colour on the sheet that nothing on it means.
+  put a colour on the sheet that nothing on it means. Token colouring does not
+  change that for markup either - there is no number in any of the six
+  examples to colour.
 - **A `read` sheet needs no `demo/` folder.** The payload is rendered as
   source text, so the one readable file beside `sheet.json` is the whole of it.
   The first `embed` payload in the category is **Common Browser Built-in

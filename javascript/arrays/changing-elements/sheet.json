@@ -2,6 +2,7 @@
   "title": "Changing Elements",
   "subtitle": "Assign by index, at any depth",
   "kind": "run",
+  "language": "javascript",
   "seed": "changing-elements",
   "code": [
     { "text": "var arrayToChange = [1, 2, 3, 4];", "role": "identifier" },

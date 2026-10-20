@@ -2,6 +2,7 @@
   "title": "Compare Array Function",
   "subtitle": "Sort by a rule you write yourself",
   "kind": "run",
+  "language": "javascript",
   "seed": "compare-array-function",
   "code": [
     { "text": "// NOTE - The spread syntax (...ONE) keeps original array intact.", "role": "comment" },

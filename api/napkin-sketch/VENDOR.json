@@ -1,0 +1,52 @@
+{
+  "name": "@isocialpractice/napkin-sketch",
+  "version": "1.1.0",
+  "tarball": "https://registry.npmjs.org/@isocialpractice/napkin-sketch/-/napkin-sketch-1.1.0.tgz",
+  "integrity": "sha512-4HezALvsjzjrhKmwSfAxB8Ur9SoB8JA1pUgmn2zyk+4H1FsOE1ZdM8BL1D727AUpZLEjk2sd8Y+OM5BzJp1iRQ==",
+  "entries": {
+    "graphic-design": "graphic-design/index.js",
+    "graphic-design/files": "graphic-design/files.js",
+    "markdown": "markdown/index.js",
+    "main": "api/index.js"
+  },
+  "files": {
+    "LICENSE": "2d2a1e1b3e4f3fddd385680636c576484e870c6380877c56f3138563c2e53298",
+    "THIRD-PARTY-NOTICES.md": "577b47d7ecf17ec39f037a22e668c88e313d0d5489d82b96b86bb5e9a2e21777",
+    "VENDOR-CHECK.mjs": "29c90d3ad77268515018baf679ad0326706f59ba3d00774242544016d843e7b6",
+    "api/index.js": "623f0bb86e1f05f2095acc98db805437133e4ea0934ed425e9dfc21987d43d06",
+    "api/package.json": "3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a",
+    "chunks/chunk-3CX4QMSG.js": "8d6553b959eb90890b268746b4dad3c288ca79d60de2fb1ed6267fc340fb6d65",
+    "chunks/chunk-4ZOHBVZZ.js": "78e82d2741e27bde28826c5e5dae3fd8d9aec762135a72dafb2caad621c3e327",
+    "chunks/chunk-7ZZSL43W.js": "8871b0316d77b9f6462769ea69051309f12d4a1dcd1467972bac7cf58a25daf3",
+    "chunks/chunk-CRDRUI7Z.js": "776ca070902a921421813534dd7f66b45fe8700bb6bf9be63a557a086bee96d1",
+    "chunks/chunk-GCTB5GUZ.js": "663e6016822d09893c7bfd8d6c2377a071e107a995eddc70eeae67ba5108869a",
+    "chunks/chunk-NS5M4SCJ.js": "984182bd6c40da8753f1aa0f6f26dbf073537f48d52e2e8a92446e993576d0ec",
+    "chunks/chunk-QM3BTP6O.js": "a1daaaa25e11688e9bc4c6459f5b03f805e63ecd94b73500d00c6872a1f5222a",
+    "chunks/chunk-RLJZHOKM.js": "345f5cf05be99c845d18ae431c19dfc68e13e7e06e8531552741a2a568956bfc",
+    "chunks/chunk-UP73KJLA.js": "a686bebf82465473674348933aab3ce98d99443605135d79c739e62f6b726638",
+    "chunks/chunk-UZ22URAH.js": "83911b62103330c200cbcd4f3fafab4e78f68af9e7f6e76c68573eecc849afcf",
+    "chunks/package.json": "3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a",
+    "graphic-design/files.js": "babb3860e783ea32c11cb27604aa0adba9dd24f1ff52c4bc82471dfd3ac92b2d",
+    "graphic-design/index.js": "df72fbc5eed39e08813f060c3cae600b60e1b338171a461e3760a20d897b4152",
+    "graphic-design/package.json": "3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a",
+    "markdown/index.js": "fc041a40c028b8e042f1d65d65e7acdf01b1e591b7e882e0d1e7011723e788fd",
+    "markdown/package.json": "3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a"
+  },
+  "parts": [
+    "graphic-design",
+    "graphic-design/files",
+    "markdown",
+    "main"
+  ],
+  "helpers": [],
+  "types": false,
+  "notices": [
+    "highlight.js",
+    "hyphenation",
+    "marked",
+    "marked-highlight"
+  ],
+  "source": "package",
+  "generator": "napkin-sketch vendor 1.1.0",
+  "writtenAt": "2026-10-20T15:05:09.854Z"
+}

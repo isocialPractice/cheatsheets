@@ -1,10 +1,6 @@
 # Third-party notices
 
-napkin-sketch is MIT-licensed (see [LICENSE](LICENSE)). It bundles the code
-and the data below, each under its own license, which is reproduced here as
-that license asks. The npm package and the desktop app both carry this file.
-
-## In the package and the app
+These files are @isocialpractice/napkin-sketch 1.1.0, MIT-licensed (see LICENSE), copied here by `napkin-sketch vendor`. They bundle the code and the data below, each under its own license, which is reproduced here as that license asks.
 
 ### marked 18.0.14
 
@@ -150,14 +146,3 @@ Copying and distribution of this file, with or without modification, are
 permitted in any medium without royalty provided the copyright notice and
 this notice are preserved.
 ```
-
-## In the repository only
-
-### The test fonts
-
-`test/fonts/napkin-test-sans.ttf` and `test/fonts/napkin-test-cff.otf`, the
-fonts the tests read glyph outlines from, are subsets of Liberation Sans
-2.1.5 and of Miriam Libre 1.000, renamed, as the SIL Open Font License 1.1
-asks of a modified font. The license, with both originals' copyright
-notices, is [test/fonts/OFL.txt](test/fonts/OFL.txt). They are test fixtures:
-neither the npm package nor the desktop app carries them.

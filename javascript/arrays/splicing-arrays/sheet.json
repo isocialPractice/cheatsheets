@@ -2,6 +2,7 @@
   "title": "Splicing Arrays",
   "subtitle": "Remove, replace and insert in one call",
   "kind": "run",
+  "language": "javascript",
   "seed": "splicing-arrays",
   "code": [
     { "text": "var fruits = [\"Banana\", \"Orage\", \"Apple\", \"Mango\"];", "role": "identifier" },

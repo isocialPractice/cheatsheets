@@ -52,6 +52,14 @@ the browser imports both by relative path with no build step, and
 `php -S localhost:8000` is still the whole local workflow. Worked examples are
 in [examples/](examples/README.md).
 
+The code panel is coloured token by token: a sheet names the language its
+example is written in, the drawing surface reads it, and each token takes one
+of the six syntax roles the design language names. Reading the code is the
+heaviest thing the page loads, so it is fetched on demand beside the catalog
+rather than before the first paint - a sheet drawn before it arrives falls back
+to the one role per line every `sheet.json` still declares, and says which of
+the two it used.
+
 A category gets a design language of its own, recorded at the root as
 `DESIGN_LANGUAGE-<category>.md` - the first is
 [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md). It is derived from
@@ -78,21 +86,25 @@ resolve on Windows and 404 on the published site.
 **Where the Drawing Surface Came From**
 It was not written here. `api/napkin-sketch/` is a vendored copy of the
 published [`@isocialpractice/napkin-sketch`](https://www.npmjs.com/package/@isocialpractice/napkin-sketch)
-build, pinned at `1.0.0`, and the project's own documentation site is the
-reference for what it draws. Nothing in that folder is edited - the pin moves
+build, pinned at `1.1.0`, and the project's own documentation site is the
+reference for what it draws. The copy is written by the package's own command,
+and nothing in the folder is ever edited - a newer version is vendored into it
 instead:
 
 ```bash
-node tools/vendor-napkin-sketch.mjs --pin <version>   # fetch and record a release
-node tools/vendor-napkin-sketch.mjs --check           # hash the folder against the record
+npx @isocialpractice/napkin-sketch vendor --list       # the parts, and what each costs a page
+npx @isocialpractice/napkin-sketch vendor graphic-design graphic-design/files markdown main \
+  --out api/napkin-sketch                              # fetch, verify and write the copy
+node api/napkin-sketch/VENDOR-CHECK.mjs                # hash the folder against its record
 ```
 
-`--pin` verifies the tarball against the registry's own SHA-512 before it
-unpacks a byte, copies the two entries this repository uses and whatever they
-import, and records a digest per file in `api/napkin-sketch/PIN.json`. `--check`
-reads that record with no network, and the Pages workflow runs it before it
-publishes. It replaced a hand port of the same surface, which was removed once
-the package was published.
+`vendor` verifies the tarball against the registry's own SHA-512 before it
+unpacks a byte, copies each part's entry and every file it reaches, and records
+a digest per file in `api/napkin-sketch/VENDOR.json`. `VENDOR-CHECK.mjs` is
+written beside it and reads that record with plain `node`, no install and no
+network; the Pages workflow runs it before it publishes. `vendor` refuses to
+write into a folder holding files it has no record of, so the folder is removed
+first when the mechanism itself changes.
 
 `ai-helper/graphic-designer/` is still a hand port, of the design language
 helper that sits on top of that surface - it reads one finished graphic into a
@@ -112,4 +124,6 @@ scoped out of that waiver: `api/napkin-sketch/` is a vendored copy of
 [`napkin-sketch`](https://github.com/isocialPractice/napkin-sketch) and
 `ai-helper/graphic-designer/` is a port from it, and both stay under its MIT
 licence. [NOTICE](NOTICE) carries the copyright line, the permission text in
-full, and the one bundled notice the vendored chunks reach.
+full, and the four bundled notices the vendored parts reach - the three the
+Markdown entry brings with it, and the hyphenation patterns the chunks have
+always carried.

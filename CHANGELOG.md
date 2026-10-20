@@ -4,6 +4,133 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.20]
+
+### Added
+
+- **The code panel is coloured token by token.** A `sheet.json` carried one
+  `role` for a whole line, and the panel drew it in one colour - wrong wherever
+  a line holds more than one kind of thing, which is most lines.
+  `api/cheatsheet/accents.mjs` reads the example with the drawing surface's
+  Clean Language Accents and maps each coloured run's scope to one of the six
+  roles the design language names, so a tag, an attribute name and a string on
+  one line now draw in three colours. The palette did not move: only how a
+  token's colour is chosen did. All seventeen sheets name the language their
+  example is written in, `html` or `javascript`, and the six roles are the six
+  that were already there.
+- **Two groupings in that mapping are this repository's own.** The surface
+  classifies a scope for its own two themes, where an attribute name and a
+  number are one blue; these sheets have two different greens and a recorded
+  rule saying which is which. An attribute name, a CSS property and a
+  JavaScript property take `identifier`; a selector and a doctype take
+  `keyword`. The rest is the surface's classification, stepped down from its
+  nine roles to six, with `addition` and `deletion` drawing plain because
+  nothing on a sheet means them.
+- **The per-line role stays, as the fallback**, and a composition says which of
+  the two coloured it - `accents` in the variation report reads `token`, `line`
+  or `missing:<language>`. `node tools/build-manifest.mjs --check` reports a
+  panel that fell back as a warning, because a fallback nothing mentions is the
+  one state that looks exactly like the state that was meant.
+- **`tools/test-sheet-syntax-roles.mjs`**, which holds every `html-css` sheet
+  to the per-line mapping its own design language fixes. Nothing in `tools/`
+  pinned that: `tools/test-language-asset.mjs` checks the role colours and
+  never which line takes which role, so a line given the wrong role was
+  something a reader saw and no case failed on. It derives the expected role
+  from the rule's own five tests, carrying the open-tag state across lines
+  rather than reading it off the line before, and resetting it on a blank line.
+- **`tools/test-sheet-accents.mjs`**, seventeen cases over the token mapping:
+  which role each scope draws in, that every line comes back fully covered with
+  no gap or overlap, that a comment running across two lines is a comment on
+  both, that adjacent stretches in one role are one element, and that every
+  committed sheet composes token by token.
+- **Each dropdown opens on a placeholder that names the choice.** The catalog
+  holds two categories, so nothing is preselected and `#category` sat on a
+  hidden empty option: a bordered box with a chevron and no text in it, which
+  is also what a control looks like when its options never arrived, and it was
+  the first interactive thing on the page. It now reads `Choose a category` and
+  `#example` reads `Choose a cheatsheet`.
+
+### Changed
+
+- **The vendored drawing surface is `@isocialpractice/napkin-sketch@1.1.0`,
+  written by the package's own `napkin-sketch vendor`.** `1.1.0` carries the
+  three fixes reported from here on 2026.10.14 -
+  [#10](https://github.com/isocialPractice/napkin-sketch/issues/10) a
+  composition-only entry, [#11](https://github.com/isocialPractice/napkin-sketch/issues/11)
+  an elliptical arc refused rather than drawn as a polyline, and
+  [#12](https://github.com/isocialPractice/napkin-sketch/issues/12) a quoted
+  font family read as its name rather than as `&quot` - and a `vendor` command
+  made for re-vendoring a copy like this one. Four parts are vendored:
+  `graphic-design`, `graphic-design/files`, `markdown`, and the whole API,
+  which is where the accent functions are exported from.
+- **`api/cheatsheet/` draws through the `graphic-design` entry**, which is what
+  #10 was filed for. The page's own module graph is now that entry alone - four
+  files, 131,291 bytes and 50,622 gzipped at level 6, against `1.0.0`'s five
+  files, 772,665 bytes and 273,169 gzipped. That is a 5.4x cut on what loads
+  before the first paint.
+- **Reading code is fetched on demand, and it is the heavy half.** The
+  `markdown` entry and the API that reads with it are imported dynamically by
+  `api/cheatsheet/accents.mjs` and asked for beside the catalog rather than in
+  front of the first paint: eight more files, 856,291 bytes and 290,824
+  gzipped, most of it highlight.js's common set of 36 grammars. A reader who
+  draws a sheet ends up with twelve files, 987,582 bytes and 341,446 gzipped -
+  25% more than `1.0.0` in total, on a critical path a fifth the size.
+  `composeSheet` stays synchronous; preparing is the asynchronous half and it
+  happens once per process.
+- **The Pages gate runs `node api/napkin-sketch/VENDOR-CHECK.mjs`**, which the
+  vendor command writes beside the copy. It hashes every file against
+  `VENDOR.json` with plain `node`, no install and no network, which is what the
+  retired `tools/vendor-napkin-sketch.mjs --check` did with code written here.
+- **The design language helper reads a quoted font family upstream's way.** The
+  reading correction this repository carried locally was reported as #12 and
+  released in `1.1.0`, so `analyze-media.mjs` takes the published copy's family
+  reading and entity decoder. There is one reading of a quoted family in the
+  tree now and not two; it still returns `Helvetica Neue` for the committed
+  fixture, measured.
+- **`forms-and-inputs` row 15 declares `string`.** The line
+  `                  checked> Free</label>` declared no role and so drew plain
+  white, while the two wrapped-attribute continuations in the same panel drew
+  amber and `links-and-navigation` row 16 - the same construction - declares
+  `string`. Measured over all 130 non-blank lines in the six sheets on
+  2026.10.19: 129 agreed with the category's own rule and this one did not.
+  Token colouring settles what a reader sees, drawing `checked` as the
+  attribute it is and `Free` as the prose it is; the declared role is the
+  fallback and now matches the rule as well.
+- **The second dropdown's placeholder stays selectable, and the first does
+  not.** The two blank options do not mean the same thing: choosing a category
+  is how a reader gets anywhere, so that placeholder is a label and is
+  `disabled`, while re-selecting the second is how a reader takes the sheet
+  back down, so it only gained the name it was missing. Disabling both removed
+  the only way out of a selection, which three cases in
+  `tools/test-example-selection.mjs` caught.
+
+### Fixed
+
+- **`DESIGN_LANGUAGE-html-css.md` gave one range of lines per role for three
+  roles, and it was one role's range.** It read "the six sheets in the category
+  land between three and sixteen lines of each", and both ends of that come
+  from `keyword`, which runs 3, 3, 3, 5, 12, 16. Green runs 1, 5, 5, 8, 9, 10
+  and white runs 1, 1, 2, 4, 4, 14, so both reach below the lower end, and two
+  roles are missing from a sheet entirely - Text Content carries no comment and
+  no `string` line. The single range is replaced by a table of all six, one
+  figure per sheet, counted over all 130 non-blank lines on 2026.10.20. The
+  **General CSS Overview** item in the queue is drawn to this document and
+  would have inherited the figure that fits one row of six.
+
+### Removed
+
+- **`tools/vendor-napkin-sketch.mjs` and its 390 line test**, which existed
+  because `1.0.0` shipped no way to make a vendored copy. `1.1.0` does, so the
+  tool went with the folder it wrote. Most of that test was about the tool -
+  its tar reader, its specifier scan, its refusal of a path climbing out of the
+  folder - and the part that was never about the tool is now
+  `tools/test-vendored-surface.mjs`: the copy matches its own record, the scope
+  markers stay inside the folder, every entry loads with nothing installed, the
+  Pages gate checks the copy, and nothing in the tree still names `PIN.json` or
+  `vendor-napkin-sketch`.
+- **`api/napkin-sketch/PIN.json`**, replaced by the `VENDOR.json` the vendor
+  command writes.
+
 ## [2026.10.19]
 
 ### Added

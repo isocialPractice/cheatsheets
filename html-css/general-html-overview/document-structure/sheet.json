@@ -2,6 +2,7 @@
   "title": "Document Structure",
   "subtitle": "The skeleton every page needs",
   "kind": "read",
+  "language": "html",
   "seed": "document-structure",
   "code": [
     { "text": "<!DOCTYPE html>", "role": "keyword" },

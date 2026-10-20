@@ -77,7 +77,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, extname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { composeSheet, sheetBrandFrom, BRAND_FILES } from "../api/cheatsheet/index.mjs";
+import { composeSheet, prepareAccents, sheetBrandFrom, BRAND_FILES } from "../api/cheatsheet/index.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -849,6 +849,24 @@ export function checkCatalog(catalog, generated, committed) {
       });
     }
 
+    // 6a. How the panel was coloured. A sheet that fell back to its per-line
+    //     roles still draws, so this is a warning and not an error - but it is
+    //     reported, because a fallback nothing mentions is the one state that
+    //     looks identical to the state that was meant.
+    if (variation.accents !== "token") {
+      findings.push({
+        level: "warning",
+        rule: "accents",
+        path,
+        message:
+          variation.accents === "line"
+            ? "the code panel is coloured by its per-line roles: the document names no language, " +
+              "or the accent reader was not prepared before it was composed"
+            : `the code panel is coloured by its per-line roles because ${variation.accents.slice("missing:".length)} ` +
+              "is a language nothing is registered under",
+      });
+    }
+
     // 7. Unreferenced files, and the folders holding them. The walk stops at a
     //    cheatsheet folder, so a subfolder is the one place nothing else here
     //    looks: a `sheet.json` inside one is not a second cheatsheet and would
@@ -941,6 +959,12 @@ export async function main(argv) {
   const out = resolve(flag("--out", join(from, MANIFEST_NAME)));
   const checking = argv.includes("--check");
   const asJson = argv.includes("--json");
+
+  // The accent reader, before any sheet is composed. The manifest records what
+  // each sheet composed to, so it has to compose the way the page composes:
+  // without this every panel is coloured by its declared per-line role and the
+  // figures recorded here are a different sheet's.
+  const accents = await prepareAccents();
 
   const catalog = await readCatalog(from);
   const manifest = buildManifest(catalog.sheets, catalog.levels);

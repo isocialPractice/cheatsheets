@@ -2,6 +2,7 @@
   "title": "Tables and Data",
   "subtitle": "A table is for data, never for layout",
   "kind": "read",
+  "language": "html",
   "seed": "tables-and-data",
   "code": [
     { "text": "<table>", "role": "keyword" },

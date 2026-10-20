@@ -2,6 +2,7 @@
   "title": "Max and Min Value Array",
   "subtitle": "Read the ends after sorting a copy",
   "kind": "run",
+  "language": "javascript",
   "seed": "max-and-min-value-array",
   "code": [
     { "text": "var A = [1,2500, 2, 50, 3, 33, 8, 73, 12];", "role": "identifier" },

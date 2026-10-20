@@ -431,6 +431,37 @@ these colors in the regions' proportions rather than these would produce the
 right palette and the wrong roles. The composed asset is written to `.tmp/`,
 because it is an input to a measurement rather than an artifact.
 
+#### How a token takes its colour
+
+The six roles above are the palette. What picks one for a stretch of code
+changed on 2026.10.20, and the palette did not move with it.
+
+A `sheet.json` line used to carry one `role` for the whole line, and the panel
+drew it in one colour. That is wrong wherever a line holds more than one kind of
+thing, which is most lines: `<input type="email" required>` is a tag, two
+attribute names and a string, and one colour has to pick one of them. **A
+document that names its `language` is now read token by token** - highlight.js
+reads it through the drawing surface's `markdown` part, the surface reports the
+coloured runs, and `api/cheatsheet/accents.mjs` maps each run's scope to one of
+the six roles here. All seventeen committed sheets name one.
+
+**The per-line `role` stays, as the fallback.** It draws when a document names
+no language, when no grammar is registered under the name it does name, or when
+the accent reader was never prepared - and it is what each category's own
+per-line mapping records, so a category adding a mapping is still adding
+something real. A composition says which of the two coloured it, as `accents` in
+the variation report: `token`, `line`, or `missing:<language>`.
+
+**Two groupings are this repository's and not the surface's.** The surface
+classifies a scope for its own two themes, where an attribute name and a number
+are one blue; the sheets have two different greens and a recorded rule saying
+which is which, so the rule wins. An attribute name, a CSS property and a
+JavaScript property are configuration and take `identifier`; a selector and a
+doctype are structure and take `keyword`. Everything else is the surface's own
+classification, stepped down from its nine roles to these six. `addition` and
+`deletion` are the two with no counterpart, and they draw plain - an unused role
+is left unused rather than forced onto a colour that means something else.
+
 #### Where a sheet color and a site color disagree
 
 The site palette above was sampled from `mark.png`. The sheets were composed

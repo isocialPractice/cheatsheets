@@ -236,6 +236,15 @@ test("and the variation it reports is the one the fixture was pinned at", () => 
   // touching the geometry changes nothing in the markup, and a seed that
   // silently stopped being consulted changes the markup without changing the
   // shape of the report.
+  //
+  // `accents` reads `line` here and that is the point of this fixture rather
+  // than an oversight. `SHEET` names no language, so it pins the per-line path
+  // every `sheet.json` still falls back to, and the committed SVG and PNG did
+  // not move by a byte when token colouring landed on 2026.10.20. What the
+  // token path draws is held by `tools/test-sheet-accents.mjs` and
+  // `tools/test-sheet-syntax-roles.mjs`, which assert roles rather than bytes -
+  // a raster pin over a reading that highlight.js owns would fail on their
+  // release schedule rather than on this repository's changes.
   const { variation } = composeSheet(SHEET, { seed: SHEET_SEED });
   pinned(
     "sheet.variation.json",

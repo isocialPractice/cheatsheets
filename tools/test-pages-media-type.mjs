@@ -173,13 +173,13 @@ test("and it is the type the composition layer is served under", { skip: measure
 
 test("and it serves a .js file with one too, which is what the surface ships", { skip: measuredJs.reason }, () => {
   // The page imports `api/cheatsheet/` as `.mjs` and that layer imports
-  // `api/napkin-sketch/api/index.js`. Both extensions therefore have to be
-  // executable as modules, and only one of them was ever measured.
+  // `api/napkin-sketch/graphic-design/index.js`. Both extensions therefore
+  // have to be executable as modules, and only one of them was ever measured.
   //
   // Nothing about this is a reason to rename the vendored files: nothing under
-  // that folder is edited, and a rename would have to happen inside
-  // `tools/vendor-napkin-sketch.mjs` on the way in, which would mean rewriting
-  // every relative import in a published build. The measurement is here so that
+  // that folder is edited, and `napkin-sketch vendor` writes each part's files
+  // byte for byte so their imports resolve as they do in the package, which a
+  // rename would break. The measurement is here so that
   // if a server ever stopped answering for `.js`, the suite says so rather than
   // a reader meeting a page that draws nothing.
   const essence = measuredJs.type.split(";")[0].trim().toLowerCase();

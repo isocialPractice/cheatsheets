@@ -2,6 +2,7 @@
   "title": "Shift And Unshift",
   "subtitle": "Take from the front, and put back on it",
   "kind": "run",
+  "language": "javascript",
   "seed": "shift-and-unshift",
   "code": [
     { "text": "var fruits = [\"apple\", \"orange\", \"banana\", \"coconut\"];", "role": "identifier" },

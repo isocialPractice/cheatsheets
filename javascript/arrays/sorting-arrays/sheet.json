@@ -2,6 +2,7 @@
   "title": "Sorting Arrays",
   "subtitle": "Sort and reverse, both of which edit in place",
   "kind": "run",
+  "language": "javascript",
   "seed": "sorting-arrays",
   "code": [
     { "text": "var A = [\"Banana\", \"Orange\", \"Apple\", \"Mango\"];", "role": "identifier" },

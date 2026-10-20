@@ -2,6 +2,7 @@
   "title": "Text Content",
   "subtitle": "Headings, prose and the three kinds of list",
   "kind": "read",
+  "language": "html",
   "seed": "text-content",
   "code": [
     { "text": "<h1>One page, one h1</h1>" },

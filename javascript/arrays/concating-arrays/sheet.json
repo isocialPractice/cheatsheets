@@ -2,6 +2,7 @@
   "title": "Concating Arrays",
   "subtitle": "Join arrays without editing either one",
   "kind": "run",
+  "language": "javascript",
   "seed": "concating-arrays",
   "code": [
     { "text": "var A = [\"square\", \"triangle\"]; var B = []; B = B.concat([0, 1]);", "role": "identifier" },

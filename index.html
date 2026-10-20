@@ -260,15 +260,32 @@
      <li>Select the example from next dropdown.</li>
      <li id="consoleStep" style="display:none">Press "F12" and select console tab to see results.</li>
     </ol>
+    <!-- Each control opens on a placeholder that names the choice, because a
+         blank control is the shape a control takes when its options never
+         arrived. The catalog holds more than one category, so nothing is
+         preselected and the first control is the first interactive thing on
+         the page: on arrival it was a bordered box with a chevron and no text
+         in it, which is the one part of the arrival a reader could misread.
+
+         Both carry "selected", so each shows its own name when closed. Only
+         the first carries "disabled", and the asymmetry is deliberate: the two
+         blank options do not mean the same thing. Choosing a category is how a
+         reader gets anywhere, and there is no state in which having none is
+         what they wanted, so the first placeholder is a label and nothing
+         else. The second is a choice - re-selecting it is how a reader takes
+         the sheet back down - so it stays selectable and only gains the name
+         it was missing. Setting ".value" to "" selects either, disabled or
+         not, which is how the script hands a control back to its
+         placeholder. -->
     <label for="category">Select Cheatsheet</label>
     <select name="category" id="category">
-     <option value="" style="display:none"></option>
+     <option value="" disabled selected>Choose a category</option>
     </select>
 
     <div id="selectExample" style="display:none">
      <label for="example">Select Example</label>
      <select name="example" id="example">
-      <option value=""></option>
+      <option value="" selected>Choose a cheatsheet</option>
      </select>
     </div>
   </div>
@@ -292,7 +309,7 @@
 // That is the reason this script is a module and the reason the page now has
 // to be served: `import` and `fetch` are both refused a `file://` document
 // under the same CORS rule, so `php -S localhost:8000` stops being optional.
-import { composeSheet, fetchSheetBrand } from "./api/cheatsheet/index.mjs";
+import { composeSheet, fetchSheetBrand, prepareAccents } from "./api/cheatsheet/index.mjs";
 
 // The catalog, by relative path so it resolves under the `/cheatsheets/`
 // project base path on Pages as well as at the root of a local server.
@@ -626,10 +643,18 @@ categorySelect.addEventListener("change", selectCheatsheet);
 exampleSelect.addEventListener("change", selectExample);
 
 try {
- // Both in flight together: the brand is not a precondition of the catalog,
- // and awaiting it in turn would put two more round trips in front of the
- // first sheet a reader can choose.
- const [response, assets] = await Promise.all([fetch(MANIFEST), fetchSheetBrand()]);
+ // All three in flight together: the brand is not a precondition of the
+ // catalog, and awaiting it in turn would put two more round trips in front of
+ // the first sheet a reader can choose.
+ //
+ // The third is the accent reader, which colours the code panel token by token.
+ // It is fetched here rather than imported at the top of this file on purpose:
+ // it is the heaviest thing the page can load - 328 KB gzipped against 50 KB
+ // for the composition entry everything else draws through - so it arrives
+ // beside the catalog rather than in front of the first paint. A sheet drawn
+ // before it lands falls back to the per-line roles every sheet.json carries,
+ // and nothing waits on it.
+ const [response, assets] = await Promise.all([fetch(MANIFEST), fetchSheetBrand(), prepareAccents()]);
  brand = assets;
  if (!response.ok) throw new Error(`${MANIFEST} answered ${response.status}`);
  buildDropdowns(await response.json());

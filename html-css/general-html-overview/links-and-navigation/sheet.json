@@ -2,6 +2,7 @@
   "title": "Links and Navigation",
   "subtitle": "Everywhere a href can point",
   "kind": "read",
+  "language": "html",
   "seed": "links-and-navigation",
   "code": [
     { "text": "<!-- Same folder, and the one to reach for first -->", "role": "comment" },

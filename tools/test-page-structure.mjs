@@ -118,6 +118,37 @@ test("the first instruction spells the control the way its label does", () => {
   assert.doesNotMatch(html, /Cheatsheat/);
 });
 
+test("each dropdown opens on a placeholder that names the choice", () => {
+  // A blank control is the shape a control takes when its options never
+  // arrived, and the first one is the first interactive thing on the page -
+  // measured on arrival at 1400x1000 and 375x812 on 2026.10.19, a bordered box
+  // with a chevron and no text in it. `disabled selected` is what makes a
+  // placeholder show when the control is closed and refuse to be chosen when
+  // it is open.
+  //
+  // Both controls are asserted, and together, because they had one treatment
+  // each: `#category` hid its blank option, so it showed nothing, and
+  // `#example` did not, so it offered a selectable empty row. Pinning the pair
+  // is what stops the next edit settling one of them.
+  const options = [...html.matchAll(/<option value=""([^>]*)>([^<]*)<\/option>/g)];
+  assert.equal(options.length, 2, "the page has an empty-valued option that is not one of the two placeholders");
+  for (const [, attributes, text] of options) {
+    assert.match(attributes, /\bselected\b/, `the placeholder "${text}" is not what its control opens on`);
+    assert.doesNotMatch(attributes, /display:\s*none/, `the placeholder "${text}" shows nothing when closed`);
+    assert.match(text, /\S/, "a placeholder with no text in it is the blank control over again");
+  }
+
+  // Only the first is `disabled`, and that asymmetry is the settlement rather
+  // than a leftover. Choosing a category is how a reader gets anywhere and
+  // there is no state in which having none is what they wanted, so the first
+  // placeholder is a label. The second is a choice: re-selecting it is how a
+  // reader takes the sheet back down, which three cases in
+  // `tools/test-example-selection.mjs` drive, so disabling it would remove the
+  // only way out of a selection.
+  assert.match(html, /<option value="" disabled selected>Choose a category<\/option>/);
+  assert.match(html, /<option value="" selected>Choose a cheatsheet<\/option>/);
+});
+
 test("a cheatsheet is addressable by the slug its option carries", () => {
   // The page writes the fragment as well as reading it, so a reader can copy
   // what is on screen out of the address bar.

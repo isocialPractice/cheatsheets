@@ -2,6 +2,7 @@
   "title": "Random Sort Array",
   "subtitle": "Shuffle by walking the array backwards",
   "kind": "run",
+  "language": "javascript",
   "seed": "random-sort-array",
   "code": [
     { "text": "// NOTE - a “_” at the end of illustrations is final value at index.", "role": "comment" },

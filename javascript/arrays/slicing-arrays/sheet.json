@@ -2,6 +2,7 @@
   "title": "Slicing Arrays",
   "subtitle": "Copy a range, and leave the original alone",
   "kind": "run",
+  "language": "javascript",
   "seed": "slicing-arrays",
   "code": [
     { "text": "var A = [\"A\", \"B\", \"C\"];", "role": "identifier" },

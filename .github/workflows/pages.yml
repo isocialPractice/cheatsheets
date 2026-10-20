@@ -36,9 +36,11 @@ jobs:
   # syntax error rather than a finding.
   #
   # The vendored copy is checked beside the catalog, offline: every file in
-  # api/napkin-sketch/ is hashed against the record in its PIN.json, so a byte
-  # edited there - and nothing there is ever edited - fails here rather than
-  # shipping.
+  # api/napkin-sketch/ is hashed against the record in its VENDOR.json, so a
+  # byte edited there - and nothing there is ever edited - fails here rather
+  # than shipping. The checker is the package's own, written into the folder
+  # beside the copy by napkin-sketch vendor, so it is plain node with no
+  # install and nothing of this repository's behind it.
   manifest:
     runs-on: ubuntu-latest
     steps:
@@ -50,8 +52,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Check the vendored drawing surface against its pin
-        run: node tools/vendor-napkin-sketch.mjs --check
+      - name: Check the vendored drawing surface against its record
+        run: node api/napkin-sketch/VENDOR-CHECK.mjs
 
       - name: Check the cheatsheet tree and the committed manifest
         run: node tools/build-manifest.mjs --check

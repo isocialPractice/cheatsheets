@@ -40,6 +40,16 @@
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
 
 export {
+  accentRoles,
+  accentsReady,
+  forgetAccents,
+  prepareAccents,
+  roleForScope,
+  ACCENT_ROLE_ROLES,
+  SCOPE_ROLES,
+} from "./accents.mjs";
+
+export {
   dataUrlFrom,
   fetchSheetBrand,
   rasterAsset,

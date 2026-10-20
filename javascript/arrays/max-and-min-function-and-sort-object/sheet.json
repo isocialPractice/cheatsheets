@@ -2,6 +2,7 @@
   "title": "Max and Min Function and Sort Object",
   "subtitle": "Math.min, Math.max, and sorting by property",
   "kind": "run",
+  "language": "javascript",
   "seed": "max-and-min-function-and-sort-object",
   "code": [
     { "text": "var A = [1, 2500, 2, 50, 3, 33, 8, 73, 12];", "role": "identifier" },
