@@ -16,7 +16,8 @@ keys its entries by date, written `YYYY.MM.DD`.
   - Graphic: `sheet.json` required, composed through the API
   - The category exists, so this item generates no design language and no skill. It is drawn to `DESIGN_LANGUAGE-html-css.md`, which `General HTML Overview` recorded on 2026.10.19, and the skill at `.claude/skills/html-css/` is already generated and ignored
   - The sheet count makes the subject a group and its six areas the cheatsheets under it, at `html-css/general-css-overview/<area>/`, which is the shape the first item settled
-  - A role is assigned per line and not per token. For CSS that reads as: a comment is `comment`, a selector or an at-rule is `keyword`, a declaration is `identifier`, and a wrapped value line is `string`. The HTML mapping is recorded in the design language; add the CSS one beside it rather than leaving it to be re-derived
+  - Each sheet names its `language` as `css`, which is what colours the panel token by token - the six sheets of **General HTML Overview** name `html`. The per-line `role` is the fallback and is still declared, per **How a token takes its colour** in `DESIGN_LANGUAGE.md`. For CSS that reads as: a comment is `comment`, a selector or an at-rule is `keyword`, a declaration is `identifier`, and a wrapped value line is `string`. The HTML mapping is recorded in the design language; add the CSS one beside it rather than leaving it to be re-derived
+  - `tools/test-sheet-syntax-roles.mjs` derives the expected role from the HTML mapping only. Extend it to read the CSS mapping for a sheet whose `language` is `css`, or those six sheets are the only ones in the category nothing holds to a rule
   - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`
   - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant
   - From: New Cheatsheets `->` HTML/CSS
@@ -42,97 +43,18 @@ keys its entries by date, written `YYYY.MM.DD`.
   - A run records the commit mode and the automation commits, so the deliverable here is the record a committer reads rather than a commit this run makes. Write it where the item above is writing how a category is added
   - From: Raster Export and Example Images
 
-### User Overrides
-
-#### Found Issues
-
-- [ ] Re-vendor `@isocialpractice/napkin-sketch` at `1.1.0` with the package's own `vendor` command
-  - **Issue**: `api/napkin-sketch/` holds `1.0.0`, copied on 2026.10.14 by
-    this repository's own `tools/vendor-napkin-sketch.mjs` and recorded in
-    `PIN.json`. The three issues reported from here that day are fixed and
-    released upstream in `1.1.0`, on 2026.10.19:
-    [#10](https://github.com/isocialPractice/napkin-sketch/issues/10) a
-    `graphic-design` entry of its own,
-    [#11](https://github.com/isocialPractice/napkin-sketch/issues/11) an
-    elliptical arc refused rather than drawn as a polyline, and
-    [#12](https://github.com/isocialPractice/napkin-sketch/issues/12) a quoted
-    font family read as its name rather than as `&quot`. The same release adds
-    `napkin-sketch vendor`, made for re-vendoring a copy like this one. There is
-    no `1.0.1`: npm holds `1.0.0` and `1.1.0`, and `1.1.0` carries the fixes.
-  - **Goal**: `api/napkin-sketch/` is written by `napkin-sketch vendor` at
-    `1.1.0`, recorded in its `VENDOR.json` and checked by its
-    `VENDOR-CHECK.mjs`, and holds the parts this repository uses:
-    `graphic-design` - the entry #10 was filed for, about 49 KB gzipped against
-    the main entry's 270 KB - `graphic-design/files`, and `markdown` for the
-    item below. The imports in `api/cheatsheet/` move from
-    `napkin-sketch/api/index.js` to the `graphic-design` entry wherever it
-    exports what they import.
-  - **`vendor` never writes into a folder it did not write**, and this one was
-    written by `tools/vendor-napkin-sketch.mjs`. Remove the old folder first
-    rather than vendoring over it. `napkin-sketch vendor --list` names every
-    part and what it costs a page.
-  - The old mechanism goes with the old folder: `tools/vendor-napkin-sketch.mjs`,
-    `tools/test-vendor-napkin-sketch.mjs`, the `--check` step in
-    `.github/workflows/pages.yml` - which becomes
-    `node api/napkin-sketch/VENDOR-CHECK.mjs`, plain node with no install - the
-    vendoring lines in `README.md`, and every other place that names `PIN.json`
-    or `vendor-napkin-sketch` outside `.tmp/`.
-  - `ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs`
-    reads a quoted font family itself, which is the fix #12 made upstream.
-    Compare it with the helper `vendor --ai-helper` copies, and keep one reading,
-    not two.
-  - Every test passes and the site composes as it did.
-    `tools/test-pages-media-type.mjs` reads the vendored copy, so it is the
-    first to say whether the layout moved.
-  - From: Depend on the `napkin-sketch` Package
-- [ ] Color code by token with napkin-sketch's Clean Language Accents
-  - **Issue**: Code syntax highlighting is incorrect. A code line in a composed
-    sheet takes one `role` for the whole line - `plain`, `comment`,
-    `identifier`, `keyword`, `string` or `number` - set by hand in `sheet.json`
-    and drawn by `roleColor()` in `api/cheatsheet/compose.mjs`. So a line
-    holding a keyword, an identifier and a string is drawn in one color, and a
-    line given the wrong role is wrong from end to end.
-    `Wrapped Attribute Colour 1`, in the UI/UX override below, is one such
-    line.
-  - **Goal**: Code in a composed sheet is colored token by token with
-    [Clean Language Accents](https://isocialpractice.github.io/napkin-sketch/api/markdown/index.html#for-agents),
-    from the `markdown` part the item above vendors, in the colors
-    `DESIGN_LANGUAGE.md` already gives each role. The palette stays; only how
-    a token's color is chosen changes.
-  - Per the page's **For agents**: import the `markdown` entry once before
-    drawing, name languages by id, install a language before the text using it
-    is drawn, and read `missing` from `accentRuns`, so a sheet in a language
-    nobody installed says so rather than drawing plain.
-  - Decide whether the per-line `role` stays as the fallback for a language
-    with no grammar, or goes; 17 sheets set one today. Record the decision in
-    `DESIGN_LANGUAGE.md`, where the **General CSS Overview** item in the
-    regular queue will read it before writing its own per-line mapping.
-  - **The UI/UX override below is about the per-line rule this replaces.**
-    Work its items against the result: say whether token colors settle
-    `Wrapped Attribute Colour 1` and the per-role counts, and what still
-    applies where they do not.
-  - Depends on the item above, which brings the `markdown` part in.
-  - From: Depend on the `napkin-sketch` Package
-
-### UI/UX Override - the markup panel and the bare arrival
+### UI/UX Override - token accents, measured in a browser
 
 #### Resolve Issues
 
-- [ ] Wrapped Attribute Colour 1
-  - **Issue**: One line of one cheatsheet takes a syntax role the category's own rule does not give it, and the inconsistency is visible in the rendered panel. `html-css/general-html-overview/forms-and-inputs/sheet.json` row 15, `                  checked> Free</label>`, declares no role and so draws `plain` white. It continues the `<label><input` opened on row 14, which carries no closing `>`, so the rule in `DESIGN_LANGUAGE-html-css.md` reaches "is a wrapped attribute, continuing a tag opened above it" before it reaches the prose test and gives the line `string`, which is amber. The same panel draws two lines of exactly that shape amber, the `autocomplete="email" required>` and `minlength="12" required>` continuations, so a reader scanning for where a tag carries on gets two of three and the attribute `checked` is set in the colour the sheet reserves for prose. A sibling sheet settles which colour was meant: `links-and-navigation` row 16 is the same construction - wrapped attributes, the `>` that closes the tag, then prose and a closing tag - and is declared `string`. Measured 2026.10.19 over `php -S localhost:8000` at the page's 900px cap, by applying the rule's own table to all 130 non-blank lines in the six sheets: 129 agree and this one does not. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.19-crop-html-wrapped-attributes-1x.png`
-  - **Goal**: Resolve to [wrapped-attribute-colour.prompt.md](.claude/prompts/wrapped-attribute-colour.prompt.md)
-  - From: New Cheatsheets `->` HTML/CSS
-
-#### Found Issues
-
-- [ ] The design language's count of lines per role holds for one role of the three it names
-  - **Issue**: `DESIGN_LANGUAGE-html-css.md` says under **What this category adds on top of the global record** that "Structure comes out yellow, configuration green, content white, and the six sheets in the category land between three and sixteen lines of each". Counted across the six on 2026.10.19, that holds for yellow alone: `keyword` runs 3, 3, 3, 5, 12, 16, which is where both ends of the quoted range come from. Green runs 1, 5, 5, 8, 9, 10 and white runs 1, 1, 3, 4, 4, 14, so both fall below three - Text Content carries one green line, and Links and Navigation and Images and Media carry one white line each. Two roles are absent from a sheet altogether: Text Content has no comment and no `string` line. The figure reads as a measurement of all three and is a measurement of one
-  - **Goal**: Replace the single range with the three the sheets actually land in, or state the range per role, so the next category measured against this document is held to a figure that was taken rather than to one that fits only yellow. The **General CSS Overview** item under `## Current` says it is drawn to this document, so it is the item that would inherit the wrong figure
-  - From: UI/UX Override - the markup panel and the bare arrival
-- [ ] The first dropdown arrives blank, which is also what a dropdown looks like when it failed to load
-  - **Issue**: The catalog holds two categories, so nothing is preselected and `#category` sits on its `<option value="" style="display:none">`. The control renders as a bordered box with a chevron and no text in it, and it is the first interactive thing on the page. Observed 2026.10.19 at 1400x1000 and at 375x812 in `arrival-1400x1000.png` and `arrival-375x812.png`. A reader is not stuck - the `Select Cheatsheet` label sits above it and step 1 beside it - but the control itself is the one element that could name the choice and says nothing, and a blank control is the same shape a control takes when its options never arrived. The right-hand column is 0px high rather than an empty frame, so nothing there reads as a failure; this is the only part of the arrival that can be misread. Noted beside it: `#category` hides its blank option and `#example` does not, so the second dropdown offers a selectable empty row and the first does not
-  - **Goal**: Give the first control a placeholder its closed state can show - a `disabled selected` option reading something like `Choose a category` - rather than a hidden empty one, and settle whether the two controls should treat their blank option alike. `tools/test-page-structure.mjs` reads the page source and is where an assertion over the placeholder would sit
-  - From: UI/UX Override - the markup panel and the bare arrival
+- [ ] Token Accents 1
+  - **Issue**: A code line is now several `<text>` elements placed at `x + measureRun(prefix)`, and `measureRun` sums per-character advances with no kerning while the engine kerns the glyphs it draws. While a line was one element the engine laid it out end to end and absorbed its own kerning; now the table decides where every run starts, so the difference opens as a gap at the boundary. Measured in Chromium over `php -S localhost:8000`, all seventeen sheets drawn at the page's 900px cap, taking each gap as `drawn_x(next) - drawn_x(current) - engineWidth(text between them)`: 1,791 boundaries, 32 at or over one page pixel against the request's own expectation of under one, worst 2.50 px after ` A = [` on `javascript/arrays/slicing-arrays` row 0. Fifteen of the 32 are mid-token, where the two runs have no whitespace between them and the gap opens inside the code: `nestArrayToChange[` before its index on 13 lines of `javascript/arrays/changing-elements` at 1.75-1.78 px, `Term` before `</dt>` on `text-content` row 22 at 1.65 px, and `Total` before `</th>` on `tables-and-data` row 24 at 1.43 px. Isolated at the sheets' code size, `" "`, `"A"` and `"="` each agree with the engine to within 0.04 units while `" A = ["` disagrees by 6.86, which is the kerning. `forms-and-inputs`, the panel the original report was written against, is the cleanest in the catalog at 0.04 px, so the defect is not where it was looked for. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.20-panel-changing-token-6x.png`, against `-panel-changing-fallback-6x.png` where the same lines draw tight
+  - **Goal**: Resolve to [token-accent-seams.prompt.md](.claude/prompts/token-accent-seams.prompt.md)
+  - From: Depend on the `napkin-sketch` Package
+- [ ] Token Accents 2
+  - **Issue**: `index.html` puts `prepareAccents()` in the same `Promise.all` as the catalog fetch, and `Promise.all` settles on its slowest member, so `buildDropdowns` is gated behind the heaviest thing the page loads. The comment above the call says "nothing waits on it" and `api/cheatsheet/accents.mjs` says the reader "arrives alongside the first `sheet.json` rather than in front of it"; the code does the opposite. Timed in Chromium throttled to 1.5 Mbps and 150 ms latency, watching when `#category` gains its options: 7,182 ms as the page ships against 2,543 ms with the accent entry blocked, so the first interactive control arrives 4,639 ms later than it needs to. On loopback the ordering is the same and the cost is hidden, the catalog at 53.4 ms after the wave finished at 29.6 ms. On a host that compresses, the wave is about 335 KB gzipped and still sits roughly 1.5 s in front of the control. The same line drops the third result, so the `{ ready, reason }` that `prepareAccents` is written not to throw is never read and a page that cannot load the reader draws per-line and says so nowhere
+  - **Goal**: Resolve to [token-accent-wave-blocks-catalog.prompt.md](.claude/prompts/token-accent-wave-blocks-catalog.prompt.md)
+  - From: Depend on the `napkin-sketch` Package
 
 ## GitHub Pages Deployment
 
@@ -830,13 +752,15 @@ items; the record of how it is used now is the section below.
 ## Depend on the `napkin-sketch` Package
 
 This section is finished. Between 2026.10.13 and 2026.10.14 the hand port of
-the graphic design API was replaced by the published package it was a copy of.
-`@isocialpractice/napkin-sketch@1.0.0` is vendored into `api/napkin-sketch/`
-by `tools/vendor-napkin-sketch.mjs`, pinned by version and verified against the
-registry's own SHA-512, and every importer draws through it. Nothing is
-installed: `php -S localhost:8000` is still the whole local workflow, a bare
-clone still passes `node --test`, and the Pages workflow still runs `--check`
-after a checkout with no install step.
+the graphic design API was replaced by the published package it was a copy of,
+and on 2026.10.20 the pin moved to `1.1.0` and the vendoring mechanism became
+the package's own. `@isocialpractice/napkin-sketch@1.1.0` is written into
+`api/napkin-sketch/` by `napkin-sketch vendor`, verified against the registry's
+own SHA-512, recorded in `VENDOR.json` and checked by the `VENDOR-CHECK.mjs`
+beside it; every importer draws through it. Nothing is installed:
+`php -S localhost:8000` is still the whole local workflow, a bare clone still
+passes `node --test`, and the Pages workflow still runs the check after a
+checkout with no install step.
 
 The three behaviours the port had changed locally went two ways. The paint
 refusal and the text measuring became this repository's own, in
@@ -846,15 +770,26 @@ the helper's font-family reading and a request for a composition-only entry.
 `api/graphic-design/` and its 537 line test were deleted on 2026.10.14.
 
 The weight is what the upstream request is about and it is re-measured on every
-pin: at `1.0.0` the page downloads five files, 772,665 bytes and 273,169
+pin. At `1.0.0` the page downloaded five files, 772,665 bytes and 273,169
 gzipped at level 6, against 144,760 and 47,135 for the ten port modules it
-loaded before. The composition chunk alone is 112,842 and 41,985, and the rest
-is the editor the root entry pulls in with it.
+loaded before: the composition chunk alone was 112,842 and 41,985, and the rest
+was the editor the root entry pulled in with it. `1.1.0` ships the
+composition-only entry [#10](https://github.com/isocialPractice/napkin-sketch/issues/10)
+asked for, and the page's own module graph is now that entry alone - four
+files, 131,291 bytes and 50,622 gzipped, a 5.4x cut on what loads before the
+first paint.
 
-**Intent**: closed. Nothing is queued here. What reopens it is a release
-carrying the subpath entry asked for in
-[#10](https://github.com/isocialPractice/napkin-sketch/issues/10), which is a
-pin move, a re-vendor of that entry and a re-measure rather than a section.
+What grew instead is a second wave, loaded on demand. Token colouring needs the
+`markdown` entry and the accent functions the whole API exports, which
+`api/cheatsheet/accents.mjs` imports dynamically and `index.html` asks for
+beside the catalog rather than in front of it: eight more files, 856,291 bytes
+and 290,824 gzipped. A reader who draws a sheet therefore ends up with twelve
+files, 987,582 bytes and 341,446 gzipped - 25% more than `1.0.0` in total, on a
+critical path a fifth the size. Reading code is what costs it: highlight.js's
+common set of 36 grammars is the bulk of that second wave.
+
+**Intent**: closed. Nothing is queued here. What reopens it is another release
+to pin, which is a re-vendor and a re-measure rather than a section.
 
 ## Implement Cheatsheet API
 
@@ -1472,5 +1407,84 @@ generate ideas about generating ideas.
 - [x] Check each example's commented output against what the script actually logs
   - `tools/test-example-selection.mjs` selects all eleven in turn and fails on a page error, so the scripts run; what nothing checks is whether the commented output beside each call is what the console receives
   - From: Example Script Quality
+- [x] Re-vendor `@isocialpractice/napkin-sketch` at `1.1.0` with the package's own `vendor` command
+  - **Issue**: `api/napkin-sketch/` holds `1.0.0`, copied on 2026.10.14 by
+    this repository's own `tools/vendor-napkin-sketch.mjs` and recorded in
+    `PIN.json`. The three issues reported from here that day are fixed and
+    released upstream in `1.1.0`, on 2026.10.19:
+    [#10](https://github.com/isocialPractice/napkin-sketch/issues/10) a
+    `graphic-design` entry of its own,
+    [#11](https://github.com/isocialPractice/napkin-sketch/issues/11) an
+    elliptical arc refused rather than drawn as a polyline, and
+    [#12](https://github.com/isocialPractice/napkin-sketch/issues/12) a quoted
+    font family read as its name rather than as `&quot`. The same release adds
+    `napkin-sketch vendor`, made for re-vendoring a copy like this one. There is
+    no `1.0.1`: npm holds `1.0.0` and `1.1.0`, and `1.1.0` carries the fixes.
+  - **Goal**: `api/napkin-sketch/` is written by `napkin-sketch vendor` at
+    `1.1.0`, recorded in its `VENDOR.json` and checked by its
+    `VENDOR-CHECK.mjs`, and holds the parts this repository uses:
+    `graphic-design` - the entry #10 was filed for, about 49 KB gzipped against
+    the main entry's 270 KB - `graphic-design/files`, and `markdown` for the
+    item below. The imports in `api/cheatsheet/` move from
+    `napkin-sketch/api/index.js` to the `graphic-design` entry wherever it
+    exports what they import.
+  - **`vendor` never writes into a folder it did not write**, and this one was
+    written by `tools/vendor-napkin-sketch.mjs`. Remove the old folder first
+    rather than vendoring over it. `napkin-sketch vendor --list` names every
+    part and what it costs a page.
+  - The old mechanism goes with the old folder: `tools/vendor-napkin-sketch.mjs`,
+    `tools/test-vendor-napkin-sketch.mjs`, the `--check` step in
+    `.github/workflows/pages.yml` - which becomes
+    `node api/napkin-sketch/VENDOR-CHECK.mjs`, plain node with no install - the
+    vendoring lines in `README.md`, and every other place that names `PIN.json`
+    or `vendor-napkin-sketch` outside `.tmp/`.
+  - `ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs`
+    reads a quoted font family itself, which is the fix #12 made upstream.
+    Compare it with the helper `vendor --ai-helper` copies, and keep one reading,
+    not two.
+  - Every test passes and the site composes as it did.
+    `tools/test-pages-media-type.mjs` reads the vendored copy, so it is the
+    first to say whether the layout moved.
+  - From: Depend on the `napkin-sketch` Package
+- [x] **Token Accents**: Color code by token with napkin-sketch's Clean Language Accents
+  - **Issue**: Code syntax highlighting is incorrect. A code line in a composed
+    sheet takes one `role` for the whole line - `plain`, `comment`,
+    `identifier`, `keyword`, `string` or `number` - set by hand in `sheet.json`
+    and drawn by `roleColor()` in `api/cheatsheet/compose.mjs`. So a line
+    holding a keyword, an identifier and a string is drawn in one color, and a
+    line given the wrong role is wrong from end to end.
+    `Wrapped Attribute Colour 1`, in the UI/UX override below, is one such
+    line.
+  - **Goal**: Code in a composed sheet is colored token by token with
+    [Clean Language Accents](https://isocialpractice.github.io/napkin-sketch/api/markdown/index.html#for-agents),
+    from the `markdown` part the item above vendors, in the colors
+    `DESIGN_LANGUAGE.md` already gives each role. The palette stays; only how
+    a token's color is chosen changes.
+  - Per the page's **For agents**: import the `markdown` entry once before
+    drawing, name languages by id, install a language before the text using it
+    is drawn, and read `missing` from `accentRuns`, so a sheet in a language
+    nobody installed says so rather than drawing plain.
+  - Decide whether the per-line `role` stays as the fallback for a language
+    with no grammar, or goes; 17 sheets set one today. Record the decision in
+    `DESIGN_LANGUAGE.md`, where the **General CSS Overview** item in the
+    regular queue will read it before writing its own per-line mapping.
+  - **The UI/UX override below is about the per-line rule this replaces.**
+    Work its items against the result: say whether token colors settle
+    `Wrapped Attribute Colour 1` and the per-role counts, and what still
+    applies where they do not.
+  - Depends on the item above, which brings the `markdown` part in.
+  - From: Depend on the `napkin-sketch` Package
+- [x] Wrapped Attribute Colour 1
+  - **Issue**: One line of one cheatsheet takes a syntax role the category's own rule does not give it, and the inconsistency is visible in the rendered panel. `html-css/general-html-overview/forms-and-inputs/sheet.json` row 15, `                  checked> Free</label>`, declares no role and so draws `plain` white. It continues the `<label><input` opened on row 14, which carries no closing `>`, so the rule in `DESIGN_LANGUAGE-html-css.md` reaches "is a wrapped attribute, continuing a tag opened above it" before it reaches the prose test and gives the line `string`, which is amber. The same panel draws two lines of exactly that shape amber, the `autocomplete="email" required>` and `minlength="12" required>` continuations, so a reader scanning for where a tag carries on gets two of three and the attribute `checked` is set in the colour the sheet reserves for prose. A sibling sheet settles which colour was meant: `links-and-navigation` row 16 is the same construction - wrapped attributes, the `>` that closes the tag, then prose and a closing tag - and is declared `string`. Measured 2026.10.19 over `php -S localhost:8000` at the page's 900px cap, by applying the rule's own table to all 130 non-blank lines in the six sheets: 129 agree and this one does not. Captured in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.19-crop-html-wrapped-attributes-1x.png`
+  - **Goal**: Resolve to [wrapped-attribute-colour.prompt.md](.claude/prompts/wrapped-attribute-colour.prompt.md)
+  - From: New Cheatsheets `->` HTML/CSS
+- [x] The design language's count of lines per role holds for one role of the three it names
+  - **Issue**: `DESIGN_LANGUAGE-html-css.md` says under **What this category adds on top of the global record** that "Structure comes out yellow, configuration green, content white, and the six sheets in the category land between three and sixteen lines of each". Counted across the six on 2026.10.19, that holds for yellow alone: `keyword` runs 3, 3, 3, 5, 12, 16, which is where both ends of the quoted range come from. Green runs 1, 5, 5, 8, 9, 10 and white runs 1, 1, 3, 4, 4, 14, so both fall below three - Text Content carries one green line, and Links and Navigation and Images and Media carry one white line each. Two roles are absent from a sheet altogether: Text Content has no comment and no `string` line. The figure reads as a measurement of all three and is a measurement of one
+  - **Goal**: Replace the single range with the three the sheets actually land in, or state the range per role, so the next category measured against this document is held to a figure that was taken rather than to one that fits only yellow. The **General CSS Overview** item under `## Current` says it is drawn to this document, so it is the item that would inherit the wrong figure
+  - From: UI/UX Override - the markup panel and the bare arrival
+- [x] The first dropdown arrives blank, which is also what a dropdown looks like when it failed to load
+  - **Issue**: The catalog holds two categories, so nothing is preselected and `#category` sits on its `<option value="" style="display:none">`. The control renders as a bordered box with a chevron and no text in it, and it is the first interactive thing on the page. Observed 2026.10.19 at 1400x1000 and at 375x812 in `arrival-1400x1000.png` and `arrival-375x812.png`. A reader is not stuck - the `Select Cheatsheet` label sits above it and step 1 beside it - but the control itself is the one element that could name the choice and says nothing, and a blank control is the same shape a control takes when its options never arrived. The right-hand column is 0px high rather than an empty frame, so nothing there reads as a failure; this is the only part of the arrival that can be misread. Noted beside it: `#category` hides its blank option and `#example` does not, so the second dropdown offers a selectable empty row and the first does not
+  - **Goal**: Give the first control a placeholder its closed state can show - a `disabled selected` option reading something like `Choose a category` - rather than a hidden empty one, and settle whether the two controls should treat their blank option alike. `tools/test-page-structure.mjs` reads the page source and is where an assertion over the placeholder would sit
+  - From: UI/UX Override - the markup panel and the bare arrival
 
 </details>
