@@ -89,8 +89,9 @@
 // **Implement Cheatsheet API** in `TODO.md`, and it is deliberately not
 // invented here. When it lands, this algorithm is what it composes through.
 
-import { createComposition, placeBrand } from "../napkin-sketch/api/index.js";
+import { createComposition, placeBrand } from "../napkin-sketch/graphic-design/index.js";
 
+import { accentRoles } from "./accents.mjs";
 import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
 import {
   centredAt,
@@ -106,6 +107,13 @@ import { Variation } from "./variation.mjs";
 /**
  * One line of the example the code panel carries.
  *
+ * `role` is the fallback rather than the first choice. A whole line in one
+ * colour is wrong wherever the line holds more than one kind of thing, so a
+ * document that names its `language` is coloured token by token instead - see
+ * `accents.mjs`. The declared role is what draws when no language is named, or
+ * when the accent reader was never prepared, which is why all seventeen sheets
+ * still carry one.
+ *
  * @typedef {object} CodeLine
  * @property {string} text
  * @property {'plain' | 'comment' | 'identifier' | 'keyword' | 'string' | 'number'} [role]
@@ -117,12 +125,20 @@ import { Variation } from "./variation.mjs";
  * Only `title` and `code` are required. The three fixed runs default to the
  * brand's own, because they are the same text on all eleven sheets.
  *
+ * `language` is the language the *example* is in - `html`, `css`,
+ * `javascript` - and it is what makes the code panel colour token by token. It
+ * is not `ComposeOptions.language`, which is the design language the sheet is
+ * drawn to; the two are different objects with the same ordinary English name,
+ * and this one belongs to the document because only the document knows what
+ * its example is written in.
+ *
  * @typedef {object} SheetDocument
  * @property {string} title
  * @property {string} [subtitle]
  * @property {string} [leadIn]
  * @property {string} [wordmark]
  * @property {string} [followLine]
+ * @property {string} [language] A highlight.js language id or alias, `auto`, or `none`.
  * @property {string | CodeLine[]} code
  */
 
@@ -239,6 +255,7 @@ function widestLine(lines, cap, face) {
  * @property {number} subtitleCap
  * @property {string} face
  * @property {Record<string, string>} brand How each brand slot was filled: `vector`, `image` or `drawn`.
+ * @property {string} accents How the code panel was coloured: `token`, `line`, or `missing:<language>`.
  * @property {boolean} codeFits Whether every line of the example fits the panel.
  * @property {boolean} runsFit Whether every display run fits its region above its floor.
  * @property {typeof SHEET_LANGUAGE['floors']} floors The floors this variation was held to.
@@ -264,7 +281,7 @@ function widestLine(lines, cap, face) {
  *
  * @param {SheetDocument} doc
  * @param {ComposeOptions} [options]
- * @returns {{ composition: import('../napkin-sketch/api/index.js').Composition, variation: VariationReport }}
+ * @returns {{ composition: import('../napkin-sketch/graphic-design/index.js').Composition, variation: VariationReport }}
  */
 export function composeSheet(doc, options = {}) {
   if (!doc || typeof doc.title !== "string" || doc.title.length === 0) {
@@ -324,7 +341,7 @@ export function composeSheet(doc, options = {}) {
    * Draws a run of text, substituting the ink where the ground demands it and
    * recording the pairing that was actually drawn.
    *
-   * @param {Omit<import('../napkin-sketch/api/index.js').TextElement, 'type'> & { name: string, fill: string }} element
+   * @param {Omit<import('../napkin-sketch/graphic-design/index.js').TextElement, 'type'> & { name: string, fill: string }} element
    * @param {string} ground
    */
   const drawText = (element, ground) => {
@@ -757,21 +774,82 @@ export function composeSheet(doc, options = {}) {
   }
 
   const codeSize = sizeForCap(codeCap, codeFace);
+
+  // How the panel was coloured, for the report.
+  //
+  // A fallback that says nothing is the fault this field exists to prevent: a
+  // caller that never awaited `prepareAccents` draws every line in its declared
+  // role, which looks composed and is a worse sheet than the one it meant to
+  // draw. `token` is the intended state, `line` says the reader was not there,
+  // and `missing:<name>` says it was there and had never heard of the language.
+  const accents = accentRoles(
+    lines.map((line) => line.text),
+    doc.language
+  );
+  const accentMode = accents === null ? "line" : accents.missing ? `missing:${accents.missing}` : "token";
+  if (accents?.missing) {
+    notes.push(
+      `The example is written in ${accents.missing} and no grammar is installed under that name, ` +
+        `so every line is drawn in the role it declares rather than token by token.`
+    );
+  }
+
   lines.forEach((line, index) => {
     if (line.text.length === 0) return;
-    drawText(
-      {
-        name: `code-${index}`,
-        x: divisions.panel.x + leftInset,
-        y: bands.code.y + topPadding + codeCap + lineSpacing * index,
-        text: line.text,
-        align: "left",
-        fontFamily: codeFace.fontFamily,
-        fontSize: codeSize,
-        fill: roleColor(syntax, line.role),
-      },
-      colors.navy
-    );
+    const y = bands.code.y + topPadding + codeCap + lineSpacing * index;
+    const x = divisions.panel.x + leftInset;
+    const shared = {
+      align: "left",
+      fontFamily: codeFace.fontFamily,
+      fontSize: codeSize,
+    };
+
+    const runs = accents?.lines[index];
+    if (!runs || runs.length === 0) {
+      drawText(
+        { ...shared, name: `code-${index}`, x, y, text: line.text, fill: roleColor(syntax, line.role) },
+        colors.navy
+      );
+      return;
+    }
+
+    // One element per run, each placed by measuring the text in front of it in
+    // the face it is drawn in. The parts add up to the whole *in the table*:
+    // `measureRun` sums a per-character advance and the code lines carry no
+    // letter spacing, so no width is lost between the runs of one line.
+    //
+    // **The table is not the engine, and that is a defect rather than a
+    // caveat.** `measureRun` does not kern and a browser does, so the table
+    // decides where every run starts while the engine decides how wide each
+    // one draws, and the difference opens as a gap at the boundary. Measured
+    // in Chromium on 2026.10.20, all seventeen sheets at the page's 900px cap:
+    // 1,791 boundaries, 32 at or over one page pixel, worst 2.50 px, and
+    // fifteen of the 32 inside a token rather than widening a space. Isolated
+    // at the sheets' own code size, ` A = [` measures 144.606 here against the
+    // engine's 137.750, while each of its characters alone agrees to within
+    // 0.04. While a line was one element the engine laid it out end to end and
+    // absorbed its own kerning, which is why none of this was reachable before
+    // the line was split. Queued as **Token Accents 1**, with the reading in
+    // `.claude/prompts/token-accent-seams.prompt.md`.
+    runs.forEach((run, part) => {
+      const text = line.text.slice(run.start, run.end);
+      // A run of nothing but spaces draws no ink. The surface scopes the gaps
+      // between attributes, so leaving them in would put an element on the
+      // sheet for every space in the example and a pairing in the contrast
+      // report for each - both measuring a glyph that is not there.
+      if (text.trim().length === 0) return;
+      drawText(
+        {
+          ...shared,
+          name: `code-${index}-${part}`,
+          x: x + measureRun(line.text.slice(0, run.start), { fontSize: codeSize, face: codeFace }),
+          y,
+          text,
+          fill: roleColor(syntax, run.role),
+        },
+        colors.navy
+      );
+    });
   });
 
   // --- The footer ----------------------------------------------------------
@@ -882,6 +960,7 @@ export function composeSheet(doc, options = {}) {
       subtitleCap,
       face: face.name,
       brand: brandModes,
+      accents: accentMode,
       codeFits,
       runsFit,
       floors,
