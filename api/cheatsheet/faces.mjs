@@ -34,14 +34,16 @@
 //
 // ## The measurement
 //
-// Read with `tools/measure-font-widths.mjs`, which drives Chromium over a
-// canvas 2D context at 1000 units per em. Re-run it to check every figure here:
+// Read with `tools/measure-font-widths.mjs`, which drives Chromium at 1000
+// units per em - the advances over a canvas 2D context, and the kerning in SVG
+// text layout, because the two engines disagree about a pair holding a space
+// and SVG is where a sheet is drawn. Re-run it to check every figure here:
 //
 // ```bash
 // node tools/measure-font-widths.mjs
 // ```
 //
-// Three results, and each of them is why a single committed table is defensible
+// Four results, and each of them is why a single committed table is defensible
 // rather than a machine-local accident:
 //
 // - **The fall-through families share one set of advances, exactly.** Measured
@@ -49,10 +51,17 @@
 //   `Liberation Sans` disagree with the resolved stack by **0 units on every
 //   one of the 95**. They were drawn to one set of widths, and this is that
 //   claim checked rather than repeated.
-// - **Summing per character equals the engine's own measurement of the whole
-//   string, to 0.000%.** So none of those families kerns by default, and a
-//   per-character table loses nothing to one. `system-ui` is the exception at
-//   -0.512%, which is why it sits late in the stack.
+// - **Summing per character equals the engine's own measurement of the lead-in,
+//   to 0.000%.** The 33 characters of "Starting Point for Practical Use:" hold
+//   no pair the stack kerns, so the one run of artwork whose text is known can
+//   be predicted by advances alone exactly. `system-ui` is the exception at
+//   -0.512%, which is why it sits late in the stack. **It is a claim about that
+//   string and not about the families** - read as the second until 2026.10.21,
+//   when a split code line started placing one run against another's drawn
+//   width and the 96 pairs below turned up at the boundary.
+// - **96 of the 9,025 pairs are kerned, and the same 96 in all three
+//   families.** See {@link STACK_KERNS}, and {@link drawnWidth} for the one
+//   place they are read.
 // - **The artwork's face is condensed to 0.684 of the stack.** At the lead-in's
 //   112 px cap the stack sets that string at 2165 px against the artwork's
 //   1481. That corroborates **The faces are not named**, which found the three
@@ -223,6 +232,126 @@ const STACK_ADVANCES = {
 };
 
 /**
+ * The kerning the engine applies between two characters, in units per em.
+ *
+ * **Measured in SVG text layout, which is where the sheets are drawn, and not
+ * through a canvas.** The two disagree: `measureText` reports no kerning for
+ * any pair holding a space, while the same pair laid out in a `<text>` element
+ * kerns. That is why the claim under **The measurement** above holds and this
+ * table still has entries - the one string that claim was checked against,
+ * "Starting Point for Practical Use:", holds none of these 96 pairs, so
+ * summing its characters really does equal the engine's own answer for it.
+ *
+ * Only the 96 pairs the resolved stack kerns at all are carried; everything
+ * else is zero and absent. The same corroboration the advances got holds here:
+ * `Arial`, `Helvetica` and `Liberation Sans` each kern the same 96 pairs by
+ * the same amounts, so this is one measurement of a shared design rather than
+ * a machine-local accident.
+ *
+ * Regenerate with `node tools/measure-font-widths.mjs --emit`.
+ *
+ * @type {Record<string, number>}
+ */
+const STACK_KERNS = {
+  " A": -55,
+  " T": -18,
+  " Y": -18,
+  "11": -74,
+  "A ": -55,
+  "AT": -74,
+  "AV": -74,
+  "AW": -37,
+  "AY": -74,
+  "Av": -18,
+  "Aw": -18,
+  "Ay": -18,
+  "F,": -111,
+  "F.": -111,
+  "FA": -55,
+  "L ": -37,
+  "LT": -74,
+  "LV": -74,
+  "LW": -74,
+  "LY": -74,
+  "Ly": -37,
+  "P ": -18,
+  "P,": -129,
+  "P.": -129,
+  "PA": -74,
+  "RT": -18,
+  "RV": -18,
+  "RW": -18,
+  "RY": -18,
+  "T ": -18,
+  "T,": -111,
+  "T-": -55,
+  "T.": -111,
+  "T:": -111,
+  "T;": -111,
+  "TA": -74,
+  "TO": -18,
+  "Ta": -111,
+  "Tc": -111,
+  "Te": -111,
+  "Ti": -37,
+  "To": -111,
+  "Tr": -37,
+  "Ts": -111,
+  "Tu": -37,
+  "Tw": -55,
+  "Ty": -55,
+  "V,": -92,
+  "V-": -55,
+  "V.": -92,
+  "V:": -37,
+  "V;": -37,
+  "VA": -74,
+  "Va": -74,
+  "Ve": -55,
+  "Vi": -18,
+  "Vo": -55,
+  "Vr": -37,
+  "Vu": -37,
+  "Vy": -37,
+  "W,": -55,
+  "W-": -18,
+  "W.": -55,
+  "W:": -18,
+  "W;": -18,
+  "WA": -37,
+  "Wa": -37,
+  "We": -18,
+  "Wo": -18,
+  "Wr": -18,
+  "Wu": -18,
+  "Wy": -9,
+  "Y ": -18,
+  "Y,": -129,
+  "Y-": -92,
+  "Y.": -129,
+  "Y:": -55,
+  "Y;": -65,
+  "YA": -74,
+  "Ya": -74,
+  "Ye": -92,
+  "Yi": -37,
+  "Yo": -92,
+  "Yp": -74,
+  "Yq": -92,
+  "Yu": -55,
+  "Yv": -55,
+  "ff": -18,
+  "r,": -55,
+  "r.": -55,
+  "v,": -74,
+  "v.": -74,
+  "w,": -55,
+  "w.": -55,
+  "y,": -74,
+  "y.": -74,
+};
+
+/**
  * A face: a width table and the vertical metrics that go with it.
  *
  * **Declared here rather than imported, and that is the point.** The drawing
@@ -240,6 +369,7 @@ const STACK_ADVANCES = {
  * @property {number} xHeight
  * @property {number} descender
  * @property {Record<string, number>} advances
+ * @property {Record<string, number>} [kerns] Pair adjustments, in units per em.
  * @property {number} [fallbackAdvance]
  * @property {string} [fontFamily]
  */
@@ -256,6 +386,7 @@ export const SHEET_FACE = {
   xHeight: STACK_X_HEIGHT,
   descender: STACK_DESCENDER,
   advances: STACK_ADVANCES,
+  kerns: STACK_KERNS,
   fallbackAdvance: FALLBACK_ADVANCE,
   fontFamily: SHEET_FONT_FAMILY,
 };
@@ -375,6 +506,74 @@ export function measureRun(text, options) {
   // The trailing letter space is a gap after the last glyph, not part of the
   // run, so a centred line stays centred.
   return Math.max(0, width - (text.length > 0 ? spacing : 0));
+}
+
+/**
+ * The kerning the engine adds to a run, in composition units.
+ *
+ * Summed over adjacent character pairs. A pair the table does not carry kerns
+ * by nothing, which is all but 96 of them, and a face carrying no table at all
+ * kerns by nothing anywhere - so a replacement face is unkerned rather than
+ * broken.
+ *
+ * Read as own properties, the guard {@link charAdvance} carries for the same
+ * reason: a pair spelling `toString` would otherwise find a function on
+ * `Object.prototype` and reach the arithmetic as a width.
+ *
+ * @param {string} text
+ * @param {number} fontSize
+ * @param {Face} [face]
+ * @returns {number}
+ */
+export function kerning(text, fontSize, face = SHEET_FACE) {
+  const pairs = face.kerns;
+  if (!pairs) return 0;
+  const chars = Array.from(text);
+  let units = 0;
+  for (let at = 1; at < chars.length; at += 1) {
+    const pair = chars[at - 1] + chars[at];
+    if (Object.prototype.hasOwnProperty.call(pairs, pair)) units += pairs[pair];
+  }
+  return (units / face.unitsPerEm) * fontSize;
+}
+
+/**
+ * Width of a run as the engine lays it out, kerning included.
+ *
+ * **Two rulers, and the second one exists because a split line needs it.**
+ * {@link measureRun} is the composition's ruler: it is what every coordinate
+ * in `compose.mjs` is worked from, and it stays a per-character sum on purpose
+ * - the geometry recorded in `DESIGN_LANGUAGE.md` was matched against it, and
+ * re-measuring the whole composition with a different ruler would move every
+ * run on every sheet to fix a defect in one of them.
+ *
+ * What needs the engine's own answer instead is a code line drawn as several
+ * `<text>` elements, one per accent run. Each element is placed at an absolute
+ * `x`, so the table decides where a run starts while the engine decides how
+ * wide the one before it draws, and the difference between them opens as a gap
+ * at the boundary. Measured in Chromium on 2026.10.21 at the sheets' own code
+ * size, `nestArrayToChange[` sums to 564.594 here and draws at 557.828 -
+ * one `To` pair, 6.77 units, or 1.7 px at the page's 900px cap, landing inside
+ * a token. With the kerning carried the same run sums to 564.609 against
+ * 564.609 drawn.
+ *
+ * So the rule for a split line is: advance by what each run *draws*, never by
+ * what the whole prefix *measures*. The engine kerns inside an element and
+ * cannot kern across two, and this is the only function that agrees with it on
+ * both halves of that.
+ *
+ * @param {string} text
+ * @param {object} options
+ * @param {number} options.fontSize
+ * @param {number} [options.letterSpacing] Added after shaping, so it does not move the kerning.
+ * @param {number} [options.wordSpacing]
+ * @param {Face} [options.face]
+ * @returns {number}
+ */
+export function drawnWidth(text, options) {
+  return (
+    measureRun(text, options) + kerning(text, options.fontSize, options.face ?? SHEET_FACE)
+  );
 }
 
 /**

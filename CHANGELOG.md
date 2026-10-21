@@ -4,6 +4,127 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.21]
+
+### Fixed
+
+- **A code line split into accent runs now draws flush, because the runs
+  advance by what they draw rather than by what the whole prefix measures.**
+  Colouring a panel token by token made each line several `<text>` elements,
+  and each was placed at `x + measureRun(prefix)`. The committed width table
+  sums per-character advances; the engine that draws the glyphs also kerns. So
+  the table decided where every run began while the engine decided how wide the
+  run before it drew, and the difference opened as a gap at the boundary.
+  Measured in Chromium across all seventeen sheets at the page's 900 px cap:
+  1,791 run boundaries, 32 at or over a whole page pixel, worst 2.50 px, and
+  fifteen of the 32 inside a token rather than widening a space -
+  `nestArrayToChange[` before its index on thirteen lines of
+  `javascript/arrays/changing-elements`, `Term` before `</dt>`, `Total` before
+  `</th>`. The same 1,791 boundaries now sit within 0.144 px, and within 0.042
+  inside a token.
+- **The 96 pairs the font stack kerns are measured and committed**, beside the
+  advances in `api/cheatsheet/faces.mjs`, and `api/cheatsheet/faces.mjs` grew a
+  second ruler to read them: `drawnWidth` is the engine's width for a run, as
+  against `measureRun`, which stays the composition's. Only a split code line
+  uses the second one. Every other coordinate is still worked from the
+  advances alone, because that is the ruler the geometry in
+  `DESIGN_LANGUAGE.md` was matched against, and a run drawn whole has no
+  boundary to open a seam at.
+- **The pairs had to be read in SVG text layout rather than through a canvas.**
+  `measureText` reports no kerning for any pair holding a space, while the same
+  pair laid out in a `<text>` element kerns by up to 55 units per em - so a
+  table read from a canvas is short by exactly the eight space pairs, which are
+  the ones a line of code hits most often. `tools/measure-font-widths.mjs`
+  measures both ways and `--emit` now writes both tables. Its earlier finding
+  that summing per character equals the engine's own answer "to 0.000%" was
+  true of the one string it was checked against and not of the families, which
+  is what `DESIGN_LANGUAGE.md` now says.
+- **The first interactive control on the page no longer waits on the heaviest
+  thing the page loads.** `prepareAccents()` sat in the same `Promise.all` as
+  the catalog fetch, and `Promise.all` settles on its slowest member, so
+  building the dropdowns was gated behind the accent reader - 10 files and
+  977,629 bytes. Timed in Chromium throttled to 1.5 Mbps with 150 ms of
+  latency, the category dropdown gained its options at 7,182 ms as against
+  2,543 ms with the reader's entry blocked. Over loopback the ordering is
+  identical and the cost is invisible, which is how the comment above the call
+  and the comment in `api/cheatsheet/accents.mjs` both came to say nothing
+  waited on it while the code did.
+- **A sheet drawn before the accent reader lands is now redrawn when it
+  arrives**, rather than keeping its per-line colours for as long as the reader
+  stays on it. The document is already in hand, so the redraw is one
+  composition and no round trip, and the box it replaces is the same box.
+- **The page reads the reader's answer and says so when it is `false`.**
+  `prepareAccents` is written not to throw and to hand back `{ ready, reason }`
+  for exactly that, and the third slot of the destructuring was dropped, so a
+  page that could not load the reader drew every sheet per-line and said
+  nothing anywhere.
+- **`tools/build-manifest.mjs` reads the same answer, and reports the reader
+  once instead of its consequence seventeen times.** `const accents = await
+  prepareAccents()` was never read again. Under `--check` that surfaced as one
+  warning per sheet, all of them naming the same cause; under a plain build it
+  left no trace at all, because build mode reports `catalog.findings` and rule
+  6a never reaches it. A failed reader is now one `accents` warning against
+  `api/napkin-sketch`, in both modes and in `--json`, and the per-sheet warning
+  stands down only when the reader is the cause - a document that names no
+  language is still reported per sheet. It stays a warning: the manifest's own
+  bytes do not depend on how a panel was coloured.
+- **A `language` that is not a string is refused in this layer's own words.**
+  `composeSheet` checked the shape of every other document field it reads and
+  not that one, so `{ language: 123 }` left as `TypeError: t.trim is not a
+  function` from inside the vendored bundle - an error naming neither the field
+  nor the file that passed it on. Absent and `null` still mean the document has
+  no language and still draw.
+- **`forgetAccents` is called where it was written to be called.** The one case
+  that needs the un-prepared path said in its own comment that it relied on
+  being ordered first in the file instead, which is the dependence on position
+  it said it was avoiding; the reset it declined to use was exercised by
+  nothing. A second case now runs the round trip from the prepared state, which
+  is the only state the reset exists for.
+- **`tools/test-vendored-surface.mjs` no longer reports its own source as the
+  thing it forbids.** The case greps the tree for the retired vendoring
+  mechanism, and it cannot name what it looks for without matching itself, so
+  it failed the moment it was written - the suite has been at 434 of 435 since
+  2026.10.20. Its own path joins the four already excluded as the record of the
+  work rather than instructions to follow.
+
+### Added
+
+- **`tools/test-sheet-accent-seams-browser.mjs`**, the acceptance check for
+  colouring a line token by token: every committed sheet is composed, drawn in
+  Chromium at the page's own cap, and every adjacent pair of drawn runs is
+  measured against the engine's own width for the characters between them.
+  While a line was one element the question could not be asked, because the
+  engine laid the line out itself and absorbed its own kerning. It needs no
+  server - the composition is the subject - and skips with the install command
+  where Playwright is absent, like every other browser case here.
+- **`tools/test-sheet-accent-arrival-browser.mjs`**, three things about the
+  reader's arrival: the catalog arrives with the reader stalled indefinitely,
+  a sheet drawn while it is stalled draws in its per-line roles, and it is
+  redrawn once the reader lands. The stall is what makes the first of those a
+  test of the dependency rather than of relative speed, which over loopback is
+  noise - a drafted version asserted the catalog became usable before the wave
+  finished and failed against a page that was already correct.
+- Cases in `tools/test-sheet-faces.mjs` for the pair table, in
+  `tools/test-composition-algorithm.mjs` for the refused `language`, and in
+  `tools/test-build-manifest.mjs` for the reader finding and the per-sheet
+  warning standing down. The suite is at 464 cases, from 435.
+- **`tools/test-sheet-accent-ink-browser.mjs`**, the sibling of the seams file
+  and a different question about the same subject: where the ink of a split
+  line lands, rather than how wide the gap between two runs is. Each line is
+  measured against one `<text>` holding the whole of it in the same face,
+  anchored on the first glyph the sheet drew, so a gap reads as a positive
+  shift on everything after the boundary, letters crossing as a negative one,
+  and drift as a shift that grows along the line. A seam compared with
+  `Math.abs` can tell none of those apart. The panel bounds, the full size
+  route at 3600 and the palette are held here too, none of which anything
+  else reads off a drawn sheet.
+- Three cases in `tools/test-sheet-accent-arrival-browser.mjs`: the redraw
+  moving nothing around it, sampled every animation frame so a flash is asked
+  about rather than argued about; the full size blob carrying the redrawn
+  sheet rather than only a `blob:` scheme; and a served document with a
+  wrong-typed `language` emptying the frame and naming the field. The suite is
+  at 488 cases, from 464.
+
 ## [2026.10.20]
 
 ### Added

@@ -162,10 +162,13 @@ test("nothing in the tree still names the mechanism that was retired with 1.0.0"
   // `PIN.json` and `vendor-napkin-sketch` were this repository's own answer to
   // a package that shipped no vendor command. Both are gone, and a reference
   // left behind points a reader at a file and a workflow that no longer exist.
-  // Four paths are the record of the work rather than instructions to follow,
+  // Five paths are the record of the work rather than instructions to follow,
   // and they keep the old names on purpose: the prompt files the plans were
-  // written in, the changelog entry that moved the pin, and the queue and its
-  // archive, where the item that did this names what it removed.
+  // written in, the changelog entry that moved the pin, the queue and its
+  // archive, where the item that did this names what it removed - and this
+  // file, which cannot name what it forbids without matching itself. Without
+  // that last exclusion the case fails the moment it is written, reporting its
+  // own source as the thing left behind.
   const { stdout } = await run(
     "git",
     [
@@ -179,6 +182,7 @@ test("nothing in the tree still names the mechanism that was retired with 1.0.0"
       ":!CHANGELOG.md",
       ":!TODO.md",
       ":!TODO-archive.md",
+      ":!tools/test-vendored-surface.mjs",
     ],
     { cwd: root }
   ).catch((error) => {

@@ -111,6 +111,15 @@ export const KINDS = ["run", "read", "embed", "none"];
 /** A render written beside the document, rather than a file to account for. */
 export const RENDER = /^sheet\.(?:webp|png|jpe?g|svg)$/;
 
+/**
+ * What a failed accent reader is reported against.
+ *
+ * The vendored copy rather than `api/cheatsheet/accents.mjs`, because the
+ * reader is what went missing: the two entries `prepareAccents` imports both
+ * live under this folder, and `VENDOR-CHECK.mjs` is what would name which.
+ */
+export const ACCENT_READER = "api/napkin-sketch";
+
 /** The folder an `embed` payload lives in, and the file the frame loads. */
 export const DEMO_DIR = "demo";
 export const DEMO_ENTRY = "index.html";
@@ -701,6 +710,36 @@ function contradiction(declared, detected, doc, demoEntry) {
 }
 
 /**
+ * The one finding a failed accent reader raises, or `null` when it loaded.
+ *
+ * **`prepareAccents` is written not to throw, so this is the only trace it
+ * leaves.** A tool that awaits it and drops the answer prints exactly what a
+ * good run prints: the sheets compose, the manifest's own bytes do not depend
+ * on how the code panel was coloured, and nothing says the panels came out in
+ * their declared per-line roles instead of token by token.
+ *
+ * A warning rather than an error, for that same reason - the committed file is
+ * byte for byte what a prepared run would have written, so failing the gate
+ * would refuse a correct manifest. What it replaces is the consequence being
+ * reported once per sheet: rule 6a below is per document and would raise one
+ * warning for each of the seventeen, all of them naming the same cause.
+ *
+ * @param {{ ready: boolean, reason: string | null } | null | undefined} accents
+ * @returns {Finding | null}
+ */
+export function accentReaderFinding(accents) {
+  if (!accents || accents.ready) return null;
+  return {
+    level: "warning",
+    rule: "accents",
+    path: ACCENT_READER,
+    message:
+      `${accents.reason ?? "the accent reader could not be loaded"}, so every code panel is ` +
+      `coloured by its per-line roles rather than token by token`,
+  };
+}
+
+/**
  * The tree rules, applied after a manifest has been produced.
  *
  * Nine rules, in the order the queued item lists them:
@@ -728,11 +767,16 @@ function contradiction(declared, detected, doc, demoEntry) {
  * @param {Catalog} catalog
  * @param {string} generated The manifest bytes this run produced.
  * @param {string | null} committed The bytes on disk, or `null` when there are none.
+ * @param {{ accents?: { ready: boolean, reason: string | null } | null }} [options] What
+ *   `prepareAccents` answered for this run, so rule 6a reports the reader once
+ *   rather than its consequence once per sheet. Omitted means nothing was
+ *   asked, which is how every caller but {@link main} reads a tree.
  * @returns {Finding[]}
  */
-export function checkCatalog(catalog, generated, committed) {
+export function checkCatalog(catalog, generated, committed, options = {}) {
+  const reader = accentReaderFinding(options.accents);
   /** @type {Finding[]} */
-  const findings = [...catalog.findings];
+  const findings = reader ? [reader, ...catalog.findings] : [...catalog.findings];
   /** @type {Map<string, string>} */
   const ids = new Map();
   /** @type {Map<string, Sheet>} */
@@ -853,7 +897,12 @@ export function checkCatalog(catalog, generated, committed) {
     //     roles still draws, so this is a warning and not an error - but it is
     //     reported, because a fallback nothing mentions is the one state that
     //     looks identical to the state that was meant.
-    if (variation.accents !== "token") {
+    //
+    //     Skipped where the reader itself failed, which `reader` above has
+    //     already said once. Every sheet in the catalog falls back together in
+    //     that case, so leaving this in reports one cause as seventeen
+    //     consequences and buries the line naming the cause.
+    if (variation.accents !== "token" && !(reader && variation.accents === "line")) {
       findings.push({
         level: "warning",
         rule: "accents",
@@ -964,7 +1013,13 @@ export async function main(argv) {
   // each sheet composed to, so it has to compose the way the page composes:
   // without this every panel is coloured by its declared per-line role and the
   // figures recorded here are a different sheet's.
+  //
+  // The answer is read rather than dropped - see {@link accentReaderFinding},
+  // which is also why this is reported through `findings` instead of straight
+  // to stderr: `--json` carries it that way too, and a gate reading the JSON
+  // was the one caller that could not have been told at all.
   const accents = await prepareAccents();
+  const reader = accentReaderFinding(accents);
 
   const catalog = await readCatalog(from);
   const manifest = buildManifest(catalog.sheets, catalog.levels);
@@ -978,7 +1033,11 @@ export async function main(argv) {
     committed = null;
   }
 
-  const findings = checking ? checkCatalog(catalog, generated, committed) : catalog.findings;
+  const findings = checking
+    ? checkCatalog(catalog, generated, committed, { accents })
+    : reader
+      ? [reader, ...catalog.findings]
+      : catalog.findings;
   const errors = findings.filter((finding) => finding.level === "error");
 
   if (asJson) {

@@ -417,6 +417,25 @@ test("a document with no title is refused rather than composed blank", () => {
   assert.throws(() => composeSheet(null), /needs a title/);
 });
 
+test("and a language that is not a language is refused in this layer's words", () => {
+  // The field reaches further than any other on the document: it is handed to
+  // the accent reader, which trims it. A truthy non-string used to leave here
+  // as `t.trim is not a function`, thrown from inside a minified bundle, which
+  // named neither the field nor the layer that passed it on.
+  for (const language of [123, true, ["html"], { id: "html" }]) {
+    assert.throws(
+      () => composeSheet({ title: "Typed", language, code: [{ text: "a" }] }, { seed: 1 }),
+      /a sheet document's language is a language id/,
+      `${JSON.stringify(language)} composed rather than being refused`
+    );
+  }
+  // Absent and null are how a document says it has none, and both still draw.
+  for (const language of [undefined, null]) {
+    const { variation } = composeSheet({ title: "Typed", language, code: [{ text: "a" }] }, { seed: 1 });
+    assert.equal(variation.accents, "line");
+  }
+});
+
 test("code given as a string is split into lines", () => {
   const { composition } = composeSheet({ title: "Raw", code: "one\r\ntwo\nthree" }, { seed: 1 });
   assert.equal(named(composition, "code-0").text, "one");

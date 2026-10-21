@@ -95,6 +95,7 @@ import { accentRoles } from "./accents.mjs";
 import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
 import {
   centredAt,
+  drawnWidth,
   measureRun,
   CODE_FACE,
   SHEET_FACE,
@@ -286,6 +287,14 @@ function widestLine(lines, cap, face) {
 export function composeSheet(doc, options = {}) {
   if (!doc || typeof doc.title !== "string" || doc.title.length === 0) {
     throw new Error("cheatsheet: a sheet document needs a title");
+  }
+  // The same rule the title follows, for the field that reaches furthest. A
+  // `language` is handed to the accent reader, which trims it, so a truthy
+  // non-string left the layer as `t.trim is not a function` thrown from inside
+  // a minified bundle - an error naming neither the field nor this file. A
+  // document this layer cannot read is this layer's error to name.
+  if (doc.language !== undefined && doc.language !== null && typeof doc.language !== "string") {
+    throw new Error("cheatsheet: a sheet document's language is a language id, an alias, or absent");
   }
 
   const language = options.language ?? SHEET_LANGUAGE;
@@ -813,42 +822,72 @@ export function composeSheet(doc, options = {}) {
       return;
     }
 
-    // One element per run, each placed by measuring the text in front of it in
-    // the face it is drawn in. The parts add up to the whole *in the table*:
-    // `measureRun` sums a per-character advance and the code lines carry no
-    // letter spacing, so no width is lost between the runs of one line.
+    // One element per run, each starting where the one before it stopped
+    // drawing.
     //
-    // **The table is not the engine, and that is a defect rather than a
-    // caveat.** `measureRun` does not kern and a browser does, so the table
-    // decides where every run starts while the engine decides how wide each
-    // one draws, and the difference opens as a gap at the boundary. Measured
-    // in Chromium on 2026.10.20, all seventeen sheets at the page's 900px cap:
-    // 1,791 boundaries, 32 at or over one page pixel, worst 2.50 px, and
-    // fifteen of the 32 inside a token rather than widening a space. Isolated
-    // at the sheets' own code size, ` A = [` measures 144.606 here against the
-    // engine's 137.750, while each of its characters alone agrees to within
-    // 0.04. While a line was one element the engine laid it out end to end and
-    // absorbed its own kerning, which is why none of this was reachable before
-    // the line was split. Queued as **Token Accents 1**, with the reading in
-    // `.claude/prompts/token-accent-seams.prompt.md`.
+    // **Advanced by what a run draws, never by what the prefix measures**, and
+    // the difference between those two is a visible gap. A run placed at
+    // `x + measureRun(prefix)` puts the table in charge of where the run
+    // starts while the engine stays in charge of how wide the run before it
+    // draws, so every pair the engine kerns and the table does not opens a
+    // seam at that boundary - measured in Chromium on 2026.10.20 across all
+    // seventeen sheets at the page's 900px cap, 32 of 1,791 boundaries at or
+    // over one page pixel, worst 2.50 px, fifteen of the 32 inside a token
+    // rather than widening a space. `drawnWidth` is the ruler that agrees
+    // with the engine, and accumulating it agrees on the other half too: the
+    // engine kerns within an element and cannot kern across two, which is
+    // exactly what a sum of per-run widths leaves out. See **Width of a run as
+    // the engine lays it out** in `faces.mjs` for why this is a second ruler
+    // rather than a correction to the first.
+    //
+    // **Accumulating makes the full coverage `accentRoles` promises load
+    // bearing.** Measuring each prefix from the line's start tolerated a gap
+    // between two runs, because the next run's `x` was worked out from the
+    // line and not from its neighbour; a running total does not, so a stretch
+    // of the line belonging to no run would shift everything after it left by
+    // its own width. That coverage is held by **every line comes back fully
+    // covered, with no gap and no overlap** in `tools/test-sheet-accents.mjs`,
+    // which is now a precondition of this loop rather than a convenience.
+    //
+    // **Two cheaper-looking routes are closed by the drawing surface, and will
+    // stay closed while it is a pinned package.** Drawing the line as one
+    // element with a `tspan` per run would remove the arithmetic entirely and
+    // let the engine lay the whole line out as it did before - but
+    // `composition.text` takes one string and one `fill`, and the surface's
+    // SVG writer emits one `tspan` per *line* of that string, each carrying
+    // its own `x` and no paint of its own. There is nowhere to put a per-run
+    // colour. Turning kerning off where the sheet is drawn would make the
+    // engine agree with the advances, and there is nowhere to put that either:
+    // the writer passes through `id`, `data-name`, a transform, a clip, a
+    // filter and the blend modes, and composes `style` itself, so neither
+    // `font-kerning` nor a `<style>` element can reach the markup. A rule in
+    // the page's own stylesheet would reach the inline sheet and miss the
+    // standalone SVG the full-size link opens, which is the case that rules it
+    // out.
+    let runX = x;
     runs.forEach((run, part) => {
       const text = line.text.slice(run.start, run.end);
-      // A run of nothing but spaces draws no ink. The surface scopes the gaps
-      // between attributes, so leaving them in would put an element on the
-      // sheet for every space in the example and a pairing in the contrast
-      // report for each - both measuring a glyph that is not there.
-      if (text.trim().length === 0) return;
-      drawText(
-        {
-          ...shared,
-          name: `code-${index}-${part}`,
-          x: x + measureRun(line.text.slice(0, run.start), { fontSize: codeSize, face: codeFace }),
-          y,
-          text,
-          fill: roleColor(syntax, run.role),
-        },
-        colors.navy
-      );
+      const width = drawnWidth(text, { fontSize: codeSize, face: codeFace });
+      // A run of nothing but spaces draws no ink, but it still takes its width:
+      // the surface scopes the gaps between attributes, so leaving the element
+      // in would put one on the sheet for every space in the example and a
+      // pairing in the contrast report for each - both measuring a glyph that
+      // is not there - while leaving the *advance* out would close the indent
+      // up and draw the next token in its place.
+      if (text.trim().length > 0) {
+        drawText(
+          {
+            ...shared,
+            name: `code-${index}-${part}`,
+            x: runX,
+            y,
+            text,
+            fill: roleColor(syntax, run.role),
+          },
+          colors.navy
+        );
+      }
+      runX += width;
     });
   });
 

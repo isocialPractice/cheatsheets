@@ -631,16 +631,29 @@ The table is measured with `tools/measure-font-widths.mjs` and committed in
 node tools/measure-font-widths.mjs
 ```
 
-Three results, each of which is a measurement rather than a preference:
+Four results, each of which is a measurement rather than a preference:
 
 - **The fall-through families share one set of advances, exactly.** Across
   printable ASCII, `Arial`, `Helvetica` and `Liberation Sans` disagree with the
   resolved stack by **0 units on all 95 characters**. One committed table
   therefore travels, which is what makes committing one defensible.
-- **Summing per character equals the engine's own measurement of the whole
-  string, to 0.000%.** None of those families kerns by default, so a
-  per-character table loses nothing to one. `system-ui` is the exception at
-  -0.512%.
+- **Summing per character equals the engine's own measurement of the lead-in,
+  to 0.000%.** The 33 characters of "Starting Point for Practical Use:" hold no
+  pair the stack kerns, so the one run of artwork whose text is known can be
+  predicted by a per-character table exactly. `system-ui` is the exception at
+  -0.512%, which is why it sits late in the stack.
+- **96 pairs of the 9,025 are kerned, and the same 96 in every family that
+  shares the advances.** Measured on 2026.10.21, by nine distinct amounts
+  between -9 and -129 units: `Te`, `To` and `Ta` at -111, `P.` and `Y.` at
+  -129, `11` at -74, and eight pairs holding a space - ` A`, `A `, `L `, `P `,
+  ` T`, `T `, ` Y`, `Y ` - at -18 to -55. They are committed beside the
+  advances in `api/cheatsheet/faces.mjs`.
+
+  **They have to be read in SVG text layout, not through a canvas.** The two
+  engines disagree: `measureText` reports no kerning for any pair holding a
+  space, while the same pair laid out in a `<text>` element kerns. A table read
+  from a canvas is therefore short by exactly the eight space pairs, which are
+  the ones a line of code hits most.
 - **The artwork's face is condensed to 0.684 of that stack.** At the lead-in's
   112 px cap the stack sets the same string at 2165 px against the artwork's
   1481. That is the same finding **The faces are not named** reached from the
@@ -663,6 +676,22 @@ Checked end to end against a real engine on 2026.09.17: a composed sheet
 rendered in Chromium draws its runs within **0.29%** of the widths the
 committed table predicted, which is 7 px of 2531 on the 3600 px canvas, or
 about one pixel at the 600 px display size.
+
+**Which ruler a coordinate is worked from depends on whether the run is drawn
+whole.** A whole run is positioned by the advances alone, because that is the
+ruler every figure in this document was matched against and re-measuring the
+composition with a second one would move every run on every sheet. A code line
+coloured token by token is not drawn whole: it is several `<text>` elements,
+each placed at its own absolute position, so the kerning decides where the
+glyphs of one run end and the table decides where the next run begins. Those
+runs advance by the kerned width instead, which is the only figure that agrees
+with the engine on both halves of the question - the engine kerns inside an
+element and cannot kern across two. Measured in Chromium on 2026.10.21 across
+all seventeen sheets at the page's 900 px cap, 1,791 run boundaries sit within
+**0.144 page pixels** of where the glyphs are drawn, and the worst inside a
+token is 0.042. Positioned from the advances alone the same boundaries ran to
+2.50 px, with 32 of them over a whole page pixel and fifteen of those opening
+inside a token.
 
 ### Where the text sits
 

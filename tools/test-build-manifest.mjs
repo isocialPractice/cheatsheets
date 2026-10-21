@@ -35,6 +35,7 @@ import {
   NOT_CATALOG,
   RENDER,
   SEGMENT,
+  accentReaderFinding,
   buildManifest,
   checkCatalog,
   detectPayload,
@@ -686,6 +687,53 @@ test("a sparse panel is a warning, because a short sheet is still inside its mar
     const sparse = findings.find((f) => f.rule === "margins");
     assert.equal(sparse.level, "warning");
     assert.match(sparse.message, /of the code panel/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/* --- Rule 6a: how the code panel was coloured ---------------------------- */
+
+test("a failed accent reader is reported once, about the reader", async () => {
+  // `prepareAccents` is written not to throw, so the answer it hands back is
+  // the only trace a reader that never loaded leaves anywhere. A tool that
+  // drops it prints what a good run prints.
+  const finding = accentReaderFinding({ ready: false, reason: "the accent reader could not be loaded: x" });
+  assert.equal(finding.level, "warning", "a manifest whose own bytes are correct was failed");
+  assert.equal(finding.rule, "accents");
+  assert.equal(finding.path, "api/napkin-sketch", "the reader is reported against the copy that holds it");
+  assert.match(finding.message, /could not be loaded/);
+  assert.match(finding.message, /per-line roles/, "the consequence is named, not only the cause");
+  assert.equal(accentReaderFinding({ ready: true, reason: null }), null);
+  assert.equal(accentReaderFinding(null), null, "a caller that asked nothing is told nothing");
+});
+
+test("and the per-sheet warning stands down, so one cause is not seventeen findings", async () => {
+  // Three sheets, none of which names a language, so every one of them falls
+  // back. Told the reader failed, the check says so once; told nothing, it
+  // reports each sheet, which is what it should do when a *document* is the
+  // reason rather than the reader.
+  const dir = goodTree({
+    "javascript/arrays/second/sheet.json": { ...SHEET, kind: "none" },
+    "javascript/arrays/third/sheet.json": { ...SHEET, kind: "none" },
+  });
+  try {
+    const catalog = await readCatalog(dir);
+    const generated = renderManifest(buildManifest(catalog.sheets, catalog.levels));
+    assert.equal(catalog.sheets.length, 3, "the tree did not hold the three sheets this case needs");
+
+    const quiet = checkCatalog(catalog, generated, generated, {
+      accents: { ready: false, reason: "the accent reader could not be loaded: x" },
+    }).filter((f) => f.rule === "accents");
+    assert.equal(quiet.length, 1, "one failed reader raised one finding per sheet");
+    assert.equal(quiet[0].path, "api/napkin-sketch");
+
+    const loud = checkCatalog(catalog, generated, generated).filter((f) => f.rule === "accents");
+    assert.equal(loud.length, 3, "a document that names no language is still reported per sheet");
+    assert.ok(
+      loud.every((f) => f.message.includes("per-line roles")),
+      "the per-sheet wording changed"
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

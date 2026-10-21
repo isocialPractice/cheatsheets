@@ -71,6 +71,8 @@ export {
 export {
   centredAt,
   charAdvance,
+  drawnWidth,
+  kerning,
   measureRun,
   roleStyle,
   sizeForCap,

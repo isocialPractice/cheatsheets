@@ -532,12 +532,22 @@ function offerFullSize(svgText) {
  fullSize.style.visibility = "visible";
 }
 
+/**
+ * The entry and document the sheet on screen was drawn from, or null.
+ *
+ * Kept so the sheet can be drawn a second time without fetching its document
+ * again, which is what makes the accent reader's late arrival free: see the
+ * handler beside the catalog fetch at the foot of this script.
+ */
+let onScreen = null;
+
 /** Takes the sheet, the footnote and the full size link back down. */
 function clearSheet() {
  // Taking the sheet down is a selection like any other, so a composition still
  // on its way has been moved on from too and must not draw itself into a frame
  // the reader has just emptied.
  current += 1;
+ onScreen = null;
  sheetBox.style.display = "none";
  sheetBox.replaceChildren();
  sheetBox.setAttribute("aria-label", "");
@@ -572,6 +582,17 @@ async function showSheet(entry, token) {
  if (!response.ok) throw new Error(`${entry.path}/sheet.json answered ${response.status}`);
  const doc = await response.json();
  if (token !== current) return;
+ drawSheet(entry, doc);
+}
+
+/**
+ * Composes a document into the reserved box, and remembers what it drew.
+ *
+ * Split out of `showSheet` because it is also the whole of a redraw: the
+ * document is already in hand, so drawing it again costs one composition and
+ * no round trip, and nothing above it has to be hidden and reshown.
+ */
+function drawSheet(entry, doc) {
  const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed, brand });
 
  const markup = composition.toSVG();
@@ -586,6 +607,7 @@ async function showSheet(entry, token) {
  // The link gets the markup as it was composed, width and height intact, so the
  // tab it opens shows the sheet at its own 3600px rather than at the column's.
  offerFullSize(markup);
+ onScreen = { entry, doc };
 }
 
 /** Runs the chosen example, and draws its sheet. */
@@ -633,6 +655,9 @@ async function selectExample() {
   // A sheet the reader has already moved on from is not theirs to take down
   // either, so a late failure leaves the selection they did make on screen.
   if (token !== current) return;
+  // And nothing claims to be on screen, or the accent reader's late arrival
+  // would redraw the sheet this selection replaced into a hidden box.
+  onScreen = null;
   sheetBox.style.display = "none";
   sheetBox.replaceChildren();
   fullSize.style.display = "none";
@@ -642,19 +667,59 @@ async function selectExample() {
 categorySelect.addEventListener("change", selectCheatsheet);
 exampleSelect.addEventListener("change", selectExample);
 
-try {
- // All three in flight together: the brand is not a precondition of the
- // catalog, and awaiting it in turn would put two more round trips in front of
- // the first sheet a reader can choose.
+// The accent reader, which colours the code panel token by token. Started
+// here rather than imported at the top of this file because it is the
+// heaviest thing the page can load - 328 KB gzipped against 50 KB for the
+// composition entry everything else draws through.
+//
+// **Beside the catalog, not in front of it, and that is the difference
+// between this line and a third slot in the `Promise.all` below.**
+// `Promise.all` settles on its slowest member, so putting the reader in it
+// gated the first interactive control on the page behind the largest download
+// the page makes: measured in Chromium throttled to 1.5 Mbps with 150 ms of
+// latency, the category dropdown gained its options at 7,182 ms as against
+// 2,543 ms with the reader's entry blocked - 4.6 seconds of waiting for
+// something the design says nothing waits on. On loopback the ordering is
+// identical and the cost is invisible, which is why it survived being written
+// down twice as not happening.
+//
+// A sheet drawn before the reader lands falls back to the per-line roles every
+// `sheet.json` carries, and is redrawn token by token when it arrives.
+const accents = prepareAccents();
+accents.then(({ ready, reason }) => {
+ // `prepareAccents` is written not to throw and to hand the reason back for
+ // exactly this: a composition that fell back silently is the case this
+ // repository has been bitten by before.
+ if (!ready) {
+  console.warn(reason);
+  return;
+ }
+ // A sheet already on screen was composed in its per-line roles, because the
+ // reader was not installed when it was drawn. Redrawing it is the decision
+ // this page takes rather than leaving the colours to fall out of how fast the
+ // reader arrived: the document is already in hand, so the redraw is one
+ // composition and no round trip, the box it replaces is the same box, and
+ // nothing above or below it moves. A reader who arrived by link on a slow
+ // connection would otherwise keep the fallback colours for as long as they
+ // stayed on that sheet.
  //
- // The third is the accent reader, which colours the code panel token by token.
- // It is fetched here rather than imported at the top of this file on purpose:
- // it is the heaviest thing the page can load - 328 KB gzipped against 50 KB
- // for the composition entry everything else draws through - so it arrives
- // beside the catalog rather than in front of the first paint. A sheet drawn
- // before it lands falls back to the per-line roles every sheet.json carries,
- // and nothing waits on it.
- const [response, assets] = await Promise.all([fetch(MANIFEST), fetchSheetBrand(), prepareAccents()]);
+ // Guarded, because the sheet on screen is already drawn: an upgrade that
+ // cannot be composed leaves the reader the composition they have and one
+ // line in the console, rather than taking it down or raising a page error
+ // from a promise nothing is awaiting.
+ if (!onScreen) return;
+ try {
+  drawSheet(onScreen.entry, onScreen.doc);
+ } catch (error) {
+  console.error(`The sheet for ${onScreen.entry.id} could not be recomposed token by token.`, error);
+ }
+});
+
+try {
+ // Both in flight together: the brand is not a precondition of the catalog,
+ // and awaiting it in turn would put two more round trips in front of the
+ // first sheet a reader can choose.
+ const [response, assets] = await Promise.all([fetch(MANIFEST), fetchSheetBrand()]);
  brand = assets;
  if (!response.ok) throw new Error(`${MANIFEST} answered ${response.status}`);
  buildDropdowns(await response.json());

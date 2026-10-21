@@ -22,6 +22,7 @@ import {
   accentRoles,
   accentsReady,
   composeSheet,
+  forgetAccents,
   prepareAccents,
   roleForScope,
   ACCENT_ROLE_ROLES,
@@ -35,11 +36,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FORMS = "html-css/general-html-overview/forms-and-inputs";
 
 test("nothing is coloured token by token before the reader is prepared", () => {
-  // Ordered first on purpose: this is the only case that can see the
-  // un-prepared state, because preparing is process-wide and permanent.
-  // `forgetAccents` would hand it back, and it is not called here - a case that
-  // depends on being run before its siblings is worse than one that says so.
-  assert.equal(accentsReady(), false, "something prepared the reader before this case ran");
+  // The un-prepared state, reached rather than relied on. Preparing is
+  // process-wide and permanent, so this case used to be ordered first and to
+  // assert that no sibling had prepared yet - which is the dependence on
+  // position it said in the same breath it was avoiding. `forgetAccents` is
+  // what the module exports for exactly this, so it is called.
+  forgetAccents();
+  assert.equal(accentsReady(), false, "forgetAccents left a reader installed");
   assert.equal(accentRoles(["<p>x</p>"], "html"), null, "a reading came back with no reader installed");
 });
 
@@ -51,6 +54,20 @@ test("the reader loads from the vendored copy with nothing installed", async () 
 });
 
 test("and preparing again is the same answer, not a second load", async () => {
+  assert.deepEqual(await prepareAccents(), { ready: true, reason: null });
+});
+
+test("and forgetting the reader hands the per-line fallback back", async () => {
+  // The round trip the case above cannot see, because it runs from a state
+  // nothing had prepared. This one runs from the prepared state, which is the
+  // only state the reset exists for: a `forgetAccents` that stopped working
+  // would fail nothing otherwise.
+  assert.equal(accentsReady(), true, "the reader was not installed when this case ran");
+  forgetAccents();
+  assert.equal(accentsReady(), false);
+  assert.equal(accentRoles(["<p>x</p>"], "html"), null);
+  // Prepared again before leaving, so every case after this one reads with a
+  // reader installed exactly as it did before.
   assert.deepEqual(await prepareAccents(), { ready: true, reason: null });
 });
 

@@ -29,6 +29,8 @@ import {
   TYPE_ROLES,
   centredAt,
   charAdvance,
+  drawnWidth,
+  kerning,
   measureRun,
   roleStyle,
   sizeForCap,
@@ -109,6 +111,66 @@ test("the committed table reproduces what the browser measured", () => {
     Math.abs(width - 2165) < 2,
     `the committed table sets the lead-in at ${width.toFixed(1)} px, against the 2165 measured in a browser`
   );
+});
+
+test("the second ruler is the first one plus the pairs the engine kerns", () => {
+  // `measureRun` is the composition's ruler and sums advances only.
+  // `drawnWidth` is the engine's and adds the pair table on top, which is the
+  // whole difference between where a split line's runs are placed and where
+  // its glyphs are drawn.
+  const size = 100;
+  for (const text of ["", "A", "x", "no pairs here at all"]) {
+    assert.equal(
+      drawnWidth(text, { fontSize: size, face: CODE_FACE }),
+      measureRun(text, { fontSize: size, face: CODE_FACE }),
+      `${JSON.stringify(text)} was adjusted by a pair it does not hold`
+    );
+  }
+  // Four pairs in `nestArrayToChange[`, and only `To` is in the table.
+  const run = "nestArrayToChange[";
+  assert.equal(kerning(run, size, CODE_FACE), (-111 / CODE_FACE.unitsPerEm) * size);
+  assert.equal(
+    drawnWidth(run, { fontSize: size, face: CODE_FACE }),
+    measureRun(run, { fontSize: size, face: CODE_FACE }) + kerning(run, size, CODE_FACE)
+  );
+  // Summed over adjacent pairs, so three kerned pairs count three times.
+  assert.equal(kerning("To To To", size, CODE_FACE), ((-111 * 3 - 18 * 2) / CODE_FACE.unitsPerEm) * size);
+});
+
+test("a pair holding a space is kerned, which is why a canvas could not measure this", () => {
+  // The eight space pairs are the ones `measureText` reports as unkerned, so a
+  // table read from a canvas would have been silently short by exactly these.
+  // ` A = [` is the worst boundary the browser found on 2026.10.20, and both of
+  // its kerned pairs hold a space.
+  const size = 61.196;
+  assert.equal(kerning(" A", size, CODE_FACE), (-55 / CODE_FACE.unitsPerEm) * size);
+  assert.equal(kerning("A ", size, CODE_FACE), (-55 / CODE_FACE.unitsPerEm) * size);
+  const drawn = drawnWidth(" A = [", { fontSize: size, face: CODE_FACE });
+  // Chromium drew this run 137.813 units wide; the unkerned sum is 144.606.
+  assert.ok(
+    Math.abs(drawn - 137.813) < 0.1,
+    `the kerned ruler sets " A = [" at ${drawn.toFixed(3)}, against the 137.813 drawn`
+  );
+});
+
+test("a face with no pair table kerns nothing, rather than failing to measure", () => {
+  // A replacement face is unkerned, not broken: `kerns` is optional on a Face
+  // and a language may hand in one measured somewhere this table does not
+  // describe.
+  const bare = { ...CODE_FACE, kerns: undefined };
+  assert.equal(kerning("To To", 100, bare), 0);
+  assert.equal(
+    drawnWidth("To To", { fontSize: 100, face: bare }),
+    measureRun("To To", { fontSize: 100, face: bare })
+  );
+  // And a pair spelling an inherited property is not a pair, for the reason
+  // `charAdvance` carries the same guard: without it the lookup finds a
+  // function and the arithmetic returns NaN over the whole line.
+  for (const pair of ["constructor", "toString", "__proto__"]) {
+    const units = kerning(pair, 100, CODE_FACE);
+    assert.ok(Number.isFinite(units), `kerning("${pair}") is ${units}`);
+  }
+  assert.equal(kerning("to", 100, CODE_FACE), 0, "a lower case to is not the To pair");
 });
 
 test("and the condensation it records is the one the artwork implies", () => {

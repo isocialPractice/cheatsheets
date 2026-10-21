@@ -26,10 +26,17 @@
 // sheet identically, and leaves the only difference between them the glyph
 // shapes, which is what the format was always going to change anyway.
 //
+// **Two measurements, because a canvas and an `<text>` element do not agree.**
+// The advances come from a canvas 2D context, one character at a time, where
+// there is no pair to kern. The kerning has to come from SVG text layout
+// instead: `measureText` reports none for any pair holding a space, while the
+// same pair laid out in a `<text>` element kerns by up to 55 units. The sheets
+// are drawn as `<text>`, so that is the engine whose answer counts.
+//
 // Usage:
 //   node tools/measure-font-widths.mjs              # the report
 //   node tools/measure-font-widths.mjs --json       # the same figures as JSON
-//   node tools/measure-font-widths.mjs --emit       # the committed table's body
+//   node tools/measure-font-widths.mjs --emit       # the committed tables' bodies
 //
 // Needs Playwright. Install with:
 //   npm install -g @playwright/test && npx playwright install chromium
@@ -143,10 +150,70 @@ async function measure(page) {
   );
 }
 
+/**
+ * The pairs each family kerns, read in SVG text layout.
+ *
+ * One `<text>` element per string, in the shape the drawing surface
+ * serializes - `xml:space="preserve"`, one `tspan` carrying the position -
+ * and parsed as `image/svg+xml` rather than built through the HTML DOM. The
+ * namespace matters: `setAttribute("xml:space", ...)` on an HTML-parsed
+ * element is an attribute whose name happens to hold a colon, and the engine
+ * collapses the whitespace it was meant to preserve.
+ *
+ * 9,025 pairs per family, measured a row at a time inside the page so the
+ * whole family costs one round trip.
+ */
+async function measurePairs(page) {
+  return page.evaluate(
+    ({ charset, unitsPerEm, families }) => {
+      const chars = Array.from(charset);
+      const host = document.getElementById("pairs");
+      const widths = (strings, family) => {
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const body = strings
+          .map(
+            (s, i) =>
+              `<text font-family='${family}' font-size="${unitsPerEm}" xml:space="preserve">` +
+              `<tspan x="0" y="${i + 1}">${esc(s)}</tspan></text>`
+          )
+          .join("");
+        const markup =
+          `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" ` +
+          `width="10" height="10" viewBox="0 0 10 10">${body}</svg>`;
+        const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
+        host.replaceChildren(document.importNode(parsed.documentElement, true));
+        return [...host.querySelectorAll("text")].map((t) => t.getComputedTextLength());
+      };
+      const out = {};
+      for (const family of families) {
+        const singles = widths(chars, family.css);
+        const advances = {};
+        chars.forEach((c, i) => {
+          advances[c] = singles[i];
+        });
+        const pairs = {};
+        for (const a of chars) {
+          const read = widths(chars.map((b) => a + b), family.css);
+          chars.forEach((b, i) => {
+            // Half a unit of the em, which is below the precision a font file
+            // carries, so anything surviving it is a real pair and not a
+            // rounding artefact.
+            const kern = read[i] - (advances[a] + advances[b]);
+            if (Math.abs(kern) > 0.5) pairs[a + b] = kern;
+          });
+        }
+        out[family.name] = { advances, pairs };
+      }
+      return out;
+    },
+    { charset: CHARSET, unitsPerEm: UNITS_PER_EM, families: FAMILIES }
+  );
+}
+
 /** Rounds to a whole em unit, which is the precision a font file carries. */
 const unit = (n) => Math.round(n);
 
-function report(read) {
+function report(read, kerned) {
   const base = read.stack;
   const lines = [];
   lines.push(`Reference size: ${UNITS_PER_EM} units per em. ${CHARSET.length} characters measured.`);
@@ -191,6 +258,41 @@ function report(read) {
     );
   }
   lines.push("");
+  lines.push("## Which pairs the engine kerns, measured in SVG text layout");
+  lines.push("");
+  lines.push("A canvas is the wrong instrument for this question, and the `space` column is");
+  lines.push("why: those are the pairs holding a space, which `measureText` reports as");
+  lines.push("unkerned and an `<text>` element does not.");
+  lines.push("");
+  lines.push("| Family | Pairs kerned | Of them, with a space | Same as the stack |");
+  lines.push("| --- | --- | --- | --- |");
+  const stackPairs = kerned.stack.pairs;
+  const stackKeys = Object.keys(stackPairs).sort();
+  for (const family of FAMILIES) {
+    const m = kerned[family.name];
+    if (!m) continue;
+    const keys = Object.keys(m.pairs).sort();
+    const spaced = keys.filter((pair) => pair.includes(" ")).length;
+    const same =
+      keys.length === stackKeys.length &&
+      stackKeys.every((pair) => unit(m.pairs[pair] ?? 0) === unit(stackPairs[pair]));
+    lines.push(`| ${family.name} | ${keys.length} | ${spaced} | ${same ? "yes" : "no"} |`);
+  }
+  lines.push("");
+  const byValue = new Map();
+  for (const pair of stackKeys) {
+    const value = unit(stackPairs[pair]);
+    byValue.set(value, (byValue.get(value) ?? 0) + 1);
+  }
+  lines.push(
+    `The stack kerns ${stackKeys.length} of ${CHARSET.length ** 2} pairs, by ` +
+      `${byValue.size} distinct amounts: ` +
+      [...byValue.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([value, count]) => `${value} units on ${count}`)
+        .join(", ")
+  );
+  lines.push("");
   lines.push("## Against the one run of artwork whose text is known");
   lines.push("");
   lines.push(`Lead-in: "${LEAD_IN.text}", ${LEAD_IN.width} px wide at a ${LEAD_IN.cap} px cap.`);
@@ -222,8 +324,8 @@ function report(read) {
   return lines.join("\n");
 }
 
-/** The committed table's body, ready to paste into `api/cheatsheet/faces.mjs`. */
-function emit(read) {
+/** The committed tables' bodies, ready to paste into `api/cheatsheet/faces.mjs`. */
+function emit(read, kerned) {
   const base = read.stack;
   const entries = Array.from(CHARSET)
     .map((char) => `  ${JSON.stringify(char)}: ${unit(base.advances[char])},`)
@@ -240,6 +342,14 @@ function emit(read) {
     `const STACK_ADVANCES = {`,
     entries,
     `};`,
+    ``,
+    `// Measured in SVG text layout, not through a canvas.`,
+    `const STACK_KERNS = {`,
+    Object.keys(kerned.stack.pairs)
+      .sort()
+      .map((pair) => `  ${JSON.stringify(pair)}: ${unit(kerned.stack.pairs[pair])},`)
+      .join("\n"),
+    `};`,
   ].join("\n");
 }
 
@@ -254,11 +364,15 @@ async function main() {
   const browser = await loaded.chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.setContent("<!doctype html><title>font widths</title>");
+    // The div is where `measurePairs` parks the SVG it measures in. It has to
+    // sit in a rendered document: `getComputedTextLength` on a detached
+    // element answers zero.
+    await page.setContent('<!doctype html><title>font widths</title><div id="pairs"></div>');
     const read = await measure(page);
-    if (args.includes("--json")) console.log(JSON.stringify(read, null, 2));
-    else if (args.includes("--emit")) console.log(emit(read));
-    else console.log(report(read));
+    const kerned = await measurePairs(page);
+    if (args.includes("--json")) console.log(JSON.stringify({ advances: read, kerned }, null, 2));
+    else if (args.includes("--emit")) console.log(emit(read, kerned));
+    else console.log(report(read, kerned));
   } finally {
     await browser.close();
   }
