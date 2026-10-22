@@ -20,7 +20,8 @@ import {
   centredAt,
   composeSheet,
   dataUrlFrom,
-  measureRun,
+  drawnWidth,
+  kerning,
   rasterAsset,
   sheetBrandFrom,
   vectorAsset,
@@ -116,7 +117,14 @@ test("the mark is inlined beside the wordmark, and the pair is centred", () => {
   // The lockup is the wordmark's run, the measured gap and the mark's slot, and
   // it is centred on the canvas: so the room left of the wordmark and the room
   // right of the mark are the same number.
-  const run = measureRun(wordmark.text, { fontSize: wordmark.fontSize, face: SHEET_FACE });
+  //
+  // Measured with `drawnWidth`, because that is what the composition places
+  // the mark against - the wordmark is one `<text>` element and the engine
+  // kerns inside it, so the gap starts where the glyphs stop. The default
+  // wordmark holds none of the 96 pairs, so this reads the same as the
+  // advances would; it is written as the ruler the arithmetic actually uses so
+  // a wordmark that did kern would be checked rather than merely drawn.
+  const run = drawnWidth(wordmark.text, { fontSize: wordmark.fontSize, face: SHEET_FACE });
   const left = wordmark.x;
   const right =
     SHEET_LANGUAGE.canvas - (wordmark.x + run + BRAND_SLOTS.logo.gap + BRAND_SLOTS.logo.width);
@@ -259,6 +267,28 @@ test("a sheet composed with no brand is the sheet it was before", () => {
   assert.ok(named(composition, "follow-line"));
   assert.equal(named(composition, "masthead-mark"), undefined);
   assert.equal(named(composition, "footer-lockup"), undefined);
+});
+
+test("the three runs a sheet reuses from the artwork hold no pair the engine kerns", () => {
+  // What keeps the four fixed-text widths in **Where the text sits** in
+  // `DESIGN_LANGUAGE.md` exact after placement moved onto the kerned width on
+  // 2026.10.22: a run the engine does not kern is drawn exactly as wide as the
+  // advances sum to, so the masthead lockup, the lead-in and the follow line
+  // sit where they always sat and only a run carrying the sheet's own subject
+  // moved.
+  //
+  // Read off a composed sheet rather than written out here, so it is the
+  // defaults that are checked and not a copy of them that could drift.
+  const { composition } = composeSheet(DOC, { seed: "brand" });
+  for (const name of ["wordmark", "lead-in", "follow-line"]) {
+    const run = named(composition, name);
+    assert.ok(run, `nothing named ${name} was drawn`);
+    assert.equal(
+      kerning(run.text, run.fontSize, SHEET_FACE),
+      0,
+      `the default ${name} now holds a kerned pair, so its recorded width is no longer the width it draws`
+    );
+  }
 });
 
 test("an asset holding no drawable shape falls back rather than leaving a hole", () => {

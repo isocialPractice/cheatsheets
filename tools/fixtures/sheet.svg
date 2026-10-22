@@ -11,8 +11,8 @@
   <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
   <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
   <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
-  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="759.267" y="730">Splicing Array Elements</tspan></text>
-  <text data-name="subtitle" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1380.195" y="923">Splice Array</tspan></text>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="764.66" y="730">Splicing Array Elements</tspan></text>
+  <text data-name="subtitle" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1384.478" y="923">Splice Array</tspan></text>
   <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
   <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="86.231" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1310">var fruits = [&apos;Banana&apos;, &apos;Orange&apos;, &apos;Apple&apos;, &apos;Mango&apos;];</tspan></text>
   <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="86.231" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1411.493">console.log(fruits.splice(2, 2, &apos;Lemon&apos;, &apos;Kiwi&apos;));</tspan></text>

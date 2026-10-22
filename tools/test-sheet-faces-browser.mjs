@@ -21,15 +21,36 @@
 // run by hand when the table needs regenerating. This file is the standing
 // check that the committed result still holds.
 //
+// **Two questions, and the second one arrived late.** How *wide* a run is
+// drawn is the original subject above. Where a run is *placed* from that width
+// is the other half, and it went unchecked until 2026.10.22: a title centred
+// on the advances alone sat up to 3.15 page pixels off the canvas axis for a
+// year and a half, because every case in the dependency-free suite compared
+// the arithmetic with itself and the only browser case here measured the
+// synthetic document below, whose title holds no kerned pair. The catalog
+// cases at the foot of this file are what close that - they read every
+// committed sheet and ask the engine where the middle of the title ended up.
+//
 // Run with: node --test tools/test-sheet-faces-browser.mjs
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { measureText } from "../api/napkin-sketch/api/index.js";
-import { composeSheet, measureRun, CODE_FACE, SHEET_FACE, sizeForCap } from "../api/cheatsheet/index.mjs";
+import {
+  composeSheet,
+  drawnWidth,
+  kerning,
+  measureRun,
+  CODE_FACE,
+  SHEET_FACE,
+  sizeForCap,
+} from "../api/cheatsheet/index.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Where Playwright is looked for, in order: a local install, then whatever
 // PLAYWRIGHT_MODULE names, then the user scope global. Identical to
@@ -240,4 +261,192 @@ test("the face's cap height is the one a browser actually renders", { skip }, as
     Math.abs(rendered - 141) < 1.5,
     `a size asked to reach a 141 px cap rendered one of ${rendered.toFixed(1)} px`
   );
+});
+
+// --- Where a centred run ends up, over every committed sheet ----------------
+
+/** The widest the page draws a sheet, from the `div.sheet` rule in index.html. */
+const PAGE_CAP = 900;
+
+/** Composition units across, which is the canvas the design language records. */
+const CANVAS = 3600;
+
+/** A sheet pixel in page pixels, so an offset is reported at the reader's scale. */
+const SCALE = PAGE_CAP / CANVAS;
+
+/** Every cheatsheet the committed catalog holds, in the order it lists them. */
+async function catalogPaths() {
+  const manifest = JSON.parse(await readFile(join(root, "cheatsheets.json"), "utf8"));
+  return manifest.categories.flatMap((category) => category.cheatsheets.map((sheet) => sheet.path));
+}
+
+/**
+ * Reads a drawn run two ways: its advance box and its ink box.
+ *
+ * **The advance box is the one the composition models.** `getStartPositionOfChar`
+ * and `getEndPositionOfChar` give where the engine began the first glyph and
+ * finished advancing past the last, which is exactly what `drawnWidth` sums, so
+ * its middle is comparable with the point the run was centred on to the float.
+ *
+ * **The ink box carries the glyphs' own side bearings**, which is why it is read
+ * alongside rather than instead. A run ending in an `f` whose ink overhangs its
+ * advance reads as off centre by half that overhang while sitting precisely
+ * where it was placed: `compare-array-function`'s subtitle, "Sort by a rule you
+ * write yourself", is centred to 0.059 units and reads 0.854 page pixels off by
+ * its box, because its `S` has no left bearing and its `f` overhangs by 6.71
+ * units. Other runs in the catalog read off in the other direction for the same
+ * reason. It is still worth reading: it is the box a reader's eye compares, and
+ * at a floor loose enough for the bearings it still catches a placement error
+ * of the size this file was extended for.
+ */
+const READ_CENTRES = ({ names }) => {
+  const out = {};
+  for (const name of names) {
+    const element = document.querySelector(`text[data-name="${name}"]`);
+    if (!element) continue;
+    const run = element.querySelector("tspan") ?? element;
+    const length = run.textContent.length;
+    if (length === 0) continue;
+    const box = element.getBBox();
+    const start = run.getStartPositionOfChar(0).x;
+    const end = run.getEndPositionOfChar(length - 1).x;
+    out[name] = {
+      text: run.textContent,
+      advance: (start + end) / 2,
+      ink: box.x + box.width / 2,
+      width: end - start,
+    };
+  }
+  return out;
+};
+
+/** Composes a committed sheet, draws it at its own scale, and reads its centred runs. */
+async function centresOf(path, page) {
+  const doc = JSON.parse(await readFile(join(root, ...path.split("/"), "sheet.json"), "utf8"));
+  const { composition } = composeSheet(doc, { seed: doc.seed });
+  await page.setContent(`<!doctype html><style>html,body{margin:0}</style>${composition.toSVG()}`);
+  const drawn = await page.evaluate(READ_CENTRES, { names: ["title", "subtitle"] });
+  const out = [];
+  for (const [name, read] of Object.entries(drawn)) {
+    const element = composition.elements.find((el) => el.type === "text" && el.name === name);
+    out.push({
+      path,
+      name,
+      text: read.text,
+      kern: element ? kerning(element.text, element.fontSize, SHEET_FACE) : 0,
+      advanceOff: read.advance - CANVAS / 2,
+      inkOff: read.ink - CANVAS / 2,
+    });
+  }
+  return out;
+}
+
+test("every centred run in the catalog is drawn on the canvas axis", { skip }, async () => {
+  // The acceptance check for `centredAt`, and the only kind of check that could
+  // have caught what it was doing: nothing in the dependency-free suite can see
+  // that a run is drawn narrower than it was measured, because both sides of
+  // every comparison there read the same table.
+  //
+  // Held on the advance box at a quarter of a page pixel. Measured on
+  // 2026.10.22 the worst of the 34 runs is 0.053 px, so there is four times the
+  // headroom and the floor is still a twelfth of the defect it replaced.
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  try {
+    const rows = [];
+    for (const path of await catalogPaths()) rows.push(...(await centresOf(path, page)));
+    assert.ok(rows.length > 0, "no centred run was read, so this case proved nothing");
+
+    const worst = rows.reduce(
+      (most, row) => (Math.abs(row.advanceOff) > Math.abs(most.advanceOff) ? row : most),
+      rows[0]
+    );
+    const kerned = rows.filter((row) => row.kern !== 0);
+    console.log(
+      `  ${rows.length} centred runs, ${kerned.length} of them holding a kerned pair; ` +
+        `worst ${(worst.advanceOff * SCALE).toFixed(3)} page px on the ${worst.name} of ${worst.path}`
+    );
+
+    const over = rows.filter((row) => Math.abs(row.advanceOff) * SCALE >= 0.25);
+    assert.deepEqual(
+      over.map((row) => `${row.path} ${row.name} at ${(row.advanceOff * SCALE).toFixed(3)} px`),
+      [],
+      `${over.length} of ${rows.length} centred runs are drawn a quarter of a page pixel or more off the axis`
+    );
+    // The runs that hold a pair are the ones this is about, so their presence
+    // is asserted rather than left to chance: a catalog that stopped holding
+    // one would pass this case by having nothing to centre wrongly.
+    assert.ok(
+      kerned.length >= 10,
+      `only ${kerned.length} of the catalog's centred runs hold a kerned pair, so this case is no longer load bearing`
+    );
+  } finally {
+    await page.close();
+  }
+});
+
+test("and its ink lands there too, within the glyphs' own bearings", { skip }, async () => {
+  // The reader's own ruler, at a floor loose enough for the side bearings the
+  // ink box carries and tight enough to catch a placement error. The defect
+  // this replaced measured 3.15 page px here; the bearings measure 0.854.
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  try {
+    const rows = [];
+    for (const path of await catalogPaths()) rows.push(...(await centresOf(path, page)));
+    const worst = rows.reduce(
+      (most, row) => (Math.abs(row.inkOff) > Math.abs(most.inkOff) ? row : most),
+      rows[0]
+    );
+    // The bearing residual, reported as the difference between the two readings
+    // rather than asserted: it is a property of the letterforms, and naming it
+    // is what keeps the loose floor above from reading as a fudge.
+    const bearing = rows.reduce((most, row) => Math.max(most, Math.abs(row.inkOff - row.advanceOff)), 0);
+    console.log(
+      `  worst ink offset ${(worst.inkOff * SCALE).toFixed(3)} page px on the ${worst.name} of ` +
+        `${worst.path}; widest bearing residual ${(bearing * SCALE).toFixed(3)} px`
+    );
+    const over = rows.filter((row) => Math.abs(row.inkOff) * SCALE >= 1.5);
+    assert.deepEqual(
+      over.map((row) => `${row.path} ${row.name} at ${(row.inkOff * SCALE).toFixed(3)} px`),
+      [],
+      `${over.length} centred runs draw their ink a page pixel and a half or more off the axis`
+    );
+  } finally {
+    await page.close();
+  }
+});
+
+test("the drawn width the composition centres on is the width the engine lays out", { skip }, async () => {
+  // Between the two cases above and the arithmetic: `drawnWidth` is asserted
+  // against the advance box directly, so a failure says whether the ruler is
+  // wrong or the placement is. The advance box is what the ruler sums, so this
+  // is held far tighter than the 2% the ink box is allowed at the top of the
+  // file.
+  const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+  try {
+    const { composition } = composeSheet(
+      { ...DOC, title: "Max and Min Value Array", subtitle: "Take from the front, and put back on it" },
+      { seed: "kerned" }
+    );
+    await page.setContent(`<!doctype html><style>html,body{margin:0}</style>${composition.toSVG()}`);
+    const drawn = await page.evaluate(READ_CENTRES, { names: ["title", "subtitle"] });
+    for (const name of ["title", "subtitle"]) {
+      const element = composition.elements.find((el) => el.type === "text" && el.name === name);
+      assert.ok(kerning(element.text, element.fontSize, SHEET_FACE) < 0, `${name} holds no kerned pair`);
+      const predicted = drawnWidth(element.text, { fontSize: element.fontSize, face: SHEET_FACE });
+      const measured = measureRun(element.text, { fontSize: element.fontSize, face: SHEET_FACE });
+      assert.ok(
+        Math.abs(drawn[name].width - predicted) < 0.5,
+        `${name}: the kerned ruler predicted ${predicted.toFixed(3)} and the engine drew ` +
+          `${drawn[name].width.toFixed(3)}`
+      );
+      // And the unkerned ruler does not, which is what the second one is for.
+      assert.ok(
+        measured - drawn[name].width > 0.5,
+        `${name}: the advances predicted ${measured.toFixed(3)} against ${drawn[name].width.toFixed(3)} ` +
+          `drawn, which is close enough that this case is no longer about anything`
+      );
+    }
+  } finally {
+    await page.close();
+  }
 });

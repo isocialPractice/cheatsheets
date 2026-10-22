@@ -74,12 +74,62 @@ test("the trailing letter space is a gap after the run, not part of it", () => {
   assert.ok(Math.abs(worded - (plain + 5 * (SAMPLE.match(/ /g) ?? []).length)) < 1e-9);
 });
 
-test("centring puts the middle of the measured run on the point it is given", () => {
+test("centring puts the middle of the run the engine draws on the point it is given", () => {
+  // The *drawn* middle, not the measured one. "Splicing Arrays" holds ` A`,
+  // which the engine kerns by 55 units per em, so a left edge worked from the
+  // advances alone puts half of that - 1.35 px at the page's 900px cap - of
+  // ink on the wrong side of the axis. This is the case that says which ruler
+  // `centredAt` reads.
   const size = sizeForCap(141, SHEET_FACE);
   const text = "Splicing Arrays";
   const left = centredAt(text, 1800, size, SHEET_FACE);
-  const width = measureRun(text, { fontSize: size, face: SHEET_FACE });
-  assert.ok(Math.abs(left + width / 2 - 1800) < 1e-9);
+  const drawn = drawnWidth(text, { fontSize: size, face: SHEET_FACE });
+  assert.ok(Math.abs(left + drawn / 2 - 1800) < 1e-9);
+  // And it really is the other ruler: centred on the advances the same run
+  // would start half a kern further left.
+  const measured = measureRun(text, { fontSize: size, face: SHEET_FACE });
+  assert.ok(
+    Math.abs(left - (1800 - measured / 2) - Math.abs(kerning(text, size, SHEET_FACE)) / 2) < 1e-9,
+    "centring is still working from the advances"
+  );
+});
+
+test("a run holding none of the 96 pairs is centred exactly where it always was", () => {
+  // The reason the ruler could move on its own: the two agree to the float for
+  // every run the engine does not kern, so moving placement to the drawn width
+  // left eighteen of the catalog's 34 centred runs untouched. The three runs a
+  // generated sheet reuses from the artwork hold no pair either, which is what
+  // keeps the four fixed-text widths `DESIGN_LANGUAGE.md` records exact; that
+  // half of the claim is checked against the composed defaults in
+  // `tools/test-sheet-brand.mjs` rather than against a copy of them here.
+  const size = sizeForCap(141, SHEET_FACE);
+  for (const text of [LEAD_IN.text, "Document Structure", "Images and Media", "Forms and Inputs"]) {
+    assert.equal(kerning(text, size, SHEET_FACE), 0, `${JSON.stringify(text)} holds a kerned pair`);
+    assert.equal(
+      centredAt(text, 1800, size, SHEET_FACE),
+      1800 - measureRun(text, { fontSize: size, face: SHEET_FACE }) / 2
+    );
+  }
+});
+
+test("every pair the stack kerns is negative, which is what lets fitting stay unkerned", () => {
+  // The claim the split between the two rulers rests on, asserted rather than
+  // observed. `capThatFits` and `widestLine` in `compose.mjs` measure with
+  // `measureRun`, so they over-measure a run by whatever the engine kerns -
+  // safe only while kerning can never widen a run. A face whose table carried
+  // a positive pair would make the fitting optimistic instead, and a line of
+  // code could be fitted to the panel and drawn past its edge.
+  const pairs = SHEET_FACE.kerns;
+  const positive = Object.entries(pairs).filter(([, units]) => units > 0);
+  assert.deepEqual(positive, [], "a kerned pair widens its run, so fitting may no longer ignore kerning");
+  assert.equal(Object.keys(pairs).length, 96, "the pair table is no longer the 96 that were measured");
+  for (const text of [SAMPLE, LEAD_IN.text, "Max and Min Value Array", "nestArrayToChange["]) {
+    assert.ok(
+      drawnWidth(text, { fontSize: 100, face: SHEET_FACE }) <=
+        measureRun(text, { fontSize: 100, face: SHEET_FACE }),
+      `${JSON.stringify(text)} draws wider than it measures`
+    );
+  }
 });
 
 test("a character the face does not carry falls back rather than measuring zero", () => {

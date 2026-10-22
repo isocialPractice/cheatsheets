@@ -4,6 +4,85 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.22]
+
+### Fixed
+
+- **A centred run is now centred on the width the engine draws, not the width
+  the table sums.** `centredAt` in `api/cheatsheet/faces.mjs` put a run's left
+  edge at the centre less half of `measureRun`, which carries no kerning, while
+  the engine kerns inside the one `<text>` element it draws the run in - so
+  half of every kerned pair came off one side of the axis. 16 of the catalog's
+  34 centred runs hold one of the 96 pairs, 11 titles and 5 subtitles, and the
+  pair table puts each of them this far off the canvas axis:
+  `javascript/arrays/max-and-min-value-array`'s title, "Max and Min Value
+  Array", at 12.65 composition units; the `text-content` and `tables-and-data`
+  titles at 10.88; the `shift-and-unshift` subtitle at 8.34; eight `javascript`
+  titles at 5.39; three `html-css` subtitles at 4.28; and one more at 1.31.
+  Drawn in Chromium at the page's 900 px cap the worst of those measured
+  **3.15 px** off the axis. All 34 now sit within 0.214 units, or **0.053 page
+  pixels**.
+- **It moved only the runs that were wrong**, which is what let it land on its
+  own rather than as a rider. Kerning is exactly zero for a run holding none of
+  the 96 pairs, so the two rulers return the same float and eighteen of the 34
+  did not move at all. The three runs a generated sheet reuses from the artwork
+  hold no pair either, so the four fixed-text widths the design language
+  records - 2084, 2595, 1481 and 2723 - and the heading band's recorded
+  geometry are untouched. In the committed fixture the whole change is two
+  lines: the title's `x` and the subtitle's, each by half of one ` A` pair.
+- **The masthead lockup is measured the same way.** The mark is placed at the
+  wordmark's right edge, which is a sibling positioned against what the engine
+  drew, so it reads `drawnWidth` now as well. Nothing moves today - the default
+  wordmark holds none of the 96 pairs - but a document naming its own wordmark
+  is a slot the API already has, and this was the third instance of one rule in
+  the layer rather than a second special case.
+
+### Changed
+
+- **The two rulers now divide by what the width is being asked, not by whether
+  a run is drawn whole.** A width that decides *where ink goes* - a centred
+  run's left edge, the next run along a split code line, a mark set against a
+  wordmark's end - is `drawnWidth`. A width that decides *whether ink fits* -
+  which cap a run is stepped down to, whether the widest code line clears the
+  panel - stays `measureRun`. **What a generated sheet is measured in** in
+  `DESIGN_LANGUAGE.md` states it that way and carries both sets of
+  measurements; `api/cheatsheet/compose.mjs` and `faces.mjs` name which half
+  each call site is on.
+- **Fitting stays unkerned deliberately, and the claim it rests on is now
+  asserted.** Every one of the 96 pairs is negative, so the advances
+  over-measure a run and anything fitted by them is drawn narrower than the
+  region it was fitted to. Re-fitting on the kerned width would buy a fraction
+  of a percent of extra room and move every cap on every sheet, so it is
+  declined - but a face whose table carried a positive pair would silently make
+  the fitting optimistic, which is why `tools/test-sheet-faces.mjs` now holds
+  the sign of the table rather than leaving it as an observation.
+
+### Added
+
+- **Three cases in `tools/test-sheet-faces-browser.mjs`** that ask a real
+  engine where a centred run ended up, over every sheet in the committed
+  catalog. Nothing in the dependency-free suite could see this defect, because
+  both sides of every comparison there read the same table, and the one browser
+  case that drew a sheet measured a synthetic document whose title holds no
+  kerned pair.
+  - **The ink box is read alongside the advance box rather than instead of
+    it**, which is the finding worth keeping from writing them. The advance box
+    is what `drawnWidth` sums, so it is held at a quarter of a page pixel; the
+    ink box carries the glyphs' own side bearings, and
+    `compare-array-function`'s subtitle, "Sort by a rule you write yourself",
+    kerns by nothing, is centred to 0.059 units, and reads as 0.854 px off
+    centre by its box alone - its `S` has no left bearing and its `f` overhangs
+    its own advance by 6.71 units. So the ink box is held at a page pixel and a
+    half: still four times inside the 3.15 px defect above, and loose enough
+    that a correctly drawn letterform does not fail it.
+- Two cases in `tools/test-sheet-faces.mjs`: that a run holding none of the 96
+  pairs is centred exactly where it always was, and that no pair in the table
+  widens a run. And one in `tools/test-sheet-brand.mjs`, reading off a composed
+  sheet rather than off a copy of the defaults: the three runs a sheet reuses
+  from the artwork hold no pair the engine kerns, which is what keeps their
+  recorded widths exact now that placement is kerned. The suite is at 494
+  cases, from 488.
+
 ## [2026.10.21]
 
 ### Fixed

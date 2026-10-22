@@ -225,8 +225,11 @@ test("a seeded sheet composes to the SVG that was committed", () => {
     "sheet.svg",
     composition.toSVG(),
     "the composition produced a different sheet than the committed fixture. " +
-      "This is the case that fails when a floor, a token or the width table " +
-      "moves, which is usually deliberate - read the diff before regenerating."
+      "This is the case that fails when a floor, a token, the width table or " +
+      "the ruler a coordinate is worked from moves, which is usually " +
+      "deliberate - read the diff before regenerating. Moving placement onto " +
+      "the kerned width on 2026.10.22 moved exactly two lines of this file, " +
+      "the title's x and the subtitle's, each by half of one kerned pair."
   );
 });
 

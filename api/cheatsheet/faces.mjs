@@ -60,8 +60,10 @@
 //   when a split code line started placing one run against another's drawn
 //   width and the 96 pairs below turned up at the boundary.
 // - **96 of the 9,025 pairs are kerned, and the same 96 in all three
-//   families.** See {@link STACK_KERNS}, and {@link drawnWidth} for the one
-//   place they are read.
+//   families.** See {@link STACK_KERNS}, and {@link drawnWidth}, which is the
+//   one place they are read and the ruler every *placement* is worked from.
+//   Fitting is worked from the advances alone, and {@link drawnWidth} says why
+//   the two differ.
 // - **The artwork's face is condensed to 0.684 of the stack.** At the lead-in's
 //   112 px cap the stack sets that string at 2165 px against the artwork's
 //   1481. That corroborates **The faces are not named**, which found the three
@@ -247,6 +249,14 @@ const STACK_ADVANCES = {
  * `Arial`, `Helvetica` and `Liberation Sans` each kern the same 96 pairs by
  * the same amounts, so this is one measurement of a shared design rather than
  * a machine-local accident.
+ *
+ * **Every one of the 96 is negative**, between -9 and -129 units. That is a
+ * property of this stack and not of kerning, and it is load bearing: it is
+ * what makes {@link measureRun} over-measure rather than under-measure a run,
+ * and so what lets the fitting in `compose.mjs` stay on the advances while
+ * placement moved to {@link drawnWidth}. A face whose table carried a positive
+ * pair would break that, which is why `tools/test-sheet-faces.mjs` asserts the
+ * sign rather than leaving it as an observation.
  *
  * Regenerate with `node tools/measure-font-widths.mjs --emit`.
  *
@@ -486,6 +496,15 @@ export function charAdvance(char, fontSize, face = SHEET_FACE) {
  * letter space taken back off, so a sheet measured here composes to the same
  * bytes it composed to when the surface measured it.
  *
+ * **It is the fitting ruler, and only the fitting ruler.** Since 2026.10.22 a
+ * width that decides *where ink goes* is {@link drawnWidth}; this is the width
+ * that decides *whether ink fits* - which cap a run is set at, and whether the
+ * widest code line clears the panel. It over-measures by whatever the engine
+ * kerns, every one of the 96 pairs is negative, and so a run that fits by this
+ * fits when it is drawn. Moving the fitting here as well would buy a fraction
+ * of a percent of extra room and re-measure the whole composition, which is a
+ * trade the item that split the two declined.
+ *
  * @param {string} text
  * @param {object} options
  * @param {number} options.fontSize
@@ -540,27 +559,34 @@ export function kerning(text, fontSize, face = SHEET_FACE) {
 /**
  * Width of a run as the engine lays it out, kerning included.
  *
- * **Two rulers, and the second one exists because a split line needs it.**
- * {@link measureRun} is the composition's ruler: it is what every coordinate
- * in `compose.mjs` is worked from, and it stays a per-character sum on purpose
- * - the geometry recorded in `DESIGN_LANGUAGE.md` was matched against it, and
- * re-measuring the whole composition with a different ruler would move every
- * run on every sheet to fix a defect in one of them.
+ * **Two rulers, and they divide by what the width is being asked for.** This
+ * one answers *where ink goes*: where a run starts when it is centred, and
+ * where the next thing placed against its end belongs. {@link measureRun}
+ * answers *whether ink fits*: which cap a run is set at, and whether the
+ * widest line clears the panel. Both questions were asked of the advances
+ * alone until 2026.10.21, and the first one has a wrong answer there - see
+ * **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`, which
+ * states the division and why the fitting half stays where it is.
  *
- * What needs the engine's own answer instead is a code line drawn as several
- * `<text>` elements, one per accent run. Each element is placed at an absolute
- * `x`, so the table decides where a run starts while the engine decides how
- * wide the one before it draws, and the difference between them opens as a gap
- * at the boundary. Measured in Chromium on 2026.10.21 at the sheets' own code
- * size, `nestArrayToChange[` sums to 564.594 here and draws at 557.828 -
- * one `To` pair, 6.77 units, or 1.7 px at the page's 900px cap, landing inside
- * a token. With the kerning carried the same run sums to 564.609 against
- * 564.609 drawn.
+ * Two placements need it, and they were found a day apart.
  *
- * So the rule for a split line is: advance by what each run *draws*, never by
- * what the whole prefix *measures*. The engine kerns inside an element and
- * cannot kern across two, and this is the only function that agrees with it on
- * both halves of that.
+ * A code line drawn as several `<text>` elements, one per accent run, places
+ * each at an absolute `x`: the table decides where a run starts while the
+ * engine decides how wide the one before it draws, and the difference opens as
+ * a gap at the boundary. Measured in Chromium on 2026.10.21 at the sheets' own
+ * code size, `nestArrayToChange[` sums to 564.594 under `measureRun` and draws
+ * at 557.828 - one `To` pair, 6.77 units, or 1.7 px at the page's 900px cap,
+ * landing inside a token. With the kerning carried the same run sums to
+ * 564.609 against 564.609 drawn.
+ *
+ * {@link centredAt} needs it for the same reason read from the other end: a
+ * run centred on a width wider than the engine draws loses half the difference
+ * off one side of the axis. Worst of the seventeen sheets, 3.15 px at the
+ * page's cap.
+ *
+ * So the rule either way is: place by what a run *draws*, never by what it
+ * *measures*. The engine kerns inside an element and cannot kern across two,
+ * and this is the only function that agrees with it on both halves of that.
  *
  * @param {string} text
  * @param {object} options
@@ -582,8 +608,32 @@ export function drawnWidth(text, options) {
  * Centring used to be the renderer's job, through an `align` of `center` and a
  * face on the element for it to measure with. The published drawing surface
  * reads neither, so the composition works the left edge out itself and places
- * every run left aligned. The arithmetic is the one the renderer did - the
- * centre less half the measured width - so the coordinates are unchanged.
+ * every run left aligned.
+ *
+ * **It centres on {@link drawnWidth}, because the engine is what draws the
+ * run.** A run is one `<text>` element and the engine kerns inside it, so a
+ * run holding one of the 96 pairs is laid out narrower than the advances sum
+ * to - and a left edge worked from the advances puts half that difference of
+ * ink on the wrong side of the axis. 16 of the catalog's 34 centred runs hold
+ * a kerned pair, worst "Max and Min Value Array" at 12.65 composition units
+ * off the canvas axis by the pair table; drawn in Chromium on 2026.10.22 that
+ * measured 3.15 px at the page's 900 px cap. Centred on the drawn width the
+ * same 34 titles and subtitles sit within **0.214 units**, or 0.053 page
+ * pixels.
+ *
+ * **It moves only the runs that were wrong.** The kerning of a run holding
+ * none of the 96 pairs is exactly zero, so `drawnWidth` and `measureRun` are
+ * the same number for it and its left edge does not move by a float. That is
+ * what made this safe to land on its own: eighteen of the 34 are unchanged,
+ * the three runs a sheet reuses from the artwork kern by nothing so the four
+ * fixed-text widths `DESIGN_LANGUAGE.md` records stay exact, and the heading
+ * band's own geometry - the flanking rules and the measure between them -
+ * never depended on this function at all.
+ *
+ * **Fitting stays on {@link measureRun}**, which is the other half of the
+ * decision and is recorded under **What a generated sheet is measured in** in
+ * `DESIGN_LANGUAGE.md`: every one of the 96 pairs is negative, so the advances
+ * over-measure a run and a run that fits by them fits when it is drawn.
  *
  * @param {string} text
  * @param {number} centre
@@ -592,7 +642,7 @@ export function drawnWidth(text, options) {
  * @returns {number}
  */
 export function centredAt(text, centre, fontSize, face = SHEET_FACE) {
-  return centre - measureRun(text, { fontSize, face }) / 2;
+  return centre - drawnWidth(text, { fontSize, face }) / 2;
 }
 
 /**

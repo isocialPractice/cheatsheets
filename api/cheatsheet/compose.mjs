@@ -48,6 +48,16 @@
 // widths would forge a condensed face out of one that is not, and a reader sees
 // that immediately.
 //
+// **Fitting and placement are measured with different rulers, deliberately.**
+// A width asked *whether a run fits* is `measureRun`, the per-character sum;
+// a width asked *where its ink goes* is `drawnWidth`, which carries the 96
+// pairs the engine kerns. So `capThatFits` and `widestLine` below are on the
+// advances and over-measure, which is the safe direction because every one of
+// those pairs is negative; `centredAt`, the masthead lockup and a split code
+// line's runs are on the kerned width, because the engine is what draws them.
+// The reasoning, the measurements and what each ruler costs are in
+// **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`.
+//
 // ## The floors, and what they are floors on
 //
 // Stepping a run down has to stop somewhere, and until the floors landed it
@@ -198,6 +208,10 @@ function codeLines(code) {
  * advance table is integers per em and a solved size lands between two caps
  * that measure the same. A whole pixel of cap height is a sixth of a display
  * pixel at the sheet's own scale, so nothing is lost to the coarseness.
+ *
+ * Measured with `measureRun` and not `drawnWidth`: this asks whether a run
+ * fits, which is the half of the question the advances answer safely, per
+ * **Fitting and placement** above.
  *
  * The descent stops at `floor`, and `fits` says whether it stopped because the
  * text fitted or because it ran out of room to shrink into. Those are different
@@ -476,7 +490,18 @@ export function composeSheet(doc, options = {}) {
   // Measured rather than centred by the renderer, because the lockup is two
   // elements and only one of them is text: the wordmark is set left aligned at
   // the lockup's own left edge and the mark takes the far end.
-  const wordmarkWidth = measureRun(wordmark, { fontSize: mastheadSize, face });
+  //
+  // **`drawnWidth`, because the mark is placed against the wordmark's end.**
+  // This is the third placement in the layer that puts one thing against what
+  // the engine drew of another, after a split code line's runs and `centredAt`
+  // - the composition's own words for it are **place by what a run draws,
+  // never by what it measures**, under **What a generated sheet is measured
+  // in** in `DESIGN_LANGUAGE.md`. It moves nothing today: the default
+  // wordmark holds none of the 96 kerned pairs, so the two rulers return the
+  // same number for it and every committed sheet draws its lockup where it
+  // did. A document naming its own wordmark is what this is here for, and
+  // that is a slot the API already has.
+  const wordmarkWidth = drawnWidth(wordmark, { fontSize: mastheadSize, face });
   const lockupLeft =
     (language.canvas - (wordmarkWidth + slots.logo.gap + slots.logo.width)) / 2;
   if (markPlaced) {

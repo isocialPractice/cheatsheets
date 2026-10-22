@@ -677,21 +677,65 @@ rendered in Chromium draws its runs within **0.29%** of the widths the
 committed table predicted, which is 7 px of 2531 on the 3600 px canvas, or
 about one pixel at the 600 px display size.
 
-**Which ruler a coordinate is worked from depends on whether the run is drawn
-whole.** A whole run is positioned by the advances alone, because that is the
-ruler every figure in this document was matched against and re-measuring the
-composition with a second one would move every run on every sheet. A code line
-coloured token by token is not drawn whole: it is several `<text>` elements,
-each placed at its own absolute position, so the kerning decides where the
-glyphs of one run end and the table decides where the next run begins. Those
-runs advance by the kerned width instead, which is the only figure that agrees
-with the engine on both halves of the question - the engine kerns inside an
-element and cannot kern across two. Measured in Chromium on 2026.10.21 across
-all seventeen sheets at the page's 900 px cap, 1,791 run boundaries sit within
-**0.144 page pixels** of where the glyphs are drawn, and the worst inside a
-token is 0.042. Positioned from the advances alone the same boundaries ran to
-2.50 px, with 32 of them over a whole page pixel and fifteen of those opening
-inside a token.
+**Which ruler a coordinate is worked from depends on what the width is being
+asked.** There are two questions and they have different answers:
+
+| The width decides | Ruler | Why |
+| --- | --- | --- |
+| **Where the ink goes** - a centred run's left edge, the next run along a split line, a mark set against a wordmark's end | The kerned width | The engine kerns what it draws, so this is the only figure that agrees with where the glyphs land |
+| **Whether the ink fits** - which cap a run is set at, whether the widest code line clears the panel | The advances alone | Every kerned pair in this stack is negative, so the advances over-measure, and a run that fits by them fits when it is drawn |
+
+Both were read off the advances until 2026.10.21, and placement has a wrong
+answer there. It showed up twice, a day apart, in the two places one run is
+positioned against what the engine drew of another:
+
+- **A code line coloured token by token** is several `<text>` elements, each at
+  its own absolute position, so the kerning decides where the glyphs of one run
+  end while the table decides where the next begins. Measured in Chromium on
+  2026.10.21 across all seventeen sheets at the page's 900 px cap, positioning
+  from the advances left 32 of 1,791 run boundaries over a whole page pixel,
+  worst 2.50 px, fifteen of them opening inside a token. Advancing by the
+  kerned width instead, the same boundaries sit within **0.144 page pixels**,
+  and the worst inside a token is 0.042.
+- **A centred title or subtitle** loses half the kerning off one side of the
+  axis, because the run is drawn narrower than it was centred as. Measured on
+  2026.10.22, 16 of the 34 centred runs in the catalog hold one of the 96
+  pairs - 11 titles and 5 subtitles, which the pair table puts 1.31 to 12.65
+  composition units off the axis: "Max and Min Value Array" at 12.65, two
+  `html-css` titles at 10.88, one subtitle at 8.34, eight `javascript` titles
+  at 5.39, three subtitles at 4.28 and one at 1.31. Drawn in Chromium at the
+  page's cap the worst of those measured **3.15 px** off the axis. Centred on
+  the kerned width, all 34 sit within **0.214 units**, or 0.053 page pixels.
+
+Two things the division is careful about:
+
+- **The figures in this document did not move.** The four fixed-text widths
+  recorded above - 2084, 2595, 1481 and 2723 - are the artwork's own, and the
+  three runs a generated sheet reuses from it hold none of the 96 pairs, so the
+  masthead's lockup, the lead-in and the follow line draw exactly where they
+  drew. Only a run carrying the sheet's own subject moves, which is the half of
+  the catalog that was off centre.
+- **The fitting is not moved with it.** The advances over-measure a run by
+  whatever the engine kerns, which is the conservative direction: a run fitted
+  on them is drawn narrower than the region it was fitted to, never wider.
+  Re-fitting on the kerned width would buy a fraction of a percent of extra
+  room and re-measure every cap on every sheet, so it is declined - and the
+  claim it rests on, that no pair in this stack kerns *positive*, is asserted in
+  `tools/test-sheet-faces.mjs` rather than left as an observation.
+
+**Measured against the axis in a real engine, not against the arithmetic.**
+`tools/test-sheet-faces-browser.mjs` draws every committed sheet in
+Chromium and reads each title and subtitle back two ways. The advance box - the
+first glyph's start position to the last glyph's end, which is what the
+composition models - sits within 0.06 page pixels of the canvas axis. The *ink*
+box is looser at up to 0.85 px, and that residual is the glyphs' own side
+bearings rather than the placement: "Sort by a rule you write yourself" kerns by
+nothing, is centred to 0.059 units, and reads as 0.854 px off centre by its
+box alone: its leading `S` has no left bearing at all, while its trailing `f`
+overhangs its own advance by 6.71 units, and half of that asymmetry is the
+offset. So the tight claim is made on the advance box and the ink box is held
+to a looser floor - which still catches the defect above, since 3.15 px is four
+times the bearing residual.
 
 ### Where the text sits
 
