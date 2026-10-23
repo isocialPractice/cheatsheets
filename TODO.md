@@ -11,37 +11,39 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
+- [ ] Add the **Common Browser Built-in APIs** cheatsheet at `html-css/html-apis/common-browser-apis/`, `kind: embed`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
-  - The category exists, so this item generates no design language and no skill. It is drawn to `DESIGN_LANGUAGE-html-css.md`, which `General HTML Overview` recorded on 2026.10.19, and the skill at `.claude/skills/html-css/` is already generated and ignored
-  - The sheet count makes the subject a group and its six areas the cheatsheets under it, at `html-css/general-css-overview/<area>/`, which is the shape the first item settled
-  - Each sheet names its `language` as `css`, which is what colours the panel token by token - the six sheets of **General HTML Overview** name `html`. The per-line `role` is the fallback and is still declared, per **How a token takes its colour** in `DESIGN_LANGUAGE.md`. For CSS that reads as: a comment is `comment`, a selector or an at-rule is `keyword`, a declaration is `identifier`, and a wrapped value line is `string`. The HTML mapping is recorded in the design language; add the CSS one beside it rather than leaving it to be re-derived
-  - `tools/test-sheet-syntax-roles.mjs` derives the expected role from the HTML mapping only. Extend it to read the CSS mapping for a sheet whose `language` is `css`, or those six sheets are the only ones in the category nothing holds to a rule
+  - **This is the repository's first `embed` payload**, and the one payload kind no committed cheatsheet exercises. `detectPayload` in `tools/build-manifest.mjs` reports `embed` from the presence of a `demo/` folder alone, and `--check` holds the declared `kind` to what is on disk, so the folder is what decides and the document only has to agree with it
+  - The unreferenced-files rule lets through `demo/` and the one folder a named payload sits in, and nothing else. Everything the demo needs goes inside `demo/`, whose entry is `demo/index.html` - the walk stops at a cheatsheet folder, so nothing accounts for a stray file beside one
+  - `html-apis` is a group at `html-css/html-apis/` and needs a `meta.json` with an `order` of its own, which is what places its five sheets after the twelve already in the category. Since 2026.10.23 the catalog orders a sheet by the chain of orders down its path, so this group numbering its sheets from 1 does not collide with the two groups that already do
+  - The category exists, so this item generates no design language and no skill, exactly as **General CSS Overview** did not. It is drawn to `DESIGN_LANGUAGE-html-css.md`
+  - **Decide what language the code panel shows before writing the sheets, because the suite now holds it.** `tools/test-sheet-syntax-roles.mjs` dispatches on the declared `language` and **fails** a sheet naming one it has no table for rather than skipping it, and it holds tables for `html` and `css` only. A panel showing the demo's markup is `language: html` and needs nothing new; a panel showing the demo's script is a third language, and that means writing both its per-line table into `DESIGN_LANGUAGE-html-css.md` and its derivation into that test
+  - `DESIGN_LANGUAGE-html-css.md` already names this item as the category's first `embed` payload, under **What this category adds on top of the global record**. Record there what the kind turned out to add, the way the two `read` groups did
   - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`
-  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant
+  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant and the record now in `CONTRIBUTING.md`
   - From: New Cheatsheets `->` HTML/CSS
-- [ ] Record how a new cheatsheet category is added, once the catalog work settles the shape
-  - Unblocked on 2026.10.19: `html-css` is a category that was really added, so the record is written from what was actually done rather than from the rule. The item above adds a second subject to it, which is what exercises the record while it is being written
-  - The steps that are easy to lose, in the order they were taken: compose the category's asset with `node tools/compose-language-asset.mjs --category <id>`, measure it into `DESIGN_LANGUAGE-<id>.md` with the analyzer under `ai-helper/graphic-designer/`, generate the skill into `.claude/skills/`, write `meta.json` at every level, write one `sheet.json` and one payload per cheatsheet, then regenerate and gate the manifest
-  - `javascript` is the exception worth stating: its language is the global `DESIGN_LANGUAGE.md`, because that was measured off its own eleven images
-  - `node --test tools/test-build-manifest.mjs` already fails a category with no design language, so the record describes a gate rather than a convention nobody checks
-  - From: Repository Records
-- [ ] Close the two sloppy spellings the comment check measured but did not cover
-  - `console. log(` in `javascript/arrays/sort-numbers-array/sort-numbers-array.js` parses and runs; it is the only call in the eleven written that way
-  - `"Orage"` in `javascript/arrays/splicing-arrays/splicing-arrays.js` is a data value, so correcting it means correcting the four claims that faithfully report it, and `sheet.json` for that cheatsheet as well. That is the same shape as the `bannana` correction on 2026.10.19, which is the precedent to follow
-  - `node --test tools/test-example-comments.mjs` is what says the claims still match afterwards
-  - From: Example Script Quality
-- [ ] Keep the eleven `javaScriptArrays` images as reference examples and say in the repository what they are
-  - They are what a composed sheet is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
-  - They stay as JPEG. Converting them buys nothing once no page weight depends on them, and re-encoding them re-keys the social ledger for eleven files that are not new content
-  - `tools/test-sheet-composition.mjs` re-measures these exact files against the tables in `DESIGN_LANGUAGE.md`, so converting them would break the suite that holds the extraction
-  - Unblocked on 2026.10.19: the roadmap held this until a second category existed, because what the eleven are for reads differently once a category is drawn rather than captured. One is
+- [ ] Decide whether the eleven `javaScriptArrays` example images ship in the published artifact, now that no cheatsheet serves a raster
+  - They total roughly 20 MB and are kept as reference for what the API produces, not as any cheatsheet's graphic. The page composes its sheet in the browser, so nothing in the artifact needs them except a page that shows them as examples
+  - The choice is between excluding them from the upload step and linking them from the repository, or publishing them and paying the 20 MB once rather than the 250 MB the old budget was sized against
+  - Unblocked on 2026.10.23: what the eleven are for is written down now, at `javaScriptArrays/README.md`, so the decision is taken against a stated purpose rather than against a guess at one. Nothing on the published page references them
+  - Whichever way it goes, say so where a contributor reads it. An exclusion is a step in `.github/workflows/pages.yml`, and a workflow that quietly drops 20 MB of tracked files is the kind of thing that reads as a fault later
+  - From: GitHub Pages Deployment
+- [ ] Set the export preset for a rendered post image and record it where a contributor will read it: WebP, quality 80, 1400 pixel maximum long edge, 200 KB target, 300 KB hard cap
+  - This is a preset for a file something outside the page asked for, not a per cheatsheet deliverable. Nothing in the repository is measured against it, because nothing is committed to measure
+  - WebP rather than JPEG specifically because these are text dense code renders, where WebP holds small glyph edges better at the same weight
+  - Raise an individual render to quality 90 when its code is not legible, rather than raising its dimensions past 1400 pixels
+  - `CONTRIBUTING.md` is the file the item's "where a contributor will read it" now names, as of 2026.10.23. A render is already described there as a `sheet.*` the tree rule lets through by name and never commits; the preset belongs beside that rather than in a section of its own
   - From: Raster Export and Example Images
-- [ ] Add a `graphic-designer` collaborator when a sheet composition or a rendered image is created
-  - Required by the collaborators constant in `.claude/constants.md`. A composed sheet is drawn rather than captured, so the constant binds on the composition as much as on the render
-  - A run records the commit mode and the automation commits, so the deliverable here is the record a committer reads rather than a commit this run makes. Write it where the item above is writing how a category is added
-  - From: Raster Export and Example Images
+
+### UI/UX Override - a continuation line padded to a column it cannot reach
+
+#### Resolve Issues
+
+- [ ] Padded Continuation 1 - the `box-shadow` continuation on **Colors and Backgrounds** is drawn well left of the value it is padded to sit under
+  - **Issue**: `html-css/general-css-overview/colors-and-backgrounds/sheet.json` writes its two-line `box-shadow` as `"  box-shadow: 0 1px 2px rgb(0 1 51 / 24%),"` followed by `"              0 8px 24px rgb(0 1 51 / 32%);"` - fourteen spaces, padded so the second value sits under the first. That alignment holds only in a monospace face, and the code panel is set in the sheet's own `"Helvetica Neue", Arial, system-ui, sans-serif`. Measured in a real engine on 2026.10.23 with `getStartPositionOfChar` on each line's first visible glyph: the `0` of `0 1px 2px` is set at x 880.736 and the `0` of `0 8px 24px` at x 739.110, so the continuation lands **141.626 composition units left** of the value above it - 35.4 px at the page's 900px cap, and visible as such in the capture. Fourteen spaces are worth 211.1 units at 15.079 each, while `  box-shadow: ` measures 352.7. Nothing else on the six is affected: every other line sits in its column to within 0.07 units, and the `linear-gradient(` block on this same sheet indents its three wrapped values by four spaces rather than padding them, which is why that block reads correctly
+  - **Goal**: Indent the continuation by the convention the gradient block on this sheet already uses - four spaces, `"    0 8px 24px rgb(0 1 51 / 32%);"` - rather than padding it to a column a proportional face cannot land on. That also makes the sheet's two multi-value continuations agree with each other. Then pin it: no case in the suite compares where one line's first glyph is set against where the line above it set its own, which is why this reached the catalog. A case belongs beside `tools/test-sheet-accent-ink-browser.mjs`, reading each committed sheet's `sheet.json` for the indent each line declares and asserting that every line sharing an indent begins within a page pixel of one column, and that a line indented deeper begins right of the one above it. It has to read the first *visible* glyph, not the tspan's `x`: a run's leading spaces are folded into it on some lines and skipped on others, so comparing pen positions reports a correctly indented `"  );"` as thirty units out of column
+  - From: New Cheatsheets `->` HTML/CSS
 
 ## GitHub Pages Deployment
 
@@ -156,16 +158,14 @@ the call logged: 48 of 87 claims were wrong when it was first pointed at them,
 rather than being made uniform, which the item offered as the alternative, and
 all eleven files are plain ASCII with a case per file holding them there.
 
-Two faults were measured here and left for later rather than worked, because
-the four items queued named neither: `javascript/arrays/sort-numbers-array` has
-a `console. log` with a space after the dot, and
-`javascript/arrays/splicing-arrays` holds `"Orage"` as a data value. Both are
-queued below.
-
-- [ ] Close the two sloppy spellings the comment check measured but did not cover
-  - `console. log(` in `javascript/arrays/sort-numbers-array/sort-numbers-array.js` parses and runs; it is the only call in the eleven written that way
-  - `"Orage"` in `javascript/arrays/splicing-arrays/splicing-arrays.js` is a data value, so correcting it means correcting the four claims that faithfully report it, and `sheet.json` for that cheatsheet as well. That is the same shape as the `bannana` correction on 2026.10.19, which is the precedent to follow
-  - `node --test tools/test-example-comments.mjs` is what says the claims still match afterwards
+Two faults were measured here on 2026.10.19 and left for later, because the
+four items queued then named neither. Both closed on 2026.10.23:
+`javascript/arrays/sort-numbers-array` had a `console. log` with a space after
+the dot, which parsed and ran and was the only call in the eleven written that
+way, and `javascript/arrays/splicing-arrays` held `"Orage"` as a data value,
+which took four lines to correct rather than one - the array, the claim that
+faithfully reported it, and both again in that cheatsheet's `sheet.json`.
+Nothing is outstanding here.
 
 ## Raster Export and Example Images
 
@@ -186,14 +186,21 @@ planned cheatsheets would have come to about 250 MB, a quarter of the 1 GB
 GitHub Pages limit and unreadable on a phone connection. A composed sheet
 commits none of it.
 
+**Both halves about the eleven closed on 2026.10.23.** What they are now is
+written at `javaScriptArrays/README.md`, with a pointer from `README.md`:
+reference rather than any cheatsheet's deliverable, the evidence
+`DESIGN_LANGUAGE.md` was measured off and what a composed sheet is aimed at
+reproducing, kept as JPEG because `tools/test-sheet-composition.mjs`
+re-measures them against those tables. The collaborator record went into
+`CONTRIBUTING.md` beside how a category is added, which is where its item
+asked for it: a commit that creates a `sheet.json` or writes a render out adds
+`graphic-designer`, and one that only moves or regenerates what is there does
+not. What is left in this section is the render itself.
+
 - [ ] Set the export preset for a rendered post image and record it where a contributor will read it: WebP, quality 80, 1400 pixel maximum long edge, 200 KB target, 300 KB hard cap
   - This is a preset for a file something outside the page asked for, not a per cheatsheet deliverable. Nothing in the repository is measured against it, because nothing is committed to measure
   - WebP rather than JPEG specifically because these are text dense code renders, where WebP holds small glyph edges better at the same weight
   - Raise an individual render to quality 90 when its code is not legible, rather than raising its dimensions past 1400 pixels
-- [ ] Keep the eleven `javaScriptArrays` images as reference examples and say in the repository what they are
-  - They are what a composed sheet is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
-  - They stay as JPEG. Converting them buys nothing once no page weight depends on them, and re-encoding them re-keys the social ledger for eleven files that are not new content
-  - `tools/test-sheet-composition.mjs` re-measures these exact files against the tables in `DESIGN_LANGUAGE.md`, so converting them would break the suite that holds the extraction
 - [ ] Write `tools/cheatsheet.mjs`, the command line that composes a sheet and renders it to a media file
   - The flags, the two renderers and the three rules they carry are specified in `.claude/prompts/current-plan.prompt.md`
   - Resolve the browser at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and skip with the install command as the reason when none answers, which is the pattern `tools/test-page-structure-browser.mjs` settled
@@ -201,23 +208,31 @@ commits none of it.
   - Renders are untracked. Confirm the social tool globs the working tree rather than the commit before relying on that, since a pattern matching nothing reads exactly like a quiet day
   - **The render is named as expected output, rather than written outside the folder.** That is the answer to the question the `--check` item asks here: `sheet.*` is reserved in a cheatsheet folder, so `sheet.json` is the document and `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the tree rule lets through by name. Naming them is what makes the rule give the same answer everywhere - a render is untracked, so a rule that asked git what was committed would pass on the machine that rendered it and fail on the runner. `<name>` is therefore `sheet` for a cheatsheet folder, which is also what `.claude/constants.md` already expects of `<category>/<cheatsheet>/sheet.webp`
   - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
-- [ ] Add a `graphic-designer` collaborator when a sheet composition or a rendered image is created
-  - Required by the collaborators constant in `.claude/constants.md`. A composed sheet is drawn rather than captured, so the constant binds on the composition as much as on the render
 
 ## Repository Records
 
-The repository has no contributing guidance. The README has caught up with the
-rest of it: it leads with the published site link, describes the published site
-and a local server as two routes for two different readers, says plainly that
-`file://` gives a blank page rather than a degraded one, and carries a
-**Licence** paragraph naming CC0 1.0 and the two directories scoped out of the
-waiver. What is left here is how someone adds a category, and a standing
-constant nothing can currently follow.
+The repository has its contributing guidance as of 2026.10.23. The README leads
+with the published site link, describes the published site and a local server
+as two routes for two different readers, says plainly that `file://` gives a
+blank page rather than a degraded one, points at the contributing record, and
+carries a **Licence** paragraph naming CC0 1.0 and the two directories scoped
+out of the waiver. `CONTRIBUTING.md` holds the rest: what a cheatsheet folder
+may hold and which names are reserved, the three commands a category's design
+language is derived with, where the generated skill goes and why it is not
+committed, that a category whose examples are in a new language needs both a
+role table and a derivation of it, the collaborator a drawing commit carries,
+and the three checks to run before committing. It was written while the steps
+were being taken rather than remembered, which is why it waited for a second
+category to exist and then for a second subject going into one.
 
 **Intent**: give the repository the records the automation and a reader both
 expect to find.
 
-- [ ] Record how a new cheatsheet category is added, once the catalog work settles the shape
+What is left here is one standing constant nothing can currently follow, whose
+fix is outside this repository. Measured again on 2026.10.23: every
+`cross-os-social` call, `--version` included, still exits with
+`The build is older than the source it came from`.
+
 - [ ] Settle the `## Social Media Posting` constant, which nothing can currently follow
   - **Issue**: measured 2026.10.15. The rule asks every run to record this session's routes with `cross-os-social doctor --workspace mcp-todo --json`, and to check the recipe for drift before drafting. Every command, `--version` included, exits with `The build is older than the source it came from, so this would run the previous behaviour without saying so. Run \`npm run build\` first.` The shim on `PATH` resolves to the globally linked `cross-os-automation-mcp`, so the stale build is in that package and not in this repository
   - **Goal**: rebuild that package, then confirm from here that `doctor` reports `availableDrives` and that `recipes --from .claude/constants.md --heading "Recipe: cheatsheet-post" --json` reports `drift.differs`. If the toolbox is not going to be rebuilt, turn the constant off instead - a standing rule no run can follow is worse than no rule, because each run spends a step discovering it again
@@ -296,14 +311,25 @@ and is an artifact, so the committed record is the one to read. A subject's
 sheet count makes that subject a group and its areas of focus the cheatsheets
 under it, which is what `general-html-overview` became - so the first sub group
 arrived with the first item rather than with **HTML APIs**. And a `sheet.json`
-assigns a role per line and not per token, by the rule the design language
-fixes: a comment is `comment`, a wrapped attribute line `string`, a line
-carrying an attribute `identifier`, a line that is nothing but tags `keyword`,
-and a line of prose plain.
+declares a role per line by the rule the design language fixes, which from
+2026.10.20 is the fallback rather than what draws: a sheet names the
+`language` its example is written in and the panel is coloured token by token,
+with the per-line role standing in only where no grammar reads it.
 
-- [ ] Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
+**The second subject landed on 2026.10.23**, and it settled two more things
+every item left here inherits. A role table belongs to a **language**, not to
+the category: `general-css-overview` writes CSS rather than markup, so
+`DESIGN_LANGUAGE-html-css.md` now carries two tables whose structure and
+configuration rows are in opposite orders, and
+`tools/test-sheet-syntax-roles.mjs` dispatches on the declared `language` and
+fails a sheet naming one it has no table for rather than skipping it. An item
+here whose examples are in a third language writes both the table and the
+derivation. And an `order` in a `meta.json` ranks a folder among its own
+siblings only, so a sheet's place inside the category is the group's order and
+then its own - which the catalog now reads as a chain. Two groups may number
+their sheets from 1 without colliding, and a group needs an `order` of its
+own.
+
 - **HTML APIs** is a group at `html-css/html-apis/`, carrying its own `meta.json`. Its cheatsheets follow
 
 - [ ] Add the **Common Browser Built-in APIs** cheatsheet at `html-css/html-apis/common-browser-apis/`, `kind: embed`
@@ -1501,5 +1527,36 @@ generate ideas about generating ideas.
   - **Issue**: `centredAt` in `api/cheatsheet/faces.mjs` puts the middle of a run on the point it is given, and it measures that run with `measureRun`, which sums advances and carries no kerning. The engine that draws the glyphs kerns, so a run holding a kerned pair is drawn narrower than it was centred as, and sits off centre by half the kerning. Measured against the committed pair table on 2026.10.21, 16 runs across the seventeen sheets are affected: worst `javascript/arrays/max-and-min-value-array`'s title, "Max and Min Value Array", 25.30 units of kerning and so 12.65 composition units off centre, which is 3.16 px at the page's 900px cap; then `text-content` and `tables-and-data` at 10.88 units each, nine `javascript` titles at 5.39, and four subtitles between 1.40 and 4.28. **Where it does not reach**: the wordmark, the lead-in and the follow line hold no kerned pair at all, so the four fixed-text widths `DESIGN_LANGUAGE.md` records - 2084, 2595, 1481 and 2723 - are exactly as measured and the heading band's recorded geometry is untouched. Only a run carrying the sheet's own subject moves. **How it was found**: not by a review. It falls out of the pair table landing for **Token Accents 1**, which is what made a kerning error measurable anywhere in the layer for the first time; the same run declined to fix it, because `measureRun` is the ruler every recorded coordinate was matched against and changing it moves every centred run on every sheet to fix a defect in sixteen of them
   - **Goal**: Decide whether `centredAt` should measure with `drawnWidth` instead, and land it as its own change rather than as a rider. Three things have to be settled together: the committed fixtures in `tools/fixtures/` that `tools/test-render-fixture.mjs` pins byte for byte, whether `runsFit` and `codeFits` should stay on the unkerned ruler - they currently over-measure, which is conservative and safe - and whether **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md` should state one ruler for placement and one for fitting rather than the split it states now. A browser case belongs with it, measuring a drawn title's ink box against the canvas axis, which is the only check that would have caught this
   - From: Depend on the `napkin-sketch` Package
+- [x] **Padded Continuation**: Add the **General CSS Overview** cheatsheet at `html-css/general-css-overview/`, `kind: read`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - The category exists, so this item generates no design language and no skill. It is drawn to `DESIGN_LANGUAGE-html-css.md`, which `General HTML Overview` recorded on 2026.10.19, and the skill at `.claude/skills/html-css/` is already generated and ignored
+  - The sheet count makes the subject a group and its six areas the cheatsheets under it, at `html-css/general-css-overview/<area>/`, which is the shape the first item settled
+  - Each sheet names its `language` as `css`, which is what colours the panel token by token - the six sheets of **General HTML Overview** name `html`. The per-line `role` is the fallback and is still declared, per **How a token takes its colour** in `DESIGN_LANGUAGE.md`. For CSS that reads as: a comment is `comment`, a selector or an at-rule is `keyword`, a declaration is `identifier`, and a wrapped value line is `string`. The HTML mapping is recorded in the design language; add the CSS one beside it rather than leaving it to be re-derived
+  - `tools/test-sheet-syntax-roles.mjs` derives the expected role from the HTML mapping only. Extend it to read the CSS mapping for a sheet whose `language` is `css`, or those six sheets are the only ones in the category nothing holds to a rule
+  - Regenerate `cheatsheets.json` with `node tools/build-manifest.mjs` and gate it with `--check`
+  - Add `graphic-designer` as a collaborator on the commit, per the collaborators constant
+  - From: New Cheatsheets `->` HTML/CSS
+- [x] Record how a new cheatsheet category is added, once the catalog work settles the shape
+  - Unblocked on 2026.10.19: `html-css` is a category that was really added, so the record is written from what was actually done rather than from the rule. The item above adds a second subject to it, which is what exercises the record while it is being written
+  - The steps that are easy to lose, in the order they were taken: compose the category's asset with `node tools/compose-language-asset.mjs --category <id>`, measure it into `DESIGN_LANGUAGE-<id>.md` with the analyzer under `ai-helper/graphic-designer/`, generate the skill into `.claude/skills/`, write `meta.json` at every level, write one `sheet.json` and one payload per cheatsheet, then regenerate and gate the manifest
+  - `javascript` is the exception worth stating: its language is the global `DESIGN_LANGUAGE.md`, because that was measured off its own eleven images
+  - `node --test tools/test-build-manifest.mjs` already fails a category with no design language, so the record describes a gate rather than a convention nobody checks
+  - From: Repository Records
+- [x] Close the two sloppy spellings the comment check measured but did not cover
+  - `console. log(` in `javascript/arrays/sort-numbers-array/sort-numbers-array.js` parses and runs; it is the only call in the eleven written that way
+  - `"Orage"` in `javascript/arrays/splicing-arrays/splicing-arrays.js` is a data value, so correcting it means correcting the four claims that faithfully report it, and `sheet.json` for that cheatsheet as well. That is the same shape as the `bannana` correction on 2026.10.19, which is the precedent to follow
+  - `node --test tools/test-example-comments.mjs` is what says the claims still match afterwards
+  - From: Example Script Quality
+- [x] Keep the eleven `javaScriptArrays` images as reference examples and say in the repository what they are
+  - They are what a composed sheet is aimed at reproducing, and the record of what a hand composed sheet looked like before one was generated. They are no longer any cheatsheet's deliverable
+  - They stay as JPEG. Converting them buys nothing once no page weight depends on them, and re-encoding them re-keys the social ledger for eleven files that are not new content
+  - `tools/test-sheet-composition.mjs` re-measures these exact files against the tables in `DESIGN_LANGUAGE.md`, so converting them would break the suite that holds the extraction
+  - Unblocked on 2026.10.19: the roadmap held this until a second category existed, because what the eleven are for reads differently once a category is drawn rather than captured. One is
+  - From: Raster Export and Example Images
+- [x] Add a `graphic-designer` collaborator when a sheet composition or a rendered image is created
+  - Required by the collaborators constant in `.claude/constants.md`. A composed sheet is drawn rather than captured, so the constant binds on the composition as much as on the render
+  - A run records the commit mode and the automation commits, so the deliverable here is the record a committer reads rather than a commit this run makes. Write it where the item above is writing how a category is added
+  - From: Raster Export and Example Images
 
 </details>
