@@ -1,0 +1,28 @@
+/* The small screen is the default, not a special case */
+.page {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+/* Then widen, one breakpoint at a time */
+@media (min-width: 48rem) {
+  .page {
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+  }
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+}
+
+/* Ask about the device, not only about the width */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms;
+  }
+}

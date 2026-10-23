@@ -92,12 +92,22 @@ test("the examples are offered in the order they are taught", () => {
       "Max and Min Function and Sort Object",
     ],
     "html-css": [
+      // General HTML Overview, which `meta.json` orders first in the category.
       "Document Structure",
       "Text Content",
       "Links and Navigation",
       "Images and Media",
       "Forms and Inputs",
       "Tables and Data",
+      // Then General CSS Overview, ordered second. The two groups both number
+      // their sheets from 1, so the group's own order is what keeps them
+      // apart - see the case below.
+      "Selectors and Specificity",
+      "The Box Model",
+      "Colors and Backgrounds",
+      "Typography and Text",
+      "Flexbox and Grid",
+      "Responsive Design",
     ],
   };
   assert.deepEqual(
@@ -115,6 +125,28 @@ test("the examples are offered in the order they are taught", () => {
       [...taught[category.id]].sort(),
       `the ${category.id} examples are back in alphabetical order`
     );
+  }
+});
+
+test("a category's groups are offered whole, one after another", () => {
+  // The fault the case above caught on 2026.10.23, named on its own so a
+  // regression says what broke rather than printing twelve shuffled titles.
+  // An `order` in a `meta.json` ranks a folder among its siblings, so two
+  // groups of six both run 1 to 6: ordering on that number alone interleaved
+  // them, and the page offered a CSS sheet between every pair of HTML ones.
+  for (const category of manifest.categories) {
+    const seen = [];
+    for (const sheet of category.cheatsheets) {
+      const group = sheet.group ?? null;
+      if (seen[seen.length - 1] === group) continue;
+      assert.ok(
+        !seen.includes(group),
+        `${category.id} offers ${group} again after leaving it: ${category.cheatsheets
+          .map((entry) => entry.group ?? "-")
+          .join(", ")}`
+      );
+      seen.push(group);
+    }
   }
 });
 

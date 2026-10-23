@@ -1,0 +1,31 @@
+/* Specificity reads id, class, type: 1-0-0 beats 0-1-0 */
+h1 {
+  color: #000133;
+}
+
+.card,
+#banner {
+  background-color: #0b1f3a;
+}
+
+/* A descendant, a direct child, an adjacent sibling */
+.card p {
+  margin: 0;
+}
+
+.card > p {
+  font-weight: 600;
+}
+
+h2 + p {
+  margin-top: 0;
+}
+
+/* An attribute, a state, and part of a line */
+a[href^="https"]:hover {
+  text-decoration: underline;
+}
+
+.card p::first-line {
+  letter-spacing: 0.02em;
+}

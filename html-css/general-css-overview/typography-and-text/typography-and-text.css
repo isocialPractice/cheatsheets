@@ -1,0 +1,28 @@
+body {
+  /* Name a face, then the fallbacks, then the family */
+  font-family: "Helvetica Neue", Helvetica,
+    Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+h1 {
+  /* rem is relative to the root, em to this element */
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+p {
+  /* 60 to 75 characters is the measure prose reads at */
+  max-width: 66ch;
+  margin-block: 1em 0;
+}
+
+.note {
+  font-style: italic;
+  text-transform: uppercase;
+  text-decoration: underline dotted;
+  overflow-wrap: break-word;
+}

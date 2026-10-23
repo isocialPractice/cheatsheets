@@ -3,7 +3,7 @@ A.sort(function(a,b) {return a - b;});
 console.log(A); // (9) [1, 2, 3, 8, 12, 25, 33, 50, 73]
 var B = [2, 3, 25, 33, "w", "b"];
 console.log(B.sort()); // (6) [2, 25, 3, 33, 'b', 'w']
-console. log(B.sort(function(a, b) {return a - b;})); // (6) [2, 3, 25, 33, 'b', 'w']
+console.log(B.sort(function(a, b) {return a - b;})); // (6) [2, 3, 25, 33, 'b', 'w']
 console.log(B.reverse()); // (6) ['w', 'b', 33, 25, 3, 2]
 
 

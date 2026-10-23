@@ -1,0 +1,25 @@
+/* border-box counts padding and border inside the width */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.panel {
+  /* Four values read clockwise from the top */
+  padding: 16px 24px 16px 24px;
+  border: 2px solid #4dae51;
+  margin: 0 auto;
+  width: 320px;
+}
+
+/* Margins collapse between siblings, padding never does */
+.panel + .panel {
+  margin-top: 24px;
+}
+
+/* An outline is drawn outside the box and takes no space */
+.panel:focus-visible {
+  outline: 3px solid #4dae51;
+  outline-offset: 2px;
+}

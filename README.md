@@ -83,6 +83,16 @@ margins, and a `cheatsheets.json` that has gone stale. The Pages workflow runs
 it before it publishes, which is where a casing mismatch is caught - those
 resolve on Windows and 404 on the published site.
 
+**Adding to the Catalog**
+[CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a
+whole category are added, written from what was done rather than from the rule:
+what a cheatsheet folder may hold, the three commands a category's design
+language is derived with, where the generated skill goes and why it is not
+committed, and the checks to run before committing. The eleven images in
+[javaScriptArrays/](javaScriptArrays/README.md) are reference rather than any
+cheatsheet's graphic - they are what the global design language was measured
+off, and what a composed sheet is aimed at reproducing.
+
 **Where the Drawing Surface Came From**
 It was not written here. `api/napkin-sketch/` is a vendored copy of the
 published [`@isocialpractice/napkin-sketch`](https://www.npmjs.com/package/@isocialpractice/napkin-sketch)

@@ -284,6 +284,42 @@ test("categories and cheatsheets sort by declared order, then by id", async () =
   }
 });
 
+test("a category's groups are ordered before the sheets inside them", async () => {
+  // An `order` ranks a folder among its own siblings, so two groups that both
+  // number their sheets from 1 collide on every number. Sorting on the sheet's
+  // number alone interleaved them, which is what twelve `html-css` sheets in
+  // two groups of six reported on 2026.10.23, and this is the same shape on an
+  // invented tree: `second` is ordered after `first`, and both hold a 1 and a
+  // 2. The flat sheet is ordered between the two groups to say that a
+  // cheatsheet sitting directly under a category is ranked against the groups
+  // rather than pushed to an end.
+  const dir = tree({
+    "topic/meta.json": { title: "Topic", order: 1 },
+    "topic/second/meta.json": { title: "Second", order: 3 },
+    "topic/second/aaa/meta.json": { order: 1 },
+    "topic/second/aaa/sheet.json": { ...SHEET, kind: "none" },
+    "topic/second/bbb/meta.json": { order: 2 },
+    "topic/second/bbb/sheet.json": { ...SHEET, kind: "none" },
+    "topic/first/meta.json": { title: "First", order: 1 },
+    "topic/first/yyy/meta.json": { order: 1 },
+    "topic/first/yyy/sheet.json": { ...SHEET, kind: "none" },
+    "topic/first/zzz/meta.json": { order: 2 },
+    "topic/first/zzz/sheet.json": { ...SHEET, kind: "none" },
+    "topic/middle/meta.json": { order: 2 },
+    "topic/middle/sheet.json": { ...SHEET, kind: "none" },
+  });
+  try {
+    const { generated } = await inspect(dir);
+    const manifest = JSON.parse(generated);
+    assert.deepEqual(
+      manifest.categories[0].cheatsheets.map((s) => s.id),
+      ["topic/first/yyy", "topic/first/zzz", "topic/middle", "topic/second/aaa", "topic/second/bbb"]
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 /** The two arguments `buildManifest` takes, read fresh from a tree. */
 async function catalogParts(dir) {
   const catalog = await readCatalog(dir);

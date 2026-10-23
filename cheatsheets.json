@@ -236,6 +236,84 @@
           "height": 3600,
           "seed": "tables-and-data",
           "order": 6
+        },
+        {
+          "id": "html-css/general-css-overview/selectors-and-specificity",
+          "path": "html-css/general-css-overview/selectors-and-specificity",
+          "title": "Selectors and Specificity",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/selectors-and-specificity/selectors-and-specificity.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "selectors-and-specificity",
+          "order": 1
+        },
+        {
+          "id": "html-css/general-css-overview/the-box-model",
+          "path": "html-css/general-css-overview/the-box-model",
+          "title": "The Box Model",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/the-box-model/the-box-model.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "the-box-model",
+          "order": 2
+        },
+        {
+          "id": "html-css/general-css-overview/colors-and-backgrounds",
+          "path": "html-css/general-css-overview/colors-and-backgrounds",
+          "title": "Colors and Backgrounds",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/colors-and-backgrounds/colors-and-backgrounds.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "colors-and-backgrounds",
+          "order": 3
+        },
+        {
+          "id": "html-css/general-css-overview/typography-and-text",
+          "path": "html-css/general-css-overview/typography-and-text",
+          "title": "Typography and Text",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/typography-and-text/typography-and-text.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "typography-and-text",
+          "order": 4
+        },
+        {
+          "id": "html-css/general-css-overview/flexbox-and-grid",
+          "path": "html-css/general-css-overview/flexbox-and-grid",
+          "title": "Flexbox and Grid",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/flexbox-and-grid/flexbox-and-grid.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "flexbox-and-grid",
+          "order": 5
+        },
+        {
+          "id": "html-css/general-css-overview/responsive-design",
+          "path": "html-css/general-css-overview/responsive-design",
+          "title": "Responsive Design",
+          "kind": "read",
+          "group": "general-css-overview",
+          "groupTitle": "General CSS Overview",
+          "payload": "html-css/general-css-overview/responsive-design/responsive-design.css",
+          "width": 3600,
+          "height": 3600,
+          "seed": "responsive-design",
+          "order": 6
         }
       ]
     }

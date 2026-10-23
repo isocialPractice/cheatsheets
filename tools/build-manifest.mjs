@@ -601,6 +601,58 @@ const byOrder = (a, b) => {
 };
 
 /**
+ * Every `(order, id)` step from a category down to one of its cheatsheets.
+ *
+ * An `order` in a `meta.json` ranks a folder among its own siblings and
+ * nothing else, so one number is not enough to place a sheet inside its
+ * category: two groups each numbering their sheets from 1 give every number
+ * twice. The chain is - the group's order, then the sheet's order within it,
+ * and for a sheet sitting directly under a category just its own.
+ *
+ * @param {string} path Repository relative POSIX path of the cheatsheet folder.
+ * @param {Map<string, Level>} levels
+ * @returns {Array<{ order: number, id: string }>}
+ */
+export function orderPath(path, levels) {
+  const segments = path.split(posix.sep);
+  const steps = [];
+  for (let depth = 2; depth <= segments.length; depth += 1) {
+    const level = levels.get(segments.slice(0, depth).join(posix.sep));
+    steps.push({ order: level?.order ?? Number.POSITIVE_INFINITY, id: segments[depth - 1] });
+  }
+  return steps;
+}
+
+/**
+ * Orders cheatsheets inside one category by the chain above.
+ *
+ * Without it a category's second group interleaves with its first: twelve
+ * sheets in two groups of six came back 1, 1, 2, 2, 3, 3 and the page offered
+ * them in that order, which is what **General CSS Overview** reported on
+ * 2026.10.23. Nothing caught it earlier because every category had held one
+ * group, where the chain's first step is the same for every sheet and the
+ * second step is the sheet's own order.
+ *
+ * The steps are compared pairwise, so a shorter chain - a cheatsheet directly
+ * under the category, beside a group - is ranked by its own order against the
+ * group's rather than being pushed to either end. Two chains can only differ
+ * in length at a step where their ids already differ, so the length is never
+ * what decides.
+ *
+ * @param {Map<string, Level>} levels
+ */
+const byOrderPath = (levels) => (a, b) => {
+  const left = orderPath(a.path, levels);
+  const right = orderPath(b.path, levels);
+  for (let step = 0; step < Math.min(left.length, right.length); step += 1) {
+    if (left[step].order !== right[step].order) return left[step].order - right[step].order;
+    const named = left[step].id.localeCompare(right[step].id);
+    if (named !== 0) return named;
+  }
+  return left.length - right.length;
+};
+
+/**
  * Shapes the catalog into the manifest the page fetches.
  *
  * Grouped by category, because the page builds one `optgroup` per category and
@@ -642,7 +694,10 @@ export function buildManifest(sheets, levels) {
           if (sheet.order !== undefined) entry.order = sheet.order;
           return entry;
         })
-        .sort(byOrder);
+        // `entry.order` stays the sheet's own number, which is what its
+        // `meta.json` says and is only meaningful among its siblings. The
+        // array's order is the catalog's, and the chain is what produces it.
+        .sort(byOrderPath(levels));
       return category;
     })
     .sort(byOrder);
@@ -722,7 +777,7 @@ function contradiction(declared, detected, doc, demoEntry) {
  * byte for byte what a prepared run would have written, so failing the gate
  * would refuse a correct manifest. What it replaces is the consequence being
  * reported once per sheet: rule 6a below is per document and would raise one
- * warning for each of the seventeen, all of them naming the same cause.
+ * warning for every document in the catalog, all of them naming the same cause.
  *
  * @param {{ ready: boolean, reason: string | null } | null | undefined} accents
  * @returns {Finding | null}

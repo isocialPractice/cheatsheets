@@ -10,7 +10,7 @@
     { "text": "console.log(A);" },
     { "text": "var B = [2, 3, 25, 33, \"w\", \"b\"];", "role": "identifier" },
     { "text": "console.log(B.sort()); // [2, 25, 3, 33, 'b', 'w']" },
-    { "text": "console. log(B.sort(function(a, b) {return a - b;})); // no change" },
+    { "text": "console.log(B.sort(function(a, b) {return a - b;})); // no change" },
     { "text": "console.log(B.reverse()); // ['w', 'b', 33, 25, 3, 2]" },
     { "text": "" },
     { "text": "var ONE = [", "role": "identifier" },

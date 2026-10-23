@@ -1,0 +1,31 @@
+/* Flex lays out one axis and lets the other wrap */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbar > .spacer {
+  /* grow, shrink, basis - in that order */
+  flex: 1 1 auto;
+}
+
+/* Grid lays out both axes at once */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.layout {
+  display: grid;
+  grid-template-areas:
+    "head head"
+    "body side";
+}
+
+.layout > .side {
+  grid-area: side;
+}

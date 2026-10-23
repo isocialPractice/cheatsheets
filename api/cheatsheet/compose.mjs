@@ -122,8 +122,8 @@ import { Variation } from "./variation.mjs";
  * colour is wrong wherever the line holds more than one kind of thing, so a
  * document that names its `language` is coloured token by token instead - see
  * `accents.mjs`. The declared role is what draws when no language is named, or
- * when the accent reader was never prepared, which is why all seventeen sheets
- * still carry one.
+ * when the accent reader was never prepared, which is why every committed sheet
+ * still carries one.
  *
  * @typedef {object} CodeLine
  * @property {string} text

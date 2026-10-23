@@ -5,9 +5,9 @@
   "language": "javascript",
   "seed": "splicing-arrays",
   "code": [
-    { "text": "var fruits = [\"Banana\", \"Orage\", \"Apple\", \"Mango\"];", "role": "identifier" },
+    { "text": "var fruits = [\"Banana\", \"Orange\", \"Apple\", \"Mango\"];", "role": "identifier" },
     { "text": "console.log(fruits.splice(2, 2, \"Lemon\", \"Kiwi\")); // (2) ['Apple', 'Mango']" },
-    { "text": "console.log(fruits); // (4) ['Banana', 'Orage', 'Lemon', 'Kiwi']" },
+    { "text": "console.log(fruits); // (4) ['Banana', 'Orange', 'Lemon', 'Kiwi']" },
     { "text": "var trees = [\"Maple\", \"Spruce\", \"Palm\"];", "role": "identifier" },
     { "text": "var treeCategories = trees.splice(3, 0, \"Birch\");", "role": "identifier" },
     { "text": "console.log(trees); // (4) ['Maple', 'Spruce', 'Palm', 'Birch']" },

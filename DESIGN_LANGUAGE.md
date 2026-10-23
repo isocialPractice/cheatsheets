@@ -443,7 +443,8 @@ attribute names and a string, and one colour has to pick one of them. **A
 document that names its `language` is now read token by token** - highlight.js
 reads it through the drawing surface's `markdown` part, the surface reports the
 coloured runs, and `api/cheatsheet/accents.mjs` maps each run's scope to one of
-the six roles here. All seventeen committed sheets name one.
+the six roles here. Every committed sheet names one, which
+`tools/test-sheet-accents.mjs` is what holds them to.
 
 **The per-line `role` stays, as the fallback.** It draws when a document names
 no language, when no grammar is registered under the name it does name, or when

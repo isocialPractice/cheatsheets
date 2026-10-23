@@ -184,6 +184,60 @@ drawn.
   put a colour on the sheet that nothing on it means. Token colouring does not
   change that for markup either - there is no number in any of the six
   examples to colour.
+- **CSS takes a second table, because the order is the other way round.** The
+  category covers two languages, and a sheet says which it is in by naming its
+  `language` - `html` on the six of **General HTML Overview**, `css` on the six
+  of **General CSS Overview**. The roles and the colours are the same six; what
+  a line has to be read for is not.
+
+  | A line that | Takes | Which reads as |
+  | --- | --- | --- |
+  | opens a comment, or continues one opened above it | `comment` | Comment grey |
+  | is a wrapped value, continuing a declaration opened above it | `string` | Amber |
+  | opens a block, closes one, or is a selector or at-rule outside a block | `keyword` | Pale yellow |
+  | carries a declaration - a property, a colon and a value | `identifier` | Pale green |
+  | holds anything else | plain | White |
+
+  Structure comes out yellow and configuration green, exactly as in markup. The
+  table reads from the top, and **the two structure and configuration rows are
+  in the opposite order to the markup table above**. That is not a stylistic
+  choice. A CSS selector is allowed a colon - `a:hover`,
+  `p::first-line`, `*::before` and a width query inside `@media` all carry one -
+  so a declaration test applied first reads every one of them as a property. A
+  selector is recognised by where it sits instead: outside a rule's own block
+  there is nothing a line can be *but* structure, which is why the row says
+  "outside a block" rather than naming a shape.
+
+  **What tells a declaration from a pseudo-selector is the open brace, not the
+  line.** Both are a name, a colon and something after it, so the derivation
+  carries the open blocks and the kind of each: an at-rule's block holds
+  selectors, a rule's block holds declarations, and `@media` nesting a rule
+  means both are open at once. `tools/test-sheet-syntax-roles.mjs` holds every
+  sheet in the category to whichever of the two tables its `language` names,
+  and fails a sheet naming a language it has no table for rather than skipping
+  it.
+
+  **How many lines of each the six CSS sheets hold, counted over all 149
+  non-blank lines on 2026.10.23**, one figure per sheet in ascending order:
+
+  | Role | Lines per sheet | Range | Of 149 |
+  | --- | --- | --- | --- |
+  | `keyword` | 8, 8, 10, 10, 14, 15 | 8 to 15 | 65 |
+  | `identifier` | 7, 8, 8, 9, 12, 13 | 7 to 13 | 57 |
+  | `comment` | 3, 3, 3, 3, 3, 4 | 3 to 4 | 19 |
+  | `string` | 0, 0, 0, 1, 2, 5 | 0 to 5 | 8 |
+  | plain | 0, 0, 0, 0, 0, 0 | - | 0 |
+  | `number` | 0, 0, 0, 0, 0, 0 | - | 0 |
+
+  **The role that goes unused is plain, where markup's was `number`**, and for
+  the same reason rather than a different one: there is no CSS line that is
+  prose. Every line of a stylesheet is a comment, a selector, an at-rule, a
+  brace, a declaration or the tail of one, so white has nothing to colour and
+  is left uncoloured instead of being given something. `number` is unused here
+  too, and only as a per-line role - a hex colour, a length and a font weight
+  are all read as numbers *token by token*, which is what actually draws. That
+  is the one place the two tables disagree about more than order: markup has no
+  number anywhere in it, and CSS is full of them.
 - **A `read` sheet needs no `demo/` folder.** The payload is rendered as
   source text, so the one readable file beside `sheet.json` is the whole of it.
   The first `embed` payload in the category is **Common Browser Built-in

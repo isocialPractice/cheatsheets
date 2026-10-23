@@ -1,6 +1,6 @@
-var fruits = ["Banana", "Orage", "Apple", "Mango"];
+var fruits = ["Banana", "Orange", "Apple", "Mango"];
 console.log(fruits.splice(2, 2, "Lemon", "Kiwi")); // (2) ['Apple', 'Mango']
-console.log(fruits); // (4) ['Banana', 'Orage', 'Lemon', 'Kiwi']
+console.log(fruits); // (4) ['Banana', 'Orange', 'Lemon', 'Kiwi']
 var trees = ["Maple", "Spruce", "Palm"];
 var treeCategories = trees.splice(3, 0, "Birch");
 console.log(trees); // (4) ['Maple', 'Spruce', 'Palm', 'Birch']

@@ -4,6 +4,153 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.23]
+
+### Added
+
+- **The General CSS Overview group, and with it the second group the
+  `html-css` category has held.** Six cheatsheets at
+  `html-css/general-css-overview/`, every one `kind: read` and every one
+  `language: css`: selectors and specificity, the box model, colors and
+  backgrounds, typography and text, flexbox and grid, and responsive design.
+  Each folder holds a `sheet.json`, a `meta.json` for its order, and one
+  readable `.css` payload carrying the same example as a file. No folder
+  commits a raster, as none in the catalog does.
+
+  The count is the subject's own, from the conventions under **New
+  Cheatsheets**: a subject becomes between one and eight cheatsheets, so
+  `general-css-overview` is the group and its six areas are the cheatsheets
+  under it. The category's design language and its generated skill already
+  existed and neither was regenerated - **General HTML Overview** recorded
+  them on 2026.10.19 and this is a second subject going into the same
+  language. `node tools/build-manifest.mjs --check` passes on the result,
+  twenty-three documents across two categories, each composed rather than
+  taken on trust: the six land between 85.0% and 88.0% of the code panel
+  against the 85% floor the eleven were measured at, every line fits, every
+  display run fits, every pairing clears its contrast floor, and all six
+  colour token by token rather than falling back.
+
+- **The CSS half of the category's per-line role mapping**, in
+  [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md) beside the markup
+  half, as five tests read in order: a comment is `comment`, a wrapped value
+  line is `string`, a line that opens or closes a block or sits outside one is
+  `keyword`, a line carrying a declaration is `identifier`, and anything else
+  is plain.
+
+  **The two structure and configuration rows are in the opposite order to the
+  markup table, and that is the substance of it rather than a formatting
+  choice.** Markup tests configuration first, because a line carrying an
+  attribute is `identifier` even though it is also a tag. CSS cannot: a
+  selector is allowed a colon - `a:hover`, `p::first-line`, `*::before` and a
+  width query inside `@media` all carry one - so a declaration test applied
+  first reads every one of them as a property. What tells the two apart is
+  whether a rule's own block is open, which is why the derivation carries the
+  open blocks and the kind of each: an at-rule's block holds selectors, a
+  rule's block holds declarations, and `@media` nesting a rule means both are
+  open at once.
+
+  Counted over all 149 non-blank lines, the six hold 65 `keyword`, 57
+  `identifier`, 19 `comment` and 8 `string`. The role that goes unused is
+  plain, where markup's was `number`, and for the same reason rather than a
+  different one: no line of a stylesheet is prose, so white has nothing to
+  colour. `number` is unused here too and only as a per-line role - a hex
+  colour, a length and a font weight are all read as numbers token by token,
+  which is what actually draws.
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md), the record of how a cheatsheet and a
+  whole category are added.** Written from what was done rather than from the
+  rule: what a cheatsheet folder may hold and which names are reserved, the
+  three commands a category's design language is derived with, where the
+  generated skill goes and why it is not committed, that a category whose
+  examples are in a new language needs both a role table and a derivation, and
+  the three checks to run before committing. It also carries the collaborator
+  convention - a composed sheet is drawn rather than captured, so any commit
+  creating a `sheet.json` or writing a render out adds `graphic-designer` as a
+  collaborator, while one that only moves or regenerates what is there does
+  not.
+
+- **[javaScriptArrays/README.md](javaScriptArrays/README.md), saying what the
+  eleven images are now.** They are not any cheatsheet's deliverable and
+  nothing serves them: they are what every figure in `DESIGN_LANGUAGE.md` was
+  measured off, and what a composed sheet is aimed at reproducing. They stay as
+  JPEG at the roughly 20 MB the eleven total, because
+  `tools/test-sheet-composition.mjs` re-measures them against those tables and
+  converting them would break the suite that holds the extraction. Their names
+  predate the kebab convention and are left alone: the folder holds no
+  `sheet.json`, so the catalog walk never reaches it.
+
+### Fixed
+
+- **A category's second group no longer interleaves with its first.** An
+  `order` in a `meta.json` ranks a folder among its own siblings and nothing
+  further, so two groups of six both running 1 to 6 collide on every number -
+  and `cheatsheets.json` ordered a category's sheets on that number alone. The
+  twelve `html-css` sheets came back 1, 1, 2, 2, 3, 3 and the page offered a
+  CSS sheet between every pair of HTML ones. `orderPath` in
+  `tools/build-manifest.mjs` now ranks a sheet by the chain of orders down its
+  path, the group's first and then its own, so the groups are offered whole and
+  in the order their own `meta.json` files give. A cheatsheet sitting directly
+  under a category is ranked by its own order against the groups beside it
+  rather than pushed to either end.
+
+  Nothing caught this earlier because every category had held exactly one
+  group, where the chain's first step is the same for every sheet and the
+  second step is the sheet's own order - which is the single number the old
+  comparator read. `entry.order` in the manifest is unchanged and still the
+  sheet's own number; the array's order is the catalog's.
+
+- **Two sloppy spellings the comment check measured but did not cover.**
+  `console. log(` in `javascript/arrays/sort-numbers-array` parses and runs and
+  was the only call in the eleven written that way; it is now `console.log(`,
+  in the payload and in the `sheet.json` line that carries it. `"Orage"` in
+  `javascript/arrays/splicing-arrays` was a data value, so correcting it is
+  four lines rather than one - the array, the claim that faithfully reported
+  it, and both again in that cheatsheet's `sheet.json`. It is `"Orange"` in all
+  four, and `node --test tools/test-example-comments.mjs` still holds all 24
+  cases, which is what says the claims match what the example logs.
+
+- **A wrapped value on Typography and Text padded to a column the panel's face
+  cannot reach.** `font-family` continues onto a second row, and that row
+  was indented fifteen spaces so `Arial` would sit under `"Helvetica Neue"`.
+  That lands only in a monospace face. The code panel is set in the sheet's own
+  `"Helvetica Neue", Arial, system-ui, sans-serif`, where fifteen spaces are
+  worth 226.2 composition units against the 310.5 that `  font-family: `
+  measures, so the continuation was drawn 84.3 units left of the value above
+  it - 21.1 px at the page's 900px cap. It is indented four spaces now, which
+  is what the `linear-gradient(` block on **Colors and Backgrounds** and the
+  `grid-template-areas:` block on **Flexbox and Grid** already do. The sheet
+  still fills 87.4% of the code panel and the line is still `string`, since the
+  role follows the open declaration rather than the indent.
+
+### Changed
+
+- **`tools/test-sheet-syntax-roles.mjs` dispatches on the language a sheet
+  declares**, rather than deriving every line from the markup table. A sheet
+  naming a language the file holds no table for now **fails** rather than being
+  skipped, because skipping is how a third language would arrive in the
+  category with nothing holding it to anything. The two derivations differ in
+  more than their table: a blank line resets markup's open-tag state and resets
+  nothing in CSS, since that state is a heuristic standing in for a parser
+  while brace depth is the document's real structure, and a CSS comment is
+  taken out of a line before anything measures it, because a colon inside one
+  would otherwise open a declaration that never existed.
+
+  Twelve per-sheet cases now, and the coverage floor is per language: 130
+  markup lines and 149 CSS lines, 279 in all.
+
+- **Two cases pinning the group ordering**, one at each level it can break. In
+  `tools/test-example-selection.mjs`, a category's groups are offered whole and
+  one after another, over the committed catalog. In
+  `tools/test-build-manifest.mjs`, two groups on an invented tree each numbering
+  their sheets from 1, with a flat cheatsheet ordered between them to say that
+  one sitting directly under a category is ranked against the groups rather
+  than pushed to an end.
+
+- **The README names where the records are**, in a new **Adding to the
+  Catalog** paragraph: `CONTRIBUTING.md` for how a cheatsheet and a category
+  are added, and the eleven images as reference rather than any cheatsheet's
+  graphic.
+
 ## [2026.10.22]
 
 ### Fixed
