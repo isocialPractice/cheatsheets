@@ -4,6 +4,79 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.24]
+
+### Fixed
+
+- **The `box-shadow` continuation on Colors and Backgrounds is indented
+  rather than padded**, in both
+  [sheet.json](html-css/general-css-overview/colors-and-backgrounds/sheet.json)
+  and the `.css` payload beside it. It was written with fourteen spaces so its
+  second value would sit under the first, which is the right arithmetic in a
+  monospace face and the wrong one here: the panel is set in the sheet's own
+  proportional stack, where a space is 15.079 composition units and
+  `  box-shadow: ` is 352.7. Measured in Chromium on 2026.10.23 the
+  continuation was drawn **141.6 units left** of the value it was padded to sit
+  under - 35.4 px at the page's 900 px cap, and visible as such in a capture.
+
+  It now takes the four space indent the `linear-gradient(` block on the same
+  sheet already used, so the sheet's two multi-value continuations agree with
+  each other and both sit in a column the face can land on.
+
+### Added
+
+- **[tools/test-sheet-indent-columns-browser.mjs](tools/test-sheet-indent-columns-browser.mjs)**,
+  the third browser file to read a drawn code panel and the first to compare
+  one line with another. It draws every committed sheet in Chromium and holds
+  each to two claims: every line declaring the same indent begins within a page
+  pixel of one column, measured at under 0.3 px across the catalog and at zero
+  on most sheets, and a line indented deeper than the line above it begins
+  right of it.
+
+  **Neither of those catches a padded continuation, which was measured rather
+  than assumed.** Run against the sheet before the fix above, both passed: the
+  padded line began at 739.110 against the `  box-shadow:` line's 558.159, so
+  it was further right than the line above, and its indent of 14 had one line
+  on the sheet, so its column agreed with itself. What a reader saw is a line
+  out of column with a value *inside* another line, and no comparison between
+  two line starts can see that.
+
+  So the file carries a third claim, and it is the one that fails on the
+  defect: **the indents a sheet declares form a contiguous ladder of one
+  unit** - `0`, one unit, two units, every rung used. Padding is measured in
+  characters of the line above rather than in levels, so it lands on a rung
+  that is not there. The sheet declared `0, 2, 4, 14` before the fix and
+  declares `0, 2, 4` after it. That half needs no browser and runs on a bare
+  clone, which is what makes the next one cheap to catch.
+
+- **The rule behind it**, in
+  [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) under **An indent is a level, and a
+  column is not addressable**, and as a fourth note on the `code` lines in
+  [CONTRIBUTING.md](CONTRIBUTING.md). An indent in a sheet's `code` is a
+  nesting level and nothing else, because a proportional face makes no count of
+  spaces reach a position inside the line above.
+
+### Changed
+
+- **Six sheets that predate the rule are recorded as debt rather than
+  exempted**, in `NOT_A_LADDER` in the new test file, each with what it does
+  and how far out it draws: `sort-numbers-array` pads `b.sort` under an
+  `a.sort` 16.113 px away, `document-structure` pads `content=` under a `name=`
+  21.679 px away, `links-and-navigation` pads `target=` under an `href=` 8.326
+  px away, `images-and-media` pads three attributes under a `src=` 17.322 px
+  away each, and `forms-and-inputs` pads two under an `id=` 16.584 px away and
+  a `checked>` 36.993 px away, which is the widest in the catalog.
+  `max-and-min-function-and-sort-object` is the one entry with no padded
+  column: it nests array rows by one space and a sort body by three, so it has
+  two units rather than one.
+
+  The record holds the indents each sheet declares today, so a sheet that is
+  fixed, or that changes its indents at all, is reported as a stale row rather
+  than passing on one. Two of the six transcribe one of the eleven original
+  images, where changing the panel makes it disagree with the artwork it
+  reproduces, so emptying the list is a decision for a person and is queued as
+  one.
+
 ## [2026.10.23]
 
 ### Added

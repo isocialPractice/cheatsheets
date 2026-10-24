@@ -31,7 +31,7 @@
     { "text": "  /* A slash in rgb() or hsl() is the alpha channel */", "role": "comment" },
     { "text": "  border-color: hsl(123 39% 59% / 80%);", "role": "identifier" },
     { "text": "  box-shadow: 0 1px 2px rgb(0 1 51 / 24%),", "role": "identifier" },
-    { "text": "              0 8px 24px rgb(0 1 51 / 32%);", "role": "string" },
+    { "text": "    0 8px 24px rgb(0 1 51 / 32%);", "role": "string" },
     { "text": "}", "role": "keyword" }
   ]
 }

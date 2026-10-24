@@ -738,6 +738,38 @@ offset. So the tight claim is made on the advance box and the ink box is held
 to a looser floor - which still catches the defect above, since 3.15 px is four
 times the bearing residual.
 
+#### An indent is a level, and a column is not addressable
+
+The code panel is set in the same proportional stack as everything else here,
+and the consequence for an example's own whitespace is worth writing down,
+because it reads as an arithmetic error rather than as a property of the type.
+
+**A space is one width and a letter is another, so no count of spaces reaches a
+position inside the line above.** The two figures that settle it, measured in a
+real engine on 2026.10.23 on the sheet that broke it: a space in the panel is
+15.079 composition units, and `  box-shadow: ` - the prefix a continuation was
+padded past - is 352.7. Fourteen spaces are worth 211.1 of those units, so the
+continuation was drawn **141.6 units left** of the value it was padded to sit
+under, which is 35.4 px at the page's 900 px cap and visible as such in a
+capture.
+
+So an indent in a sheet's `code` is a nesting level and nothing else. The
+levels a sheet uses are `0`, one unit, two units and so on, every rung of them
+used, and a continuation is indented one level past the line it continues. That
+is the one shape a padded column cannot be written in, which is what makes it
+checkable from the document alone:
+`tools/test-sheet-indent-columns-browser.mjs` reads the ladder off each
+`sheet.json` and fails a sheet that skips a rung.
+
+**The two measurements of a drawn line could not see this, and that is why the
+rule is stated here rather than left to them.** Both read one line at a time:
+`tools/test-sheet-accent-seams-browser.mjs` measures a boundary between two
+runs of a line, and `tools/test-sheet-accent-ink-browser.mjs` measures a whole
+line against the engine's own layout of it. The padded continuation was
+internally perfect by both, and began further right than the line above it, so
+the only thing wrong with it was a relationship to a column *inside* another
+line - which nothing drawn states and the declared indents do.
+
 ### Where the text sits
 
 Every run of text falls into one of the regions above. These are the positions on

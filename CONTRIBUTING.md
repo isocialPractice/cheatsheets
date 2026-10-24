@@ -48,7 +48,7 @@ named `sheet.anything`. Any other file in the folder fails
 
 5. Run the suite with `node --test`.
 
-Three things about the `code` lines are worth stating, because each has cost a
+Four things about the `code` lines are worth stating, because each has cost a
 run:
 
 - **The `code` array and the payload carry the same text.** The panel draws the
@@ -65,6 +65,19 @@ run:
   category's design language. `node --test tools/test-sheet-syntax-roles.mjs`
   holds a sheet to the table for the language it declares, and fails a sheet
   whose language has no table rather than skipping it.
+- **An indent is a nesting level, never a character column.** The panel is set
+  in a proportional face, so spaces and letters are different widths and no
+  number of spaces lands a value under a value on the line above. Indent a
+  continuation one level deeper than the line it continues - four spaces under
+  a two space declaration - rather than padding it to where the first value
+  starts. Written as padding it is drawn wherever those spaces reach, which was
+  35.4 px left of its column the one time it was tried.
+
+  `node --test tools/test-sheet-indent-columns-browser.mjs` holds a sheet to
+  it: the indents a sheet declares have to be `0`, one unit, two units and so
+  on with no rung skipped, which is the one shape a padded column cannot be
+  written in. Six sheets predate the rule and are listed in that file with
+  what each does.
 
 A blank line carries no `role`. A role on one would be a colour on nothing.
 
