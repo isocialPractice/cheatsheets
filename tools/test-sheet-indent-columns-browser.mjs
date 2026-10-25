@@ -400,15 +400,21 @@ export function ladderOf(indents) {
 }
 
 /**
- * The sheets whose indents are not a ladder, read on 2026.10.24, and what is
- * wrong with each.
+ * The sheets whose indents are not a ladder, and why each one still is not.
  *
- * **This is a record of debt, not a list of exemptions.** Each of these draws
- * the same defect **Padded Continuation 1** was filed for, measured the same
- * way and in the same units, and the found issue queued against this list is
- * what empties it. The case below fails on a sheet that is not here, so a new
- * padded continuation cannot land quietly - which is the whole reason this
- * file exists.
+ * **This began as a record of debt and is now a record of one decision.** Five
+ * of the six rows it opened with on 2026.10.24 were padded continuations - the
+ * same defect **Padded Continuation 1** was filed for, measured the same way
+ * and in the same units - and the found issue queued against the list fixed
+ * all five on 2026.10.25. What is left is the one sheet that never drew that
+ * defect at all, kept deliberately, with its reasons below and in
+ * `javaScriptArrays/README.md`.
+ *
+ * So the list is not a queue any more, and a row added to it is a decision
+ * somebody has to argue for rather than a line of debt somebody will clear.
+ * The case below still fails on a sheet that is not here, which is what stops
+ * a new padded continuation landing quietly - the whole reason this file
+ * exists.
  *
  * `indents` is the set the sheet declares today. A sheet that is fixed, or
  * that changes its indents at all, no longer matches its entry and is reported
@@ -416,46 +422,15 @@ export function ladderOf(indents) {
  */
 export const NOT_A_LADDER = [
   {
-    path: "javascript/arrays/sort-numbers-array",
-    indents: [0, 1, 8],
-    note:
-      "row 13 pads `b.sort` to sit under the `a.sort` of row 12, and is drawn 16.113 px left of it. " +
-      "The eleven original sheets transcribe their own artwork, so changing one makes the panel " +
-      "disagree with the image it reproduces",
-  },
-  {
     path: "javascript/arrays/max-and-min-function-and-sort-object",
     indents: [0, 1, 3, 4],
     note:
-      "no padded column: the sheet nests array rows by 1 and the sort body by 3, so there are two " +
-      "units rather than one. A transcription, as above",
-  },
-  {
-    path: "html-css/general-html-overview/document-structure",
-    indents: [0, 2, 4, 8],
-    note:
-      "row 5 pads `content=` to sit under the `name=` of row 4, and is drawn 21.679 px left of it",
-  },
-  {
-    path: "html-css/general-html-overview/links-and-navigation",
-    indents: [0, 2, 3, 4],
-    note:
-      "row 15 pads `target=` to sit under the `href=` of row 14, and is drawn 8.326 px left of it",
-  },
-  {
-    path: "html-css/general-html-overview/images-and-media",
-    indents: [0, 2, 5, 7],
-    note:
-      "rows 2, 9 and 16 pad an attribute to sit under the `src=` of the `<img` above them, each " +
-      "drawn 17.322 px left of it",
-  },
-  {
-    path: "html-css/general-html-overview/forms-and-inputs",
-    indents: [0, 2, 4, 6, 9, 18],
-    note:
-      "rows 4 and 8 pad an attribute under the `id=` of the `<input` above them, 16.584 px left of " +
-      "it, and row 14 pads `checked>` under a `type=` 18 characters along, 36.993 px left of it - " +
-      "the widest in the catalog",
+      "no padded column: measured on 2026.10.24, not one of its lines aims at a position inside the " +
+      "line above, so the defect the ladder stands proxy for is absent. It declares four indents " +
+      "because the artwork it transcribes draws four - the `cars` rows one space in, the sort body " +
+      "three and the closing `return` four - so the set is two units rather than one. Re-indenting " +
+      "it would move three of its rows off the image it reproduces, which is what the eleven " +
+      "originals are kept for. Kept as transcribed, per `javaScriptArrays/README.md`",
   },
 ];
 
@@ -487,6 +462,36 @@ test("every sheet indents in a contiguous ladder of one unit, bar the ones on re
   console.log(`  ${recorded.size} of ${paths.length} sheets do not indent in a ladder, all on record`);
   assert.deepEqual(stale, [], `the record in NOT_A_LADDER no longer matches the catalog:\n  ${stale.join("\n  ")}`);
   assert.deepEqual(offences, [], `these sheets pad an indent rather than nesting it:\n  ${offences.join("\n  ")}`);
+});
+
+test("and every row of that record names a sheet in the catalog and says why it is there", () => {
+  // The case above walks the catalog and reads the record for each path, so a
+  // row naming a path the catalog no longer holds is never looked at: a sheet
+  // renamed or deleted leaves its row behind, passing silently, and the one
+  // thing the record is for - saying which sheets were argued over and why -
+  // quietly stops being true. This walks the record instead.
+  const inCatalog = new Set(paths);
+  const faults = [];
+  const seen = new Set();
+  for (const row of NOT_A_LADDER) {
+    if (!inCatalog.has(row.path)) {
+      faults.push(`${row.path} is on the record and not in the catalog: delete the row, or fix the path`);
+      continue;
+    }
+    if (seen.has(row.path)) faults.push(`${row.path} is on the record twice, and only the first is read`);
+    seen.add(row.path);
+    if (!Array.isArray(row.indents) || row.indents.length === 0) {
+      faults.push(`${row.path} records no indents, so the staleness check above cannot fire on it`);
+    }
+    // The note is the whole value of a row now that the list is a record of
+    // decisions rather than a queue of debt. A row without one is an exemption
+    // nobody has to justify, which is the shape this list was moved away from.
+    if (typeof row.note !== "string" || row.note.trim().length === 0) {
+      faults.push(`${row.path} is on the record with no note saying why it is kept`);
+    }
+  }
+  console.log(`  ${NOT_A_LADDER.length} recorded exception${NOT_A_LADDER.length === 1 ? "" : "s"}, each argued in its note`);
+  assert.deepEqual(faults, [], `NOT_A_LADDER holds rows that cannot be acted on:\n  ${faults.join("\n  ")}`);
 });
 
 test("and the catalog holds a sheet whose indents step more than once", { skip }, async () => {

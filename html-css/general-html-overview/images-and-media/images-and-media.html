@@ -1,20 +1,20 @@
 <!-- alt says what the image is for, not what it holds -->
 <img src="chart.png" width="800" height="400"
-     alt="Orders doubled between March and June">
+  alt="Orders doubled between March and June">
 
 <!-- Decorative only: an empty alt, never a missing one -->
 <img src="rule.svg" alt="" width="600" height="2">
 
 <!-- The browser picks the file; sizes says how wide -->
 <img src="hero-800.jpg" alt="A harbour at dawn"
-     srcset="hero-400.jpg 400w, hero-800.jpg 800w"
-     sizes="(max-width: 600px) 100vw, 800px">
+  srcset="hero-400.jpg 400w, hero-800.jpg 800w"
+  sizes="(max-width: 600px) 100vw, 800px">
 
 <!-- picture chooses a format; img stays the fallback -->
 <picture>
   <source srcset="shot.webp" type="image/webp">
   <img src="shot.jpg" alt="The finished sheet" width="600"
-       height="600">
+    height="600">
 </picture>
 
 <video controls width="640" poster="still.jpg">

@@ -76,8 +76,17 @@ run:
   `node --test tools/test-sheet-indent-columns-browser.mjs` holds a sheet to
   it: the indents a sheet declares have to be `0`, one unit, two units and so
   on with no rung skipped, which is the one shape a padded column cannot be
-  written in. Six sheets predate the rule and are listed in that file with
-  what each does.
+  written in. Six sheets predated the rule; five were fixed on 2026.10.25 and
+  the sixth is listed in that file as a standing exception, with the reason it
+  is one. The list is not a queue - a row added to it is a decision to argue
+  for, not debt to clear - and the case fails on any sheet that is not on it.
+
+  The rule governs the `code` array, which is drawn in a proportional face. It
+  does not reach the payload file, which is read in a monospace editor where a
+  padded column lands where it was counted to. The two normally carry the same
+  text anyway; where a transcribed sheet makes them differ, say so where a
+  reader meets it, as `javaScriptArrays/README.md` does for the one sheet that
+  does.
 
 A blank line carries no `role`. A role on one would be a colour on nothing.
 

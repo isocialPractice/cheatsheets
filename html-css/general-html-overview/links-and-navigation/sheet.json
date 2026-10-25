@@ -20,7 +20,7 @@
     { "text": "" },
     { "text": "<!-- Off site. rel pairs with target, not instead of it -->", "role": "comment" },
     { "text": "<a href=\"https://example.com/\"", "role": "identifier" },
-    { "text": "   target=\"_blank\" rel=\"noopener noreferrer\">Example</a>", "role": "string" },
+    { "text": "  target=\"_blank\" rel=\"noopener noreferrer\">Example</a>", "role": "string" },
     { "text": "" },
     { "text": "<!-- Not a link at all: no href makes it a placeholder -->", "role": "comment" },
     { "text": "<a>Nothing happens here</a>" },

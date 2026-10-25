@@ -4,6 +4,81 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.25]
+
+### Fixed
+
+- **Nine padded continuations across five sheets are indented rather than
+  padded**, which empties the catalog's padded-column debt. Each was written
+  with enough spaces to sit under a value in the line above, which is the right
+  arithmetic in a monospace face and the wrong one in the panel's proportional
+  stack. Measured in Chromium on 2026.10.24 at the page's 900 px cap, against
+  the character each line was written to sit under:
+  [forms-and-inputs](html-css/general-html-overview/forms-and-inputs/sheet.json)
+  rows 4 and 8 drew 16.584 px left of the `id=` above them and row 14 drew
+  **36.993 px** left of a `type=` eighteen characters along, the widest in the
+  catalog;
+  [images-and-media](html-css/general-html-overview/images-and-media/sheet.json)
+  rows 2, 9 and 16 each drew 17.322 px left of a `src=`;
+  [document-structure](html-css/general-html-overview/document-structure/sheet.json)
+  row 5 drew 21.679 px left of a `name=`;
+  [links-and-navigation](html-css/general-html-overview/links-and-navigation/sheet.json)
+  row 15 drew 8.326 px left of an `href=`; and
+  [sort-numbers-array](javascript/arrays/sort-numbers-array/sheet.json) row 13
+  drew 16.113 px left of the `a.sort(` above it. Each is now indented one level
+  past the line it continues, and the four `html-css` sheets carry the same
+  change in the `.html` payload beside them.
+
+### Changed
+
+- **The record of sheets that do not indent in a ladder is a record of one
+  decision rather than a queue of debt.** `NOT_A_LADDER` in
+  [test-sheet-indent-columns-browser.mjs](tools/test-sheet-indent-columns-browser.mjs)
+  opened with six rows on 2026.10.24; five were padded continuations and are
+  fixed above. The sixth,
+  [max-and-min-function-and-sort-object](javascript/arrays/max-and-min-function-and-sort-object/sheet.json),
+  is kept exactly as transcribed and stays on the record with the argument for
+  it. The list is not a queue now, so a row added to it is a decision to argue
+  for rather than debt somebody will clear.
+
+- **The two transcribed sheets were settled against the artwork rather than
+  against an assumption about it.** The premise for leaving both alone was that
+  re-indenting a panel makes it disagree with the image it reproduces. Measured
+  off the artwork on 2026.10.24, that holds for one of them and not the other.
+  In `SortNumbersArray.jpg` the `b.sort(` of row 13 and the `a.sort(` it was
+  padded under are 3 units apart at the artwork's own 3601 px scale - 0.75 px
+  at the page's cap - while the composed panel drew the same pair 16.102 px
+  apart, so the padding was what broke the artwork's column rather than what
+  preserved it, and the sheet is nearer its image for being re-indented. In
+  `MaxandMinFunctionandSortObject.jpg` the `cars` rows really are one space in,
+  the sort body three and the closing `return` four, which is exactly what that
+  sheet declares, so re-indenting it would move three rows off the image.
+
+### Added
+
+- **A case holding the exception record to the catalog it describes**, in the
+  same file. The existing case walks the catalog and reads the record for each
+  path, so a row naming a path the catalog no longer holds was never looked at:
+  a renamed or deleted sheet left its row behind, passing silently. The new
+  case walks the record instead and fails a row whose path is not in the
+  catalog, a row listed twice, a row recording no indents, and a row carrying
+  no note saying why it is kept.
+
+### Documentation
+
+- **Where a sheet is allowed to stop matching its image**, a new section in
+  [javaScriptArrays/README.md](javaScriptArrays/README.md), which is where a
+  reader meets the question. It carries both decisions above with the figures
+  they were taken on, and states the limit of the rule: it governs the drawn
+  panel, not the payload file beside it. A payload is read in a monospace
+  editor, where a padded column lands exactly where it was counted to, so
+  `sort-numbers-array.js` keeps the artwork's alignment on the line the panel
+  now nests.
+- The same limit and the standing exception are recorded in
+  [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) under **An indent is a level, and a
+  column is not addressable**, and the fourth note on the `code` lines in
+  [CONTRIBUTING.md](CONTRIBUTING.md) no longer says six sheets predate the rule.
+
 ## [2026.10.24]
 
 ### Fixed

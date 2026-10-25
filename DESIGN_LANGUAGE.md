@@ -761,6 +761,22 @@ checkable from the document alone:
 `tools/test-sheet-indent-columns-browser.mjs` reads the ladder off each
 `sheet.json` and fails a sheet that skips a rung.
 
+**One sheet in the catalog does skip one, and it is listed rather than
+excused.** `javascript/arrays/max-and-min-function-and-sort-object` transcribes
+an image that draws four indents of two different sizes, and measured on
+2026.10.24 it pads nothing: no line in it aims at a position inside the line
+above, so the defect the ladder stands proxy for is absent from it. It is on
+record in `NOT_A_LADDER` in that file, with the reason, and the case fails on
+any sheet that is not. Five others were on that list the same day and were
+fixed instead; `javaScriptArrays/README.md` says how the two transcriptions
+were told apart.
+
+**The rule reaches the drawn panel and stops there.** A payload file beside a
+`sheet.json` is read in a monospace editor, where a padded column lands exactly
+where it was counted to, so the arithmetic that is wrong in the panel is right
+in the file. The two carry the same text in every sheet but one, and that one
+says so where a reader meets it.
+
 **The two measurements of a drawn line could not see this, and that is why the
 rule is stated here rather than left to them.** Both read one line at a time:
 `tools/test-sheet-accent-seams-browser.mjs` measures a boundary between two

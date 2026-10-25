@@ -10,7 +10,7 @@
     { "text": "<head>", "role": "keyword" },
     { "text": "  <meta charset=\"utf-8\">", "role": "identifier" },
     { "text": "  <meta name=\"viewport\"", "role": "identifier" },
-    { "text": "        content=\"width=device-width, initial-scale=1\">", "role": "string" },
+    { "text": "    content=\"width=device-width, initial-scale=1\">", "role": "string" },
     { "text": "  <title>Document Structure</title>" },
     { "text": "  <link rel=\"stylesheet\" href=\"page.css\">", "role": "identifier" },
     { "text": "</head>", "role": "keyword" },

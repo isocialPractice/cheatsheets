@@ -18,7 +18,7 @@
     { "text": " [23, 10, 3, 33], [20, 10], [\"z\", 2, 1, \"a\", 10]];" },
     { "text": "ONE.sort(function(a, b) { // WOULD BE LAST VALUE OF ONE" },
     { "text": " return a.sort(function(a, b) { return a - b; }) -" },
-    { "text": "        b.sort(function(a, b) { return a - b; });" },
+    { "text": "  b.sort(function(a, b) { return a - b; });" },
     { "text": " });" },
     { "text": "" },
     { "text": "// IMPORTANT - if below lines omitted ONE is:", "role": "comment" },

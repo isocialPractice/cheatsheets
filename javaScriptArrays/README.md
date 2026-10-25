@@ -27,6 +27,47 @@ The examples the sheets illustrate are live, under
 [`javascript/arrays/`](../javascript/arrays/), one folder per cheatsheet. Those
 are what the page offers; these are the reference behind them.
 
+## Where a sheet is allowed to stop matching its image
+
+A sheet that transcribes one of these is held to the same rules as any other,
+and the two met on 2026.10.25 over indentation. **An indent is a level, and a
+column is not addressable** in [DESIGN_LANGUAGE.md](../DESIGN_LANGUAGE.md) says
+a `code` line is indented one nesting level past the line it continues, never
+padded with spaces to sit under a value in the line above - because the panel
+is set in a proportional face, where no count of spaces reaches a position
+inside another line. These images are set in that same face, so a column
+written as padding is not drawn where it was aimed here either. Two of the
+sheets under [`javascript/arrays/`](../javascript/arrays/) were written against
+the image rather than against that rule, and they went opposite ways.
+
+**`sort-numbers-array` was re-indented, and lost no column by it.** Its row 13
+padded `b.sort(` with eight spaces to sit under the `a.sort(` of row 12. In
+`SortNumbersArray.jpg` that pair really is aligned - 3 units apart at the
+artwork's own 3601 px scale, which is 0.75 px at the page's 900 px cap - but
+the composed panel drew the same pair **16.102 px** apart, measured in Chromium
+on 2026.10.24. The padding was what broke the artwork's column rather than what
+preserved it, so the line is indented one level now and the panel is nearer the
+image than it was.
+
+**`max-and-min-function-and-sort-object` was kept exactly as transcribed.** It
+declares four indents where the ladder rule allows a multiple of one unit, and
+that is not a padded column: measured the same day, not one of its lines aims
+at a position inside the line above, so the defect the rule stands proxy for is
+absent from it. The four come straight off
+`MaxandMinFunctionandSortObject.jpg`, which draws the `cars` rows one space in,
+the sort body three and the closing `return 0;    });` four. Re-indenting it
+would move three of its rows off the image it reproduces, for no gain a reader
+could see. It is on record as the one standing exception, in `NOT_A_LADDER` in
+`tools/test-sheet-indent-columns-browser.mjs`, which fails on any sheet that is
+not listed there.
+
+**The rule reaches the panel, not the payload.** A `sheet.json` is drawn in a
+proportional face; the `.js` beside it is read in whatever monospace editor
+opens it, where eight spaces under ` return ` land exactly where they were
+counted to. So `sort-numbers-array.js` keeps the artwork's alignment on that
+line while the panel takes the nesting level, and the two differ there on
+purpose.
+
 | Image | The cheatsheet it was composed for |
 | --- | --- |
 | `shiftAndUnshift.jpg` | Shift And Unshift |
