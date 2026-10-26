@@ -4,6 +4,125 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.26]
+
+### Added
+
+- **The `html-apis` group, with the repository's first five `embed`
+  cheatsheets.** **Common Browser Built-in APIs** becomes
+  [`html-css/html-apis/`](html-css/html-apis/) carrying one sheet per area of
+  focus - [Fetch and Abort](html-css/html-apis/fetch-and-abort/sheet.json),
+  [Web Storage](html-css/html-apis/web-storage/sheet.json),
+  [Element Observers](html-css/html-apis/element-observers/sheet.json),
+  [URL and Query Strings](html-css/html-apis/url-and-query-strings/sheet.json)
+  and [Clipboard and Dialogs](html-css/html-apis/clipboard-and-dialog/sheet.json) -
+  each with a `demo/index.html` that is one self-contained page. The group's
+  `meta.json` carries `order: 3`, which places all five after the twelve
+  already in the category; since 2026.10.23 the catalog orders a sheet by the
+  chain of orders down its path, so numbering them from 1 collides with
+  neither group that already does. `cheatsheets.json` holds 28 cheatsheets
+  now, up from 23.
+
+  `embed` was the one payload kind no committed cheatsheet exercised, and what
+  it turned out to add is recorded in `DESIGN_LANGUAGE-html-css.md`: the folder
+  decides the kind and the document only agrees, because `detectPayload`
+  reports `embed` from the presence of a `demo/` folder alone and `--check`
+  holds the declared `kind` to what is on disk. Every demo was driven in
+  Chromium before it was committed - 17 controls across the five, no console
+  error and no page error, each reporting its own refusal where the browser
+  withholds a permission.
+
+  Each demo writes its report lines by building a `span` and filling it with
+  `textContent`, never by interpolating into markup. Three of the five report
+  something that did not come from the page - a clipboard read, a pasted
+  address, a stored value - and an opaque-path URL such as
+  `js:<img src=x onerror=...>` reaches `pathname` with its angle brackets
+  intact, since the parser only percent-encodes those in a special scheme. An
+  `insertAdjacentHTML` holding the line would run it.
+- **`tools/test-demo-pages-browser.mjs`, which opens every `embed` demo in a
+  real engine and presses everything on it.** The five payloads were the first
+  files in the catalog no committed test loaded: the sheets were covered from
+  three directions and a demo whose every control threw on the first click
+  would still have passed the suite. Written as five rules rather than as these
+  five pages - every control answers, a refusal is reported and never thrown,
+  every control takes keyboard focus visibly, nothing overflows 320px, and the
+  page is painted in the site's dark theme - so the next `embed` sheet is
+  covered by creating its folder.
+- **A JavaScript per-line role table, the category's third language**, in
+  `DESIGN_LANGUAGE-html-css.md` with its derivation in
+  `tools/test-sheet-syntax-roles.mjs`. The five sheets declare
+  `language: javascript`, and that file fails a sheet naming a language it has
+  no table for rather than skipping it, so the table and the derivation were
+  written before the sheets were. All 126 non-blank lines were authored by
+  intent and then reconciled against the rule, and the rule agreed with every
+  one of them.
+
+  It straddles the two tables already there rather than ordering structure and
+  configuration one way or the other: a line that is nothing but closing
+  punctuation is structure, then a continuation, then structure again for a
+  control word, then configuration. `});` is why - it closes a brace while a
+  paren is still open around it, so the continuation test reaches it first and
+  colours a brace amber. Two things the CSS derivation never needed: a string
+  literal is stripped before a comment is looked for, since a URL carries a
+  `//` inside it, and the state carries *which* bracket is innermost rather
+  than how many are open, since a callback body sits inside an unclosed paren
+  as well as its own brace.
+- **The export preset for a rendered post image**, in `CONTRIBUTING.md` beside
+  the render row it governs: WebP, quality 80, 1400 px long edge, a 200 KB
+  target and a 300 KB cap. Nothing in the repository is measured against it
+  because no render is committed, so it is recorded with the measurement that
+  justifies it instead. Over four sheets at 1400 px, WebP at 80 lands between
+  66.7 and 112.2 KB while JPEG at the same quality and size costs 1.7 to 2.0
+  times as much - 130.0 to 196.4 KB - which is the claim that these are text
+  dense renders where a small glyph edge degrades first. Quality 90 is the
+  escape hatch for an illegible render at 20 to 30 KB more, and 1400 px is the
+  ceiling: it already clears `MIN_PUBLISH_SCALE` by 200 px, that floor working
+  out at 1200 px on this canvas.
+- **A limit on how many runs a code line may be split into**, in
+  `DESIGN_LANGUAGE.md` under **What a generated sheet is measured in**. A run
+  is placed at an absolute coordinate, so nothing reproduces the pair the
+  engine would have kerned *across* a join, and the residual accumulates along
+  the line rather than staying at the seam. Measured over all 28 sheets at the
+  page's 900 px cap: one seam is within **0.144 px** at worst, while a whole
+  line reaches **0.769 px** against the engine's own layout of it unsplit -
+  `fetch-and-abort` line 19, six runs, 35 characters, a long way inside every
+  margin. So a line's run count is bounded by this and not by its width.
+
+### Changed
+
+- **The Pages artifact no longer carries the eleven reference JPEGs.** They are
+  20,302,335 bytes of the 22,944,433 the repository tracks - 88.5% of the
+  artifact, 11 files of 192 - and nothing on the site asks for any of them:
+  `index.html` references none, `cheatsheets.json` records none, no
+  `sheet.json` names one, and the catalog walk never enters that folder because
+  it holds no `sheet.json`. Both readings they exist for happen in a clone
+  rather than over HTTP, so the `build` job of `.github/workflows/pages.yml`
+  deletes them from its own checkout before uploading. They stay tracked and
+  committed, and their README still ships so the path answers rather than
+  404ing.
+
+  Recorded as **What the site does not carry** in `CONTRIBUTING.md`, because a
+  workflow that drops tracked files reads as a fault to whoever meets it next,
+  and pinned in `tools/test-pages-media-type.mjs` - which holds the step to
+  removing the images rather than the folder, and reads every file the artifact
+  still carries for a reference to them. That second half is the one worth
+  having: the risk is not the deletion but someone later writing a reference
+  into a file that does ship, which resolves locally and 404s on the site.
+- **`refresh(event.key, event.newValue);` became `refresh(event.key);`** on the
+  **Web Storage** sheet while it was being written. At six runs it drew
+  **1.026 px** from where an unsplit line would draw it, the only failure the
+  catalog has recorded against `tools/test-sheet-accent-ink-browser.mjs`; the
+  shorter line measures 0.170. The floor is a page pixel because a page pixel
+  is what a reader can see, so the line was shortened rather than the floor
+  raised.
+- **A case that asserted `read` on every `html-css` sheet now asserts "not
+  `run`".** `tools/test-example-selection.mjs` held the whole category to
+  `kind: read`, and the five `embed` sheets failed it while the behaviour it
+  was written for held perfectly - the page branches on `run` and nothing else.
+  Naming one of the three other kinds made it a test of what the category
+  happened to contain rather than of what the page does with a payload it will
+  not run.
+
 ## [2026.10.25]
 
 ### Fixed

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Element Observers</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ pre {
+  margin: 0 0 1rem;
+  padding: 0.75rem;
+  min-height: 6rem;
+  max-height: 10rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ #scroller {
+  height: 9rem;
+  overflow: auto;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 0 0.75rem;
+ }
+ #spacer { height: 8rem; }
+ #panel {
+  padding: 1rem;
+  border: 1px dashed var(--edge);
+  border-radius: 6px;
+  opacity: 0.25;
+  transition: opacity 400ms ease;
+ }
+ #panel.shown { opacity: 1; border-color: var(--accent); }
+ #box {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  width: 50%;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  resize: horizontal;
+  overflow: auto;
+ }
+ #list { margin: 1rem 0 0; padding-left: 1.25rem; }
+</style>
+</head>
+<body>
+<h1>Element Observers</h1>
+<p>
+ Three observers, none of which polls. Scroll the framed strip to cross the
+ first, drag the right edge of the bordered box for the second, and add a row
+ for the third.
+</p>
+<pre id="log" aria-live="polite"></pre>
+<div class="row">
+ <button id="add">Add a row</button>
+ <button id="stop">Disconnect all three</button>
+</div>
+<div id="scroller">
+ <div id="spacer"></div>
+ <div id="panel">This panel fades in once half of it is in view.</div>
+ <div id="spacer2" style="height: 8rem"></div>
+</div>
+<div id="box">Drag my right edge.</div>
+<ul id="list"><li>first row</li></ul>
+<script type="module">
+ const log = document.querySelector("#log");
+ const panel = document.querySelector("#panel");
+ const box = document.querySelector("#box");
+ const list = document.querySelector("#list");
+
+ /**
+  * One line into the panel, the way the cheatsheet's `report` does.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup, which is the same reading the `#add` handler below makes of a
+  * row it appends: text handed to the DOM as text cannot become markup.
+  */
+ function report(text) {
+  const span = document.createElement("span");
+  span.className = "ok";
+  span.textContent = text;
+  log.append(span, "\n");
+  log.scrollTop = log.scrollHeight;
+ }
+
+ // Visibility. `threshold: 0.5` is what makes this fire at half the target
+ // rather than at its first pixel, and `root` points it at the scrolling strip
+ // instead of the viewport.
+ const seen = new IntersectionObserver(
+  (entries) => {
+   for (const entry of entries) {
+    panel.classList.toggle("shown", entry.isIntersecting);
+    report(`panel in view: ${entry.isIntersecting}`);
+   }
+  },
+  { root: document.querySelector("#scroller"), threshold: 0.5 }
+ );
+ seen.observe(panel);
+
+ // Size. This measures the element, which is the whole point: a resize
+ // listener on the window reports nothing when a box changes width because
+ // its own content did.
+ const sized = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+   report(`box width: ${Math.round(entry.contentRect.width)}px`);
+  }
+ });
+ sized.observe(box);
+
+ // The tree. Nothing is watched by default, so the second argument is not
+ // optional in practice: an observer told to watch nothing never fires.
+ const changed = new MutationObserver((records) => {
+  for (const record of records) {
+   report(`${record.addedNodes.length} node(s) added to the list`);
+  }
+ });
+ changed.observe(list, { childList: true, subtree: true });
+
+ let rows = 1;
+ document.querySelector("#add").addEventListener("click", () => {
+  rows += 1;
+  const row = document.createElement("li");
+  row.textContent = `row ${rows}`;
+  list.append(row);
+ });
+
+ document.querySelector("#stop").addEventListener("click", () => {
+  // An observer holds a reference to every target it was given, so one that
+  // outlives the elements it watches is a leak. Disconnecting is what releases
+  // them.
+  seen.disconnect();
+  sized.disconnect();
+  changed.disconnect();
+  report("all three disconnected: nothing above reports any more");
+ });
+</script>
+</body>
+</html>

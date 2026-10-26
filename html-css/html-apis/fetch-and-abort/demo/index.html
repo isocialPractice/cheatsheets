@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fetch and Abort</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 7rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Fetch and Abort</h1>
+<p>
+ Every request below is served from a blob this page made, so the demo needs
+ no network and no server. Only the abort is faked in: the signal is raised
+ before the fetch is handed it, which is what an already aborted request does.
+</p>
+<div class="row">
+ <button id="read">Read a body</button>
+ <button id="twice">Read it twice</button>
+ <button id="shape">Build a Request</button>
+ <button id="off">Call one off</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup. Not every line reported here is this page's own text - the
+  * clipboard, a pasted address and a stored value all arrive from outside it -
+  * and `insertAdjacentHTML` would parse whatever markup one of them carried.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /** A blob URL standing in for an endpoint, so nothing here is fetched remotely. */
+ function endpoint(body) {
+  return URL.createObjectURL(new Blob([body], { type: "application/json" }));
+ }
+
+ document.querySelector("#read").addEventListener("click", async () => {
+  log.textContent = "";
+  const url = endpoint('{"items":["oak","ash","elm"]}');
+  const reply = await fetch(url);
+  // `ok` is the thing to test. A 404 resolves exactly like a 200 does, and
+  // only the status tells them apart.
+  report(`ok: ${reply.ok}, status: ${reply.status}`);
+  const data = await reply.json();
+  report(`items: ${data.items.join(", ")}`);
+  URL.revokeObjectURL(url);
+ });
+
+ document.querySelector("#twice").addEventListener("click", async () => {
+  log.textContent = "";
+  const url = endpoint('{"items":["oak"]}');
+  const reply = await fetch(url);
+  const copy = reply.clone();
+  report(`first read: ${await reply.text()}`);
+  try {
+   // The body is a stream, so it is readable once. The clone taken above is
+   // the only reason the second read has anything left to read.
+   report(`second read: ${await copy.text()}`);
+   await reply.text();
+  } catch (error) {
+   warn(`a third read threw: ${error.name}`);
+  }
+  URL.revokeObjectURL(url);
+ });
+
+ document.querySelector("#shape").addEventListener("click", () => {
+  log.textContent = "";
+  const post = new Request("/api/items", {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({ name: "widget" }),
+  });
+  report(`method: ${post.method}`);
+  report(`type: ${post.headers.get("Content-Type")}`);
+  report("nothing was sent: a Request only describes the call");
+ });
+
+ document.querySelector("#off").addEventListener("click", async () => {
+  log.textContent = "";
+  const stop = new AbortController();
+  stop.abort();
+  try {
+   await fetch(endpoint("{}"), { signal: stop.signal });
+   report("the request completed");
+  } catch (error) {
+   // The name is what identifies it. An abort is reported as an error and is
+   // not a failure, so it is the one rejection worth matching on by name.
+   warn(`${error.name}: the request was called off`);
+  }
+ });
+</script>
+</body>
+</html>

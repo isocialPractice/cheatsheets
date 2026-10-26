@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URL and Query Strings</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ label { display: block; margin-bottom: 0.25rem; }
+ input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: 0.875rem/1.4 ui-monospace, monospace;
+ }
+ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 8rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>URL and Query Strings</h1>
+<p>
+ The parser below is the browser's own, the same one the address bar uses. Edit
+ the address and take it apart, or add a repeated key and watch which call
+ returns which.
+</p>
+<label for="address">An address to parse</label>
+<input id="address" value="https://example.com/shop/socks?page=2&amp;tag=sale#reviews">
+<div class="row">
+ <button id="parts">Take it apart</button>
+ <button id="relative">Resolve a relative path</button>
+ <button id="build">Build a query</button>
+ <button id="repeat">Repeat a key</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+ const address = document.querySelector("#address");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup. Not every line reported here is this page's own text - the
+  * clipboard, a pasted address and a stored value all arrive from outside it -
+  * and `insertAdjacentHTML` would parse whatever markup one of them carried.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /**
+  * The field's value as a URL, or `null` once it has said so.
+  *
+  * The constructor throws on anything it cannot parse, which is the cheapest
+  * validator there is for an address - and the reason to reach for it rather
+  * than a regular expression.
+  */
+ function parse() {
+  try {
+   return new URL(address.value);
+  } catch (error) {
+   warn(`${error.name}: that is not an absolute address`);
+   return null;
+  }
+ }
+
+ document.querySelector("#parts").addEventListener("click", () => {
+  log.textContent = "";
+  const here = parse();
+  if (!here) return;
+  for (const part of ["protocol", "host", "pathname", "search", "hash"]) {
+   report(`${part}: ${JSON.stringify(here[part])}`);
+  }
+  report(`page: ${JSON.stringify(here.searchParams.get("page"))}`);
+ });
+
+ document.querySelector("#relative").addEventListener("click", () => {
+  log.textContent = "";
+  const here = parse();
+  if (!here) return;
+  // The second argument is the base. Without one a relative path is not an
+  // address at all and the constructor throws.
+  report(`from /shop/page/3: ${new URL("/shop/page/3", here).href}`);
+  report(`from ../hats: ${new URL("../hats", here).href}`);
+ });
+
+ document.querySelector("#build").addEventListener("click", () => {
+  log.textContent = "";
+  const query = new URLSearchParams();
+  // Encoding happens here, which is the reason never to join a query by hand:
+  // the ampersand and the space below would both break a hand built string.
+  query.set("q", "oak & ash");
+  query.set("page", "2");
+  report(`encoded: ${query.toString()}`);
+  const here = parse();
+  if (!here) return;
+  here.search = query.toString();
+  report(`written back: ${here.href}`);
+ });
+
+ document.querySelector("#repeat").addEventListener("click", () => {
+  log.textContent = "";
+  const query = new URLSearchParams("tag=sale");
+  // `append` adds, `set` replaces. A key is allowed to repeat, and `get`
+  // answers with the first of them only, which is how a repeated key goes
+  // unnoticed.
+  query.append("tag", "new");
+  report(`query: ${query.toString()}`);
+  report(`get: ${JSON.stringify(query.get("tag"))}`);
+  report(`getAll: ${JSON.stringify(query.getAll("tag"))}`);
+  query.set("tag", "only");
+  report(`after set: ${query.toString()}`);
+ });
+</script>
+</body>
+</html>

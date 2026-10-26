@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web Storage</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 7rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Web Storage</h1>
+<p>
+ Reload the page after writing: the local value is still there and the session
+ value is too, because the tab did not close. Open this page in a second tab to
+ see which of the two is shared.
+</p>
+<div class="row">
+ <button id="write">Write both</button>
+ <button id="read">Read both</button>
+ <button id="round">JSON round trip</button>
+ <button id="clear">Clear both</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup. Not every line reported here is this page's own text - the
+  * clipboard, a pasted address and a stored value all arrive from outside it -
+  * and `insertAdjacentHTML` would parse whatever markup one of them carried.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /**
+  * Both stores behind one call, because either can throw.
+  *
+  * A frame on an opaque origin has no storage at all and reading it raises a
+  * `SecurityError`, so every access here goes through this rather than
+  * assuming the two objects are there to be used.
+  */
+ function store(kind) {
+  try {
+   return kind === "session" ? sessionStorage : localStorage;
+  } catch {
+   return null;
+  }
+ }
+
+ document.querySelector("#write").addEventListener("click", () => {
+  log.textContent = "";
+  const local = store("local");
+  const session = store("session");
+  if (!local || !session) {
+   warn("no storage on this origin, so nothing was written");
+   return;
+  }
+  // Both take strings only. A number handed to `setItem` is stored as its
+  // string form and reads back as one.
+  local.setItem("theme", "dark");
+  session.setItem("step", "2");
+  report("wrote theme to localStorage and step to sessionStorage");
+ });
+
+ document.querySelector("#read").addEventListener("click", () => {
+  log.textContent = "";
+  const local = store("local");
+  const session = store("session");
+  if (!local || !session) {
+   warn("no storage on this origin, so there is nothing to read");
+   return;
+  }
+  // A key that was never written reads as `null`, which is not `""`. Testing
+  // for the empty string would treat an unwritten key as a written blank one.
+  report(`theme: ${JSON.stringify(local.getItem("theme"))}`);
+  report(`step: ${JSON.stringify(session.getItem("step"))}`);
+  report(`missing key: ${JSON.stringify(local.getItem("seat"))}`);
+ });
+
+ document.querySelector("#round").addEventListener("click", () => {
+  log.textContent = "";
+  const local = store("local");
+  if (!local) {
+   warn("no storage on this origin");
+   return;
+  }
+  const basket = ["apples", "flour"];
+  try {
+   local.setItem("basket", JSON.stringify(basket));
+  } catch (error) {
+   // A quota failure throws rather than dropping the write, so an unguarded
+   // `setItem` is how a full store becomes a silent data loss.
+   warn(`the store refused the write: ${error.name}`);
+   return;
+  }
+  const back = JSON.parse(local.getItem("basket"));
+  report(`back as an array: ${Array.isArray(back)}`);
+  report(`contents: ${back.join(", ")}`);
+ });
+
+ document.querySelector("#clear").addEventListener("click", () => {
+  log.textContent = "";
+  const local = store("local");
+  const session = store("session");
+  if (!local || !session) {
+   warn("no storage on this origin");
+   return;
+  }
+  for (const key of ["theme", "basket"]) local.removeItem(key);
+  session.removeItem("step");
+  report("removed every key this demo wrote");
+ });
+
+ // The event fires in the page's *other* tabs, never in the one that wrote.
+ // A page that refreshes itself from it will wait forever.
+ addEventListener("storage", (event) => {
+  report(`another tab set ${event.key} to ${JSON.stringify(event.newValue)}`);
+ });
+</script>
+</body>
+</html>

@@ -130,9 +130,11 @@ language is the geometry and the colour, and the brand is configuration.
 ## What this category adds on top of the global record
 
 The global record was measured off eleven JavaScript sheets, every one a
-`kind: run` payload. This category is where two of the four payload kinds first
-appear, and that changes what the code panel carries rather than how it is
-drawn.
+`kind: run` payload. This category is where two more of the four payload kinds
+first appear - `read` with its two overview groups, and `embed` with **HTML
+APIs** - and that changes what the code panel carries rather than how it is
+drawn. Only `none` is still unused, and the two master sheets are what will
+bring it.
 
 - **`kind: read` sets markup in the panel, not statements.** The panel's
   syntax roles are unchanged - `plain`, `comment`, `identifier`, `keyword`,
@@ -185,10 +187,11 @@ drawn.
   change that for markup either - there is no number in any of the six
   examples to colour.
 - **CSS takes a second table, because the order is the other way round.** The
-  category covers two languages, and a sheet says which it is in by naming its
-  `language` - `html` on the six of **General HTML Overview**, `css` on the six
-  of **General CSS Overview**. The roles and the colours are the same six; what
-  a line has to be read for is not.
+  category covers three languages, and a sheet says which it is in by naming
+  its `language` - `html` on the six of **General HTML Overview**, `css` on the
+  six of **General CSS Overview**, and `javascript` on the five of **HTML
+  APIs**. The roles and the colours are the same six; what a line has to be
+  read for is not.
 
   | A line that | Takes | Which reads as |
   | --- | --- | --- |
@@ -238,11 +241,110 @@ drawn.
   are all read as numbers *token by token*, which is what actually draws. That
   is the one place the two tables disagree about more than order: markup has no
   number anywhere in it, and CSS is full of them.
-- **A `read` sheet needs no `demo/` folder.** The payload is rendered as
-  source text, so the one readable file beside `sheet.json` is the whole of it.
-  The first `embed` payload in the category is **Common Browser Built-in
-  APIs**, and the category's structure deliberately lands before its hardest
-  payload kind does.
+- **JavaScript takes a third table, and it straddles the other two.** The
+  category's third language arrived on 2026.10.26 with **HTML APIs**, whose
+  five sheets declare `language: javascript`. The roles and the colours are the
+  same six again; what changes is that the structure and configuration rows
+  cannot simply be ordered, because JavaScript needs one of them on each side
+  of the continuation row.
+
+  | A line that | Takes | Which reads as |
+  | --- | --- | --- |
+  | opens `//`, or opens or continues a `/* */` comment | `comment` | Comment grey |
+  | is nothing but punctuation, closing what was opened above it | `keyword` | Pale yellow |
+  | continues a call or a literal left open above it | `string` | Amber |
+  | opens with a control or function word | `keyword` | Pale yellow |
+  | carries a binding, a property, an assignment or a call | `identifier` | Pale green |
+  | holds anything else | plain | White |
+
+  Structure comes out yellow and configuration green as in both tables above.
+  **The two yellow rows are deliberate and the continuation row sits between
+  them**, which is the one thing this table does that neither of the others
+  needs. A callback's closing `});` is punctuation that closes a brace while a
+  paren is still open around it, so the continuation test reaches it first and
+  colours a brace amber. A line that closes and does nothing else is structure
+  whatever is open above it, which is the row above the continuation; the row
+  below it is the ordinary case.
+
+  **`const`, `let` and `var` are configuration, not structure**, which is the
+  one judgement in the table. A declaration carries a reserved word and what it
+  introduces is a binding, so it takes green by the same reading that makes a
+  line carrying an attribute green in markup. What takes yellow is a line that
+  controls flow or opens a definition.
+
+  Two things the derivation needs that the CSS one did not, both in
+  `tools/test-sheet-syntax-roles.mjs`:
+
+  - **A string literal is taken out before a comment is looked for.** A URL is
+    the commonest literal in a browser API example and carries a `//` inside
+    it, so reading comments first calls every line holding one a comment. CSS
+    has no equivalent and never needed the step.
+  - **Which bracket is innermost decides a continuation, not how many are
+    open.** A callback body sits inside an unclosed paren as well as inside its
+    own brace, so a depth count reads every statement in it as a wrapped
+    argument. The brace being on top is what says they are statements.
+
+  **How many lines of each the five sheets hold, counted over all 126 non-blank
+  lines on 2026.10.26**, one figure per sheet in ascending order:
+
+  | Role | Lines per sheet | Range | Of 126 |
+  | --- | --- | --- | --- |
+  | `identifier` | 11, 12, 12, 12, 15 | 11 to 15 | 62 |
+  | `keyword` | 3, 7, 7, 9, 9 | 3 to 9 | 35 |
+  | `comment` | 4, 5, 6, 6, 6 | 4 to 6 | 27 |
+  | `string` | 0, 0, 0, 0, 2 | 0 to 2 | 2 |
+  | plain | 0, 0, 0, 0, 0 | - | 0 |
+  | `number` | 0, 0, 0, 0, 0 | - | 0 |
+
+  **Green leads here where yellow led in both tables above**, and that is the
+  shape of the language rather than a choice: a stylesheet is mostly selectors
+  and braces, while a page of API calls is mostly calls. `string` is nearly
+  absent for the opposite reason to CSS's - a wrapped line needs a literal
+  split across rows, and only `web-storage` writes one, in the array its JSON
+  round trip stores. Both unused roles are left unused, as in both tables
+  above: plain because every line of this JavaScript is a comment, a piece of
+  structure or a call, and `number` because no line is a bare number. Token
+  colouring draws numbers inside lines, which is what actually reaches the
+  panel.
+- **A `read` sheet needs no `demo/` folder, and an `embed` sheet is nothing
+  but one.** The payload of a `read` sheet is rendered as source text, so the
+  one readable file beside `sheet.json` is the whole of it. `embed` is the
+  other end: the folder holds `sheet.json`, `meta.json` and `demo/`, and
+  nothing else at all. The category's first five landed on 2026.10.26 as
+  **HTML APIs**, and its structure deliberately arrived before its hardest
+  payload kind did.
+
+  **What the kind turned out to add is that the folder decides it and the
+  document only agrees.** `detectPayload` in `tools/build-manifest.mjs` reports
+  `embed` from the presence of a `demo/` folder alone - never from the declared
+  `kind`, which `--check` then holds to what is on disk. So an `embed` sheet is
+  made by creating the folder, and a declared `kind: embed` beside no `demo/`
+  is refused rather than believed. Two consequences a sheet author meets:
+
+  - **The entry is fixed at `demo/index.html`.** A `demo/` holding no
+    `index.html` is an error naming the missing file, rather than a sheet with
+    nothing to load.
+  - **Everything the demo needs goes inside `demo/`.** The unreferenced-files
+    rule lets through `demo/` and the one folder a named payload sits in, and
+    the walk stops at a cheatsheet folder - so a stray file beside one is a
+    hard error, while anything at any depth inside `demo/` is unexamined. That
+    is why each of the five demos is one self-contained page carrying its own
+    style and script inline rather than three files sharing a stylesheet.
+  - **A demo writes into its log panel as text, never as markup.** Each of the
+    five builds a `span`, sets `textContent` and appends it. Three of them
+    report something the page did not write - what the clipboard held, what was
+    typed into the address field, what another tab stored - and
+    `insertAdjacentHTML` holding that line parses whatever markup it carried.
+    The one shape that proves it is not hypothetical is an opaque-path URL:
+    `js:<img src=x onerror=...>` reaches `pathname` with its angle brackets
+    intact, because the parser percent-encodes those in a special scheme and
+    leaves them alone in an opaque one.
+
+  **The page does not frame it yet**, which belongs here because the manifest
+  records a payload the reader cannot reach: `index.html` branches on `run`
+  alone, so an `embed` sheet composes its graphic and loads no frame. The five
+  payloads are committed, correct and unopened, which is a gap in the page
+  rather than in the sheets.
 - **The panel fill floor applies as it does everywhere.** A sheet whose example
   is short enough to leave the panel emptier than the eleven were is reported
   by `node tools/build-manifest.mjs --check` as a warning rather than refused,

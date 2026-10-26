@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clipboard and Dialogs</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 7rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+ dialog {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  max-width: 24rem;
+ }
+ dialog::backdrop { background: rgb(2 4 51 / 70%); }
+ dialog h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+ dialog p { margin: 0 0 1rem; }
+</style>
+</head>
+<body>
+<h1>Clipboard and Dialogs</h1>
+<p>
+ The dialog is the browser's own element, so the backdrop, the focus trap and
+ the Escape key come with it. The copy below needs a secure origin and the
+ click you are about to give it.
+</p>
+<div class="row">
+ <button id="open">Open the dialog</button>
+ <button id="copy">Copy the last answer</button>
+ <button id="paste">Read the clipboard</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<dialog id="box">
+ <h2>Pick one</h2>
+ <p>Whichever button closes this dialog becomes its return value.</p>
+ <form method="dialog" class="row">
+  <button value="keep">Keep</button>
+  <button value="discard">Discard</button>
+ </form>
+</dialog>
+<script type="module">
+ const log = document.querySelector("#log");
+ const box = document.querySelector("#box");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup. Not every line reported here is this page's own text - the
+  * clipboard, a pasted address and a stored value all arrive from outside it -
+  * and `insertAdjacentHTML` would parse whatever markup one of them carried.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ document.querySelector("#open").addEventListener("click", () => {
+  log.textContent = "";
+  // `showModal` is what brings the backdrop and the focus trap. `show` opens
+  // the same element without either, and is a different control.
+  box.showModal();
+ });
+
+ // Escape closes the dialog without pressing anything, so `close` is the event
+ // to listen to rather than the buttons: it fires on every route out, and the
+ // return value is `""` on the one nobody chose.
+ box.addEventListener("close", () => {
+  report(`closed with: ${JSON.stringify(box.returnValue)}`);
+  if (box.returnValue === "") {
+   report("that was Escape, which chose nothing");
+  }
+ });
+
+ document.querySelector("#copy").addEventListener("click", async () => {
+  log.textContent = "";
+  // The guard is not decoration. `navigator.clipboard` is undefined off a
+  // secure origin, so a page that reaches straight for `writeText` throws a
+  // TypeError there rather than reporting that copying is unavailable.
+  if (!navigator.clipboard) {
+   warn("no clipboard on this origin: it needs https or localhost");
+   return;
+  }
+  const text = box.returnValue || "nothing has been chosen yet";
+  try {
+   await navigator.clipboard.writeText(text);
+   report(`copied: ${JSON.stringify(text)}`);
+  } catch (error) {
+   // A write is allowed off a user gesture and still refused: a frame without
+   // clipboard-write permission rejects here rather than at the guard above.
+   warn(`${error.name}: the clipboard was refused`);
+  }
+ });
+
+ document.querySelector("#paste").addEventListener("click", async () => {
+  log.textContent = "";
+  if (!navigator.clipboard?.readText) {
+   warn("reading the clipboard is not available here");
+   return;
+  }
+  try {
+   // Reading is the asymmetric half: writing after a click is granted
+   // silently, while reading prompts the reader every time.
+   const text = await navigator.clipboard.readText();
+   report(`read back: ${JSON.stringify(text)}`);
+  } catch (error) {
+   warn(`${error.name}: the read was refused or dismissed`);
+  }
+ });
+</script>
+</body>
+</html>
