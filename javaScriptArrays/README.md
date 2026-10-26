@@ -23,6 +23,15 @@ total. Converting them would buy nothing - no page weight depends on them any
 more - and it would break the suite that holds the extraction, because the
 tables were measured against these bytes.
 
+**They are not published, as of 2026.10.26.** Both readings above happen in a
+clone rather than over HTTP, and nothing on the site asks for them, so the
+`build` job of `.github/workflows/pages.yml` deletes the eleven from its own
+checkout before uploading the artifact - 88.5% of its bytes, for files no page
+requests. They stay tracked and committed here, which is where they are read
+from; this file ships, so the path still answers. **What the site does not
+carry** in [CONTRIBUTING.md](../CONTRIBUTING.md) is the contributor-facing
+record of it.
+
 The examples the sheets illustrate are live, under
 [`javascript/arrays/`](../javascript/arrays/), one folder per cheatsheet. Those
 are what the page offers; these are the reference behind them.

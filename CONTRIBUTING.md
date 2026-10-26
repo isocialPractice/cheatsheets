@@ -33,6 +33,46 @@ A cheatsheet folder holds, at most:
 named `sheet.anything`. Any other file in the folder fails
 `node tools/build-manifest.mjs --check` as unreferenced.
 
+### The preset a render is written at
+
+The render row above is the only file in the table that is never committed, so
+nothing in the repository is measured against this preset - there is nothing
+committed to measure. It is for the moment something outside the page asks for
+a picture of a sheet: a social post, a slide, a README somewhere else.
+
+| Setting | Value |
+| --- | --- |
+| Format | WebP |
+| Quality | 80 |
+| Long edge | 1400 px, which is `scale: 1400 / 3600`, or `0.3889` |
+| Target weight | 200 KB |
+| Hard cap | 300 KB |
+
+**WebP rather than JPEG, and the gap is not small.** These are text dense code
+renders, where the thing that degrades first is the edge of a small glyph.
+Measured on 2026.10.26 over four sheets - the densest of the eleven, one from
+each `read` group, and one of the new `embed` sheets - at 1400 px:
+
+| Sheet | WebP q80 | WebP q90 | JPEG q80 |
+| --- | --- | --- | --- |
+| Max and Min Function and Sort Object | 112.2 KB | 145.7 KB | 196.4 KB |
+| Forms and Inputs | 107.5 KB | 139.2 KB | 187.9 KB |
+| Fetch and Abort | 98.7 KB | 129.2 KB | 173.5 KB |
+| Flexbox and Grid | 66.7 KB | 86.8 KB | 130.0 KB |
+
+So WebP at 80 lands between 67 and 112 KB, comfortably inside the 200 KB
+target, and JPEG at the same quality and the same pixel size costs 1.7 to 2.0
+times as much for a picture of the same thing.
+
+**Raise an individual render to quality 90 when its code is not legible, and
+never raise its dimensions past 1400 px.** Quality 90 costs 20 to 30 KB on the
+figures above and stays inside the target on every sheet measured, so there is
+room for it. Going wider is the move to avoid: the long edge is what the
+consumer's own layout is sized against, and 1400 px already clears
+`MIN_PUBLISH_SCALE` in `api/cheatsheet/raster.mjs` - the floor below which the
+code face's stems fall under one device pixel and grey out - by 200 px, since
+that floor works out at 1200 px on this canvas.
+
 ## Adding a cheatsheet to a category that exists
 
 1. Make the folder and write its `meta.json` with an `order`.
@@ -172,6 +212,32 @@ and the record of what a cheatsheet looked like before one was composed. See
 They stay as they are. `tools/test-sheet-composition.mjs` re-measures those
 exact files against the tables in `DESIGN_LANGUAGE.md`, so converting or
 re-encoding them would break the suite that holds the extraction.
+
+## What the site does not carry
+
+The published site is the repository root with **one** exception, settled on
+2026.10.26: the eleven JPEGs above are deleted from the runner's checkout
+before the artifact is uploaded, in the `build` job of
+`.github/workflows/pages.yml`. Everything else ships, including `tools/` and
+`api/`.
+
+They are 20,302,335 bytes of the 22,944,433 the repository tracks - **88.5% of
+the artifact, and 11 files of 192** - and the site asks for none of them:
+`index.html` references none, `cheatsheets.json` records none, no `sheet.json`
+names one, and the catalog walk never enters that folder because it holds no
+`sheet.json`. They are read as evidence instead, from a clone and never over
+HTTP, so leaving them out costs the suite nothing.
+
+Two things follow for a contributor:
+
+- **They are still tracked and still committed.** Only the runner's throwaway
+  copy loses them. `git clone` gets all eleven, which is what the suite needs.
+- **`javaScriptArrays/README.md` does ship.** The path answers on the site and
+  explains what the folder is, rather than 404ing for anyone following a link.
+
+If the folder ever grows a file the site does need, the step is a literal
+`rm javaScriptArrays/*.jpg` and will not touch it - but say so there, because a
+workflow that drops tracked files reads as a fault to whoever meets it next.
 
 ## Before you commit
 

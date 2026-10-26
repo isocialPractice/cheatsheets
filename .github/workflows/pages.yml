@@ -58,12 +58,41 @@ jobs:
       - name: Check the cheatsheet tree and the committed manifest
         run: node tools/build-manifest.mjs --check
 
+  # The site is the repository root with one exception, and the exception is
+  # spelled out rather than assumed: see "What the site does not carry" in
+  # CONTRIBUTING.md, which is where a contributor meets it.
   build:
     needs: manifest
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
+
+      # Decided on 2026.10.26. The eleven JPEGs in javaScriptArrays/ are
+      # 20,302,335 bytes of the 22,944,433 the repository tracks - 88.5% of the
+      # artifact - and nothing on the published site asks for any of them:
+      # index.html references none, cheatsheets.json records none, the catalog
+      # walk never reaches that folder because it holds no sheet.json, and no
+      # sheet.json names one. They are evidence rather than content, per
+      # javaScriptArrays/README.md: the global design language was measured off
+      # these bytes and tools/test-sheet-composition.mjs re-measures them. That
+      # reading happens in a clone, never over HTTP, so excluding them from the
+      # artifact costs the suite nothing and costs a reader nothing.
+      #
+      # Removed from the runner's own checkout, which is thrown away after the
+      # job. Nothing in the repository is touched, and the files stay tracked
+      # and committed - this is the one place the site and the repository
+      # differ, and it is deliberate rather than a drop.
+      #
+      # The README beside them is kept. It is 5 KB, it explains what the folder
+      # is, and leaving it means the path still answers rather than 404ing for
+      # anyone who follows a link to it.
+      - name: Leave the reference images out of the artifact
+        run: |
+          du -cb javaScriptArrays/*.jpg | tail -1
+          rm javaScriptArrays/*.jpg
+          test ! -e javaScriptArrays/SplicingArrays.jpg
+          test -e javaScriptArrays/README.md
 
       - name: Configure the Pages environment
         uses: actions/configure-pages@v5

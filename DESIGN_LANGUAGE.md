@@ -738,6 +738,36 @@ offset. So the tight claim is made on the advance box and the ink box is held
 to a looser floor - which still catches the defect above, since 3.15 px is four
 times the bearing residual.
 
+**What the kerned width does not buy is a boundary that costs nothing, and the
+residual accumulates along a line rather than staying at the seam.** A run is
+placed at an absolute coordinate, so the engine shapes each run on its own and
+nothing reproduces the pair it would have kerned *across* the join. Each
+boundary therefore leaves a fraction of a pixel, always in the same direction -
+the pairs in this stack all kern negative - and a line split into enough runs
+adds those fractions into a visible shift at its end.
+
+Measured across all 28 sheets at the page's 900 px cap on 2026.10.26, the two
+figures say different things and only the second is a limit:
+
+| Measurement | Worst in the catalog | Where |
+| --- | --- | --- |
+| One seam, against the stretch the engine lays that pair out in | **0.144 px** | `document-structure`, at a space |
+| A whole line, against the engine's own layout of it unsplit | **0.769 px** | `fetch-and-abort` line 19, `const stop = new AbortController();`, six runs |
+
+So **a code line's run count is bounded by this and not by its width**, which
+is the part that is easy to get backwards: the line above is 35 characters and
+sits a long way inside every margin. What put it near the floor is six runs
+carrying long camelCase tokens, and `tools/test-sheet-accent-ink-browser.mjs`
+is where that is caught - it fails a line drawn a whole page pixel from where
+an unsplit one would draw it, which no per-seam measurement can see.
+
+**One line has crossed it, and was shortened rather than excused.** Writing the
+**HTML APIs** sheets on 2026.10.26 put `refresh(event.key, event.newValue);`
+into `web-storage`: six runs, 1.026 px, the only failure the catalog has
+recorded against that case. It became `refresh(event.key);` and measures 0.170.
+The fix is to write fewer runs, never to raise the floor - the floor is a page
+pixel because a page pixel is what a reader can see.
+
 #### An indent is a level, and a column is not addressable
 
 The code panel is set in the same proportional stack as everything else here,

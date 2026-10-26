@@ -108,6 +108,14 @@ test("the examples are offered in the order they are taught", () => {
       "Typography and Text",
       "Flexbox and Grid",
       "Responsive Design",
+      // Then HTML APIs, ordered third, and the first group in the category
+      // whose sheets carry an `embed` payload rather than a readable file.
+      // It numbers its own sheets from 1 as both groups above do.
+      "Fetch and Abort",
+      "Web Storage",
+      "Element Observers",
+      "URL and Query Strings",
+      "Clipboard and Dialogs",
     ],
   };
   assert.deepEqual(
@@ -1128,17 +1136,25 @@ test("a sheet that runs nothing has no script element injected for it", { skip }
   await page.close();
 });
 
-test("a committed read cheatsheet draws, injects nothing and asks for no console", { skip }, async () => {
+test("a committed unrun cheatsheet draws, injects nothing and asks for no console", { skip }, async () => {
   // The case above makes the same claim against `/drawn/`, which is the real
   // catalog with one entry's `kind` rewritten in memory. This one makes it
-  // against a `read` cheatsheet that is actually committed, which the catalog
-  // has held since the `html-css` category landed on 2026.10.19 - so the claim
-  // is now about a folder on disk rather than about a manifest a test invented.
+  // against cheatsheets that are actually committed, which the catalog has
+  // held since the `html-css` category landed on 2026.10.19 - so the claim is
+  // about folders on disk rather than about a manifest a test invented.
   //
-  // Three things in one case because they are one behaviour: `read` renders
-  // the payload as source rather than running it, so the graphic is composed,
-  // no script element is appended, and the three lines of console guidance
-  // stay down.
+  // Three things in one case because they are one behaviour: a payload that is
+  // not a `run` payload is never injected, so the graphic is composed, no
+  // script element is appended, and the three lines of console guidance stay
+  // down.
+  //
+  // **The kinds it covers are every kind but `run`, not `read` alone.** It
+  // asserted `read` on every sheet in the category until 2026.10.26, when
+  // **HTML APIs** brought the first five `embed` payloads - and the assertion
+  // failed on them while the behaviour it was written for held perfectly,
+  // because the page branches on `run` and nothing else. Naming one of the
+  // three other kinds made the case a test of what the category happened to
+  // contain rather than of what the page does with a payload it will not run.
   const category = manifest.categories.find((entry) => entry.id === "html-css");
   assert.ok(category, "the catalog no longer holds the html-css category");
   const { page } = await openPage();
@@ -1146,7 +1162,7 @@ test("a committed read cheatsheet draws, injects nothing and asks for no console
 
   const seen = [];
   for (const sheet of category.cheatsheets) {
-    assert.equal(sheet.kind, "read", `${sheet.id} is ${sheet.kind} rather than read`);
+    assert.notEqual(sheet.kind, "run", `${sheet.id} is a run payload, which this case is not about`);
     await page.selectOption("#example", sheet.id);
     await page.waitForSelector("#curCheatSheet > svg");
     seen.push(

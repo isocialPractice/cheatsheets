@@ -314,6 +314,71 @@
           "height": 3600,
           "seed": "responsive-design",
           "order": 6
+        },
+        {
+          "id": "html-css/html-apis/fetch-and-abort",
+          "path": "html-css/html-apis/fetch-and-abort",
+          "title": "Fetch and Abort",
+          "kind": "embed",
+          "group": "html-apis",
+          "groupTitle": "HTML APIs",
+          "payload": "html-css/html-apis/fetch-and-abort/demo/index.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "fetch-and-abort",
+          "order": 1
+        },
+        {
+          "id": "html-css/html-apis/web-storage",
+          "path": "html-css/html-apis/web-storage",
+          "title": "Web Storage",
+          "kind": "embed",
+          "group": "html-apis",
+          "groupTitle": "HTML APIs",
+          "payload": "html-css/html-apis/web-storage/demo/index.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "web-storage",
+          "order": 2
+        },
+        {
+          "id": "html-css/html-apis/element-observers",
+          "path": "html-css/html-apis/element-observers",
+          "title": "Element Observers",
+          "kind": "embed",
+          "group": "html-apis",
+          "groupTitle": "HTML APIs",
+          "payload": "html-css/html-apis/element-observers/demo/index.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "element-observers",
+          "order": 3
+        },
+        {
+          "id": "html-css/html-apis/url-and-query-strings",
+          "path": "html-css/html-apis/url-and-query-strings",
+          "title": "URL and Query Strings",
+          "kind": "embed",
+          "group": "html-apis",
+          "groupTitle": "HTML APIs",
+          "payload": "html-css/html-apis/url-and-query-strings/demo/index.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "url-and-query-strings",
+          "order": 4
+        },
+        {
+          "id": "html-css/html-apis/clipboard-and-dialog",
+          "path": "html-css/html-apis/clipboard-and-dialog",
+          "title": "Clipboard and Dialogs",
+          "kind": "embed",
+          "group": "html-apis",
+          "groupTitle": "HTML APIs",
+          "payload": "html-css/html-apis/clipboard-and-dialog/demo/index.html",
+          "width": 3600,
+          "height": 3600,
+          "seed": "clipboard-and-dialog",
+          "order": 5
         }
       ]
     }

@@ -31,7 +31,7 @@
 // Run with: node --test tools/test-pages-media-type.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -146,6 +146,54 @@ test("every candidate is a file this repository actually publishes", async () =>
     await assert.doesNotReject(
       () => access(join(root, ...path.split("/"))),
       `${path} is a candidate here and is not in the tree, so the case that reads it can only skip`
+    );
+  }
+});
+
+test("the reference images are left out of the artifact, and nothing served asks for them", async () => {
+  // The decision of 2026.10.26, in the two halves that can go wrong
+  // independently. Needs no network: it is about what the artifact holds, not
+  // about what the server answers with.
+  //
+  // The eleven JPEGs are 88.5% of the tracked bytes and the site requests none
+  // of them, so the `build` job deletes them from its own checkout. The risk
+  // that creates is not the deletion - it is someone later writing a reference
+  // to one into a file that *does* ship, which resolves locally and 404s on
+  // the site. That is the second half below, and it is the half worth having.
+  const workflow = await readFile(join(root, ".github", "workflows", "pages.yml"), "utf8");
+  assert.match(
+    workflow,
+    /rm javaScriptArrays\/\*\.jpg/,
+    "the build job no longer drops the reference images, so the artifact carries 20 MB nothing asks for"
+  );
+  assert.match(
+    workflow,
+    /test -e javaScriptArrays\/README\.md/,
+    "the step no longer checks the README survives, so the folder can 404 on the site"
+  );
+  // Only the JPEGs, and only by that glob. A step widened to the folder would
+  // take the README with it.
+  assert.doesNotMatch(
+    workflow,
+    /rm -r\w* javaScriptArrays\b(?!\/\*\.jpg)/,
+    "the step removes the whole folder rather than the images in it"
+  );
+
+  // The second half. Every file the artifact still carries, read for a
+  // reference to the folder - prose in a markdown file is a link a reader
+  // follows and is fine, so only the files a browser resolves paths out of
+  // are read: the page, the catalog, and every sheet document.
+  const served = ["index.html", "cheatsheets.json"];
+  const manifest = JSON.parse(await readFile(join(root, "cheatsheets.json"), "utf8"));
+  for (const category of manifest.categories) {
+    for (const sheet of category.cheatsheets) served.push(`${sheet.path}/sheet.json`);
+  }
+  for (const path of served) {
+    const text = await readFile(join(root, ...path.split("/")), "utf8");
+    assert.doesNotMatch(
+      text,
+      /javaScriptArrays/,
+      `${path} ships and names javaScriptArrays/, which the artifact no longer carries`
     );
   }
 });
