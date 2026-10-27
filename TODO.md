@@ -11,37 +11,39 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Load an `embed` cheatsheet's `demo/index.html` in a sandboxed frame, so the five committed demos are reachable from the page
-  - **Issue**: found 2026.10.26, while adding the **HTML APIs** group. `selectExample()` in `index.html` branches on `entry.kind === "run"` alone, so an `embed` sheet composes its graphic and loads nothing. `cheatsheets.json` records a payload for each of the five - `html-css/html-apis/<sheet>/demo/index.html` - and no route on the page requests it, so the manifest names a file the reader cannot reach
-  - **Goal**: frame the payload for `kind: embed` the way the conventions in **New Cheatsheets** already describe it - `embed` loads `demo/index.html` in a sandboxed frame. Take the frame down on the next selection the way the injected script element already is, and leave the console guidance down, since an embed writes to its own frame rather than to the reader's console
-  - The five demos were each driven in Chromium before they were committed and all 17 of their controls work, so what is missing is the page's side only. They are self-contained single pages that degrade where a permission is withheld, which is the behaviour a sandboxed frame will exercise: `localStorage` throws on an opaque origin and the clipboard is refused without `allow-same-origin`, and both are already reported rather than thrown
-  - Decide the `sandbox` attribute deliberately rather than by what makes the demos pass. `allow-scripts` alone gives an opaque origin, which is the safest frame and the one that disables storage; adding `allow-same-origin` restores it and weakens the isolation. Whichever is chosen, say so where a demo author reads it, because it decides what a demo may rely on
-  - `tools/test-example-selection.mjs` holds the behaviour that exists today in "a committed unrun cheatsheet draws, injects nothing and asks for no console", which covers every kind but `run`. An embed that frames something will need that case split rather than widened
+- [ ] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
+  - Thirty-three readers of the provisional shape exist as of 2026.10.27, and five of them are not regenerable: `index.html`, `api/cheatsheet/compose.mjs`, `tools/test-render-fixture.mjs`, `tools/cheatsheet.mjs` and `tools/test-cheatsheet-cli.mjs`. The other twenty-eight are the `sheet.json` documents and can be rewritten by a script. The page is the one with no marker saying its shape may change; `tools/cheatsheet.mjs --data-only` already emits `shape: "provisional"` beside the document it returns, which is the migration point to keep
+  - The provisional shape has two validated fields to inherit rather than invent: `title` must be a non-empty string and `language` must be a string, `null` or absent, both refused by `composeSheet` in this layer's own words. A `kind` has a reader outside the document - `detectPayload` reports `embed` from a `demo/` folder alone and `--check` fails a document that disagrees - so the model inherits one field whose authority is the filesystem
+  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
+  - The roles resolve to concrete values through the color parser `api/cheatsheet/contrast.mjs` carries, since the package's root entry exports none, so a theme and a rendered fill cannot disagree about what a color is
+  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
+  - Two rulers, not one, per **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`: a width that decides where ink goes is `drawnWidth` and a width that decides whether ink fits is `measureRun`. Every run the model places inherits that division
+  - Ordering takes a chain rather than a number, since 2026.10.23: an `order` in a `meta.json` ranks a folder among its own siblings only, so a sheet's place is its group's order and then its own
+  - An indent inside a `code` line is a nesting level and never a column, per **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`. The rule governs the drawn panel and not the payload file beside it, which is read in a monospace editor - so a model that owns whitespace owns it for one of the two artifacts, which is a thing to decide rather than discover
+  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Map the layout model onto the package's element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
+  - `tools/cheatsheet.mjs` holds `--layout` open for this: it recognises the flag and refuses it, saying a named layout is this model's. Satisfying the flag is part of the item
+  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
+  - From: Implement Cheatsheet API `->` The Core Model
+
+### UI/UX Override - the framed demo's dialog
+
+#### Resolve Issues
+
+- [ ] Sandboxed Demo Frame 1: the framed dialog cannot be closed by either of its own buttons
+  - **Issue**: found 2026.10.27, driving the five demos through the frame in Chromium over HTTP. `sandbox="allow-scripts"` withholds form submission, and `html-css/html-apis/clipboard-and-dialog/demo/index.html` closes its dialog with `<form method="dialog">`. Framed, **Keep** and **Discard** do nothing: the dialog stays open, `returnValue` stays `""`, no line is written, and Chromium logs `Blocked form submission to '' because the form's frame is sandboxed and the 'allow-forms' permission is not set.` on each press. Escape is the only way out and reports `that was Escape, which chose nothing` - to a reader who just pressed **Keep**. The same two buttons work in the demo's own tab and work framed under `allow-scripts allow-forms`, so the demo is right and the grant is what is short. The sheet above the frame teaches the form it blocks: row 17 of that sheet's `sheet.json` is `form.method = "dialog";`. The other 16 controls across the five demos all answer through the frame, `showModal()` keeps its backdrop and its focus trap, and both clipboard buttons report `NotAllowedError` rather than throwing
+  - **Goal**: Resolve to [sandboxed-demo-frame-forms.prompt.md](.claude/prompts/sandboxed-demo-frame-forms.prompt.md)
   - From: Cheatsheet Catalog `->` What the Page Does With a Payload
-- [ ] Hold the padded continuation directly, so the one sheet exempt from the ladder is not exempt from the defect
-  - **Issue**: observed on 2026.10.25 while verifying the nine re-indented lines, and it is a gap rather than a fault - nothing is drawn wrongly today. `tools/test-sheet-indent-columns-browser.mjs` catches a padded continuation by proxy: its own header says the ladder "stands proxy for" the defect, because the two drawn cases cannot see a line that is out of column with a value *inside* the line above. The proxy has one hole, and `NOT_A_LADDER` is it. `javascript/arrays/max-and-min-function-and-sort-object` is exempt from the ladder case by a row whose note asserts "no padded column: measured on 2026.10.24, not one of its lines aims at a position inside the line above" - a measured claim that no case checks. So on the one sheet in the catalog the ladder does not cover, the defect the whole file exists to catch is held by a comment
-  - **Goal**: add a document-only case beside the ladder case in that file, asserting no sheet indents a line to the first character of a token in the line above. Two conditions, and both are needed: the line above has to leave a construct open - an unterminated tag, or a trailing binary operator - so the line below is a continuation rather than a child, and the indent has to land on a token start in it. Without the first condition a short CSS selector reads as a pad: `p {` over `  max-width: 66ch;` puts the `{` at character 2 against an indent of 2, and `html-css/general-css-overview/typography-and-text` row 17 and `responsive-design` row 25 are both reported as pads until it goes in. Prove the case rather than trusting a zero - run the same walk over the sheets as of `89a11d5` and it has to report exactly the nine the 2026.10.24 measurement found, token for token; run it over the catalog today and it reports none. A working implementation and that before/after proof are in `test-results/ui-ux-tester.agent/`, stamped `ui-ux-tester.2026.10.25-`
-  - Proposed rather than promoted on purpose: the file it belongs in was still uncommitted in the working tree when this was written, so adding the case here would have folded the main call's own edits to it into a test commit
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
-- [ ] Size the accent-arrival wait against a loaded machine rather than an idle one
-  - **Issue**: observed on 2026.10.25. `the catalog arrives with the accent reader still in flight` in `tools/test-sheet-accent-arrival-browser.mjs` failed once in three consecutive full-suite runs, at 15214.66 ms against the `waitForSelector('html[data-catalog="ready"]', { timeout: 15000 })` on its first line - a timeout, not an assertion. The file passes on its own every time, and the whole suite passed either side of it. The case deliberately holds the accent reader so the page has to arrive without it, and `node --test` runs several browser files at once, so on a contended machine the held page can take longer to report ready than the wait allows. Nothing about the page is wrong: it is the only wait in the file that has to cover a deliberately stalled dependency, and it is the shortest thing standing between a clean suite and a red one nobody can reproduce
-  - **Goal**: make the wait proportionate to what it is waiting for, rather than raising every timeout in the file. Either give this one case a longer wait with the reason written beside it, or wait on the signal rather than the clock - the page already sets `data-catalog="ready"`, so the case can poll that without a ceiling and fail on a page that never sets it. Whichever it is, record in the file's header that this case runs against a held dependency under suite contention, so the next person reading a flake here does not re-derive it
-  - From: Page Structure and Responsiveness
-- [ ] Hold the documented suite invocation to what it sweeps on a working machine, not only in a clone
-  - **Issue**: found 2026.10.26. `node --test` from the repository root is the documented whole-suite command, and Node's default patterns match `test-results/**/*.test.mjs` - `test-results` is not a dot directory and Node knows nothing about `.gitignore`. So a UI/UX tester's leftover artifact joins the suite on the machine that produced it. One does today: the untracked `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.25-indent-on-the-page.test.mjs` asserts its walk finds nine padded continuations in HEAD, which the 2026.10.25 run then fixed, so it fails permanently and takes `node --test` to 1 failure of 590 on this machine while the 589 tracked cases pass
-  - **Issue**: `tools/test-suite-invocation.mjs` cannot see any of that. Its `ignoredDirectories()` reads `.gitignore` and so excludes `test-results/` from its own walk, which means both discovery invariants - "finds every file that holds tests" and "runs nothing that is not a test" - are blind to exactly the folder the real command does sweep. The header's claim that the walk "excludes what `.gitignore` excludes" is a statement about that walk being read as one about the suite
-  - **Goal**: decide which of the two is wrong and make them agree. Either the documented invocation grows an exclusion so the command matches the invariant, or the invariant stops excluding gitignored folders so it reports what the command will actually run. Do not fix it by deleting the artifact: it is untracked, it is a tester's own record, and the next tester writes another one
-  - A tester's artifact asserting a pre-fix state is the recurring shape rather than a one-off. It is written to prove a walk finds the defect it was sent to measure, which is the right thing to assert on the day and a permanent failure the day after the fix lands
-  - From: version.control = null
-- [ ] Write `tools/cheatsheet.mjs`, the command line that composes a sheet and renders it to a media file
-  - The flags, the two renderers and the three rules they carry are specified in `.claude/prompts/current-plan.prompt.md`
-  - Resolve the browser at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and skip with the install command as the reason when none answers, which is the pattern `tools/test-page-structure-browser.mjs` settled
-  - Write the PNG into `.tmp/` and convert it to `<name>.webp` beside the cheatsheet, so `Watch: **/*.{jpg,webp}` in `.claude/constants.md` needs no change. Widening the watch to `png` sweeps in the favicon working set, measured at 46 files
-  - Renders are untracked. Confirm the social tool globs the working tree rather than the commit before relying on that, since a pattern matching nothing reads exactly like a quiet day
-  - **The render is named as expected output, rather than written outside the folder.** That is the answer to the question the `--check` item asks here: `sheet.*` is reserved in a cheatsheet folder, so `sheet.json` is the document and `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the tree rule lets through by name. Naming them is what makes the rule give the same answer everywhere - a render is untracked, so a rule that asked git what was committed would pass on the machine that rendered it and fail on the runner. `<name>` is therefore `sheet` for a cheatsheet folder, which is also what `.claude/constants.md` already expects of `<category>/<cheatsheet>/sheet.webp`
-  - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
-  - **The preset this writes at is settled as of 2026.10.26** and is recorded under **The preset a render is written at** in `CONTRIBUTING.md`: WebP, quality 80, a 1400 px long edge, a 200 KB target and a 300 KB cap. Take the defaults from there rather than choosing new ones, and let a flag override each. The long edge is a scale of `1400 / 3600`, which the document notes clears `MIN_PUBLISH_SCALE` in `api/cheatsheet/raster.mjs` - that floor works out at 1200 px on this canvas, so a smaller render comes back marked unpublishable and the CLI should say so rather than write it silently
-  - From: Raster Export and Example Images
+
+#### Found Issues
+
+- [ ] No test presses a demo's controls through the frame the page puts it in
+  - **Issue**: `tools/test-demo-pages-browser.mjs` opens each `demo/index.html` directly and presses everything on it; `tools/test-example-selection.mjs` drives the page and holds what a selection leaves in the document. Neither drives a control *through* the frame, so "the demo works" and "the demo works framed" are different claims and only the first is held. Both files were green on the day the dialog stopped closing, and the whole suite - 639 cases - passed with the defect in it
+  - **Goal**: covered by the fix above, section 4 of its prompt file: add the framed walk to `tools/test-demo-pages-browser.mjs`, reading the sandbox token from `index.html` rather than repeating it, so the test follows the grant when it next changes. The implementation is in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.27-embed-demo-frame.cases.mjs`
+  - From: UI/UX Override - the framed demo's dialog
 
 ## GitHub Pages Deployment
 
@@ -99,15 +101,14 @@ is asserted in a real engine as well as in the source text.
 **Intent**: make the published page readable on the devices that will reach
 it once it is public.
 
-Two suites hold what the section settled: `tools/test-contrast.mjs` for the
-pairings, and `tools/test-page-structure-browser.mjs` for what the rules
-render. What is outstanding is one case in a third file whose wait is sized for
-an idle machine rather than for the suite it runs in.
-
-- [ ] Size the accent-arrival wait against a loaded machine rather than an idle one
-  - **Issue**: observed on 2026.10.25. `the catalog arrives with the accent reader still in flight` in `tools/test-sheet-accent-arrival-browser.mjs` failed once in three consecutive full-suite runs, at 15214.66 ms against the `waitForSelector('html[data-catalog="ready"]', { timeout: 15000 })` on its first line - a timeout, not an assertion. The file passes on its own every time, and the whole suite passed either side of it. The case deliberately holds the accent reader so the page has to arrive without it, and `node --test` runs several browser files at once, so on a contended machine the held page can take longer to report ready than the wait allows. Nothing about the page is wrong: it is the only wait in the file that has to cover a deliberately stalled dependency, and it is the shortest thing standing between a clean suite and a red one nobody can reproduce
-  - **Goal**: make the wait proportionate to what it is waiting for, rather than raising every timeout in the file. Either give this one case a longer wait with the reason written beside it, or wait on the signal rather than the clock - the page already sets `data-catalog="ready"`, so the case can poll that without a ceiling and fail on a page that never sets it. Whichever it is, record in the file's header that this case runs against a held dependency under suite contention, so the next person reading a flake here does not re-derive it
-  - From: Page Structure and Responsiveness
+Nothing is outstanding here. Two suites hold what the section settled:
+`tools/test-contrast.mjs` for the pairings, and
+`tools/test-page-structure-browser.mjs` for what the rules render. The last
+open case closed on 2026.10.27: the one wait in
+`tools/test-sheet-accent-arrival-browser.mjs` that covers a deliberately held
+dependency is sized for a loaded machine rather than an idle one, at
+`HELD_ARRIVAL` of 60 s with the reason in that file's header, and on reaching
+the ceiling it reports where the page had got to rather than timing out bare.
 
 ## Cheatsheet Catalog
 
@@ -141,17 +142,15 @@ that sheet drawn. `tools/test-example-selection.mjs` holds the cases.
 
 ### What the Page Does With a Payload
 
-The page injects a `run` payload and ignores every other kind. That was right
-while `run` was the only kind committed, and stopped being right on 2026.10.26
-when the first `embed` payloads landed.
-
-- [ ] Load an `embed` cheatsheet's `demo/index.html` in a sandboxed frame, so the five committed demos are reachable from the page
-  - **Issue**: found 2026.10.26, while adding the **HTML APIs** group. `selectExample()` in `index.html` branches on `entry.kind === "run"` alone, so an `embed` sheet composes its graphic and loads nothing. `cheatsheets.json` records a payload for each of the five - `html-css/html-apis/<sheet>/demo/index.html` - and no route on the page requests it, so the manifest names a file the reader cannot reach
-  - **Goal**: frame the payload for `kind: embed` the way the conventions in **New Cheatsheets** already describe it - `embed` loads `demo/index.html` in a sandboxed frame. Take the frame down on the next selection the way the injected script element already is, and leave the console guidance down, since an embed writes to its own frame rather than to the reader's console
-  - The five demos were each driven in Chromium before they were committed and all 17 of their controls work, so what is missing is the page's side only. They are self-contained single pages that degrade where a permission is withheld, which is the behaviour a sandboxed frame will exercise: `localStorage` throws on an opaque origin and the clipboard is refused without `allow-same-origin`, and both are already reported rather than thrown
-  - Decide the `sandbox` attribute deliberately rather than by what makes the demos pass. `allow-scripts` alone gives an opaque origin, which is the safest frame and the one that disables storage; adding `allow-same-origin` restores it and weakens the isolation. Whichever is chosen, say so where a demo author reads it, because it decides what a demo may rely on
-  - `tools/test-example-selection.mjs` holds the behaviour that exists today in "a committed unrun cheatsheet draws, injects nothing and asks for no console", which covers every kind but `run`. An embed that frames something will need that case split rather than widened
-  - From: Cheatsheet Catalog `->` What the Page Does With a Payload
+Nothing is outstanding here. The page injected a `run` payload and ignored
+every other kind, which was right while `run` was the only kind committed and
+stopped being right on 2026.10.26 when the first `embed` payloads landed. From
+2026.10.27 an `embed` sheet's `demo/index.html` is framed under the sheet with
+`sandbox="allow-scripts"`, decided once for the catalog rather than per sheet,
+and the frame comes down on the next selection and on a category change.
+`CONTRIBUTING.md` records what a demo may rely on in that frame, and
+`tools/test-example-selection.mjs` holds the grant, the destination and the
+teardown.
 
 ### Catalog Cleanup
 
@@ -217,15 +216,18 @@ re-measures them against those tables. The collaborator record went into
 `CONTRIBUTING.md` beside how a category is added, which is where its item
 asked for it: a commit that creates a `sheet.json` or writes a render out adds
 `graphic-designer`, and one that only moves or regenerates what is there does
-not. What is left in this section is the render itself.
+not.
 
-- [ ] Write `tools/cheatsheet.mjs`, the command line that composes a sheet and renders it to a media file
-  - The flags, the two renderers and the three rules they carry are specified in `.claude/prompts/current-plan.prompt.md`
-  - Resolve the browser at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and skip with the install command as the reason when none answers, which is the pattern `tools/test-page-structure-browser.mjs` settled
-  - Write the PNG into `.tmp/` and convert it to `<name>.webp` beside the cheatsheet, so `Watch: **/*.{jpg,webp}` in `.claude/constants.md` needs no change. Widening the watch to `png` sweeps in the favicon working set, measured at 46 files
-  - Renders are untracked. Confirm the social tool globs the working tree rather than the commit before relying on that, since a pattern matching nothing reads exactly like a quiet day
-  - **The render is named as expected output, rather than written outside the folder.** That is the answer to the question the `--check` item asks here: `sheet.*` is reserved in a cheatsheet folder, so `sheet.json` is the document and `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the tree rule lets through by name. Naming them is what makes the rule give the same answer everywhere - a render is untracked, so a rule that asked git what was committed would pass on the machine that rendered it and fail on the runner. `<name>` is therefore `sheet` for a cheatsheet folder, which is also what `.claude/constants.md` already expects of `<category>/<cheatsheet>/sheet.webp`
-  - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
+Nothing is outstanding here. The render itself landed on 2026.10.27 as
+`tools/cheatsheet.mjs`, which composes through the same layer the page does and
+takes one of two routes, reporting which answered. Where it writes is a rule
+rather than a default - beside its own `sheet.json` when the render is
+publishable, and into `.tmp/` when it is not - because the social recipe globs
+the working tree and drafts a post for whatever lands beside a document. The
+PNG-then-convert pipeline this section expected is not there and needs no
+ImageMagick: the browser route encodes WebP directly. Its defaults are the
+preset in `CONTRIBUTING.md`, read off that document by a case rather than
+copied into the tool.
 
 ## Repository Records
 
@@ -247,12 +249,19 @@ category to exist and then for a second subject going into one.
 expect to find.
 
 What is left here is one standing constant nothing can currently follow, whose
-fix is outside this repository, and one claim about the suite that is true of a
-clone and not of a working machine. Measured again on 2026.10.26: every
-`cross-os-social` call, `--version` included, still exits with
-`The build is older than the source it came from`. `doctor`, the drift check
-and `run --dry-run` were all attempted that day and all three refused, so no
-route record and no drift reading was taken.
+fix is outside this repository, and one question about what a commit trailer
+means. Measured again on 2026.10.27: every `cross-os-social` call, `--version`
+included, still exits with `The build is older than the source it came from`.
+`doctor`, the drift check and `run --dry-run` were all attempted that day and
+all three refused, so no route record and no drift reading was taken for the
+third run running.
+
+The third item closed on 2026.10.27. `node --test` sweeps `test-results/`,
+which `tools/test-suite-invocation.mjs` excluded from its own walk, so both
+discovery invariants were blind to the one folder the real command does sweep.
+The walk now sweeps what the command sweeps and `.gitignore` answers what the
+repository owns rather than what is in the suite, with a third case failing on
+any discovered file that is a working artifact and naming the remedy.
 
 - [ ] Settle the `## Social Media Posting` constant, which nothing can currently follow
   - **Issue**: measured 2026.10.15. The rule asks every run to record this session's routes with `cross-os-social doctor --workspace mcp-todo --json`, and to check the recipe for drift before drafting. Every command, `--version` included, exits with `The build is older than the source it came from, so this would run the previous behaviour without saying so. Run \`npm run build\` first.` The shim on `PATH` resolves to the globally linked `cross-os-automation-mcp`, so the stale build is in that package and not in this repository
@@ -265,12 +274,6 @@ route record and no drift reading was taken.
   - **Issue**: it is not clear which of two things it asks for, which is probably why. A commit trailer naming a co-author is one reading; a GitHub repository collaborator, added once in the repository's settings rather than per commit, is the other. "Add as a collaborator" is the vocabulary of the second and "on a commit" is the vocabulary of the first, and `CONTRIBUTING.md` currently reads as both at once
   - **Goal**: decide which it is and make it true. If it is a trailer, it has to be something the committing step can add, since a run records a commit mode and does not run `git` - so either the mode file carries it or the automation learns the rule, and `CONTRIBUTING.md` should name the exact trailer. If it is a repository collaborator, check whether the account is already one and reword the constant and `CONTRIBUTING.md` to stop implying a per-commit act. Either way, drop the line from the remaining cheatsheet items in **New Cheatsheets** if it is not something an item can carry out
   - Worth settling before the next cheatsheet item rather than after. More than fifty of them still carry the line, and each one currently records an intention no commit fulfils
-  - From: version.control = null
-- [ ] Hold the documented suite invocation to what it sweeps on a working machine, not only in a clone
-  - **Issue**: found 2026.10.26. `node --test` from the repository root is the documented whole-suite command, and Node's default patterns match `test-results/**/*.test.mjs` - `test-results` is not a dot directory and Node knows nothing about `.gitignore`. So a UI/UX tester's leftover artifact joins the suite on the machine that produced it. One does today: the untracked `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.25-indent-on-the-page.test.mjs` asserts its walk finds nine padded continuations in HEAD, which the 2026.10.25 run then fixed, so it fails permanently and takes `node --test` to 1 failure of 590 on this machine while the 589 tracked cases pass
-  - **Issue**: `tools/test-suite-invocation.mjs` cannot see any of that. Its `ignoredDirectories()` reads `.gitignore` and so excludes `test-results/` from its own walk, which means both discovery invariants - "finds every file that holds tests" and "runs nothing that is not a test" - are blind to exactly the folder the real command does sweep. The header's claim that the walk "excludes what `.gitignore` excludes" is a statement about that walk being read as one about the suite
-  - **Goal**: decide which of the two is wrong and make them agree. Either the documented invocation grows an exclusion so the command matches the invariant, or the invariant stops excluding gitignored folders so it reports what the command will actually run. Do not fix it by deleting the artifact: it is untracked, it is a tester's own record, and the next tester writes another one
-  - A tester's artifact asserting a pre-fix state is the recurring shape rather than a one-off. It is written to prove a walk finds the defect it was sent to measure, which is the right thing to assert on the day and a permanent failure the day after the fix lands
   - From: version.control = null
 
 ## New Cheatsheets
@@ -753,11 +756,6 @@ analyzer measures no sizes and the generator invents a type scale, which is the
 failure the asset exists to prevent.
 
 - [ ] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
-- [ ] Hold the padded continuation directly, so the one sheet exempt from the ladder is not exempt from the defect
-  - **Issue**: observed on 2026.10.25 while verifying the nine re-indented lines, and it is a gap rather than a fault - nothing is drawn wrongly today. `tools/test-sheet-indent-columns-browser.mjs` catches a padded continuation by proxy: its own header says the ladder "stands proxy for" the defect, because the two drawn cases cannot see a line that is out of column with a value *inside* the line above. The proxy has one hole, and `NOT_A_LADDER` is it. `javascript/arrays/max-and-min-function-and-sort-object` is exempt from the ladder case by a row whose note asserts "no padded column: measured on 2026.10.24, not one of its lines aims at a position inside the line above" - a measured claim that no case checks. So on the one sheet in the catalog the ladder does not cover, the defect the whole file exists to catch is held by a comment
-  - **Goal**: add a document-only case beside the ladder case in that file, asserting no sheet indents a line to the first character of a token in the line above. Two conditions, and both are needed: the line above has to leave a construct open - an unterminated tag, or a trailing binary operator - so the line below is a continuation rather than a child, and the indent has to land on a token start in it. Without the first condition a short CSS selector reads as a pad: `p {` over `  max-width: 66ch;` puts the `{` at character 2 against an indent of 2, and `html-css/general-css-overview/typography-and-text` row 17 and `responsive-design` row 25 are both reported as pads until it goes in. Prove the case rather than trusting a zero - run the same walk over the sheets as of `89a11d5` and it has to report exactly the nine the 2026.10.24 measurement found, token for token; run it over the catalog today and it reports none. A working implementation and that before/after proof are in `test-results/ui-ux-tester.agent/`, stamped `ui-ux-tester.2026.10.25-`
-  - Proposed rather than promoted on purpose: the file it belongs in was still uncommitted in the working tree when this was written, so adding the case here would have folded the main call's own edits to it into a test commit
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 ### Rendering and Conversion
 
@@ -1648,6 +1646,37 @@ generate ideas about generating ideas.
   - WebP rather than JPEG specifically because these are text dense code renders, where WebP holds small glyph edges better at the same weight
   - Raise an individual render to quality 90 when its code is not legible, rather than raising its dimensions past 1400 pixels
   - `CONTRIBUTING.md` is the file the item's "where a contributor will read it" now names, as of 2026.10.23. A render is already described there as a `sheet.*` the tree rule lets through by name and never commits; the preset belongs beside that rather than in a section of its own
+  - From: Raster Export and Example Images
+- [x] **Sandboxed Demo Frame**: Load an `embed` cheatsheet's `demo/index.html` in a sandboxed frame, so the five committed demos are reachable from the page
+  - **Issue**: found 2026.10.26, while adding the **HTML APIs** group. `selectExample()` in `index.html` branches on `entry.kind === "run"` alone, so an `embed` sheet composes its graphic and loads nothing. `cheatsheets.json` records a payload for each of the five - `html-css/html-apis/<sheet>/demo/index.html` - and no route on the page requests it, so the manifest names a file the reader cannot reach
+  - **Goal**: frame the payload for `kind: embed` the way the conventions in **New Cheatsheets** already describe it - `embed` loads `demo/index.html` in a sandboxed frame. Take the frame down on the next selection the way the injected script element already is, and leave the console guidance down, since an embed writes to its own frame rather than to the reader's console
+  - The five demos were each driven in Chromium before they were committed and all 17 of their controls work, so what is missing is the page's side only. They are self-contained single pages that degrade where a permission is withheld, which is the behaviour a sandboxed frame will exercise: `localStorage` throws on an opaque origin and the clipboard is refused without `allow-same-origin`, and both are already reported rather than thrown
+  - Decide the `sandbox` attribute deliberately rather than by what makes the demos pass. `allow-scripts` alone gives an opaque origin, which is the safest frame and the one that disables storage; adding `allow-same-origin` restores it and weakens the isolation. Whichever is chosen, say so where a demo author reads it, because it decides what a demo may rely on
+  - `tools/test-example-selection.mjs` holds the behaviour that exists today in "a committed unrun cheatsheet draws, injects nothing and asks for no console", which covers every kind but `run`. An embed that frames something will need that case split rather than widened
+  - From: Cheatsheet Catalog `->` What the Page Does With a Payload
+- [x] Hold the padded continuation directly, so the one sheet exempt from the ladder is not exempt from the defect
+  - **Issue**: observed on 2026.10.25 while verifying the nine re-indented lines, and it is a gap rather than a fault - nothing is drawn wrongly today. `tools/test-sheet-indent-columns-browser.mjs` catches a padded continuation by proxy: its own header says the ladder "stands proxy for" the defect, because the two drawn cases cannot see a line that is out of column with a value *inside* the line above. The proxy has one hole, and `NOT_A_LADDER` is it. `javascript/arrays/max-and-min-function-and-sort-object` is exempt from the ladder case by a row whose note asserts "no padded column: measured on 2026.10.24, not one of its lines aims at a position inside the line above" - a measured claim that no case checks. So on the one sheet in the catalog the ladder does not cover, the defect the whole file exists to catch is held by a comment
+  - **Goal**: add a document-only case beside the ladder case in that file, asserting no sheet indents a line to the first character of a token in the line above. Two conditions, and both are needed: the line above has to leave a construct open - an unterminated tag, or a trailing binary operator - so the line below is a continuation rather than a child, and the indent has to land on a token start in it. Without the first condition a short CSS selector reads as a pad: `p {` over `  max-width: 66ch;` puts the `{` at character 2 against an indent of 2, and `html-css/general-css-overview/typography-and-text` row 17 and `responsive-design` row 25 are both reported as pads until it goes in. Prove the case rather than trusting a zero - run the same walk over the sheets as of `89a11d5` and it has to report exactly the nine the 2026.10.24 measurement found, token for token; run it over the catalog today and it reports none. A working implementation and that before/after proof are in `test-results/ui-ux-tester.agent/`, stamped `ui-ux-tester.2026.10.25-`
+  - Proposed rather than promoted on purpose: the file it belongs in was still uncommitted in the working tree when this was written, so adding the case here would have folded the main call's own edits to it into a test commit
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] Size the accent-arrival wait against a loaded machine rather than an idle one
+  - **Issue**: observed on 2026.10.25. `the catalog arrives with the accent reader still in flight` in `tools/test-sheet-accent-arrival-browser.mjs` failed once in three consecutive full-suite runs, at 15214.66 ms against the `waitForSelector('html[data-catalog="ready"]', { timeout: 15000 })` on its first line - a timeout, not an assertion. The file passes on its own every time, and the whole suite passed either side of it. The case deliberately holds the accent reader so the page has to arrive without it, and `node --test` runs several browser files at once, so on a contended machine the held page can take longer to report ready than the wait allows. Nothing about the page is wrong: it is the only wait in the file that has to cover a deliberately stalled dependency, and it is the shortest thing standing between a clean suite and a red one nobody can reproduce
+  - **Goal**: make the wait proportionate to what it is waiting for, rather than raising every timeout in the file. Either give this one case a longer wait with the reason written beside it, or wait on the signal rather than the clock - the page already sets `data-catalog="ready"`, so the case can poll that without a ceiling and fail on a page that never sets it. Whichever it is, record in the file's header that this case runs against a held dependency under suite contention, so the next person reading a flake here does not re-derive it
+  - From: Page Structure and Responsiveness
+- [x] Hold the documented suite invocation to what it sweeps on a working machine, not only in a clone
+  - **Issue**: found 2026.10.26. `node --test` from the repository root is the documented whole-suite command, and Node's default patterns match `test-results/**/*.test.mjs` - `test-results` is not a dot directory and Node knows nothing about `.gitignore`. So a UI/UX tester's leftover artifact joins the suite on the machine that produced it. One does today: the untracked `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.25-indent-on-the-page.test.mjs` asserts its walk finds nine padded continuations in HEAD, which the 2026.10.25 run then fixed, so it fails permanently and takes `node --test` to 1 failure of 590 on this machine while the 589 tracked cases pass
+  - **Issue**: `tools/test-suite-invocation.mjs` cannot see any of that. Its `ignoredDirectories()` reads `.gitignore` and so excludes `test-results/` from its own walk, which means both discovery invariants - "finds every file that holds tests" and "runs nothing that is not a test" - are blind to exactly the folder the real command does sweep. The header's claim that the walk "excludes what `.gitignore` excludes" is a statement about that walk being read as one about the suite
+  - **Goal**: decide which of the two is wrong and make them agree. Either the documented invocation grows an exclusion so the command matches the invariant, or the invariant stops excluding gitignored folders so it reports what the command will actually run. Do not fix it by deleting the artifact: it is untracked, it is a tester's own record, and the next tester writes another one
+  - A tester's artifact asserting a pre-fix state is the recurring shape rather than a one-off. It is written to prove a walk finds the defect it was sent to measure, which is the right thing to assert on the day and a permanent failure the day after the fix lands
+  - From: version.control = null
+- [x] Write `tools/cheatsheet.mjs`, the command line that composes a sheet and renders it to a media file
+  - The flags, the two renderers and the three rules they carry are specified in `.claude/prompts/current-plan.prompt.md`
+  - Resolve the browser at run time from a local install, from `PLAYWRIGHT_MODULE`, or from the user scope global, and skip with the install command as the reason when none answers, which is the pattern `tools/test-page-structure-browser.mjs` settled
+  - Write the PNG into `.tmp/` and convert it to `<name>.webp` beside the cheatsheet, so `Watch: **/*.{jpg,webp}` in `.claude/constants.md` needs no change. Widening the watch to `png` sweeps in the favicon working set, measured at 46 files
+  - Renders are untracked. Confirm the social tool globs the working tree rather than the commit before relying on that, since a pattern matching nothing reads exactly like a quiet day
+  - **The render is named as expected output, rather than written outside the folder.** That is the answer to the question the `--check` item asks here: `sheet.*` is reserved in a cheatsheet folder, so `sheet.json` is the document and `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the tree rule lets through by name. Naming them is what makes the rule give the same answer everywhere - a render is untracked, so a rule that asked git what was committed would pass on the machine that rendered it and fail on the runner. `<name>` is therefore `sheet` for a cheatsheet folder, which is also what `.claude/constants.md` already expects of `<category>/<cheatsheet>/sheet.webp`
+  - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
+  - **The preset this writes at is settled as of 2026.10.26** and is recorded under **The preset a render is written at** in `CONTRIBUTING.md`: WebP, quality 80, a 1400 px long edge, a 200 KB target and a 300 KB cap. Take the defaults from there rather than choosing new ones, and let a flag override each. The long edge is a scale of `1400 / 3600`, which the document notes clears `MIN_PUBLISH_SCALE` in `api/cheatsheet/raster.mjs` - that floor works out at 1200 px on this canvas, so a smaller render comes back marked unpublishable and the CLI should say so rather than write it silently
   - From: Raster Export and Example Images
 
 </details>
