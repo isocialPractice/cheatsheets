@@ -4,6 +4,133 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.27]
+
+### Added
+
+- **An `embed` cheatsheet's demo is loaded in a sandboxed frame, so the five
+  committed demos are reachable from the page.** `selectExample()` in
+  `index.html` branched on `kind === "run"` alone, so `cheatsheets.json` named
+  a `demo/index.html` for each of the five and no route on the page requested
+  one. The frame goes below the row rather than in the sheet's column, because
+  these demos lay out as a wrapping row of buttons over a log panel and are
+  tall when they are narrow - the sheet's column is 344 px wide at a 768 px
+  viewport, so beside the sheet the frame would have been at its tallest where
+  the page had least room. Its two heights, 672 px wide and 832 px narrow, are
+  the tallest of the five measured at every width the frame can take after
+  pressing every control each one ships.
+
+  **The sandbox is `allow-scripts` and nothing else**, decided once for the
+  catalog rather than per sheet, since the roadmap holds seven more `embed`
+  subjects. `allow-same-origin` beside it is not a weaker sandbox but no
+  sandbox: the frame becomes same-origin with the page, free to reach
+  `parent.document`, take the `sandbox` attribute off its own frame and write
+  into the site's own storage. What the strict frame costs was measured across
+  all five demos - an opaque origin has no storage and is not a secure
+  context, so `localStorage` throws and `navigator.clipboard` is undefined -
+  and all five already report a refusal rather than throwing, which for a
+  storage cheatsheet is part of what it teaches. A link under the frame opens
+  the same demo in its own tab with the site's permissions. `allow-modals` is
+  absent and is not needed: it governs `alert`, `confirm`, `prompt` and
+  `print`, not a `dialog` element, which was checked rather than assumed.
+
+  The frame is created per selection rather than having its `src` rewritten,
+  and the reason is the back button: assigning `src` to a frame already in the
+  document pushes an entry onto the joint session history, while the first
+  navigation of a freshly inserted frame replaces. It also comes down on a
+  category change, which the injected script element does not need to - a
+  script that has run is inert, while a frame left in place keeps a live
+  document in it with its observers and timers going. `CONTRIBUTING.md` records
+  what a demo may rely on, where a demo author reads it.
+
+- **`tools/cheatsheet.mjs`, the command line that composes a sheet and renders
+  it to a media file.** `--generate <slug>`, `--list` and `--check`, with the
+  flags the plan specifies: `--format` (svg, png, webp, jpg), `--renderer`
+  (auto, browser, builtin), `--theme`, `--seed`, `--scale`, `--quality`,
+  `--background`, `--max-bytes`, `--out`, `--data-only`, `--dry-run` and
+  `--json`. Every raster figure is the preset recorded under **The preset a
+  render is written at** in `CONTRIBUTING.md`, read off that document by a case
+  rather than copied: quality 80, a 1400 px long edge, a 200 KB target and a
+  300 KB cap. The preset's format, WebP, is the one figure that is not also a
+  default - `--format` defaults to `svg`, which is the composition itself and
+  needs neither a renderer nor an encoder behind it.
+
+  **`--scale` is device pixels per composition pixel**, so the preset's long
+  edge is a scale of `1400 / 3600`, or 0.3889. The plan's default of 2 is the
+  misreading `api/cheatsheet/raster.mjs` warns about - that figure is per
+  *display* pixel - and would ask for a 7200 square image.
+
+  **Where a render is written is a rule rather than a default**: beside its own
+  `sheet.json` as `sheet.<ext>` when it is publishable, and into `.tmp/` when
+  it is not. The social recipe in `.claude/constants.md` globs the working tree
+  for `**/*.{jpg,webp}` and drafts a post per new match, so a built-in-alphabet
+  render, one under the publish floor, or one over the weight cap goes
+  somewhere that glob does not reach. `--out` overrides and is always obeyed.
+  No ImageMagick is needed after all - the browser route encodes WebP directly,
+  so the PNG-then-convert pipeline the item was written around is not there,
+  and nothing writes a PNG beside a cheatsheet unless asked to.
+
+  `--layout` and `--script` are recognised and refused by name, saying that a
+  named layout and a payload-as-input both belong to the models queued under
+  **Implement Cheatsheet API**. Accepted and ignored would have left a caller
+  believing a sheet had been composed to a layout it had not.
+
+- **`tools/test-sheet-indent-columns-browser.mjs` holds the padded continuation
+  directly, rather than by the ladder that stood proxy for it.** The new case
+  walks every document and reports any line indented to the first character of
+  a token in the line above, where that line leaves a construct open and so is
+  continued rather than nested into. All three conditions are needed: without
+  the open-construct test, `p {` over `  max-width: 66ch;` reads as a pad and
+  two correctly nested CSS sheets are reported.
+
+  It closes the hole a proxy always has - a sheet exempt from the proxy was
+  exempt from the defect too, and
+  `javascript/arrays/max-and-min-function-and-sort-object` is on the record for
+  declaring `0, 1, 3, 4` to match the artwork it transcribes. Until now the
+  only thing asserting that sheet had no padded column was the prose on its own
+  exemption row. The walk is proved rather than trusted: run over the sheets as
+  of `89a11d5` it reports exactly the nine the 2026.10.24 measurement found,
+  token for token, and those nine are written out in the file so the record
+  survives a clone that cannot reach that commit.
+
+### Fixed
+
+- **`node --test` no longer sweeps a UI/UX tester's leftover record into the
+  suite.** The documented whole-suite command walks the tree from the root and
+  has read no `.gitignore`, so `test-results/**/*.test.mjs` joins the suite on
+  the machine that produced it - and `tools/test-suite-invocation.mjs` could
+  not see any of that, because its own walk excluded every folder `.gitignore`
+  names. Both discovery invariants were therefore blind to the one folder the
+  real command does sweep, which on this machine was 1 failure of 590 while all
+  589 tracked cases passed.
+
+  The two were made to agree in the direction of the command, because the
+  command is not this repository's to change in the other direction: there is
+  no file-level exclusion flag on `node --test`, and the only mechanism that
+  works is the leading dot, which is `test-results/`'s name and not ours - the
+  reviewing agent's own instructions name that folder and live outside this
+  repository. So the walk now sweeps what the command sweeps, and `.gitignore`
+  answers a different question: not what is *in* the suite but what the
+  repository *owns*. A third case fails on any discovered file that is a
+  working artifact, naming it and the remedy - rename to `<name>.cases.mjs`,
+  which keeps the record where the tester wrote it and takes it out of the
+  sweep. Today's artifact was renamed rather than deleted, and
+  `CONTRIBUTING.md` records the convention.
+
+- **The one wait in `tools/test-sheet-accent-arrival-browser.mjs` that covers a
+  deliberately held dependency is sized for a loaded machine.** "the catalog
+  arrives with the accent reader still in flight" failed once in three
+  consecutive full-suite runs at 15,214.66 ms against a 15,000 ms ceiling - a
+  timeout, not an assertion, with the file passing on its own every time. It is
+  the only arrival in the file a case is holding part of, and `node --test`
+  drives several browsers at once, so the ceiling is now `HELD_ARRIVAL`, 60 s,
+  with the reason recorded in the file's header. Raising every timeout in the
+  file would have treated a contention flake as a slow page. A ceiling is kept
+  rather than waiting unbounded, so a page that never arrives still fails in
+  finite time, and on reaching it the case now reports where the page had got
+  to - a manifest that answered beside a catalog still not ready is a page
+  fault, and neither reaching the page is this wait being too short.
+
 ## [2026.10.26]
 
 ### Added

@@ -33,12 +33,55 @@ A cheatsheet folder holds, at most:
 named `sheet.anything`. Any other file in the folder fails
 `node tools/build-manifest.mjs --check` as unreferenced.
 
+### Rendering one, from the command line
+
+`tools/cheatsheet.mjs` is what writes a render. It composes a document through
+the same layer the page does and hands the composition to one of two
+renderers:
+
+```bash
+node tools/cheatsheet.mjs --list
+node tools/cheatsheet.mjs --check
+node tools/cheatsheet.mjs --generate html-css/html-apis/web-storage --format webp
+node tools/cheatsheet.mjs --help
+```
+
+Two things about it are worth knowing before the first call, and the rest is in
+`--help` and the file's own header.
+
+**It reports which renderer answered, and that is not cosmetic.** The browser
+route draws the face the design language measured; the built-in route draws a
+single stroke alphabet, because it carries no font file. Both are legible and
+only one of them is the sheet, so `--renderer auto` prefers the browser, falls
+back with the reason recorded, and never claims the route it did not take.
+`--renderer browser` refuses to fall back.
+
+**Where it writes depends on whether what it made may be published.** A
+publishable render goes beside its own `sheet.json` as `sheet.<ext>`; anything
+else goes to `.tmp/`. The reason is the social recipe in
+`.claude/constants.md`: it globs the working tree for `**/*.{jpg,webp}` and
+drafts a post for each new match, so whatever lands beside a document is a
+thing somebody may post. A built-in-alphabet render is not, nor is one under
+the publish floor or over the weight cap. `--out` overrides the destination and
+is always obeyed.
+
+Seed the ledger before rendering the whole catalog at once -
+`cross-os-social seed --workspace mcp-todo` - or the first bulk run reads as 28
+new images and drafts 28 posts.
+
 ### The preset a render is written at
 
 The render row above is the only file in the table that is never committed, so
 nothing in the repository is measured against this preset - there is nothing
 committed to measure. It is for the moment something outside the page asks for
 a picture of a sheet: a social post, a slide, a README somewhere else.
+
+`tools/cheatsheet.mjs` takes every raster figure below from it, and a flag
+overrides each. Format is the exception: `--format` defaults to `svg`, which is
+the composition itself and needs no encoder, and the WebP in the table is what
+`--format webp` is then written at. `node --test tools/test-cheatsheet-cli.mjs`
+reads the table below and fails where the command and this document disagree,
+so the figures are stated once.
 
 | Setting | Value |
 | --- | --- |
@@ -113,13 +156,20 @@ run:
   starts. Written as padding it is drawn wherever those spaces reach, which was
   35.4 px left of its column the one time it was tried.
 
-  `node --test tools/test-sheet-indent-columns-browser.mjs` holds a sheet to
-  it: the indents a sheet declares have to be `0`, one unit, two units and so
-  on with no rung skipped, which is the one shape a padded column cannot be
-  written in. Six sheets predated the rule; five were fixed on 2026.10.25 and
-  the sixth is listed in that file as a standing exception, with the reason it
-  is one. The list is not a queue - a row added to it is a decision to argue
-  for, not debt to clear - and the case fails on any sheet that is not on it.
+  `node --test tools/test-sheet-indent-columns-browser.mjs` holds a sheet to it
+  two ways. The ladder: the indents a sheet declares have to be `0`, one unit,
+  two units and so on with no rung skipped, which is the one shape a padded
+  column cannot be written in. Six sheets predated the rule; five were fixed on
+  2026.10.25 and the sixth is listed in that file as a standing exception, with
+  the reason it is one. The list is not a queue - a row added to it is a
+  decision to argue for, not debt to clear - and the case fails on any sheet
+  that is not on it.
+
+  And the defect directly, since 2026.10.27: no line is indented to the first
+  character of a token in the line above, where that line leaves a construct
+  open and so is continued rather than nested into. That case walks every
+  sheet, the exceptions included, because a row on the record exempts a sheet
+  from the ladder and nothing exempts one from the thing the ladder stands for.
 
   The rule governs the `code` array, which is drawn in a proportional face. It
   does not reach the payload file, which is read in a monospace editor where a
@@ -129,6 +179,52 @@ run:
   does.
 
 A blank line carries no `role`. A role on one would be a colour on nothing.
+
+### What a `kind: embed` demo may rely on
+
+An `embed` sheet's `demo/index.html` is loaded by the page into an `iframe`
+carrying `sandbox="allow-scripts"`, and nothing else. Settled on 2026.10.27,
+once for the catalog rather than per sheet, so a demo is written against one
+answer.
+
+**What that grant takes away**, because `allow-scripts` alone gives the frame
+an opaque origin:
+
+| | In the frame | Opening `demo/index.html` directly |
+| --- | --- | --- |
+| `localStorage`, `sessionStorage` | Access throws `SecurityError` | Works |
+| `navigator.clipboard` | `undefined` - an opaque origin is not a secure context | Works on `https` and on `localhost` |
+| Cookies, `document.domain`, reaching `parent` | Refused | Same origin as the site |
+| `fetch`, `URL`, `AbortController`, the observers, `dialog.showModal` | All work | All work |
+
+`allow-same-origin` is deliberately not granted. Beside `allow-scripts` it is
+not a weaker sandbox but no sandbox: the frame becomes same-origin with the
+page, so it can reach `parent.document`, take the `sandbox` attribute off its
+own frame and reload itself unrestricted - and write into the site's own
+storage on the way. `allow-modals` is not granted either, and is not needed: it
+governs `alert`, `confirm`, `prompt` and `print`, not a `dialog` element.
+
+So **a demo reports a refusal rather than assuming a capability**. Reach for
+storage or the clipboard through a guard, write the refusal into the demo's own
+log panel, and let that be part of what the demo teaches - an opaque origin
+having no storage is a true and useful thing for a storage cheatsheet to show.
+A demo that throws instead shows a reader nothing. Under the frame the page
+offers a link to the same demo in its own tab, which is where a reader goes for
+the half the sandbox withholds.
+
+**Fit the frame.** Its height is fixed, measured from all five committed demos
+at every width the page can give them: **672px** on the wide layout, where the
+frame is 736px across at its narrowest, and **832px** below the 768px
+breakpoint, where it narrows to 288px on the smallest phone. Both are the
+tallest demo rounded up to the page's 8px step. A taller demo scrolls inside the frame rather than
+being clipped, which is the fallback and not the intention - a demo that needs
+more room is better split than scrolled.
+
+`node --test tools/test-example-selection.mjs` holds all of it: the grant, that
+the markup ships no frame for a `src` to be rewritten on, that an `embed` sheet
+frames the payload the manifest records and every other kind frames nothing,
+that the frame comes down on the next selection and on a category change, and
+that the demo inside it answers its own controls.
 
 ## Adding a new category
 
@@ -251,6 +347,36 @@ The first two are what the Pages workflow runs before it publishes, and the
 first is the one that catches a fault invisible locally: Pages serves from a
 case sensitive filesystem while the work happens on Windows, so a path cased
 wrongly resolves here and 404s on the published site.
+
+### A leftover test file is named `.cases.mjs`
+
+`node --test` walks the whole tree from the root, and it has read no
+`.gitignore`. `.tmp/` escapes it because Node's default patterns do not match
+into a dot directory; `test-results/` and `mcp-todo/` do not escape it, so
+anything named `test-*.mjs` or `*.test.mjs` under either joins the suite on the
+machine that wrote it.
+
+That matters for one file in particular. A UI/UX review leaves its record in
+`test-results/ui-ux-tester.agent/`, and the record is sometimes a test file
+written to prove a walk finds the defect the review was sent to measure. That
+is the right thing to assert on the day and a permanently failing case the day
+after the fix lands, for a reason nobody reading the failure can act on.
+
+So **a test file kept as a record is named `<name>.cases.mjs`**, which no
+default pattern matches. It stays where it was written, it still runs on its
+own by explicit path, and it is out of the suite:
+
+```bash
+node --test test-results/ui-ux-tester.agent/<name>.cases.mjs
+```
+
+`tools/test-suite-invocation.mjs` holds the rule, in "and nothing it runs is a
+working artifact rather than the repository's own". It reports the path and this
+remedy, so the rename is asked for on the day the record is written rather than
+discovered weeks later as a red suite. Do not answer it by deleting the record,
+and do not answer it by adding the folder to a list of exclusions in that file -
+the folder's name is set by the reviewing agent's own instructions, which live
+outside this repository.
 
 Commit `cheatsheets.json` with whatever changed it. It is committed rather than
 built at deploy time so that a local `php -S localhost:8000` needs no Node.

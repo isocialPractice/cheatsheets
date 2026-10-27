@@ -83,12 +83,24 @@ margins, and a `cheatsheets.json` that has gone stale. The Pages workflow runs
 it before it publishes, which is where a casing mismatch is caught - those
 resolve on Windows and 404 on the published site.
 
+**Rendering a Sheet Outside the Page**
+The page composes its sheet as SVG in the browser and nothing commits a raster,
+so a picture of a sheet is made on demand:
+`node tools/cheatsheet.mjs --generate <slug> --format webp`. It composes
+through the same layer the page does and then takes one of two routes - a real
+engine, which draws the face the design language measured, or the drawing
+surface's own dependency free rasterizer, which draws a built in single stroke
+alphabet. It reports which one answered, because a file that does not say that
+cannot be reviewed against the design language. `--list` names what there is
+and `--help` the rest.
+
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a
 whole category are added, written from what was done rather than from the rule:
-what a cheatsheet folder may hold, the three commands a category's design
-language is derived with, where the generated skill goes and why it is not
-committed, and the checks to run before committing. The eleven images in
+what a cheatsheet folder may hold, what a sandboxed `embed` demo may rely on,
+the three commands a category's design language is derived with, where the
+generated skill goes and why it is not committed, and the checks to run before
+committing. The eleven images in
 [javaScriptArrays/](javaScriptArrays/README.md) are reference rather than any
 cheatsheet's graphic - they are what the global design language was measured
 off, and what a composed sheet is aimed at reproducing.

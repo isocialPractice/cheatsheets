@@ -1198,6 +1198,243 @@ test("a committed unrun cheatsheet draws, injects nothing and asks for no consol
   }
 });
 
+// ## The three cases below are the split the case above needed
+//
+// It asserted one thing about every kind but `run`, which was right while the
+// page did one thing with all three of them: nothing. From 2026.10.27 it does
+// two, so what is common to all of them stays above - drawn, nothing injected,
+// no console asked for - and what divides them is here. `embed` is framed;
+// `read` and `none` are not.
+
+/** The `embed` cheatsheets the catalog actually holds, and the ones it does not frame. */
+const htmlCss = manifest.categories.find((entry) => entry.id === "html-css");
+const embedded = htmlCss?.cheatsheets.filter((sheet) => sheet.kind === "embed") ?? [];
+const unframed = htmlCss?.cheatsheets.filter((sheet) => sheet.kind !== "embed") ?? [];
+
+/**
+ * The frame on screen, once its document has finished loading.
+ *
+ * `contentFrame()` off the element rather than matching a frame by its URL:
+ * the frame is replaced per selection, and the element handle is the only
+ * thing that names this selection's frame rather than one that happens to
+ * carry the same address.
+ *
+ * Waiting for `load` is what makes a click on a demo's control reliable. The
+ * controls are in the static markup, so they are clickable the moment the
+ * document parses, while the listeners are bound by an inline module script -
+ * deferred, and run before `load`. Clicking on `domcontentloaded` presses a
+ * button nothing is listening to, which reads as an empty log rather than as a
+ * race.
+ */
+async function demoFrame(page) {
+  const element = await page.waitForSelector("#sheetDemoFrame > iframe");
+  const frame = await element.contentFrame();
+  await frame.waitForLoadState("load");
+  return frame;
+}
+
+/**
+ * Presses one of a demo's controls and returns what it reported.
+ *
+ * Waited for rather than read straight after the click, because not every
+ * control answers in the same turn: `web-storage`'s write is synchronous while
+ * `fetch-and-abort`'s read awaits a response, so reading immediately gets the
+ * empty panel - which looks exactly like a demo whose listeners never bound.
+ * Every demo in the catalog clears `#log` on entry and writes at least one
+ * line, so a non-empty panel is the signal.
+ */
+async function reportOf(frame, control) {
+  await frame.click(control);
+  await frame.waitForFunction(() => document.querySelector("#log").textContent.trim() !== "");
+  return frame.textContent("#log");
+}
+
+test("the markup ships no frame, so none can have its src rewritten", () => {
+  // The reason is the back button rather than tidiness. Assigning `src` to a
+  // frame already in the document pushes an entry onto the joint session
+  // history; the first navigation of a freshly inserted frame replaces
+  // instead. A frame sitting in the markup is the shape that would tempt the
+  // first form, so the markup holds none and the script makes one per
+  // selection.
+  assert.doesNotMatch(html, /<iframe/);
+  assert.match(script, /document\.createElement\("iframe"\)/);
+});
+
+test("the demo frame is granted scripts and nothing else", () => {
+  assert.match(script, /^const DEMO_SANDBOX = "allow-scripts";$/m);
+  // Every assignment to a `sandbox` property, and there is to be one: the
+  // constant above is only the whole answer if nothing else grants anything.
+  const grants = [...script.matchAll(/\bsandbox\s*=\s*([^;\n]+)/g)].map((match) => match[1].trim());
+  assert.deepEqual(grants, ["DEMO_SANDBOX"], "something other than the constant grants the frame its tokens");
+  // And no string literal anywhere carries the one token that would turn the
+  // sandbox into no sandbox: granted beside `allow-scripts` it makes the frame
+  // same-origin with the page, free to reach `parent.document` and take its
+  // own `sandbox` attribute off.
+  //
+  // Literal by literal rather than `doesNotMatch` over the whole file, because
+  // the comment that explains the token's absence has to be free to name it -
+  // and a looser `"[^"]*allow-same-origin[^"]*"` spans from a quote in one
+  // comment to a quote in another and matches the prose between them. The
+  // pattern forbids a newline inside a literal, which is what keeps a
+  // mis-tokenized span from reaching a line it was never on.
+  const literals = script.match(/"(?:[^"\\\n]|\\.)*"/g) ?? [];
+  assert.deepEqual(
+    literals.filter((literal) => literal.includes("allow-same-origin")),
+    [],
+    "a string literal grants the frame its own origin back"
+  );
+});
+
+test("a committed embed cheatsheet frames the demo the manifest records for it", { skip }, async () => {
+  assert.ok(embedded.length > 0, "the catalog holds no embed cheatsheet, so this proves nothing");
+  const { page } = await openPage();
+  await chooseCategory(page, "html-css");
+
+  const seen = [];
+  for (const sheet of embedded) {
+    await page.selectOption("#example", sheet.id);
+    await page.waitForSelector("#sheetDemoFrame > iframe");
+    await page.waitForSelector("#curCheatSheet > svg");
+    seen.push(
+      await page.evaluate(() => {
+        const frames = document.querySelectorAll("#sheetDemoFrame > iframe");
+        const frame = frames[0];
+        return {
+          frames: frames.length,
+          // `getAttribute` rather than `.src`, which the browser resolves: the
+          // claim is that the manifest's own path is what was asked for.
+          src: frame.getAttribute("src"),
+          sandbox: frame.getAttribute("sandbox"),
+          title: frame.getAttribute("title"),
+          shown: getComputedStyle(document.getElementById("sheetDemo")).display,
+          link: document.getElementById("sheetDemoLink").getAttribute("href"),
+        };
+      })
+    );
+  }
+  await page.close();
+
+  for (const [index, sheet] of embedded.entries()) {
+    assert.equal(seen[index].frames, 1, `${sheet.id} framed ${seen[index].frames} demos`);
+    assert.equal(seen[index].src, sheet.payload, `${sheet.id} framed something other than its payload`);
+    assert.equal(seen[index].sandbox, "allow-scripts", `${sheet.id} was framed with the wrong grant`);
+    // A frame is a document in the accessibility tree, and "iframe" is what is
+    // announced for one with no title.
+    assert.equal(seen[index].title, `${sheet.title} live demo`);
+    assert.notEqual(seen[index].shown, "none", `${sheet.id} framed its demo out of sight`);
+    assert.equal(seen[index].link, sheet.payload, `${sheet.id} offered the wrong demo at full permissions`);
+  }
+});
+
+test("and a cheatsheet of any other kind frames nothing at all", { skip }, async () => {
+  assert.ok(unframed.length > 0, "the catalog holds nothing but embeds, so this proves nothing");
+  const { page } = await openPage();
+  await chooseCategory(page, "html-css");
+
+  const seen = [];
+  for (const sheet of unframed) {
+    await page.selectOption("#example", sheet.id);
+    await page.waitForSelector("#curCheatSheet > svg");
+    seen.push(
+      await page.evaluate(() => ({
+        frames: document.querySelectorAll("#sheetDemoFrame > iframe").length,
+        shown: getComputedStyle(document.getElementById("sheetDemo")).display,
+      }))
+    );
+  }
+  await page.close();
+
+  for (const [index, sheet] of unframed.entries()) {
+    assert.equal(seen[index].frames, 0, `${sheet.id} is kind ${sheet.kind} and was framed anyway`);
+    assert.equal(seen[index].shown, "none", `${sheet.id} showed the demo paragraph with no demo under it`);
+  }
+});
+
+test("the frame comes down on the next selection and on a category change", { skip }, async () => {
+  // Taking it down matters more than taking the injected script element down
+  // did: a script that has run is inert, while a frame left in place keeps a
+  // live document in it with its observers and timers still going. The
+  // observers demo is chosen first for exactly that reason.
+  const observers = embedded.find((sheet) => sheet.id.endsWith("element-observers")) ?? embedded[0];
+  const reading = unframed[0];
+  const { page } = await openPage();
+  const frames = () => page.evaluate(() => document.querySelectorAll("#sheetDemoFrame > iframe").length);
+  await chooseCategory(page, "html-css");
+
+  await page.selectOption("#example", observers.id);
+  await page.waitForSelector("#sheetDemoFrame > iframe");
+  assert.equal(await frames(), 1);
+
+  // On to a sheet with no demo of its own.
+  await page.selectOption("#example", reading.id);
+  await page.waitForSelector("#curCheatSheet > svg");
+  assert.equal(await frames(), 0, "a read cheatsheet was shown under the previous demo");
+
+  // Back to one with a demo, then out of the category entirely.
+  await page.selectOption("#example", observers.id);
+  await page.waitForSelector("#sheetDemoFrame > iframe");
+  assert.equal(await frames(), 1);
+  await page.selectOption("#category", "javascript");
+  assert.equal(await frames(), 0, "the demo outlived the category it belonged to");
+
+  // And the blank option, which is how a reader puts a sheet back down.
+  await page.selectOption("#category", "html-css");
+  await page.selectOption("#example", observers.id);
+  await page.waitForSelector("#sheetDemoFrame > iframe");
+  await page.selectOption("#example", "");
+  assert.equal(await frames(), 0, "the demo stayed up after the sheet was taken down");
+  await page.close();
+});
+
+test("the framed demo runs, and reports the refusal its opaque origin gives it", { skip }, async () => {
+  // What the sandbox decision costs, asserted rather than described. An
+  // `allow-scripts` frame has no origin of its own, so it has no storage
+  // either - and the storage demo says so instead of throwing, which is a true
+  // thing for a storage cheatsheet to show. If this case ever reads a written
+  // value, `allow-same-origin` has been granted somewhere.
+  const storage = embedded.find((sheet) => sheet.id.endsWith("web-storage"));
+  assert.ok(storage, "the catalog no longer holds the web-storage demo");
+  const { page } = await openPage();
+  await chooseCategory(page, "html-css");
+  await page.selectOption("#example", storage.id);
+
+  // The demo's own controls, pressed through the frame: this is the whole of
+  // what "reachable from the page" means.
+  const demo = await demoFrame(page);
+  const refused = await reportOf(demo, "#write");
+  assert.match(refused, /no storage on this origin/, `the frame reported ${JSON.stringify(refused)}`);
+
+  // And something the opaque origin does not take away, so the case is not
+  // passing because the demo is broken.
+  const fetching = embedded.find((sheet) => sheet.id.endsWith("fetch-and-abort"));
+  assert.ok(fetching, "the catalog no longer holds the fetch-and-abort demo");
+  await page.selectOption("#example", fetching.id);
+  const live = await demoFrame(page);
+  const answered = await reportOf(live, "#read");
+  assert.match(answered, /status: 200/, `the frame reported ${JSON.stringify(answered)}`);
+  await page.close();
+});
+
+test("and framing five demos leaves the back button where it was", { skip }, async () => {
+  // The claim the markup case above is the source-text half of. A frame whose
+  // `src` is reassigned pushes onto the joint session history, so five demos
+  // would put five entries between the reader and wherever they arrived from.
+  const { page } = await openPage();
+  await chooseCategory(page, "html-css");
+  const depth = await page.evaluate(() => history.length);
+  for (const sheet of embedded) {
+    await page.selectOption("#example", sheet.id);
+    await page.waitForSelector("#sheetDemoFrame > iframe");
+    await page.waitForSelector("#curCheatSheet > svg");
+  }
+  assert.equal(
+    await page.evaluate(() => history.length),
+    depth,
+    `framing ${embedded.length} demos moved the history depth`
+  );
+  await page.close();
+});
+
 test("a catalog that cannot be read says so rather than failing silently", { skip }, async () => {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   // A route with no manifest under it. The page's own imports still resolve,

@@ -23,6 +23,32 @@
 // page's own controls and graphic arrive. `tools/test-sheet-accent-seams-browser.mjs`
 // is the one that needs no server, because its subject is the composition.
 //
+// ## One case here runs against a held dependency, under suite contention
+//
+// "the catalog arrives with the accent reader still in flight" stalls the
+// reader's own request and never releases it until the case is over, which is
+// what asks the question directly rather than racing loopback. So its first
+// wait is the only one in the file that has to cover a page whose module graph
+// is deliberately incomplete, on a machine where `node --test` is driving
+// several other browsers at the same time.
+//
+// It failed once in three consecutive full-suite runs on 2026.10.25, at
+// 15,214.66 ms against a 15,000 ms ceiling: a timeout, not an assertion, with
+// the file passing on its own every time and the suite passing either side of
+// it. Nothing about the page was wrong. The ceiling was simply the shortest
+// thing standing between a clean suite and a red one nobody could reproduce,
+// and 15 s was a figure carried over from the waits in this file that are
+// about an arrival nothing is holding back.
+//
+// That one wait is therefore `HELD_ARRIVAL` below, and it is generous on
+// purpose. Raising every timeout in the file would be treating a contention
+// flake as a slow page; the one wait that covers a stalled dependency gets the
+// headroom, and the rest keep theirs. A ceiling is still kept rather than
+// waiting unbounded: a page that never arrives has to fail the case in finite
+// time, or the suite hangs instead of reporting. What the case does instead of
+// shortening it is say where the page had got to when the ceiling was reached,
+// so a real failure arrives diagnosed rather than as a bare timeout.
+//
 // Nothing is added to the repository. Playwright is looked for at run time and
 // every case skips with the reason where it is absent. Install it for a
 // machine that should run them:
@@ -160,6 +186,17 @@ after(async () => {
 const READER = "**/napkin-sketch/markdown/**";
 
 /**
+ * How long the one held-dependency case waits for the page to arrive.
+ *
+ * Four times the wait the rest of the file uses, for the reason in the header:
+ * this is the only arrival in the file that a case is deliberately holding
+ * part of, and it is measured on a machine running the whole suite rather than
+ * this file alone. The observed worst case was 15,214.66 ms, so the headroom
+ * is about 4x rather than the 1.3% the old ceiling left.
+ */
+const HELD_ARRIVAL = 60000;
+
+/**
  * A page with the watch installed, and the accent reader refused or stalled.
  *
  * **The routes go on before the navigation, not after it.** Installed
@@ -232,7 +269,37 @@ test("the catalog arrives with the accent reader still in flight", { skip }, asy
   // `Promise.all` as the manifest fetch, nothing below ever resolves.
   const { page, errors, warnings, release } = await openPage({ hold: true });
   try {
-    await page.waitForSelector('html[data-catalog="ready"]', { timeout: 15000 });
+    // `HELD_ARRIVAL` rather than the file's ordinary wait, and the reason is in
+    // the header: this is the one arrival a case is holding part of. On the
+    // ceiling being reached, say what the page had got to - a page that never
+    // asked for its manifest has failed for a different reason than one that
+    // asked and is still waiting, and a bare timeout tells those two apart no
+    // better than it tells either from a loaded machine.
+    try {
+      await page.waitForSelector('html[data-catalog="ready"]', { timeout: HELD_ARRIVAL });
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        catalog: document.documentElement.dataset.catalog ?? "(unset)",
+        options: document.getElementById("category")?.options.length ?? 0,
+        manifest: performance
+          .getEntriesByType("resource")
+          .filter((entry) => entry.name.endsWith("cheatsheets.json"))
+          .map((entry) => `${entry.responseEnd.toFixed(1)} ms`),
+      }));
+      // A new error rather than a longer message on this one. An `Error`'s
+      // stack is built at construction with the message baked into it, and
+      // the reporter prints the stack, so assigning `.message` on a thrown
+      // Playwright error changes nothing a reader ever sees. The original goes
+      // on `cause`, which keeps its call log.
+      throw new Error(
+        `the held page did not report ready inside ${HELD_ARRIVAL} ms. ` +
+          `data-catalog=${state.catalog}, ${state.options} category options, ` +
+          `manifest ${state.manifest.length ? `answered at ${state.manifest.join(", ")}` : "never requested"}. ` +
+          "A manifest that answered and a catalog still not ready is a page fault; " +
+          "neither reaching the page is this wait being too short for a loaded machine.",
+        { cause: error }
+      );
+    }
     const options = await page.$eval("#category", (control) => control.options.length);
     assert.ok(options > 1, "the category dropdown arrived empty");
 

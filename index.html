@@ -200,6 +200,50 @@
   aspect-ratio: 1 / 1;
   border: 1px solid var(--border);
  }
+ /* The live demo an `embed` cheatsheet carries, framed below the row rather
+    than inside the sheet's column. Below the row the frame gets the page's
+    whole measure, and the measure is what decides its height: these demos lay
+    out in a wrapping row of buttons over a log panel, so they are tall when
+    they are narrow and short when they are wide, and the sheet's column is
+    344px wide at a 768px viewport even though the layout there is still the
+    wide one. Beside the sheet the frame would have been at its tallest
+    exactly where the page had least room for it.
+
+    The two heights are measured rather than chosen, from all five demos at
+    every width the frame can take, after pressing every control each one
+    ships - a log panel's "min-height: 7rem" absorbs most of what the output
+    adds, so the used height is within 64px of the arrival height everywhere.
+    Wide, the frame is 736px across at its narrowest - a 768px viewport, less
+    the page's 32px of gutter - and the tallest of the five is
+    "element-observers" at 670px, measured at 735, 736, 1292 alike. Narrow, the
+    frame is 288px across at the smallest phone and that same demo reaches
+    831px. 672 and 832 are those two figures at the next 8px step, so nothing
+    scrolls inside the frame at any width.
+
+    A demo taller than its figure scrolls rather than being clipped, which is
+    the honest fallback and not the intended case: `CONTRIBUTING.md` records
+    both numbers where a demo author reads them. */
+ div.demo {
+  margin: var(--space-3) 0 var(--space-2);
+ }
+ div.demo iframe {
+  display: block;
+  width: 100%;
+  height: 672px;
+  border: 1px solid var(--border);
+ }
+ /* The frame's own ground is the mark's navy, which is the page's ground in
+    dark mode too, so the border is doing the same job here as it does under
+    the sheet: without it the reader cannot see where the demo stops. */
+ p.demo-note {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+ }
+ p.demo-note a {
+  color: var(--accent);
+ }
  /* The route to full size, which is the half of the cap raise the cap cannot
     reach. "min(100%, 900px)" resolves to 100% at every width under 900px, so a
     phone gets exactly what it got before: the code is drawn at 65.4 sheet
@@ -240,6 +284,12 @@
      would leave 309 - one pixel short, which is the whole of this. */
   div.tools {
    padding: var(--space-1);
+  }
+  /* The narrow figure from the comment above the rule. The page is one
+     scrolling column here, so the extra height costs the reader nothing they
+     were not already going to scroll past. */
+  div.demo iframe {
+   height: 832px;
   }
  }
 </style>
@@ -295,6 +345,25 @@
    <p class="full-size" id="sheetFullSize" style="display:none"><a id="sheetFullSizeLink" href="" target="_blank" rel="noopener">Open this sheet at full size</a></p>
   </div>
 </div>
+<!-- Where an `embed` cheatsheet's demo is framed. The frame itself is created
+     per selection by the script rather than sitting here with its `src`
+     rewritten, and the reason is the back button: changing `src` on a frame
+     already in the document pushes an entry onto the joint session history,
+     while the first navigation of a freshly inserted frame replaces instead.
+     Four selections would otherwise leave four entries between the reader and
+     wherever they came from.
+
+     The note is markup rather than script because it says the same thing on
+     every demo: the sandbox is one decision for the whole catalog, not a
+     property of the sheet selected. Only the link's target changes. -->
+<div class="demo" id="sheetDemo" style="display:none">
+ <h3>Live demo</h3>
+ <div id="sheetDemoFrame"></div>
+ <p class="demo-note">This demo runs in a sandboxed frame with no origin of its own, so storage
+  and the clipboard are refused inside it - it reports that rather than failing quietly, which is
+  itself worth seeing. <a id="sheetDemoLink" href="" target="_blank" rel="noopener">Open the demo in its own tab</a>
+  to run it with the site's own permissions.</p>
+</div>
 <p id="showFootNote" style="display:none">To see the results you must open the terminal using one of the methods mentioned up top.</p>
 <p id="catalogError" style="display:none">The cheatsheet catalog could not be loaded. This page reads
  <code>cheatsheets.json</code> over the network, so it needs to be served rather than opened as a file.</p>
@@ -331,6 +400,9 @@ const showFootNote = document.getElementById("showFootNote");
 const consoleIntro = document.getElementById("consoleIntro");
 const consoleStep = document.getElementById("consoleStep");
 const catalogError = document.getElementById("catalogError");
+const demoBox = document.getElementById("sheetDemo");
+const demoFrameBox = document.getElementById("sheetDemoFrame");
+const demoLink = document.getElementById("sheetDemoLink");
 
 // Every cheatsheet the manifest listed, keyed by the slug its option carries.
 // The option's value is that slug and nothing else: a path derived from the
@@ -341,6 +413,41 @@ const cheatsheets = new Map();
 // The `script` element the last selection appended, so it can be taken out
 // before the next one goes in.
 let injected = null;
+
+/**
+ * What the frame an `embed` demo runs in is allowed to do.
+ *
+ * `allow-scripts` and nothing else, decided on 2026.10.27 and settled here
+ * rather than per sheet, because the roadmap holds seven more `embed`
+ * subjects and a demo author needs one answer rather than one per cheatsheet.
+ *
+ * **It is `allow-scripts` alone because `allow-same-origin` beside it is not a
+ * sandbox at all.** A frame granted both is same-origin with this page, so it
+ * can reach `parent.document`, take the `sandbox` attribute off its own frame
+ * and reload itself with no restrictions - and write into the site's own
+ * `localStorage` on the way. The demos are this repository's own today and the
+ * catalog takes contributions, so that is a property to withhold from the
+ * mechanism rather than from each demo.
+ *
+ * What the strict frame costs, measured across all five committed demos: an
+ * opaque origin has no storage and is not a secure context, so `localStorage`
+ * throws and `navigator.clipboard` is undefined. Both are already reported
+ * rather than thrown - "no storage on this origin, so nothing was written" is
+ * a true and useful thing for a storage cheatsheet to show - and the link
+ * under the frame is the route to the same demo with the site's permissions
+ * for a reader who wants the other half. The other three demos are unaffected:
+ * `fetch`, `AbortController`, `URL`, the observers and `dialog.showModal` all
+ * work in an opaque origin. `allow-modals` is deliberately absent - it governs
+ * `alert`, `confirm`, `prompt` and `print`, not a `dialog` element, which was
+ * checked rather than assumed.
+ */
+const DEMO_SANDBOX = "allow-scripts";
+
+// The `iframe` the last selection framed, so it can be taken out before the
+// next one goes in. Unlike the injected script, taking it out matters: a
+// script element that has already run is inert, while a frame left in place
+// keeps a live document in it, with its observers and its timers still going.
+let framed = null;
 
 // How many selections have run. It is part of the injected module's URL, and
 // that is not cosmetic: a module is registered once per URL per document, so
@@ -541,6 +648,42 @@ function offerFullSize(svgText) {
  */
 let onScreen = null;
 
+/**
+ * Takes the demo frame down, and the paragraph that explains it with it.
+ *
+ * Called before every selection frames a new one and from `clearSheet`, so a
+ * category change takes the frame with it rather than leaving a demo running
+ * under a dropdown that no longer offers it.
+ */
+function clearDemo() {
+ if (framed) {
+  framed.remove();
+  framed = null;
+ }
+ demoBox.style.display = "none";
+ demoLink.removeAttribute("href");
+}
+
+/**
+ * Frames an `embed` cheatsheet's demo under the sheet.
+ *
+ * A new `iframe` each time rather than a new `src` on the one before: see the
+ * comment on the container in the markup. The title is set from the entry
+ * because a frame is a document in the accessibility tree and "iframe" is
+ * what a screen reader announces without one.
+ */
+function showDemo(entry) {
+ const frame = document.createElement("iframe");
+ frame.sandbox = DEMO_SANDBOX;
+ frame.title = `${entry.title} live demo`;
+ frame.src = entry.payload;
+ demoFrameBox.replaceChildren(frame);
+ framed = frame;
+ demoLink.href = entry.payload;
+ demoLink.textContent = `Open the ${entry.title} demo in its own tab`;
+ demoBox.style.display = "block";
+}
+
 /** Takes the sheet, the footnote and the full size link back down. */
 function clearSheet() {
  // Taking the sheet down is a selection like any other, so a composition still
@@ -552,6 +695,7 @@ function clearSheet() {
  sheetBox.replaceChildren();
  sheetBox.setAttribute("aria-label", "");
  showConsoleGuidance(false);
+ clearDemo();
  fullSize.style.display = "none";
  if (fullSizeUrl) {
   URL.revokeObjectURL(fullSizeUrl);
@@ -632,6 +776,9 @@ async function selectExample() {
   injected.remove();
   injected = null;
  }
+ // And the previous selection's frame, which has to come out whether or not
+ // this selection has one of its own to put in.
+ clearDemo();
  if (entry.kind === "run" && entry.payload) {
   selections += 1;
   const script = document.createElement("script");
@@ -646,6 +793,12 @@ async function selectExample() {
   document.body.appendChild(script);
  }
 
+ if (entry.kind === "embed" && entry.payload) showDemo(entry);
+
+ // Still `run` and nothing else. An embed writes into its own frame's panel,
+ // so the three lines asking the reader to open a console would be pointing
+ // them at a console nothing will write to - which is the fault those lines
+ // stopped being hard wired to avoid.
  showConsoleGuidance(entry.kind === "run");
 
  try {

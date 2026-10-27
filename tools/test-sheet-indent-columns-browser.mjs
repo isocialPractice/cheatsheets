@@ -19,7 +19,7 @@
 //
 // ## What this file holds a sheet to
 //
-// Three claims. Two are read off the drawn glyphs:
+// Four claims. Two are read off the drawn glyphs:
 //
 // - **An indent is a column.** Every line declaring the same leading
 //   whitespace begins within a page pixel of one x. The panel is set in one
@@ -51,6 +51,23 @@
 // document checks because the reason it is a rule at all is the drawn sheet,
 // and the two cases above are what state that.
 //
+// **And since 2026.10.27, the defect itself rather than its proxy:**
+//
+// - **No line is indented to the first character of a token in the line
+//   above**, where that line leaves a construct open and so is continued
+//   rather than nested into. That is padding stated directly, in the terms the
+//   2026.10.24 measurement reported it in.
+//
+// The ladder had one hole, and it was the hole a proxy always has: a sheet
+// exempt from the proxy is exempt from the thing it stands for.
+// `javascript/arrays/max-and-min-function-and-sort-object` declares `0, 1, 3,
+// 4` because the artwork it transcribes draws four columns, so it is on the
+// record below - and until this fourth claim went in, the only thing asserting
+// it had no padded column was the prose on its own exemption row. The claim is
+// also document-only, and is proved against `89a11d5` rather than trusted: a
+// walk reporting nothing is worth nothing until it has been seen to report
+// something.
+//
 // ## The first visible glyph, not the pen
 //
 // Both of the drawn claims are read from the first glyph of a line that draws
@@ -81,6 +98,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -425,8 +443,11 @@ export const NOT_A_LADDER = [
     path: "javascript/arrays/max-and-min-function-and-sort-object",
     indents: [0, 1, 3, 4],
     note:
-      "no padded column: measured on 2026.10.24, not one of its lines aims at a position inside the " +
-      "line above, so the defect the ladder stands proxy for is absent. It declares four indents " +
+      "no padded column: not one of its lines aims at a position inside the line above, so the " +
+      "defect the ladder stands proxy for is absent. Measured by hand on 2026.10.24 and held by " +
+      "`no sheet indents a line to a token inside the line above` since 2026.10.27, which walks " +
+      "every sheet including this one - a row here exempts a sheet from the proxy and nothing " +
+      "exempts one from the defect. It declares four indents " +
       "because the artwork it transcribes draws four - the `cars` rows one space in, the sort body " +
       "three and the closing `return` four - so the set is two units rather than one. Re-indenting " +
       "it would move three of its rows off the image it reproduces, which is what the eleven " +
@@ -462,6 +483,202 @@ test("every sheet indents in a contiguous ladder of one unit, bar the ones on re
   console.log(`  ${recorded.size} of ${paths.length} sheets do not indent in a ladder, all on record`);
   assert.deepEqual(stale, [], `the record in NOT_A_LADDER no longer matches the catalog:\n  ${stale.join("\n  ")}`);
   assert.deepEqual(offences, [], `these sheets pad an indent rather than nesting it:\n  ${offences.join("\n  ")}`);
+});
+
+/**
+ * Whether a line leaves a construct open, and what kind if it does.
+ *
+ * This is the condition that tells a continuation apart from a child, and
+ * without it the case below is wrong rather than merely noisy. A line that
+ * opens a tag without closing it, or ends on a binary operator, cannot be
+ * finished where it stops, so a reader carries it onto the next line whatever
+ * column that line begins in - and a line aimed inside it is a padded column.
+ * A line that opens a *block* is a different thing: `p {` has children under
+ * it, and a child indented two spaces is correct even though `{` happens to
+ * sit at character 2 of the line above. `{` is therefore deliberately not in
+ * the operator set; with it, `html-css/general-css-overview/typography-and-text`
+ * row 17 and `responsive-design` row 25 are both reported as pads and both
+ * are nested exactly right.
+ */
+function leavesOpen(text) {
+  const body = text.trim();
+  const opens = (body.match(/</g) ?? []).length;
+  const closes = (body.match(/>/g) ?? []).length;
+  if (opens > closes) return "an unterminated tag";
+  if (/[-+*/%,=&|?:(]$/.test(body)) return "a trailing operator";
+  return null;
+}
+
+/**
+ * Every line in these sheets that is indented to the first character of a
+ * token inside the line above it.
+ *
+ * **This is the defect the ladder stood proxy for, held directly.** The ladder
+ * catches a padded column by its arithmetic - padding is counted in characters
+ * of the line above, so it lands on a rung that is not there - and that proxy
+ * has one hole: a sheet exempt from the ladder is exempt from the defect too.
+ * `javascript/arrays/max-and-min-function-and-sort-object` is such a sheet, and
+ * until 2026.10.27 the only thing asserting it had no padded column was the
+ * note on its own exemption row. This case is what checks that claim.
+ *
+ * Three conditions, and all three are needed:
+ *
+ * - the line is indented **deeper** than the line above it, so it could be
+ *   either a continuation or a child;
+ * - its indent lands on a **token start** in that line - a non-space character
+ *   with a space in front of it - which is what padding to a column produces
+ *   and what nesting by levels does not;
+ * - and the line above **leaves a construct open**, which is what makes the
+ *   line below a continuation rather than a child. See `leavesOpen`.
+ *
+ * Document only, so it runs on a bare clone with no browser, like the ladder
+ * case above it.
+ *
+ * @param {Array<{ path: string, code: string[] }>} sheets
+ * @returns {string[]} one line per padded continuation, in document order
+ */
+export function paddedContinuations(sheets) {
+  const aimed = [];
+  for (const { path, code } of sheets) {
+    let previous = null;
+    for (const [row, text] of code.entries()) {
+      // A blank line is not the line a continuation continues, so it is passed
+      // over rather than becoming `previous`.
+      if (text.trim().length === 0) continue;
+      const indent = indentOf(text);
+      if (previous !== null) {
+        const above = code[previous];
+        const deeper = indent > indentOf(above);
+        const inside = indent > 0 && indent < above.length && above[indent].trim().length > 0;
+        const tokenStart = inside && above[indent - 1].trim().length === 0;
+        const why = leavesOpen(above);
+        if (deeper && tokenStart && why) {
+          const token = above.slice(indent).split(/\s/)[0];
+          aimed.push(
+            `${path} row ${row} indents to ${indent}, the start of ` +
+              `${JSON.stringify(token)} in row ${previous}, which leaves ${why}`
+          );
+        }
+      }
+      previous = row;
+    }
+  }
+  return aimed;
+}
+
+/** The sheets as they stood before the nine were re-indented. */
+const BEFORE_THE_FIX = "89a11d5";
+
+/**
+ * The nine padded continuations `89a11d5` holds, token for token.
+ *
+ * Written out rather than counted, because a count is the one thing a broken
+ * detector can still get right. Nine strings is also the record of what the
+ * 2026.10.24 measurement found, which otherwise lives only in a run's notes
+ * and in an untracked artifact: if the case below ever cannot reach that
+ * commit, this list still says what the defect looked like.
+ */
+const PADDED_BEFORE_THE_FIX = [
+  'javascript/arrays/sort-numbers-array row 13 indents to 8, the start of "a.sort(function(a," in row 12, which leaves a trailing operator',
+  'html-css/general-html-overview/document-structure row 5 indents to 8, the start of "name=\\"viewport\\"" in row 4, which leaves an unterminated tag',
+  'html-css/general-html-overview/links-and-navigation row 15 indents to 3, the start of "href=\\"https://example.com/\\"" in row 14, which leaves an unterminated tag',
+  'html-css/general-html-overview/images-and-media row 2 indents to 5, the start of "src=\\"chart.png\\"" in row 1, which leaves an unterminated tag',
+  'html-css/general-html-overview/images-and-media row 9 indents to 5, the start of "src=\\"hero-800.jpg\\"" in row 8, which leaves an unterminated tag',
+  'html-css/general-html-overview/images-and-media row 16 indents to 7, the start of "src=\\"shot.jpg\\"" in row 15, which leaves an unterminated tag',
+  'html-css/general-html-overview/forms-and-inputs row 4 indents to 9, the start of "id=\\"email\\"" in row 3, which leaves an unterminated tag',
+  'html-css/general-html-overview/forms-and-inputs row 8 indents to 9, the start of "id=\\"pass\\"" in row 7, which leaves an unterminated tag',
+  'html-css/general-html-overview/forms-and-inputs row 14 indents to 18, the start of "type=\\"radio\\"" in row 13, which leaves an unterminated tag',
+];
+
+/** Every catalog sheet's code lines, as the working tree holds them. */
+function sheetsNow() {
+  return paths.map((path) => ({
+    path,
+    code: JSON.parse(readFileSync(join(root, ...path.split("/"), "sheet.json"), "utf8")).code.map(
+      (line) => line.text
+    ),
+  }));
+}
+
+/**
+ * Every catalog sheet's code lines as of a commit, or null where that commit
+ * cannot be read.
+ *
+ * A shallow clone has no history to ask, and a download has no git at all.
+ * Neither is a failure: the walk is still exercised against the catalog by the
+ * case above, and `PADDED_BEFORE_THE_FIX` still records what it is looking
+ * for. Paths the commit does not hold are skipped rather than counted - the
+ * five `embed` sheets landed after it - because this asks what that commit's
+ * own sheets looked like.
+ */
+function sheetsAt(commit) {
+  const sheets = [];
+  for (const path of paths) {
+    let shown;
+    try {
+      shown = execFileSync("git", ["show", `${commit}:${path}/sheet.json`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 1 << 24,
+      });
+    } catch {
+      // A missing path is one sheet; a missing git or commit is all of them,
+      // and `git rev-parse` is what tells the two apart.
+      if (!reachable(commit)) return null;
+      continue;
+    }
+    sheets.push({ path, code: JSON.parse(shown).code.map((line) => line.text) });
+  }
+  return sheets;
+}
+
+/** Whether git can resolve a commit from here at all. */
+function reachable(commit) {
+  try {
+    execFileSync("git", ["rev-parse", "--verify", `${commit}^{commit}`], {
+      cwd: root,
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test("no sheet indents a line to a token inside the line above", () => {
+  // The hole in the ladder, closed. Every sheet is walked, the ones on record
+  // included: the record exempts a sheet from indenting in a ladder, which is
+  // the proxy, and nothing exempts one from the defect the proxy stands for.
+  const aimed = paddedContinuations(sheetsNow());
+  console.log(`  ${paths.length} sheets walked, none padding a continuation`);
+  assert.deepEqual(
+    aimed,
+    [],
+    "these sheets indent a line to a token inside the line above, which a proportional face draws " +
+      `wherever those spaces reach rather than under that token:\n  ${aimed.join("\n  ")}`
+  );
+});
+
+test(`and the walk that says so finds all nine of the padded continuations in ${BEFORE_THE_FIX}`, () => {
+  // A check reporting zero is worth nothing on its own, because a detector
+  // that reports zero on everything reports zero here too. So the same walk
+  // runs over the tree before the fix, where it has to find the nine the
+  // 2026.10.24 measurement found - and find them token for token, since the
+  // count alone is the part a broken walk can still get right.
+  const sheets = sheetsAt(BEFORE_THE_FIX);
+  if (!sheets) {
+    console.log(`  skipped: ${BEFORE_THE_FIX} cannot be read from here, so the walk is unproved`);
+    return;
+  }
+  const aimed = paddedContinuations(sheets);
+  console.log(`  ${aimed.length} padded continuations over ${sheets.length} sheets in ${BEFORE_THE_FIX}`);
+  assert.deepEqual(
+    aimed,
+    PADDED_BEFORE_THE_FIX,
+    `the walk no longer reports what ${BEFORE_THE_FIX} holds, so what it reports of the catalog ` +
+      `today means nothing:\n  ${aimed.join("\n  ")}`
+  );
 });
 
 test("and every row of that record names a sheet in the catalog and says why it is there", () => {
