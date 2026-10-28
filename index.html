@@ -417,17 +417,18 @@ let injected = null;
 /**
  * What the frame an `embed` demo runs in is allowed to do.
  *
- * `allow-scripts` and nothing else, decided on 2026.10.27 and settled here
- * rather than per sheet, because the roadmap holds seven more `embed`
- * subjects and a demo author needs one answer rather than one per cheatsheet.
+ * `allow-scripts`, plus `allow-forms` for the reason given below, and nothing
+ * else. Settled here rather than per sheet since 2026.10.27, because the
+ * roadmap holds seven more `embed` subjects and a demo author needs one answer
+ * rather than one per cheatsheet.
  *
- * **It is `allow-scripts` alone because `allow-same-origin` beside it is not a
- * sandbox at all.** A frame granted both is same-origin with this page, so it
- * can reach `parent.document`, take the `sandbox` attribute off its own frame
- * and reload itself with no restrictions - and write into the site's own
- * `localStorage` on the way. The demos are this repository's own today and the
- * catalog takes contributions, so that is a property to withhold from the
- * mechanism rather than from each demo.
+ * **`allow-same-origin` is the one that is never added, because beside
+ * `allow-scripts` it is not a sandbox at all.** A frame granted both is
+ * same-origin with this page, so it can reach `parent.document`, take the
+ * `sandbox` attribute off its own frame and reload itself with no restrictions
+ * - and write into the site's own `localStorage` on the way. The demos are
+ * this repository's own today and the catalog takes contributions, so that is
+ * a property to withhold from the mechanism rather than from each demo.
  *
  * What the strict frame costs, measured across all five committed demos: an
  * opaque origin has no storage and is not a secure context, so `localStorage`
@@ -435,13 +436,25 @@ let injected = null;
  * rather than thrown - "no storage on this origin, so nothing was written" is
  * a true and useful thing for a storage cheatsheet to show - and the link
  * under the frame is the route to the same demo with the site's permissions
- * for a reader who wants the other half. The other three demos are unaffected:
- * `fetch`, `AbortController`, `URL`, the observers and `dialog.showModal` all
- * work in an opaque origin. `allow-modals` is deliberately absent - it governs
- * `alert`, `confirm`, `prompt` and `print`, not a `dialog` element, which was
- * checked rather than assumed.
+ * for a reader who wants the other half. `fetch`, `AbortController`, `URL`
+ * and the observers are unaffected, and so is `dialog.showModal`, which keeps
+ * its backdrop and its focus trap in an opaque origin.
+ *
+ * **`allow-forms` is granted for the dialog's own close route**, added on
+ * 2026.10.28. Opening a `dialog` needed nothing; closing one from inside
+ * itself is a `<form method="dialog">` submission, which the sandbox withholds
+ * without this - so framed under `allow-scripts` alone, the **Clipboard and
+ * Dialogs** demo's two buttons did nothing at all and Escape was the only way
+ * out. The grant buys form submission and nothing else: the frame keeps its
+ * opaque origin, so storage and the clipboard stay refused and `parent` stays
+ * unreachable, and `allow-top-navigation` is still absent, so a form cannot
+ * move the page the reader is on. The only new reach is a submission to an
+ * external URL, which `allow-scripts` already permits through `fetch`.
+ *
+ * `allow-modals` is still deliberately absent - it governs `alert`, `confirm`,
+ * `prompt` and `print`, and a `dialog` element needs none of them.
  */
-const DEMO_SANDBOX = "allow-scripts";
+const DEMO_SANDBOX = "allow-scripts allow-forms";
 
 // The `iframe` the last selection framed, so it can be taken out before the
 // next one goes in. Unlike the injected script, taking it out matters: a

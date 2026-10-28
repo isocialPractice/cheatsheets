@@ -29,22 +29,6 @@ keys its entries by date, written `YYYY.MM.DD`.
 - [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
   - From: Implement Cheatsheet API `->` The Core Model
 
-### UI/UX Override - the framed demo's dialog
-
-#### Resolve Issues
-
-- [ ] Sandboxed Demo Frame 1: the framed dialog cannot be closed by either of its own buttons
-  - **Issue**: found 2026.10.27, driving the five demos through the frame in Chromium over HTTP. `sandbox="allow-scripts"` withholds form submission, and `html-css/html-apis/clipboard-and-dialog/demo/index.html` closes its dialog with `<form method="dialog">`. Framed, **Keep** and **Discard** do nothing: the dialog stays open, `returnValue` stays `""`, no line is written, and Chromium logs `Blocked form submission to '' because the form's frame is sandboxed and the 'allow-forms' permission is not set.` on each press. Escape is the only way out and reports `that was Escape, which chose nothing` - to a reader who just pressed **Keep**. The same two buttons work in the demo's own tab and work framed under `allow-scripts allow-forms`, so the demo is right and the grant is what is short. The sheet above the frame teaches the form it blocks: row 17 of that sheet's `sheet.json` is `form.method = "dialog";`. The other 16 controls across the five demos all answer through the frame, `showModal()` keeps its backdrop and its focus trap, and both clipboard buttons report `NotAllowedError` rather than throwing
-  - **Goal**: Resolve to [sandboxed-demo-frame-forms.prompt.md](.claude/prompts/sandboxed-demo-frame-forms.prompt.md)
-  - From: Cheatsheet Catalog `->` What the Page Does With a Payload
-
-#### Found Issues
-
-- [ ] No test presses a demo's controls through the frame the page puts it in
-  - **Issue**: `tools/test-demo-pages-browser.mjs` opens each `demo/index.html` directly and presses everything on it; `tools/test-example-selection.mjs` drives the page and holds what a selection leaves in the document. Neither drives a control *through* the frame, so "the demo works" and "the demo works framed" are different claims and only the first is held. Both files were green on the day the dialog stopped closing, and the whole suite - 639 cases - passed with the defect in it
-  - **Goal**: covered by the fix above, section 4 of its prompt file: add the framed walk to `tools/test-demo-pages-browser.mjs`, reading the sandbox token from `index.html` rather than repeating it, so the test follows the grant when it next changes. The implementation is in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.27-embed-demo-frame.cases.mjs`
-  - From: UI/UX Override - the framed demo's dialog
-
 ## GitHub Pages Deployment
 
 Publish the example page as a GitHub Pages project site, deployed from an
@@ -145,12 +129,17 @@ that sheet drawn. `tools/test-example-selection.mjs` holds the cases.
 Nothing is outstanding here. The page injected a `run` payload and ignored
 every other kind, which was right while `run` was the only kind committed and
 stopped being right on 2026.10.26 when the first `embed` payloads landed. From
-2026.10.27 an `embed` sheet's `demo/index.html` is framed under the sheet with
-`sandbox="allow-scripts"`, decided once for the catalog rather than per sheet,
-and the frame comes down on the next selection and on a category change.
-`CONTRIBUTING.md` records what a demo may rely on in that frame, and
-`tools/test-example-selection.mjs` holds the grant, the destination and the
-teardown.
+2026.10.27 an `embed` sheet's `demo/index.html` is framed under the sheet,
+under a grant decided once for the catalog rather than per sheet, and the frame
+comes down on the next selection and on a category change. The grant is
+`sandbox="allow-scripts allow-forms"` since 2026.10.28: `allow-scripts` alone
+withheld form submission, which is how a `dialog` is closed from inside itself,
+so the **Clipboard and Dialogs** demo shipped with both of its in-dialog
+buttons dead in the frame. `CONTRIBUTING.md` records what a demo may rely on
+there, `tools/test-example-selection.mjs` holds the grant, the destination and
+the teardown, and `tools/test-demo-pages-browser.mjs` presses every control
+through a frame carrying the page's own token, which is what makes "the demo
+works" and "the demo works framed" two claims rather than one.
 
 ### Catalog Cleanup
 
@@ -1678,5 +1667,13 @@ generate ideas about generating ideas.
   - Seed the social ledger before the first bulk render, for the reason the constants give for a bulk conversion: the ledger is keyed by path, so a first run over the whole catalog would draft one post per sheet
   - **The preset this writes at is settled as of 2026.10.26** and is recorded under **The preset a render is written at** in `CONTRIBUTING.md`: WebP, quality 80, a 1400 px long edge, a 200 KB target and a 300 KB cap. Take the defaults from there rather than choosing new ones, and let a flag override each. The long edge is a scale of `1400 / 3600`, which the document notes clears `MIN_PUBLISH_SCALE` in `api/cheatsheet/raster.mjs` - that floor works out at 1200 px on this canvas, so a smaller render comes back marked unpublishable and the CLI should say so rather than write it silently
   - From: Raster Export and Example Images
+- [x] Sandboxed Demo Frame 1: the framed dialog cannot be closed by either of its own buttons
+  - **Issue**: found 2026.10.27, driving the five demos through the frame in Chromium over HTTP. `sandbox="allow-scripts"` withholds form submission, and `html-css/html-apis/clipboard-and-dialog/demo/index.html` closes its dialog with `<form method="dialog">`. Framed, **Keep** and **Discard** do nothing: the dialog stays open, `returnValue` stays `""`, no line is written, and Chromium logs `Blocked form submission to '' because the form's frame is sandboxed and the 'allow-forms' permission is not set.` on each press. Escape is the only way out and reports `that was Escape, which chose nothing` - to a reader who just pressed **Keep**. The same two buttons work in the demo's own tab and work framed under `allow-scripts allow-forms`, so the demo is right and the grant is what is short. The sheet above the frame teaches the form it blocks: row 17 of that sheet's `sheet.json` is `form.method = "dialog";`. The other 16 controls across the five demos all answer through the frame, `showModal()` keeps its backdrop and its focus trap, and both clipboard buttons report `NotAllowedError` rather than throwing
+  - **Goal**: Resolve to [sandboxed-demo-frame-forms.prompt.md](.claude/prompts/sandboxed-demo-frame-forms.prompt.md)
+  - From: Cheatsheet Catalog `->` What the Page Does With a Payload
+- [x] No test presses a demo's controls through the frame the page puts it in
+  - **Issue**: `tools/test-demo-pages-browser.mjs` opens each `demo/index.html` directly and presses everything on it; `tools/test-example-selection.mjs` drives the page and holds what a selection leaves in the document. Neither drives a control *through* the frame, so "the demo works" and "the demo works framed" are different claims and only the first is held. Both files were green on the day the dialog stopped closing, and the whole suite - 639 cases - passed with the defect in it
+  - **Goal**: covered by the fix above, section 4 of its prompt file: add the framed walk to `tools/test-demo-pages-browser.mjs`, reading the sandbox token from `index.html` rather than repeating it, so the test follows the grant when it next changes. The implementation is in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.27-embed-demo-frame.cases.mjs`
+  - From: UI/UX Override - the framed demo's dialog
 
 </details>

@@ -183,9 +183,10 @@ A blank line carries no `role`. A role on one would be a colour on nothing.
 ### What a `kind: embed` demo may rely on
 
 An `embed` sheet's `demo/index.html` is loaded by the page into an `iframe`
-carrying `sandbox="allow-scripts"`, and nothing else. Settled on 2026.10.27,
-once for the catalog rather than per sheet, so a demo is written against one
-answer.
+carrying `sandbox="allow-scripts allow-forms"`, and nothing else. Settled on
+2026.10.27, once for the catalog rather than per sheet, so a demo is written
+against one answer; `allow-forms` was added on 2026.10.28, for the reason the
+last row of the table below gives.
 
 **What that grant takes away**, because `allow-scripts` alone gives the frame
 an opaque origin:
@@ -196,6 +197,15 @@ an opaque origin:
 | `navigator.clipboard` | `undefined` - an opaque origin is not a secure context | Works on `https` and on `localhost` |
 | Cookies, `document.domain`, reaching `parent` | Refused | Same origin as the site |
 | `fetch`, `URL`, `AbortController`, the observers, `dialog.showModal` | All work | All work |
+| `<form method="dialog">`, any form submission | Works, with `allow-forms` granted | Works |
+
+The last row is why the grant is two tokens rather than one. Opening a
+`dialog` needs nothing, but closing one from inside itself is a form
+submission, so under `allow-scripts` alone the **Clipboard and Dialogs**
+demo's two in-dialog buttons did nothing and Escape was the only route out.
+`allow-forms` buys form submission and nothing else - the frame keeps its
+opaque origin, and `allow-top-navigation` is still absent, so a form cannot
+move the page the reader is on.
 
 `allow-same-origin` is deliberately not granted. Beside `allow-scripts` it is
 not a weaker sandbox but no sandbox: the frame becomes same-origin with the

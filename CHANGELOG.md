@@ -4,6 +4,75 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.28]
+
+### Fixed
+
+- **A framed demo's dialog closes on its own buttons again.** The frame an
+  `embed` cheatsheet's demo runs in landed on 2026.10.27 with
+  `sandbox="allow-scripts"` and nothing else, and that grant withholds form
+  submission - which is how a `dialog` element is closed from inside itself.
+  **Clipboard and Dialogs** closes its dialog with a `<form method="dialog">`,
+  so framed, its **Keep** and **Discard** buttons did nothing at all: the
+  dialog stayed open, the return value stayed empty, no line was written, and
+  Chromium logged a blocked submission on each press. Escape was the only route
+  out, and it reports `that was Escape, which chose nothing` - to a reader who
+  had just pressed **Keep**.
+
+  `DEMO_SANDBOX` in `index.html` is now `allow-scripts allow-forms`. The grant
+  rather than the demo, because the sheet above the frame teaches the form the
+  frame was blocking: row 17 of that cheatsheet's `sheet.json` is
+  `form.method = "dialog";`, so a reader is shown that line in the artwork and
+  then presses exactly it below. Closing the dialog from a click handler
+  instead would have made the demo work and the sheet above it wrong.
+  `allow-forms` buys form submission and nothing else - the frame keeps its
+  opaque origin, so storage and the clipboard stay refused and `parent` stays
+  unreachable, and `allow-top-navigation` is still absent, so a form cannot
+  move the page the reader is on. The only new reach is a submission to an
+  external URL, which `allow-scripts` already permitted through `fetch`.
+  `allow-same-origin` remains the token that is never added, and `allow-modals`
+  is still absent and still not needed.
+
+- **A press that repeats the previous press's wording is no longer read as a
+  press that wrote nothing.** `press()` in `tools/test-demo-pages-browser.mjs`
+  called a control answered when the log panel's markup differed from what it
+  held before the click, which is a false negative the moment two controls
+  report the same thing. `#round` and `#clear` in `web-storage` both answer
+  "no storage on this origin" where there is none, so the second rebuilt
+  markup identical to the first's. The panel is emptied before each press
+  instead, which makes a line in it afterwards that press's own line. The
+  direct pass never met this - storage works over http on 127.0.0.1 - and the
+  framed walk below met it immediately.
+
+### Added
+
+- **Every demo's controls are pressed through a frame carrying the page's own
+  sandbox**, in `tools/test-demo-pages-browser.mjs`. Opening `demo/index.html`
+  directly holds the demo on its own terms; the page puts it in a sandboxed
+  `iframe`, and until now nothing held that. Both files in the suite that touch
+  a demo were green on the day the dialog above stopped closing, and so was
+  the suite around them, with two dead buttons in it.
+
+  The walk asserts, for every `embed` cheatsheet, that each control still
+  writes a line or opens a dialog, that a dialog opened inside the frame closes
+  on each of its own buttons with the return value that button carries, and
+  that the frame logs nothing but a `Permissions policy violation` - which is
+  the engine reporting a permission the sandbox withheld and the demo then
+  reports properly in a line. The token is read out of `index.html` rather than
+  repeated, so the cases follow the page the next time the grant changes. The
+  harness is this file's own one-frame page, served from the same origin as the
+  demos: driving the real page is `tools/test-example-selection.mjs`'s job, and
+  a harness is what lets the grant be read from the page and applied here.
+
+### Changed
+
+- `CONTRIBUTING.md`, under **What a `kind: embed` demo may rely on**, names the
+  grant as both tokens and gains the row that was missing: a
+  `<form method="dialog">`, or any form submission, works in the frame with
+  `allow-forms` granted. The three records that said the dialog demo was
+  unaffected by the sandbox - that table, the doc comment on `DEMO_SANDBOX`,
+  and the 2026.10.27 entry below - are each corrected where they sit.
+
 ## [2026.10.27]
 
 ### Added
@@ -32,7 +101,15 @@ The date of the change is the version, written `YYYY.MM.DD`.
   storage cheatsheet is part of what it teaches. A link under the frame opens
   the same demo in its own tab with the site's permissions. `allow-modals` is
   absent and is not needed: it governs `alert`, `confirm`, `prompt` and
-  `print`, not a `dialog` element, which was checked rather than assumed.
+  `print`, not a `dialog` element.
+
+  **Corrected 2026.10.28**: that last claim was checked by opening a dialog,
+  and opening one is not the half the sandbox governs. Closing a `dialog` from
+  inside itself is a `<form method="dialog">` submission, which
+  `allow-scripts` alone withholds - so this entry shipped the **Clipboard and
+  Dialogs** demo with both of its in-dialog buttons dead in the frame. The
+  grant is now `allow-scripts allow-forms`; `allow-modals` is still absent and
+  still not needed.
 
   The frame is created per selection rather than having its `src` rewritten,
   and the reason is the back button: assigning `src` to a frame already in the

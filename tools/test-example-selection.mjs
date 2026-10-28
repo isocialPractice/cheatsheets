@@ -1260,8 +1260,19 @@ test("the markup ships no frame, so none can have its src rewritten", () => {
   assert.match(script, /document\.createElement\("iframe"\)/);
 });
 
-test("the demo frame is granted scripts and nothing else", () => {
-  assert.match(script, /^const DEMO_SANDBOX = "allow-scripts";$/m);
+/**
+ * The grant the page is held to, written out rather than read from the page.
+ *
+ * Pinned here on purpose: a token added to `index.html` is meant to fail this
+ * file, so the addition is argued for in a commit rather than absorbed. It
+ * gained `allow-forms` on 2026.10.28, because closing a `dialog` from inside
+ * itself is a `<form method="dialog">` submission and the demos' own dialog
+ * was therefore unclosable in the frame.
+ */
+const GRANT = "allow-scripts allow-forms";
+
+test("the demo frame is granted scripts and forms, and nothing else", () => {
+  assert.match(script, new RegExp('^const DEMO_SANDBOX = "' + GRANT + '";$', "m"));
   // Every assignment to a `sandbox` property, and there is to be one: the
   // constant above is only the whole answer if nothing else grants anything.
   const grants = [...script.matchAll(/\bsandbox\s*=\s*([^;\n]+)/g)].map((match) => match[1].trim());
@@ -1317,7 +1328,7 @@ test("a committed embed cheatsheet frames the demo the manifest records for it",
   for (const [index, sheet] of embedded.entries()) {
     assert.equal(seen[index].frames, 1, `${sheet.id} framed ${seen[index].frames} demos`);
     assert.equal(seen[index].src, sheet.payload, `${sheet.id} framed something other than its payload`);
-    assert.equal(seen[index].sandbox, "allow-scripts", `${sheet.id} was framed with the wrong grant`);
+    assert.equal(seen[index].sandbox, GRANT, `${sheet.id} was framed with the wrong grant`);
     // A frame is a document in the accessibility tree, and "iframe" is what is
     // announced for one with no title.
     assert.equal(seen[index].title, `${sheet.title} live demo`);
