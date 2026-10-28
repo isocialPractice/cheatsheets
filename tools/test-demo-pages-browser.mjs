@@ -12,7 +12,7 @@
 //
 // ## What a demo is held to
 //
-// Five claims, none of them about a particular demo, so the next `embed` sheet
+// Seven claims, none of them about a particular demo, so the next `embed` sheet
 // is covered by writing its folder rather than by editing this file:
 //
 // - **Every control answers.** Pressing a control either writes a line into the
@@ -35,6 +35,16 @@
 //   dark table in `DESIGN_LANGUAGE.md`, read off the custom properties. A demo
 //   is a page in its own right and nothing else imports the site's stylesheet,
 //   so this is the only thing holding the two in step.
+// - **It answers the same framed as the page frames it.** Every control, and
+//   every button a dialog offers, pressed again inside an `iframe` carrying the
+//   page's own sandbox - which is a second claim rather than the same one,
+//   because the grant can withhold something a control needs. See **The framed
+//   walk** at the foot of this file.
+// - **It never moves the page holding it.** No control, and no button in a
+//   dialog, navigates the top level document. The frame is granted form
+//   submission and not `allow-top-navigation`, so a submission resolves inside
+//   the frame; this reads the behaviour rather than the grant, which
+//   `tools/test-example-selection.mjs` pins on its own.
 //
 // ## Settling, rather than waiting for the first change
 //
@@ -115,6 +125,69 @@ async function loadChromium() {
   };
 }
 
+/**
+ * The sandbox the page frames a demo under, read from `index.html`.
+ *
+ * Read rather than repeated, so the framed walk below follows the page the
+ * next time the grant changes instead of holding the demos to a string that
+ * has gone stale. It is read with a regular expression rather than by
+ * evaluating the page, because the token is wanted before a browser is
+ * launched - the harness the server hands out carries it in its markup.
+ *
+ * A miss throws here, at load, rather than framing a demo under a default:
+ * `sandbox=""` is the strictest grant there is, so a silent fallback would
+ * fail every case below with the wrong diagnosis.
+ */
+function pageSandbox() {
+  const source = readFileSync(join(root, "index.html"), "utf8");
+  const found = source.match(/\bconst DEMO_SANDBOX = "([^"]*)";/);
+  if (!found) {
+    throw new Error("index.html no longer declares `const DEMO_SANDBOX = \"...\";`");
+  }
+  return found[1];
+}
+
+const DEMO_SANDBOX = pageSandbox();
+
+/** Where the server answers with a harness instead of a file. */
+const FRAME_ROUTE = "/__framed/";
+
+/**
+ * The box the page gives a frame on its wide layout, from **Fit the frame** in
+ * `CONTRIBUTING.md`.
+ *
+ * The figures are here so a demo lays out under the walk the way it lays out
+ * for a reader, and not because this file holds them - whether a demo fits is
+ * measured in the record under `test-results/ui-ux-tester.agent/`. 672px is the
+ * tallest of the committed demos rounded up to the page's 8px step, so nothing
+ * should scroll inside the frame at this width.
+ */
+const FRAME_BOX = { width: 736, height: 672 };
+
+/** A top level page holding one demo in a frame, sandboxed as the page does it. */
+function frameHarness(payload) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>framed demo harness</title>
+<style>
+ html, body { margin: 0; background: #020433; }
+ iframe {
+  display: block;
+  width: ${FRAME_BOX.width}px;
+  height: ${FRAME_BOX.height}px;
+  border: 0;
+ }
+</style>
+</head>
+<body>
+<iframe title="framed demo" sandbox="${DEMO_SANDBOX}" src="/${payload}"></iframe>
+</body>
+</html>
+`;
+}
+
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -127,10 +200,24 @@ const TYPES = {
   ".ico": "image/vnd.microsoft.icon",
 };
 
-/** Serve the repository, and only the repository. */
+/**
+ * Serve the repository, and only the repository - plus one page that is not in
+ * it.
+ *
+ * {@link FRAME_ROUTE} is answered from {@link frameHarness} rather than from
+ * disk, because the framed walk needs a top level document holding an `iframe`
+ * and the repository has no such file. It is served from the same origin as
+ * the demos so the harness is as close to the page as a test can get without
+ * loading the page.
+ */
 function serveRepository() {
   const server = createServer(async (request, response) => {
     const requested = decodeURIComponent(request.url.split("?")[0]);
+    if (requested.startsWith(FRAME_ROUTE)) {
+      response.writeHead(200, { "content-type": TYPES[".html"] });
+      response.end(frameHarness(requested.slice(FRAME_ROUTE.length)));
+      return;
+    }
     const file = join(root, requested === "/" ? "index.html" : requested);
     if (!file.startsWith(root)) {
       response.writeHead(403).end();
@@ -238,9 +325,23 @@ const SETTLE_MS = 400;
  * See **Settling** in the header: the wait is for the markup to stop changing
  * with a line in it, never for the first change, which on every handler that
  * clears the panel is the clear.
+ *
+ * **The panel is emptied before the press rather than compared with what it
+ * held.** Comparing is a false negative the moment two controls report the
+ * same thing: `#round` and `#clear` in `web-storage` both answer "no storage
+ * on this origin" where there is none, so the second press rebuilds markup
+ * identical to the first's and reads as having written nothing. Measured on
+ * 2026.10.28 by the framed walk at the foot of this file, where the frame's
+ * opaque origin makes both refuse - the direct pass never met it, because
+ * storage works over http on 127.0.0.1. Every handler clears the panel itself
+ * bar the two in `element-observers`, which append, and an empty panel costs
+ * those two nothing. So after the press, a line in the panel is this press's
+ * line and no earlier one's.
  */
 async function press(page, handle) {
-  const was = await page.evaluate(READ_LOG);
+  await page.evaluate(() => {
+    document.querySelector("#log").textContent = "";
+  });
   await handle.click();
   const deadline = Date.now() + ANSWER_MS;
   let last = null;
@@ -262,8 +363,50 @@ async function press(page, handle) {
   }
   const now = await page.evaluate(READ_LOG);
   const dialog = await page.evaluate(() => Boolean(document.querySelector("dialog[open]")));
-  return { was, now, dialog, wrote: now.lines.length > 0 && now.html !== was.html };
+  return { now, dialog, wrote: now.lines.length > 0 };
 }
+
+/**
+ * Opens one demo inside a frame carrying the page's own sandbox.
+ *
+ * The two arrays belong to the harness page and collect the frame's messages
+ * too, which is what makes a withheld permission visible at all: the engine
+ * reports one on the top level console, and the demo then reports it again in
+ * a line of its own.
+ */
+async function openFramed(payload, viewport = { width: 1000, height: 800 }) {
+  const page = await browser.newPage({ viewport });
+  const consoleErrors = [];
+  const pageErrors = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" || message.type() === "warning") {
+      consoleErrors.push(`${message.type()}: ${message.text()}`);
+    }
+  });
+  page.on("pageerror", (error) => pageErrors.push(`${error.name}: ${error.message}`));
+  await page.goto(`${site.base}${FRAME_ROUTE.slice(1)}${payload}`, { waitUntil: "load" });
+  const element = await page.waitForSelector("iframe", { state: "attached" });
+  const frame = await element.contentFrame();
+  await frame.waitForSelector("#log", { state: "attached" });
+  // Watched from here rather than from `newPage`, so the document's own load
+  // is not counted as a demo having moved anything. See **The top level** at
+  // the foot of the framed walk for what this is for.
+  const navigated = [];
+  page.on("framenavigated", (moved) => {
+    if (moved === page.mainFrame()) navigated.push(moved.url());
+  });
+  return { page, frame, consoleErrors, pageErrors, navigated };
+}
+
+/**
+ * The engine's own notice that the sandbox withheld something.
+ *
+ * Chromium logs one of these when a demo reaches for the clipboard inside the
+ * frame, and the demo reports the same refusal in a line - so the message is
+ * the sandbox working as intended and the engine saying so, not the frame
+ * costing the demo anything. Everything else the frame logs is a fault.
+ */
+const WITHHELD = /Permissions policy violation/i;
 
 /** Every `demo/` folder under a category, found on disk rather than declared. */
 function demoFoldersOnDisk() {
@@ -450,6 +593,150 @@ for (const demo of demos) {
       `${demo.id} overflows at 320px: ${fit.scrollWidth} against ${fit.clientWidth}, ` +
         `widest ${fit.widest.name} reaching ${fit.widest.right}`
     );
+
+    await page.close();
+  });
+}
+
+// **The framed walk: the same demo, reached the way a reader reaches it.** The
+// pass above opens `demo/index.html` directly, which is the demo on its own
+// terms; the page puts it in a sandboxed `iframe`, which is the demo as it is
+// published. Those are two claims, and until 2026.10.28 only the first was
+// held - both files in this suite that touch a demo were green on the day the
+// **Clipboard and Dialogs** dialog stopped closing in the frame, because
+// `sandbox="allow-scripts"` withholds form submission and that dialog closes
+// through a `<form method="dialog">`. The whole suite was green with two dead
+// buttons in it.
+//
+// The harness is this file's own one-frame page rather than `index.html`:
+// driving the real page is the job of `tools/test-example-selection.mjs`, and
+// a harness is what lets the grant be read from the page and applied here. So
+// {@link DEMO_SANDBOX} is read out of `index.html` at load - the next time the
+// grant changes, these cases change with it rather than holding the demos to a
+// token that has gone stale.
+//
+// One further page load per demo, which is five, against the contention
+// measured in the comment above: a demo is loaded twice in this file now, once
+// directly and once framed, and the framed pass presses what the direct pass
+// presses rather than re-testing the theme, the Tab order or the reflow. The
+// frame cannot change any of those three.
+for (const demo of demos) {
+  test(`${demo.title} answers through the frame the page puts it in`, { skip }, async () => {
+    const { page, frame, consoleErrors, pageErrors, navigated } = await openFramed(demo.payload);
+    const landed = page.url();
+    const controls = await frame.$$("button:not(dialog button)");
+    assert.ok(controls.length > 0, `${demo.id} offers no control inside the frame`);
+    const dead = [];
+    const stuck = [];
+
+    for (const control of controls) {
+      const name = (await control.getAttribute("id")) ?? (await control.textContent());
+      const result = await press(frame, control);
+      if (!result.dialog) {
+        if (!result.wrote) dead.push(`${name}: wrote nothing and opened nothing`);
+        continue;
+      }
+
+      // --- A dialog, which is the half of this the direct pass cannot reach.
+      // There Escape is enough, because it is the one route out every dialog
+      // has whatever its buttons are; here each button is the thing under
+      // test, since closing a dialog from inside itself is a form submission
+      // and the sandbox is what decides whether one is allowed.
+      const buttons = await frame.evaluate(() =>
+        [...document.querySelectorAll("dialog[open] button")].map((button) => ({
+          label: button.textContent.trim(),
+          value: button.value,
+        }))
+      );
+      if (buttons.length === 0) {
+        dead.push(`${name}: opened a dialog offering no button to close it with`);
+      }
+      for (const [index, button] of buttons.entries()) {
+        const was = (await frame.evaluate(READ_LOG)).lines.length;
+        // Pressed through the DOM rather than with Playwright's click. A click
+        // on a control that changes nothing costs the case a 30 second
+        // timeout, and changing nothing is exactly the regression under test -
+        // so the assertion that most needs to fail quickly would otherwise
+        // have been the slowest in the file.
+        await frame.evaluate(
+          (at) => document.querySelectorAll("dialog[open] button")[at].click(),
+          index
+        );
+        // `close` is dispatched as a queued task, so the `open` attribute is
+        // already gone while the event is still on its way: reading the panel
+        // off the attribute alone races the line the handler writes.
+        await frame.waitForTimeout(SETTLE_MS);
+        const now = await frame.evaluate(() => ({
+          open: Boolean(document.querySelector("dialog[open]")),
+          returnValue: document.querySelector("dialog").returnValue,
+          lines: document.querySelectorAll("#log span").length,
+        }));
+        if (now.open) {
+          stuck.push(`${name} -> ${button.label}: the dialog stayed open`);
+          await frame.press("dialog[open]", "Escape");
+          await frame.waitForFunction(() => !document.querySelector("dialog[open]")).catch(() => {});
+        } else {
+          // Held only where the button carries one. A button with no `value`
+          // closes a dialog with an empty return value legitimately, and the
+          // `open` reading above is what tells that from not closing at all.
+          if (button.value && now.returnValue !== button.value) {
+            stuck.push(
+              `${name} -> ${button.label}: closed with returnValue ` +
+                `${JSON.stringify(now.returnValue)} rather than ${JSON.stringify(button.value)}`
+            );
+          }
+          if (now.lines === was) {
+            stuck.push(`${name} -> ${button.label}: closed the dialog and wrote nothing`);
+          }
+        }
+        if (index < buttons.length - 1) {
+          await control.click();
+          await frame.waitForSelector("dialog[open]");
+        }
+      }
+      if (await frame.evaluate(() => Boolean(document.querySelector("dialog[open]")))) {
+        await frame.press("dialog[open]", "Escape");
+        await frame.waitForFunction(() => !document.querySelector("dialog[open]")).catch(() => {});
+      }
+    }
+
+    // **Read before the two walks below it, and the order is the diagnosis.**
+    // A blocked submission is logged by the engine and leaves the dialog open,
+    // so one defect fires this and `stuck`. Read the other way round, the
+    // report is "a dialog its own buttons do not close", which sends a reader
+    // to the demo - and the demo is right; it is the grant that is short.
+    const logged = pageErrors
+      .concat(consoleErrors)
+      .filter((message) => !/favicon/i.test(message));
+    assert.deepEqual(
+      logged.filter((message) => !WITHHELD.test(message)),
+      [],
+      `${demo.id} logged something inside the frame that is not a withheld permission`
+    );
+    assert.deepEqual(dead, [], `${demo.id} has a control that does not answer through the frame`);
+    assert.deepEqual(
+      stuck,
+      [],
+      `${demo.id} has a dialog that does not close on its own buttons through the frame`
+    );
+
+    // **The top level, which the grant decides and nothing else was reading.**
+    // `allow-forms` buys a submission, and a submission has a target: left to
+    // itself a `<form method="dialog">` resolves inside the dialog, but a form
+    // aimed at `_top`, or a link carrying the same target, would move the page
+    // the reader is on rather than the demo. `allow-top-navigation` is what
+    // permits that and is deliberately absent, so nothing a demo does here may
+    // navigate the document holding it.
+    //
+    // `tools/test-example-selection.mjs` pins the grant token itself, which
+    // catches the token being added; this catches the behaviour, which is the
+    // half a demo could reach by some route the token does not name.
+    assert.deepEqual(
+      navigated,
+      [],
+      `${demo.id} navigated the page holding it, which the sandbox withholds`
+    );
+    assert.equal(page.url(), landed, `${demo.id} moved the address bar of the page holding it`);
 
     await page.close();
   });
