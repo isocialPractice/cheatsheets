@@ -33,11 +33,67 @@
 // console.log(variation.seed, variation.lineSpacing);
 // ```
 //
+// ## The three models
+//
+// Since 2026.10.29 this folder also carries the formal input surface the
+// drawing was standing in for: a **document** of ordered sections and entries
+// in `document.mjs`, a **theme** of palette roles, type and metrics in
+// `theme.mjs`, and a **layout** of a grid and the slots on it in `layout.mjs`.
+// Each has a schema, and `schema.mjs` is what refuses a bad one with the path
+// to the field rather than a sentence about the whole.
+//
+// They are additive on purpose. `composeSheet` still takes the provisional
+// document shape the twenty-eight committed `sheet.json` files are written in,
+// and takes a formal one as readily; a theme and a layout are derived from the
+// design language when the caller passes neither.
+//
 // Everything exported here is browser-safe and reaches no further than this
 // folder and the drawing surface beside it, so the page loads it with a bare `import` and
 // no build step.
 
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
+
+export {
+  entriesOf,
+  isFormalDocument,
+  readDocument,
+  CODE_ROLES,
+  DOCUMENT_SCHEMA,
+  PROVISIONAL_SCHEMA,
+} from "./document.mjs";
+
+export {
+  boxOf,
+  layoutFor,
+  paintOf,
+  placeSlots,
+  readLayout,
+  rowsFor,
+  slotNamed,
+  slotsHolding,
+  LAYOUT_SCHEMA,
+  SHEET_LAYOUT,
+  SLOT_KINDS,
+  STAGES,
+} from "./layout.mjs";
+
+export {
+  assertValid,
+  describeErrors,
+  validate,
+} from "./schema.mjs";
+
+export {
+  languageFor,
+  readTheme,
+  resolvePalette,
+  themeFrom,
+  PALETTE_ROLES,
+  SHEET_THEME,
+  SYNTAX_ROLES,
+  THEME_SCHEMA,
+  TYPE_SCALE_ROLES,
+} from "./theme.mjs";
 
 export {
   accentRoles,

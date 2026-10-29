@@ -103,13 +103,24 @@ import { createComposition, placeBrand } from "../napkin-sketch/graphic-design/i
 
 import { accentRoles } from "./accents.mjs";
 import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
+import { isFormalDocument, readDocument } from "./document.mjs";
+import {
+  boxOf,
+  layoutFor,
+  paintOf,
+  placeSlots,
+  readLayout,
+  rowsFor,
+  slotNamed,
+  SHEET_LAYOUT,
+} from "./layout.mjs";
+import { readTheme, themeFrom, languageFor, SHEET_THEME } from "./theme.mjs";
 import {
   centredAt,
   drawnWidth,
   measureRun,
   CODE_FACE,
   SHEET_FACE,
-  TYPE_ROLES,
   sizeForCap,
 } from "./faces.mjs";
 import { SHEET_LANGUAGE } from "./language.mjs";
@@ -299,19 +310,35 @@ function widestLine(lines, cap, face) {
  * @returns {{ composition: import('../napkin-sketch/graphic-design/index.js').Composition, variation: VariationReport }}
  */
 export function composeSheet(doc, options = {}) {
-  if (!doc || typeof doc.title !== "string" || doc.title.length === 0) {
-    throw new Error("cheatsheet: a sheet document needs a title");
-  }
-  // The same rule the title follows, for the field that reaches furthest. A
-  // `language` is handed to the accent reader, which trims it, so a truthy
-  // non-string left the layer as `t.trim is not a function` thrown from inside
-  // a minified bundle - an error naming neither the field nor this file. A
-  // document this layer cannot read is this layer's error to name.
-  if (doc.language !== undefined && doc.language !== null && typeof doc.language !== "string") {
-    throw new Error("cheatsheet: a sheet document's language is a language id, an alias, or absent");
-  }
+  // Both refusals this used to carry by hand - a document with no title, and a
+  // `language` that is not a string - are now the document model's, expressed
+  // in `document.mjs` as schema and applied here by reading. The reason for
+  // moving them is the formal shape: a field three levels down at a numbered
+  // position cannot be named by a sentence, so the refusal carries the path to
+  // it instead, and a hand written check per field does not reach that far.
+  readDocument(doc);
 
-  const language = options.language ?? SHEET_LANGUAGE;
+  // A theme is the themeable half of a design language and a language is the
+  // whole record, so a caller may hand over either and the other is derived.
+  // Handing over both is legitimate too: the theme's paints over the
+  // language's positions, which is what `languageFor` composes.
+  const given = options.theme === undefined ? undefined : readTheme(options.theme);
+  const language = given
+    ? languageFor(given, options.language ?? SHEET_LANGUAGE)
+    : (options.language ?? SHEET_LANGUAGE);
+  // Derived rather than validated, where it was derived. A caller's language
+  // is allowed to be wrong in ways the theme schema would refuse - the paint
+  // check below is what reports an unreadable colour, in its own words - and
+  // validating a theme nobody wrote would turn that into a schema error about
+  // a field the caller never filled in.
+  const theme = given ?? (language === SHEET_LANGUAGE ? SHEET_THEME : themeFrom(language));
+  const layout =
+    options.layout === undefined
+      ? language === SHEET_LANGUAGE
+        ? SHEET_LAYOUT
+        : layoutFor(language)
+      : readLayout(options.layout);
+
   const face = options.face ?? SHEET_FACE;
   const codeFace = options.codeFace ?? CODE_FACE;
   const variation = new Variation(options.seed);
@@ -321,13 +348,20 @@ export function composeSheet(doc, options = {}) {
     colors,
     syntax,
     rules,
-    runs,
-    markSquare,
     insets,
     panelFreedom,
   } = language;
-  const slots = language.brandSlots ?? SHEET_LANGUAGE.brandSlots;
   const brand = options.brand ?? {};
+  /** A slot of the layout, and the paint and ground its roles resolve to. */
+  const runSlot = (name) => {
+    const slot = slotNamed(layout, name);
+    return {
+      ...slot,
+      size: theme.scale[slot.size],
+      fill: paintOf(theme, slot.paint, `the ${name} slot`),
+      on: paintOf(theme, slot.ground, `the ground under the ${name} slot`),
+    };
+  };
   /**
    * What each slot ended up holding, for the report.
    *
@@ -345,7 +379,11 @@ export function composeSheet(doc, options = {}) {
   const floors = language.floors ?? SHEET_LANGUAGE.floors;
   const contrastFloor = (language.contrast ?? SHEET_LANGUAGE.contrast).text;
 
-  const lines = codeLines(doc.code);
+  // A formal document carries sections of entries rather than rows, and what
+  // turns one into the other is the layout's - `rowsFor` in `layout.mjs`, and
+  // the reason it lives there rather than in the document model is the whole
+  // point of that model. The provisional shape goes through unchanged.
+  const lines = isFormalDocument(doc) ? rowsFor(doc) : codeLines(doc.code);
   /** @type {string[]} */
   const notes = [];
   /**
@@ -388,42 +426,11 @@ export function composeSheet(doc, options = {}) {
   });
 
   // --- The bands, back to front -------------------------------------------
-  // The heading band and the footer are the page white the composition is
-  // already on, so only the inked bands are drawn.
-  composition.rect({
-    name: "masthead",
-    x: 0,
-    y: bands.masthead.y,
-    width: language.canvas,
-    height: bands.masthead.height,
-    fill: colors.navy,
-  });
-  composition.rect({
-    name: "code-panel",
-    x: divisions.panel.x,
-    y: bands.code.y,
-    width: divisions.panel.width,
-    height: bands.code.height,
-    fill: colors.navy,
-  });
-  // The spine starts a `step-4` above the panel it runs beside and ends with
-  // it, so it is taller than the band the panel sits in.
-  composition.rect({
-    name: "spine",
-    x: divisions.spine.x,
-    y: bands.code.y - insets.spineTop,
-    width: divisions.spine.width,
-    height: bands.code.height + insets.spineTop,
-    fill: colors.green,
-  });
-  composition.rect({
-    name: "divider",
-    x: 0,
-    y: bands.divider.y,
-    width: language.canvas,
-    height: bands.divider.height,
-    fill: colors.green,
-  });
+  // Four rectangles, drawn from the layout's `ground` slots rather than from
+  // coordinates written out here. The heading band and the footer are the page
+  // white the composition is already on, so the layout gives them no fill and
+  // only the inked bands are drawn.
+  placeSlots(composition, { layout, theme, stage: "ground" });
 
   // --- The masthead --------------------------------------------------------
   // The masthead is a lockup rather than a run: on every one of the eleven the
@@ -472,13 +479,13 @@ export function composeSheet(doc, options = {}) {
 
   // The mark takes its slot and the gap beside it out of the measure the
   // wordmark is fitted to, so a long wordmark steps down rather than running
-  // into the mark.
+  // into the mark. The layout says so in one word: the wordmark slot
+  // `reserve`s the mark's, and this is what that reservation costs.
+  const mastheadSlot = runSlot("wordmark");
+  const markSlot = slotNamed(layout, mastheadSlot.reserve);
   const markPlaced = Boolean(brand.logo);
-  const mastheadRoom =
-    language.canvas -
-    insets.mastheadPadding * 2 -
-    (markPlaced ? slots.logo.width + slots.logo.gap : 0);
-  const mastheadCap = displayCap("wordmark", wordmark, runs.wordmark.cap, mastheadRoom);
+  const mastheadRoom = mastheadSlot.measure - (markPlaced ? markSlot.box.width + markSlot.gap : 0);
+  const mastheadCap = displayCap("wordmark", wordmark, mastheadSlot.size.cap, mastheadRoom);
   const mastheadSize = sizeForCap(mastheadCap, face);
 
   // The mark is placed before the wordmark is drawn, and that order is the
@@ -503,18 +510,16 @@ export function composeSheet(doc, options = {}) {
   // that is a slot the API already has.
   const wordmarkWidth = drawnWidth(wordmark, { fontSize: mastheadSize, face });
   const lockupLeft =
-    (language.canvas - (wordmarkWidth + slots.logo.gap + slots.logo.width)) / 2;
+    (language.canvas - (wordmarkWidth + markSlot.gap + markSlot.box.width)) / 2;
   if (markPlaced) {
     const placed = placeBrand(
       composition,
       {
-        x: lockupLeft + wordmarkWidth + slots.logo.gap,
-        y: slots.logo.top,
-        width: slots.logo.width,
-        height: slots.logo.height,
+        ...markSlot.box,
+        x: lockupLeft + wordmarkWidth + markSlot.gap,
       },
       brand.logo,
-      { name: "masthead-mark", alt: brand.logo.alt ?? wordmark }
+      { name: markSlot.name, alt: brand.logo.alt ?? wordmark }
     );
     brandModes.logo = placed.placed ? placed.mode : "drawn";
     for (const note of placed.notes) notes.push(`The masthead mark: ${note}`);
@@ -532,105 +537,90 @@ export function composeSheet(doc, options = {}) {
       x: lockedUp
         ? lockupLeft
         : centredAt(wordmark, language.canvas / 2, mastheadSize, face),
-      y: runs.wordmark.baseline,
+      y: mastheadSlot.baseline,
       text: wordmark,
       align: "left",
       fontFamily: face.fontFamily,
       fontSize: mastheadSize,
-      fontWeight: TYPE_ROLES.masthead.fontWeight,
-      fill: colors.white,
+      fontWeight: mastheadSlot.size.weight,
+      fill: mastheadSlot.fill,
     },
-    colors.navy
+    mastheadSlot.on
   );
 
   // --- The heading band ----------------------------------------------------
   // Both rules are drawn as a pair flush to each edge with the title between
-  // them, which is how the artwork places them.
-  for (const [key, rule] of [
-    ["upper", rules.upper],
-    ["lower", rules.lower],
-  ]) {
-    for (const [side, x] of [
-      ["left", 0],
-      ["right", language.canvas - rules.width],
-    ]) {
-      composition.rect({
-        name: `rule-${key}-${side}`,
-        x,
-        y: rule.y,
-        width: rules.width,
-        height: rule.height,
-        fill: colors.green,
-      });
-    }
-  }
+  // them, which is how the artwork places them, and the layout's four `rule`
+  // slots are where those four positions are stated.
+  placeSlots(composition, { layout, theme, stage: "rule" });
 
   // The title is set across the canvas less both flanking rules, which is the
-  // measure the artwork placed the rules against.
-  const titleCap = displayCap("title", doc.title, runs.title.cap, rules.measure);
+  // measure the artwork placed the rules against and the measure its slot
+  // carries.
+  const titleSlot = runSlot("title");
+  const titleCap = displayCap("title", doc.title, titleSlot.size.cap, titleSlot.measure);
   const titleSize = sizeForCap(titleCap, face);
   drawText(
     {
-      name: "title",
+      name: titleSlot.name,
       x: centredAt(doc.title, language.canvas / 2, titleSize, face),
-      y: runs.title.baseline,
+      y: titleSlot.baseline,
       text: doc.title,
       align: "left",
       fontFamily: face.fontFamily,
       fontSize: titleSize,
-      fontWeight: TYPE_ROLES.title.fontWeight,
-      fill: colors.heading,
+      fontWeight: titleSlot.size.weight,
+      fill: titleSlot.fill,
     },
-    colors.white
+    titleSlot.on
   );
 
   // The subtitle and the lead-in are the same size as each other, cap for cap
-  // and stem for stem, which is why they share one role.
-  let subtitleCap = runs.subtitle.cap;
+  // and stem for stem, which is why both slots name the same role of the
+  // theme's scale.
+  const subtitleSlot = runSlot("subtitle");
+  let subtitleCap = subtitleSlot.size.cap;
   if (doc.subtitle) {
-    subtitleCap = displayCap("subtitle", doc.subtitle, runs.subtitle.cap, rules.measure);
+    subtitleCap = displayCap("subtitle", doc.subtitle, subtitleSlot.size.cap, subtitleSlot.measure);
     const subtitleSize = sizeForCap(subtitleCap, face);
     drawText(
       {
-        name: "subtitle",
+        name: subtitleSlot.name,
         x: centredAt(doc.subtitle, language.canvas / 2, subtitleSize, face),
-        y: runs.subtitle.baseline,
+        y: subtitleSlot.baseline,
         text: doc.subtitle,
         align: "left",
         fontFamily: face.fontFamily,
         fontSize: subtitleSize,
-        fontWeight: TYPE_ROLES.leadIn.fontWeight,
-        fill: colors.heading,
+        fontWeight: subtitleSlot.size.weight,
+        fill: subtitleSlot.fill,
       },
-      colors.white
+      subtitleSlot.on
     );
   }
 
   // The lead-in sits a `step-3` in from the spine, which is the tokenised form
   // of the 377 px the artwork measures - the token is what a generated sheet
   // draws to, and the 7 px between them is the residual the design language
-  // records for `step-3`.
+  // records for `step-3`. The slot holds the sum of that rather than the
+  // token, because where a run starts is the layout's answer and not an
+  // arithmetic the composition repeats.
   const leadIn = doc.leadIn ?? DEFAULT_RUNS.leadIn;
-  const leadInX = divisions.spine.x + divisions.spine.width + insets.leadInFromSpine;
-  const leadInCap = displayCap(
-    "lead-in",
-    leadIn,
-    runs.leadIn.cap,
-    language.canvas - leadInX - divisions.rightMargin.width
-  );
+  const leadInSlot = runSlot("lead-in");
+  const leadInCap = displayCap("lead-in", leadIn, leadInSlot.size.cap, leadInSlot.measure);
   drawText(
     {
-      name: "lead-in",
-      x: leadInX,
-      y: runs.leadIn.baseline,
+      name: leadInSlot.name,
+      x: leadInSlot.left,
+      y: leadInSlot.baseline,
       text: leadIn,
       align: "left",
       fontFamily: face.fontFamily,
       fontSize: sizeForCap(leadInCap, face),
-      fontWeight: TYPE_ROLES.leadIn.fontWeight,
-      fill: colors.heading,
+      fontWeight: leadInSlot.size.weight,
+      fill: leadInSlot.fill,
     },
-    colors.white
+    leadInSlot.on
   );
 
   // --- The code panel, which is where the seed does its work ---------------
@@ -937,8 +927,9 @@ export function composeSheet(doc, options = {}) {
   // unrepainted. It is the artwork, exactly as drawn.
   const footerAsset = doc.followLine === undefined ? brand.footer : null;
   if (footerAsset) {
-    const placed = placeBrand(composition, slots.footer, footerAsset, {
-      name: "footer-lockup",
+    const footerSlot = slotNamed(layout, "footer-lockup");
+    const placed = placeBrand(composition, boxOf(layout, footerSlot), footerAsset, {
+      name: footerSlot.name,
       alt: footerAsset.alt ?? DEFAULT_RUNS.followLine,
     });
     brandModes.footer = placed.placed ? placed.mode : "drawn";
@@ -949,36 +940,27 @@ export function composeSheet(doc, options = {}) {
   }
 
   if (brandModes.footer === "drawn") {
-    composition.rect({
-      name: "mark-square",
-      x: markSquare.x,
-      y: markSquare.y,
-      width: markSquare.width,
-      height: markSquare.height,
-      fill: colors.navy,
-    });
+    // The one stage drawn conditionally, which is why the layout keeps it as a
+    // stage of its own: where the asset is placed, the mark square is not
+    // drawn at all, and a slot list with no painting order could not say that.
+    placeSlots(composition, { layout, theme, stage: "mark" });
 
     const followLine = doc.followLine ?? DEFAULT_RUNS.followLine;
-    const followX = markSquare.x + markSquare.width + insets.followLineFromMark;
-    const followCap = displayCap(
-      "follow line",
-      followLine,
-      runs.followLine.cap,
-      language.canvas - followX - divisions.rightMargin.width
-    );
+    const followSlot = runSlot("follow-line");
+    const followCap = displayCap("follow line", followLine, followSlot.size.cap, followSlot.measure);
     drawText(
       {
-        name: "follow-line",
-        x: followX,
-        y: runs.followLine.baseline,
+        name: followSlot.name,
+        x: followSlot.left,
+        y: followSlot.baseline,
         text: followLine,
         align: "left",
         fontFamily: face.fontFamily,
         fontSize: sizeForCap(followCap, face),
-        fontWeight: TYPE_ROLES.followLine.fontWeight,
-        fill: colors.navy,
+        fontWeight: followSlot.size.weight,
+        fill: followSlot.fill,
       },
-      colors.white
+      followSlot.on
     );
   }
 

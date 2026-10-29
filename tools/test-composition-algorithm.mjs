@@ -411,10 +411,15 @@ test("a blank line in the example takes its place without drawing an element", (
   assert.ok(third, "the line after a blank one was renumbered, so a gap closed up");
 });
 
-test("a document with no title is refused rather than composed blank", () => {
-  assert.throws(() => composeSheet({ code: [] }), /needs a title/);
-  assert.throws(() => composeSheet({ title: "", code: [] }), /needs a title/);
-  assert.throws(() => composeSheet(null), /needs a title/);
+test("a document with no title is refused, and the refusal names the field", () => {
+  // Since 2026.10.29 the refusal is the document model's schema rather than a
+  // hand written check, so what is asserted is the **path**: the message names
+  // `document.title` and says which of the two ways it is wrong. A message
+  // that only said a title was needed could not grow into the formal shape,
+  // where the field that is wrong is three levels down at a numbered position.
+  assert.throws(() => composeSheet({ code: [] }), /document\.title: must be a string, and is absent/);
+  assert.throws(() => composeSheet({ title: "", code: [] }), /document\.title: must not be empty/);
+  assert.throws(() => composeSheet(null), /document: must be an object, and is null/);
 });
 
 test("and a language that is not a language is refused in this layer's words", () => {
@@ -425,7 +430,7 @@ test("and a language that is not a language is refused in this layer's words", (
   for (const language of [123, true, ["html"], { id: "html" }]) {
     assert.throws(
       () => composeSheet({ title: "Typed", language, code: [{ text: "a" }] }, { seed: 1 }),
-      /a sheet document's language is a language id/,
+      /document\.language: must be a language id, an alias, or absent/,
       `${JSON.stringify(language)} composed rather than being refused`
     );
   }

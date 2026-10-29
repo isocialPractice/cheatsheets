@@ -33,6 +33,55 @@ A cheatsheet folder holds, at most:
 named `sheet.anything`. Any other file in the folder fails
 `node tools/build-manifest.mjs --check` as unreferenced.
 
+### Two shapes a document may be written in
+
+Every committed `sheet.json` is in the **provisional** shape: a title, a
+subtitle, the language the example is in, a seed, and a `code` array of lines
+each naming the colour role it is set in. Write a new one the same way - it is
+what the catalog is in, what the page reads, and what
+`node tools/cheatsheet.mjs --check` holds the whole catalog to.
+
+Since 2026.10.29 the layer also takes a **formal** document, which carries
+ordered sections of entries instead of rows:
+
+```json
+{
+  "title": "Splicing Array Elements",
+  "subtitle": "Add and remove in one call",
+  "language": "javascript",
+  "sections": [
+    {
+      "title": "Removing",
+      "entries": [
+        {
+          "term": "splice",
+          "signature": "items.splice(1, 2)",
+          "description": "Removes two from index one"
+        }
+      ]
+    }
+  ]
+}
+```
+
+`sections` is what tells the two apart, and either composes. The difference is
+that the provisional shape has the drawing baked into it - a line is a row,
+because a row is what it was written to fill - while a formal document says
+what the sheet is about and leaves every question of rows to the layout. An
+entry's `term` is required; its `signature` and `description` are not.
+
+Both shapes are refused with the path to the offending field rather than a
+sentence about the whole document, which is the half worth knowing when the
+field is three levels down:
+
+```text
+cheatsheet: there is one problem with the sheet document.
+  document.sections[0].entries[1].term: must not be empty
+```
+
+The models are in `api/cheatsheet/`: `document.mjs`, `theme.mjs`,
+`layout.mjs`, and `schema.mjs` behind all three.
+
 ### Rendering one, from the command line
 
 `tools/cheatsheet.mjs` is what writes a render. It composes a document through
@@ -46,8 +95,8 @@ node tools/cheatsheet.mjs --generate html-css/html-apis/web-storage --format web
 node tools/cheatsheet.mjs --help
 ```
 
-Two things about it are worth knowing before the first call, and the rest is in
-`--help` and the file's own header.
+Three things about it are worth knowing before the first call, and the rest is
+in `--help` and the file's own header.
 
 **It reports which renderer answered, and that is not cosmetic.** The browser
 route draws the face the design language measured; the built-in route draws a
@@ -64,6 +113,16 @@ drafts a post for each new match, so whatever lands beside a document is a
 thing somebody may post. A built-in-alphabet render is not, nor is one under
 the publish floor or over the weight cap. `--out` overrides the destination and
 is always obeyed.
+
+**`--theme` and `--layout` each take one recorded name or a file.** The record
+holds one of each - the theme is `default` and the layout is `sheet` - so a
+name that is neither says what the options are rather than quietly composing
+the only one it has. Anything else is a path to a JSON model, which is read,
+validated, and refused by the path to the offending field:
+
+```bash
+node tools/cheatsheet.mjs --generate <slug> --layout .tmp/two-column.layout.json
+```
 
 Seed the ledger before rendering the whole catalog at once -
 `cross-os-social seed --workspace mcp-todo` - or the first bulk run reads as 28

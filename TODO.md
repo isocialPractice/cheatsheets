@@ -11,23 +11,23 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
-  - Thirty-three readers of the provisional shape exist as of 2026.10.27, and five of them are not regenerable: `index.html`, `api/cheatsheet/compose.mjs`, `tools/test-render-fixture.mjs`, `tools/cheatsheet.mjs` and `tools/test-cheatsheet-cli.mjs`. The other twenty-eight are the `sheet.json` documents and can be rewritten by a script. The page is the one with no marker saying its shape may change; `tools/cheatsheet.mjs --data-only` already emits `shape: "provisional"` beside the document it returns, which is the migration point to keep
-  - The provisional shape has two validated fields to inherit rather than invent: `title` must be a non-empty string and `language` must be a string, `null` or absent, both refused by `composeSheet` in this layer's own words. A `kind` has a reader outside the document - `detectPayload` reports `embed` from a `demo/` folder alone and `--check` fails a document that disagrees - so the model inherits one field whose authority is the filesystem
+- [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
+  - The models landed on 2026.10.29 and are additive: `composeSheet` takes a formal document or the provisional shape, and a theme or a whole design language as `options.language`. Narrowing it to the three means the twenty-eight committed `sheet.json` documents and `index.html` move off the provisional shape, which is the migration the readers' count in `.claude/user-note.md` has been measuring the cost of since 2026.09.24
+  - `tools/cheatsheet.mjs --data-only` emits `shape: "provisional"` beside the document, and that marker is the migration point to keep rather than remove: it is what tells a consumer which shape its reader was written against. The page has no such marker and still does not
   - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
-  - The roles resolve to concrete values through the color parser `api/cheatsheet/contrast.mjs` carries, since the package's root entry exports none, so a theme and a rendered fill cannot disagree about what a color is
-  - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
-  - Two rulers, not one, per **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`: a width that decides where ink goes is `drawnWidth` and a width that decides whether ink fits is `measureRun`. Every run the model places inherits that division
-  - Ordering takes a chain rather than a number, since 2026.10.23: an `order` in a `meta.json` ranks a folder among its own siblings only, so a sheet's place is its group's order and then its own
-  - An indent inside a `code` line is a nesting level and never a column, per **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`. The rule governs the drawn panel and not the payload file beside it, which is read in a monospace editor - so a model that owns whitespace owns it for one of the two artifacts, which is a thing to decide rather than discover
-  - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Map the layout model onto the package's element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
-  - `tools/cheatsheet.mjs` holds `--layout` open for this: it recognises the flag and refuses it, saying a named layout is this model's. Satisfying the flag is part of the item
-  - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
-  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Accept a partial theme and merge it over the default, so a caller overrides one color without restating the palette
+  - `readTheme` refuses a theme missing a role, which is right for a whole theme and is exactly what a partial one is not. The merge has to happen before the validation rather than instead of it, or a partial theme is the one input the model cannot refuse
+  - From: Implement Cheatsheet API `->` Configuration
+- [ ] Resolve every color role to a concrete value and reject any pairing below the contrast floor the design language sets
+  - Half of this is done: `resolvePalette` in `api/cheatsheet/theme.mjs` resolves every role through the parser `contrast.mjs` carries, and the schema refuses a colour the renderer cannot read. What is open is the rejection - `checkPairings` measures what a composition actually drew and reports it, so a theme that cannot be read is composed and noted rather than refused up front
+  - From: Implement Cheatsheet API `->` Configuration
+- [ ] Accept a font family list with fallbacks, and record which family a rendered sheet actually used
+  - The SVG names a family it cannot guarantee, and the browser raster route resolves it to whatever that machine has. Recording what a render actually used is the only way the two are comparable
+  - The theme model carries the stack as `theme.stack.family`, one string in CSS form. A list with fallbacks is a change to that field's shape, so it moves `THEME_SCHEMA` and the `face.fontFamily` the composition hands to every text element
+  - From: Implement Cheatsheet API `->` Configuration
+- [ ] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
+  - The theme already carries the spacing tokens, the radius and the stroke weights as numbers in sheet pixels rather than as CSS, so what is open is shape and curve. `RADIUS` is the only curve the record gives and the mark's square corners are why it is small, per **Spacing and radius** in `DESIGN_LANGUAGE.md`
+  - From: Implement Cheatsheet API `->` Configuration
 
 ## GitHub Pages Deployment
 
@@ -867,13 +867,25 @@ signature or a section.
 
 ### The Core Model
 
-- [ ] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
-- [ ] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
-  - The roles resolve to concrete values through the color parser `api/cheatsheet/contrast.mjs` carries, since the package's root entry exports none, so a theme and a rendered fill cannot disagree about what a color is
-- [ ] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
-- [ ] Map the layout model onto the package's element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
-- [ ] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
+The three models landed on 2026.10.29, in `api/cheatsheet/document.mjs`,
+`theme.mjs` and `layout.mjs`, with `schema.mjs` behind all three. A document is
+a title and ordered sections of entries, each carrying a term, a signature and
+a description, and it says nothing about how any of it is drawn: the projection
+from sections to the rows a panel carries is the layout's, which is what lets
+one document be set to two layouts. A theme is the palette roles, the type
+stack and scale, the spacing step, the radius and the stroke weights, derived
+from `language.mjs` rather than restated, with every role resolved through the
+colour parser `contrast.mjs` carries. A layout is a named composition, the row
+and column grid, and the slots on it; the sheet's nine structural rectangles
+and its five fixed runs are drawn from those slots, and the committed SVG
+fixture is byte for byte what it was, which is the evidence it is the same
+composition expressed differently. A bad model is refused with the path to the
+field - `document.sections[2].entries[1].term` - and every offending field at
+once. `tools/cheatsheet.mjs --layout` is satisfied, and `--script` is still
+refused by name.
+
 - [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
+  - The models are additive today: `composeSheet` takes the provisional shape every committed `sheet.json` is written in and takes a formal document as readily, and a caller may still hand over a whole design language as `options.language`. What is left is narrowing that to the three models, which means migrating the twenty-eight documents and the page off the provisional shape first
 
 ### Configuration
 
@@ -1675,5 +1687,22 @@ generate ideas about generating ideas.
   - **Issue**: `tools/test-demo-pages-browser.mjs` opens each `demo/index.html` directly and presses everything on it; `tools/test-example-selection.mjs` drives the page and holds what a selection leaves in the document. Neither drives a control *through* the frame, so "the demo works" and "the demo works framed" are different claims and only the first is held. Both files were green on the day the dialog stopped closing, and the whole suite - 639 cases - passed with the defect in it
   - **Goal**: covered by the fix above, section 4 of its prompt file: add the framed walk to `tools/test-demo-pages-browser.mjs`, reading the sandbox token from `index.html` rather than repeating it, so the test follows the grant when it next changes. The implementation is in `test-results/ui-ux-tester.agent/ui-ux-tester.2026.10.27-embed-demo-frame.cases.mjs`
   - From: UI/UX Override - the framed demo's dialog
+- [x] Define the cheatsheet document model: a title, ordered sections, and entries carrying a term, a signature and a description, independent of how any of it is drawn
+  - Thirty-three readers of the provisional shape exist as of 2026.10.27, and five of them are not regenerable: `index.html`, `api/cheatsheet/compose.mjs`, `tools/test-render-fixture.mjs`, `tools/cheatsheet.mjs` and `tools/test-cheatsheet-cli.mjs`. The other twenty-eight are the `sheet.json` documents and can be rewritten by a script. The page is the one with no marker saying its shape may change; `tools/cheatsheet.mjs --data-only` already emits `shape: "provisional"` beside the document it returns, which is the migration point to keep
+  - The provisional shape has two validated fields to inherit rather than invent: `title` must be a non-empty string and `language` must be a string, `null` or absent, both refused by `composeSheet` in this layer's own words. A `kind` has a reader outside the document - `detectPayload` reports `embed` from a `demo/` folder alone and `--check` fails a document that disagrees - so the model inherits one field whose authority is the filesystem
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Define the theme model: palette roles, type stack and scale, spacing step, radius and stroke weight, read from `DESIGN_LANGUAGE.md` rather than hard coded
+  - The roles resolve to concrete values through the color parser `api/cheatsheet/contrast.mjs` carries, since the package's root entry exports none, so a theme and a rendered fill cannot disagree about what a color is
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Define the layout model: a named composition, its column and row grid, and the slots a section may occupy
+  - Two rulers, not one, per **What a generated sheet is measured in** in `DESIGN_LANGUAGE.md`: a width that decides where ink goes is `drawnWidth` and a width that decides whether ink fits is `measureRun`. Every run the model places inherits that division
+  - Ordering takes a chain rather than a number, since 2026.10.23: an `order` in a `meta.json` ranks a folder among its own siblings only, so a sheet's place is its group's order and then its own
+  - An indent inside a `code` line is a nesting level and never a column, per **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`. The rule governs the drawn panel and not the payload file beside it, which is read in a monospace editor - so a model that owns whitespace owns it for one of the two artifacts, which is a thing to decide rather than discover
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Map the layout model onto the package's element builders, so a slot becomes `rect`, `text` and `line` calls rather than a string of SVG
+  - `tools/cheatsheet.mjs` holds `--layout` open for this: it recognises the flag and refuses it, saying a named layout is this model's. Satisfying the flag is part of the item
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
+  - From: Implement Cheatsheet API `->` The Core Model
 
 </details>

@@ -108,8 +108,23 @@ stopped. What is reproduced is every figure the artwork can be measured for.
 
 `restyle-sheet.mjs` composes the same document, at the same seed, through
 `ember-theme.mjs`. A theme is a modified copy of `SHEET_LANGUAGE`, passed as
-`options.language` - there is no separate theme format, because the design
-language is already exported as one object for exactly this.
+`options.language` - the design language is exported as one object for exactly
+this, so re-tinting it needs nothing else.
+
+Since 2026.10.29 there is also a **theme model**, in `api/cheatsheet/theme.mjs`:
+the themeable half of that record on its own - the palette roles, the type
+stack and scale, the spacing step, the radius and the stroke weights - with a
+schema that refuses a role that is missing or a colour the renderer cannot
+read. `composeSheet` takes one as `options.theme`, and the two routes agree by
+construction: `themeFrom(language)` reads a theme out of a record and
+`languageFor(theme)` puts one back in.
+
+Which to reach for is a question of what a caller is holding. This example
+keeps the copy, because the thing it demonstrates is that a theme moves paint
+and a seed moves geometry, and a copy of the whole record is the shortest way
+to show both axes starting from the same object. A caller handing a palette
+over a boundary wants the model, because the model is the half that is theirs
+to move and it says so by not carrying the other half at all.
 
 The one recorded table not in that object is the colour census, and the reason
 is the copy: a census is an area measurement of the eleven sheets, so a spread

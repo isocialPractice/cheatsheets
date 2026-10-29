@@ -583,7 +583,7 @@ test("a document whose language is the wrong type empties the frame and says why
   assert.equal(state.fullSize, "none", "the full size link was left offering a sheet that was never composed");
   assert.equal(named.length, 1, `the reason reached the console ${named.length} times rather than once`);
   assert.ok(
-    logged.some((line) => /language is a language id, an alias, or absent/.test(line)),
+    logged.some((line) => /document\.language: must be a language id, an alias, or absent/.test(line)),
     `the console never named the field; it logged ${JSON.stringify(logged)}`
   );
   // Caught, not thrown: a composition failure the page handles must not also

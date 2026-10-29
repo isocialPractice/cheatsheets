@@ -4,8 +4,16 @@
 // `api/cheatsheet/language.mjs` as one object precisely so a caller can pass a
 // modified copy rather than reach for module state, and `composeSheet` takes
 // it as `options.language`. A theme is therefore a copy of that object with
-// some of it replaced - there is no separate theme format to learn, and
-// anything the design language records is themeable by the same move.
+// some of it replaced, and anything the design language records is themeable
+// by the same move.
+//
+// **There is a theme model as well, since 2026.10.29**, in
+// `api/cheatsheet/theme.mjs`, and this example deliberately does not use it.
+// The model is the themeable half of the record on its own, which is the right
+// thing to hand across a boundary; what this file demonstrates is that a theme
+// moves paint and a seed moves geometry, and a copy of the whole record is the
+// shortest way to show both axes starting from one object. `themeFrom` and
+// `languageFor` convert between the two, so neither route is a dead end.
 //
 // **What a theme is not.** It is not an inversion. The colour roles are named
 // after the artwork's own colours and each carries two jobs: `navy` is the

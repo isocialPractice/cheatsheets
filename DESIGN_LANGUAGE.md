@@ -1135,6 +1135,20 @@ figure edited in one and not the other fails rather than drifts.
 committed output, so a change to what the algorithm draws has to be looked at
 before it is accepted.
 
+Since 2026.10.29 there is a third link in that chain. The **theme** and
+**layout** models in `api/cheatsheet/theme.mjs` and `api/cheatsheet/layout.mjs`
+are the themeable and the placeable halves of this record, handed to a caller
+as objects they may replace. Neither restates a figure: each is derived from
+`language.mjs` at load, so a measurement corrected here is corrected in both
+with no edit. `tools/test-sheet-models.mjs` reads the derived figures back
+against the tables in this document, which is what would catch a model
+derived faithfully from a transcription that had itself drifted.
+
+That is the same rule this document states about itself, applied one layer
+out: a model may not contain a number the artwork did not give. A palette with
+the hexes typed into it would look as measured as everything beside it and be
+measured by nothing.
+
 ## Graphics
 
 No stock imagery. The cheatsheet sheets are the repository's own content and
