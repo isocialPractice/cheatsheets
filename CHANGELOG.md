@@ -4,6 +4,61 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.29]
+
+### Added
+
+- **The cheatsheet API's three models, which are what a caller describes a
+  sheet in.** A **document** of a title and ordered sections, each entry
+  carrying a term, a signature and a description; a **theme** of palette
+  roles, a type stack and scale, the spacing step, the radius and the stroke
+  weights; and a **layout** of a named composition, the grid it sits on, and
+  the slots a section may occupy. They are `api/cheatsheet/document.mjs`,
+  `theme.mjs` and `layout.mjs`, and they are additive: `composeSheet` still
+  takes the provisional shape all twenty-eight committed `sheet.json`
+  documents are written in, and takes a formal one as readily.
+- **A schema validator that refuses a model by the path to the field**, in
+  `api/cheatsheet/schema.mjs`. The layer's two refusals were hand written
+  checks on a title and a `language`, and neither approach reaches a term
+  three levels down at a numbered position, so a refusal now reads
+  `document.sections[2].entries[1].term: must be a string, and is absent` and
+  carries every offending field at once rather than the first.
+  Both existing refusals moved into the document model's schema, which is
+  where they belong, and the messages changed with them.
+- **`--layout` on `tools/cheatsheet.mjs`, which that file had been refusing by
+  name since it was written.** It takes `sheet` - the one composition the
+  design language records - or a path to a JSON layout, which is read,
+  validated and composed to, exactly as `--theme` takes a theme.
+  `--data-only` now reports which layout answered. `--script` is still refused
+  by name: a demo payload is not an input to a composition.
+- **`tools/test-sheet-schema.mjs` and `tools/test-sheet-models.mjs`**, 63 cases
+  between them. The models' figures are read back against the tables in
+  `DESIGN_LANGUAGE.md` rather than only against `language.mjs`, which is what
+  catches a model derived faithfully from a transcription that had itself
+  drifted.
+
+### Changed
+
+- **The sheet's structure is drawn from the layout rather than from
+  coordinates written out at each call.** The four grounds, the four bars
+  flanking the title and the footer's mark square were nine `composition.rect`
+  calls with their geometry computed inline; they are now slots on the layout,
+  and one mapping turns a slot into a `rect` or a `line`. The five fixed runs
+  read their baseline, their measure, their size and their paint off a slot
+  too. The committed SVG fixture is byte for byte what it was, which is the
+  evidence that this is the same composition expressed differently rather than
+  a new one.
+- **A theme can be handed to `composeSheet` as `options.theme`**, and a layout
+  as `options.layout`. Passing neither composes to what the eleven images were
+  measured at. The copy-the-whole-record route `examples/ember-theme.mjs`
+  demonstrates is unchanged and still works; `themeFrom` and `languageFor`
+  convert between the two, so neither is a dead end.
+- **`api/cheatsheet/compose.mjs` validates its document instead of checking
+  two fields.** The refusal for a document with no title and the one for a
+  `language` that is not a string are the same refusals, in the same layer's
+  words, reached through the schema - so they now carry a path, and a formal
+  document is refused the same way before anything is drawn.
+
 ## [2026.10.28]
 
 ### Fixed

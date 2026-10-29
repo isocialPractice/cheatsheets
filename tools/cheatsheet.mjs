@@ -72,22 +72,36 @@
 // `MIN_PUBLISH_SCALE` in `api/cheatsheet/raster.mjs`, near a third, and the
 // preset clears it by 200 px of long edge.
 //
-// ## Two flags are recognised and refused
+// ## `--layout`, and the one flag still refused
 //
-// `--layout` and `--script` are in the specification this was written from and
-// have nothing behind them yet: `composeSheet` takes no named layout, and a
-// demo payload is not an input to a composition - the `code` array is the
-// content. Both belong to the document, theme and layout models under
-// **Implement Cheatsheet API** in `TODO.md`. They are refused by name with that
-// said, rather than accepted and ignored, which is the one outcome that would
-// leave a caller believing a sheet had been composed to a layout it had not.
+// `--layout` and `--script` were both in the specification this was written
+// from and both had nothing behind them. `--layout` does now: the layout model
+// landed on 2026.10.29, so the flag takes `sheet` - the one composition the
+// design language records - or a path to a JSON layout of its own, which is
+// read, validated against `LAYOUT_SCHEMA` and composed to. It is the same
+// shape `--theme` has, for the same reason: there is one recorded answer, and
+// a second is a file rather than a name in here.
+//
+// `--script` is still refused by name. A demo payload is not an input to a
+// composition - the document's `code` array, or a formal document's sections,
+// is the content, and the payload is what the page runs or frames beside the
+// graphic. It is refused with that said rather than accepted and ignored,
+// which is the one outcome that would leave a caller believing a sheet had
+// been composed from a payload it had not.
 //
 // Run with: node tools/cheatsheet.mjs --help
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { composeSheet, prepareAccents, SHEET_LANGUAGE } from "../api/cheatsheet/index.mjs";
+import {
+  composeSheet,
+  isFormalDocument,
+  prepareAccents,
+  readLayout,
+  SHEET_LANGUAGE,
+  SHEET_LAYOUT,
+} from "../api/cheatsheet/index.mjs";
 import { MIN_PUBLISH_SCALE, rasterizeSheet } from "../api/cheatsheet/raster.mjs";
 import { readBrandAssets } from "./build-manifest.mjs";
 
@@ -144,6 +158,7 @@ const VALUES = new Set([
   "--format",
   "--renderer",
   "--theme",
+  "--layout",
   "--seed",
   "--scale",
   "--quality",
@@ -154,9 +169,6 @@ const VALUES = new Set([
 
 /** Flags recognised so they can be refused with a reason rather than as unknown. */
 const NOT_YET = {
-  "--layout":
-    "a named layout is the layout model's, and `composeSheet` takes no layout: a sheet composes " +
-    "to the one algorithm the design language records. Queued under `## Implement Cheatsheet API`",
   "--script":
     "a demo payload is not an input to a composition - the document's `code` array is the content, " +
     "and the payload is what the page runs or frames beside the graphic. Queued under " +
@@ -172,6 +184,7 @@ node tools/cheatsheet.mjs --check [<slug>]  [--json]
   --format <fmt>         svg (default), png, webp or jpg. The preset's raster format is ${PRESET.format}
   --renderer <r>         auto (default), browser, or builtin
   --theme <name|path>    default (the recorded design language), or a path to a JSON one
+  --layout <name|path>   sheet (the recorded composition), or a path to a JSON one
   --seed <n>             Overrides the document's own seed. Identical seeds render identically
   --scale <n>            Device pixels per composition pixel. Default ${(PRESET.longEdge / CANVAS_EDGE).toFixed(4)}, the preset's ${PRESET.longEdge} px long edge
   --quality <n>          Encoder quality for png, webp and jpg. Default ${PRESET.quality}, from the preset
@@ -191,7 +204,7 @@ it is not. See the header of this file for why that is a rule.
  * Reads the command line into an options object.
  *
  * Hand rolled rather than `node:util`'s `parseArgs`, for one reason: an unknown
- * flag has to be able to say more than "unknown". `--layout` is a flag somebody
+ * flag has to be able to say more than "unknown". `--script` is a flag somebody
  * will reasonably try, and telling them it is not implemented yet and where it
  * is queued is worth the twenty lines.
  *
@@ -305,6 +318,39 @@ async function readTheme(named) {
   }
 }
 
+/**
+ * The layout to compose to.
+ *
+ * The same shape as {@link readTheme} above, and for the same reason: one name
+ * the record supports and a path for anything else, so a name that is not
+ * `sheet` says what the options are rather than quietly falling back to the
+ * only one. The difference is that a layout read off disk is **validated**
+ * here before it reaches the composition - a layout naming a row its own grid
+ * does not have is well formed JSON, and the error worth reading is the one
+ * naming the slot rather than whatever the drawing surface makes of an
+ * undefined coordinate.
+ *
+ * @param {string | undefined} named
+ */
+async function readLayoutOption(named) {
+  if (named === undefined || named === "sheet" || named === "default") return undefined;
+  if (!/[\\/.]/.test(named)) {
+    throw new Error(
+      `cheatsheet: ${JSON.stringify(named)} is not a layout this repository records. ` +
+        "There is one, `sheet`; anything else is a path to a JSON layout object."
+    );
+  }
+  const path = resolve(root, named);
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    throw new Error(`cheatsheet: the layout at ${named} could not be read. (${error.message})`);
+  }
+  return readLayout(parsed);
+}
+
 /** A flag's value as a finite number, or an error naming the flag. */
 function asNumber(name, value, fallback) {
   if (value === undefined) return fallback;
@@ -325,7 +371,7 @@ function asNumber(name, value, fallback) {
  * the sheet drew before it existed - and what happened to each is reported.
  *
  * @param {object} entry
- * @param {{ seed?: string, language?: object }} options
+ * @param {{ seed?: string, language?: object, layout?: object }} options
  */
 async function compose(entry, options) {
   const folder = join(root, ...entry.path.split("/"));
@@ -335,6 +381,7 @@ async function compose(entry, options) {
     seed: options.seed ?? doc.seed ?? entry.seed,
     brand,
     ...(options.language ? { language: options.language } : {}),
+    ...(options.layout ? { layout: options.layout } : {}),
   });
   return { folder, doc, composition, variation, reader };
 }
@@ -499,22 +546,31 @@ async function generate(flags) {
   const entries = entriesOf(await readManifest());
   const entry = findEntry(entries, slug);
   const language = await readTheme(flags.theme === undefined ? undefined : String(flags.theme));
+  const layout = await readLayoutOption(flags.layout === undefined ? undefined : String(flags.layout));
   const { doc, composition, variation } = await compose(entry, {
     seed: flags.seed === undefined ? undefined : String(flags.seed),
     language,
+    layout,
   });
 
   if (flags["data-only"]) {
-    // The document as this layer reads it, which is the provisional shape
-    // rather than the formal model: that is **Implement Cheatsheet API**'s, and
-    // a consumer of this output should expect it to grow fields.
+    // The document as this layer reads it, in whichever of the two shapes it
+    // was written in. Every committed one is provisional today, and a consumer
+    // of that shape should expect it to grow fields.
     return {
       exit: 0,
       json: {
         command: "data-only",
         id: entry.id,
         path: entry.path,
-        shape: "provisional",
+        // Read off the document rather than written out, because the marker
+        // is only worth having if it can disagree with itself: a consumer of
+        // this JSON should not have to guess whether the shape it was written
+        // against may grow fields, and a constant could never tell it.
+        // `isFormalDocument` is the same predicate `composeSheet` branches on.
+        // See `api/cheatsheet/document.mjs`.
+        shape: isFormalDocument(doc) ? "formal" : "provisional",
+        layout: (layout ?? SHEET_LAYOUT).name,
         document: doc,
         variation,
       },

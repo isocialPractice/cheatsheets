@@ -64,20 +64,32 @@ const exists = (path) =>
 
 test("a flag the specification names and the layer cannot do yet is refused by name", () => {
   // Accepted and ignored is the one outcome worse than either: a caller would
-  // believe a sheet had been composed to a layout it had not. Both messages
-  // say where the missing piece is queued, so the refusal is a pointer rather
+  // believe a sheet had been composed from a payload it had not. The message
+  // says where the missing piece is queued, so the refusal is a pointer rather
   // than a wall.
-  for (const flag of ["--layout", "--script"]) {
-    assert.throws(
-      () => parseFlags(["--generate", RUNNABLE, flag, "something"]),
-      (error) => {
-        assert.match(error.message, new RegExp(`${flag} is not implemented yet`));
-        assert.match(error.message, /Implement Cheatsheet API/);
-        return true;
-      },
-      `${flag} was not refused`
-    );
-  }
+  //
+  // `--layout` was here beside `--script` until 2026.10.29, when the layout
+  // model landed and the flag was opened. One of the pair being gone is the
+  // point of the case below it.
+  assert.throws(
+    () => parseFlags(["--generate", RUNNABLE, "--script", "something"]),
+    (error) => {
+      assert.match(error.message, /--script is not implemented yet/);
+      assert.match(error.message, /Implement Cheatsheet API/);
+      return true;
+    },
+    "--script was not refused"
+  );
+});
+
+test("and --layout is a flag this command takes now, rather than one it refuses", () => {
+  // The flag the layout model was queued to satisfy. It is tested here as a
+  // parse, with no composition behind it, because that is the half a clone
+  // with nothing installed can run - what it composes to is
+  // `tools/test-sheet-models.mjs`'s.
+  assert.equal(parseFlags(["--generate", RUNNABLE, "--layout", "sheet"]).layout, "sheet");
+  assert.throws(() => parseFlags(["--layout"]), /--layout needs a value/);
+  assert.doesNotMatch(source, /"--layout":/, "--layout is still listed among the flags refused by name");
 });
 
 test("a value flag with nothing after it says which flag it was", () => {
@@ -331,7 +343,34 @@ test("--data-only emits the document and what the composition chose, and writes 
   assert.equal(typeof json.document.title, "string");
   assert.ok(Array.isArray(json.document.code));
   assert.equal(typeof json.variation.seed, "number");
+  // And which layout answered, so a consumer reading the geometry out of the
+  // variation knows what grid it was composed on.
+  assert.equal(json.layout, "sheet");
   assert.equal(await exists(join(root, ...RUNNABLE.split("/"), "sheet.svg")), before);
+});
+
+test("--layout names the recorded composition, or a file, and refuses anything else", async () => {
+  const { json } = await run(["--generate", RUNNABLE, "--layout", "sheet", "--data-only"]);
+  assert.equal(json.layout, "sheet");
+  await assert.rejects(
+    () => run(["--generate", RUNNABLE, "--layout", "wide", "--data-only"]),
+    /is not a layout this repository records/
+  );
+  // A path that is not there is a different failure from a name that is not
+  // recorded, and both have to say which they were: a reader who mistyped a
+  // path should not be told their path is not a recorded name.
+  await assert.rejects(
+    () => run(["--generate", RUNNABLE, "--layout", ".tmp/no-such.layout.json", "--data-only"]),
+    /could not be read/
+  );
+  // Including a path written the way this platform writes one. A separator is
+  // what tells a path from a name here, and a Windows path carrying no
+  // extension has only the backslash to say so - `--theme` has always read it
+  // that way, and the two flags are documented as the same shape.
+  await assert.rejects(
+    () => run(["--generate", RUNNABLE, "--layout", "C:\\no-such\\layout", "--data-only"]),
+    /could not be read/
+  );
 });
 
 test("--dry-run names the file it would write and leaves the disk alone", async () => {

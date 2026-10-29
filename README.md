@@ -60,6 +60,29 @@ rather than before the first paint - a sheet drawn before it arrives falls back
 to the one role per line every `sheet.json` still declares, and says which of
 the two it used.
 
+**The Three Models**
+A caller describes a cheatsheet in three objects, each with a schema of its
+own: a **document** of a title and ordered sections of entries, each entry a
+term, a signature and a description; a **theme** of palette roles, a type stack
+and scale, the spacing step, the radius and the stroke weights; and a **layout**
+of a named composition, the grid it sits on, and the slots a section may
+occupy. The document says nothing about how any of it is drawn, which is what
+lets one document be set to two layouts.
+
+The theme and the layout are both derived from
+[DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) rather than written out again, so a
+figure corrected in the record is corrected in both. Pass neither and a sheet
+composes to what the eleven images were measured at; pass one and only what it
+carries moves - a theme changes every paint and not one coordinate.
+
+A model that is wrong is refused with the path to the field, in the notation a
+caller would reach it by:
+
+```text
+cheatsheet: there is one problem with the sheet document.
+  document.sections[2].entries[1].term: must be a string, and is absent
+```
+
 A category gets a design language of its own, recorded at the root as
 `DESIGN_LANGUAGE-<category>.md` - the first is
 [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md). It is derived from
@@ -91,8 +114,10 @@ through the same layer the page does and then takes one of two routes - a real
 engine, which draws the face the design language measured, or the drawing
 surface's own dependency free rasterizer, which draws a built in single stroke
 alphabet. It reports which one answered, because a file that does not say that
-cannot be reviewed against the design language. `--list` names what there is
-and `--help` the rest.
+cannot be reviewed against the design language. `--theme` and `--layout` each
+take the one name the record supports or a path to a JSON model of its own,
+`--data-only` emits the document and what the composition chose without
+rendering anything, `--list` names what there is, and `--help` the rest.
 
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a
