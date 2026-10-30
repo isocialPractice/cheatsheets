@@ -26,7 +26,7 @@
 // Run with: node --test tools/test-cheatsheet-cli.mjs
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFile, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -373,6 +373,40 @@ test("--layout names the recorded composition, or a file, and refuses anything e
   );
 });
 
+test("--theme reads a theme, and a partial one is a whole answer", async () => {
+  // The flag used to parse its file into `composeSheet`'s `options.language`,
+  // which meant a caller who wanted one colour moved had to hand over every
+  // coordinate on the sheet. That option is gone, and a theme file may be
+  // partial, so the smallest file that says what was wanted is a valid one.
+  await mkdir(scratch, { recursive: true });
+  /** Writes a theme file and gives back the repository relative path to it. */
+  const themeFile = async (name, theme) => {
+    await writeFile(join(scratch, name), JSON.stringify(theme), "utf8");
+    return `./.tmp/cheatsheet-cli-cases/${name}`;
+  };
+
+  const amber = await themeFile("amber.theme.json", { name: "amber", colors: { green: "#E8833A" } });
+  const { json } = await run(["--generate", RUNNABLE, "--theme", amber, "--data-only"]);
+  assert.equal(json.theme, amber);
+  assert.equal(json.command, "data-only");
+
+  // A partial naming a field wrongly is still refused, by path, which is what
+  // the merge happening before the validation rather than instead of it buys.
+  const typo = await themeFile("typo.theme.json", { colours: { green: "#E8833A" } });
+  await assert.rejects(
+    () => run(["--generate", RUNNABLE, "--theme", typo, "--data-only"]),
+    /theme\.colours: is not a field/
+  );
+
+  // And a theme whose type cannot be read on the grounds the layout pairs it
+  // with is refused before anything is composed.
+  const pale = await themeFile("pale.theme.json", { name: "pale", colors: { heading: "#D8D8D8" } });
+  await assert.rejects(
+    () => run(["--generate", RUNNABLE, "--theme", pale, "--data-only"]),
+    /the "pale" theme sets 3 runs under the 4.5:1 text floor/
+  );
+});
+
 test("--dry-run names the file it would write and leaves the disk alone", async () => {
   const out = join(scratch, "dry");
   const { json } = await run(["--generate", RUNNABLE, "--out", out, "--dry-run", "--json"]);
@@ -459,7 +493,7 @@ test("a renderer that is not one of the three is refused", async () => {
 test("a theme name that is not recorded says what is, rather than falling back to it", async () => {
   await assert.rejects(
     () => run(["--generate", RUNNABLE, "--theme", "midnight", "--dry-run"]),
-    /not a design language this repository records/
+    /not a theme this repository records/
   );
   await assert.rejects(
     () => run(["--generate", RUNNABLE, "--theme", "./nowhere.json", "--dry-run"]),

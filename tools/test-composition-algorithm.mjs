@@ -57,6 +57,8 @@ import {
   readableInk,
   seedFrom,
   sizeForCap,
+  themeFrom,
+  themeOver,
   splitmix32,
   Variation,
 } from "../api/cheatsheet/index.mjs";
@@ -339,22 +341,46 @@ test("a theme carrying a paint nothing can read is refused, by name", () => {
   // `ofwhite` rather than `nosuchcolour`: a misspelling of a colour this
   // repository actually declares is the fault this is for, and a word nobody
   // would type tests a narrower thing.
-  const unreadable = {
-    ...SHEET_LANGUAGE,
-    colors: { ...SHEET_LANGUAGE.colors, white: "ofwhite" },
-  };
+  //
+  // The refusal is the **theme's** now rather than the composition's, and it
+  // reads better for it: the schema names the field and the path to it, where
+  // `checkPaints` could only name the colour. `checkPaints` still runs on every
+  // composed document and is pinned directly above this, because a paint can
+  // still arrive from somewhere that is not a palette.
   assert.throws(
-    () => composeSheet(DOC, { seed: 1, language: unreadable }),
-    /unsupported color "ofwhite"/
+    () => composeSheet(DOC, { seed: 1, theme: { colors: { white: "ofwhite" } } }),
+    /theme\.colors\.white: must be a colour this layer can read, and "ofwhite" is not one/
   );
 
   // A paint on the background is read as well as a paint on an element: the
   // page's own ground is the composition's background and nothing else looks
   // at it.
   assert.throws(
-    () => composeSheet(DOC, { seed: 1, language: { ...SHEET_LANGUAGE, colors: { ...SHEET_LANGUAGE.colors, navy: "mavy" } } }),
-    /unsupported color "mavy"/
+    () => composeSheet(DOC, { seed: 1, theme: { colors: { navy: "mavy" } } }),
+    /theme\.colors\.navy: must be a colour this layer can read, and "mavy" is not one/
   );
+});
+
+test("and an option this call no longer takes is named back with what replaced it", () => {
+  // Refused rather than ignored. A caller re-tinting a sheet through
+  // `language` and getting the recorded palette back has a sheet that looks
+  // composed and is not the one they asked for, and nothing in the result says
+  // so - which is the one outcome worse than an error.
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, language: SHEET_LANGUAGE }),
+    /`options\.language` hands over the whole design language record/
+  );
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, face: SHEET_FACE }),
+    /`options\.face` hands over a width table/
+  );
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, codeFace: SHEET_FACE }),
+    /`options\.codeFace` is the same, for the code panel/
+  );
+  // An option set to `undefined` is an option nobody passed, which is what a
+  // spread of an options object with a missing key produces.
+  assert.ok(composeSheet(DOC, { seed: 1, language: undefined }).composition);
 });
 
 test("the reader takes the hex forms and the absences, and nothing else", () => {
@@ -782,27 +808,63 @@ test("green text on a light ground is repainted, and on a dark ground is left al
   assert.equal(readableInk(SYNTAX.comment, COLORS.white), SYNTAX.comment);
 });
 
-test("a language that paints a run under the floor is reported rather than composed quietly", () => {
-  const language = {
-    ...SHEET_LANGUAGE,
-    colors: { ...SHEET_LANGUAGE.colors, heading: "#D8D8D8" },
-  };
-  const { variation } = composeSheet(DOC, { seed: 1, language });
-  assert.equal(variation.contrastHolds, false);
-  const title = variation.contrast.find((pairing) => pairing.name === "title");
-  assert.equal(title.holds, false);
-  assert.ok(variation.notes.some((note) => note.includes("text floor")));
+test("a theme that paints a run under the floor is refused before anything is drawn", () => {
+  // This used to compose, set `contrastHolds` to false, write a note and hand
+  // back a finished sheet nobody could read. That is the right answer for a run
+  // the composition had to give way on and the wrong one for a theme, which is
+  // an input and can simply be refused - so the refusal is up front now, and it
+  // names every pairing it found rather than only the first.
+  assert.throws(
+    () => composeSheet(DOC, { seed: 1, theme: { name: "pale", colors: { heading: "#D8D8D8" } } }),
+    (error) => {
+      assert.match(error.message, /the "pale" theme sets 3 runs under the 4.5:1 text floor/);
+      assert.match(error.message, /title: #D8D8D8 on #FFFFFF reaches 1\.43:1/);
+      assert.match(error.message, /subtitle: #D8D8D8 on #FFFFFF/);
+      assert.match(error.message, /lead-in: #D8D8D8 on #FFFFFF/);
+      return true;
+    }
+  );
+
+  // And the measurement of what was drawn is still there, because it answers a
+  // different question: the inks in it are the ones `drawText` ended up setting
+  // rather than the ones the theme asked for.
+  const { variation } = composeSheet(DOC, { seed: 1 });
+  assert.equal(variation.contrastHolds, true);
+  assert.ok(variation.contrast.some((pairing) => pairing.name === "title"));
 });
 
-test("a language written before the floors existed still gets them", () => {
-  // A caller passing a modified copy of the language can omit `floors` without
-  // meaning "no floors". Omission falls back to the record; only a language
-  // that names a floor moves one.
+test("a theme derived from a language written before the floors existed still gets them", () => {
+  // A caller deriving a theme from a modified copy of the language can omit
+  // `floors` without meaning "no floors". Omission falls back to the record;
+  // only a language that names a floor moves one. The route is `themeFrom`
+  // rather than `options.language`, which no longer exists - but the property is
+  // the one it always was, because `languageFor` writes a theme's paints into
+  // the recorded positions and the floors come along with them.
   const { floors } = SHEET_LANGUAGE;
   const without = { ...SHEET_LANGUAGE };
   delete without.floors;
-  const { variation } = composeSheet(DOC, { seed: 1, language: without });
+  const { variation } = composeSheet(DOC, { seed: 1, theme: themeFrom(without) });
   assert.deepEqual(variation.floors, floors);
+});
+
+test("a partial theme is laid over the record, and a typo in one is still refused", () => {
+  // The merge is what makes a theme usable by hand: one colour moved, and every
+  // figure the design language measured left exactly where it put it.
+  const one = themeOver({ colors: { green: "#2E7534" } });
+  assert.equal(one.colors.green, "#2E7534");
+  assert.equal(one.colors.navy, SHEET_LANGUAGE.colors.navy);
+  assert.deepEqual(one.spacing.tokens, SHEET_LANGUAGE.tokens);
+  assert.equal(one.scale.title.cap, TYPE_ROLES.title.cap);
+
+  // Validated after the merge rather than instead of it. Omission is filled in;
+  // a field that is named wrongly is not, and comes back by path.
+  assert.throws(() => themeOver({ colours: { green: "#2E7534" } }), /theme\.colours: is not a field/);
+  assert.throws(() => themeOver({ colors: { green: 12 } }), /theme\.colors\.green: must be a string/);
+
+  // And nothing merged shares a nested object with the recorded theme, so a
+  // caller holding on to the result cannot reach back into the record.
+  one.colors.navy = "#101010";
+  assert.equal(composeSheet(DOC, { seed: 1 }).variation.contrast[0].ground, SHEET_LANGUAGE.colors.navy);
 });
 
 test("the seeded source is the one that was chosen, and is engine-independent", () => {

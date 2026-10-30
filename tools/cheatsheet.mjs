@@ -82,6 +82,13 @@
 // shape `--theme` has, for the same reason: there is one recorded answer, and
 // a second is a file rather than a name in here.
 //
+// `--theme` reads a **theme** rather than a design language, as of 2026.10.30.
+// It used to parse its file straight into `composeSheet`'s `options.language`,
+// which is to say a caller who wanted six colours changed had to hand over
+// every coordinate on the sheet; that option no longer exists, and a theme file
+// may be partial, so the flag now takes the smallest file that says what was
+// wanted.
+//
 // `--script` is still refused by name. A demo payload is not an input to a
 // composition - the document's `code` array, or a formal document's sections,
 // is the content, and the payload is what the page runs or frames beside the
@@ -183,7 +190,7 @@ node tools/cheatsheet.mjs --check [<slug>]  [--json]
   --generate <slug>      The cheatsheet to compose, by manifest slug or folder path
   --format <fmt>         svg (default), png, webp or jpg. The preset's raster format is ${PRESET.format}
   --renderer <r>         auto (default), browser, or builtin
-  --theme <name|path>    default (the recorded design language), or a path to a JSON one
+  --theme <name|path>    default (the recorded theme), or a path to a JSON one, whole or partial
   --layout <name|path>   sheet (the recorded composition), or a path to a JSON one
   --seed <n>             Overrides the document's own seed. Identical seeds render identically
   --scale <n>            Device pixels per composition pixel. Default ${(PRESET.longEdge / CANVAS_EDGE).toFixed(4)}, the preset's ${PRESET.longEdge} px long edge
@@ -292,22 +299,28 @@ export function findEntry(entries, slug) {
 }
 
 /**
- * The design language to compose against.
+ * The theme to compose through.
  *
  * One name today, `default`, and a path for anything else. The catalog has one
- * recorded language - `SHEET_LANGUAGE`, measured off the eleven images - and a
- * second would be a file rather than a name in here, so a name that is not
- * `default` is an error that says what the options are rather than silently
- * falling back to the only one.
+ * recorded theme - `SHEET_THEME`, derived from the design language measured off
+ * the eleven images - and a second would be a file rather than a name in here,
+ * so a name that is not `default` is an error that says what the options are
+ * rather than silently falling back to the only one.
+ *
+ * **A file may be a whole theme or a partial one.** `composeSheet` lays what it
+ * is given over the recorded theme and validates the result, so a file holding
+ * nothing but a palette is a complete answer and a file holding a misspelt
+ * field is refused by path. That is what makes this flag usable by hand: a
+ * theme file nobody wants to write in full is a flag nobody uses.
  *
  * @param {string | undefined} named
  */
-async function readTheme(named) {
+async function readThemeOption(named) {
   if (named === undefined || named === "default") return undefined;
   if (!/[\\/.]/.test(named)) {
     throw new Error(
-      `cheatsheet: ${JSON.stringify(named)} is not a design language this repository records. ` +
-        "There is one, `default`; anything else is a path to a JSON language object."
+      `cheatsheet: ${JSON.stringify(named)} is not a theme this repository records. ` +
+        "There is one, `default`; anything else is a path to a JSON theme, whole or partial."
     );
   }
   const path = resolve(root, named);
@@ -321,7 +334,7 @@ async function readTheme(named) {
 /**
  * The layout to compose to.
  *
- * The same shape as {@link readTheme} above, and for the same reason: one name
+ * The same shape as {@link readThemeOption} above, and for the same reason: one name
  * the record supports and a path for anything else, so a name that is not
  * `sheet` says what the options are rather than quietly falling back to the
  * only one. The difference is that a layout read off disk is **validated**
@@ -371,7 +384,7 @@ function asNumber(name, value, fallback) {
  * the sheet drew before it existed - and what happened to each is reported.
  *
  * @param {object} entry
- * @param {{ seed?: string, language?: object, layout?: object }} options
+ * @param {{ seed?: string, theme?: object, layout?: object }} options
  */
 async function compose(entry, options) {
   const folder = join(root, ...entry.path.split("/"));
@@ -380,7 +393,7 @@ async function compose(entry, options) {
   const { composition, variation } = composeSheet(doc, {
     seed: options.seed ?? doc.seed ?? entry.seed,
     brand,
-    ...(options.language ? { language: options.language } : {}),
+    ...(options.theme ? { theme: options.theme } : {}),
     ...(options.layout ? { layout: options.layout } : {}),
   });
   return { folder, doc, composition, variation, reader };
@@ -545,11 +558,11 @@ async function generate(flags) {
 
   const entries = entriesOf(await readManifest());
   const entry = findEntry(entries, slug);
-  const language = await readTheme(flags.theme === undefined ? undefined : String(flags.theme));
+  const theme = await readThemeOption(flags.theme === undefined ? undefined : String(flags.theme));
   const layout = await readLayoutOption(flags.layout === undefined ? undefined : String(flags.layout));
   const { doc, composition, variation } = await compose(entry, {
     seed: flags.seed === undefined ? undefined : String(flags.seed),
-    language,
+    theme,
     layout,
   });
 
@@ -570,6 +583,13 @@ async function generate(flags) {
         // `isFormalDocument` is the same predicate `composeSheet` branches on.
         // See `api/cheatsheet/document.mjs`.
         shape: isFormalDocument(doc) ? "formal" : "provisional",
+        // Which theme and which layout answered, for the same reason: a
+        // consumer reading the geometry and the stack out of the variation
+        // cannot tell from the figures alone which grid they were measured on
+        // or which palette they were drawn in. The theme is the flag's value
+        // rather than a name out of the file, because a partial theme need not
+        // carry one and the path is what a reader would look at next.
+        theme: flags.theme === undefined ? "default" : String(flags.theme),
         layout: (layout ?? SHEET_LAYOUT).name,
         document: doc,
         variation,

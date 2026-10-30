@@ -27,6 +27,7 @@ import { createHash } from "node:crypto";
 
 import { createComposition, decodePng } from "../api/napkin-sketch/api/index.js";
 import { composeSheet, DISPLAY_SCALE } from "../api/cheatsheet/index.mjs";
+import { SHEET_THEME, familyCss } from "../api/cheatsheet/theme.mjs";
 import {
   DEFAULT_SCALE,
   MIN_PUBLISH_SCALE,
@@ -34,6 +35,7 @@ import {
   RASTER_ROUTES,
   rasterizeSheet,
   resolveChromium,
+  stackOf,
 } from "../api/cheatsheet/raster.mjs";
 
 /**
@@ -221,6 +223,57 @@ test("the two routes disagree about the pixels, which is the point of having bot
   ]);
   assert.equal(builtin.width, browser.width);
   assert.notEqual(digest(builtin.data), digest(browser.data));
+});
+
+/* --- Which face actually drew it ------------------------------------------- */
+
+test("the stack is read off the composition, because that is all this module is handed", () => {
+  // Off the drawn document rather than off a theme: `rasterizeSheet` takes a
+  // composition and nothing else, and a sheet sets every run in one stack, so
+  // the first run that names one is the answer.
+  assert.deepEqual(stackOf(composition.toDocument()), SHEET_THEME.stack.family);
+  assert.equal(familyCss(stackOf(composition.toDocument())), composition.toDocument().elements.flatMap(
+    (element) => (element.type === "group" ? element.children : [element])
+  ).find((element) => element.fontFamily)?.fontFamily);
+
+  // A composition with no type on it has no stack, rather than a list with an
+  // empty string in it.
+  assert.deepEqual(stackOf(createComposition({ width: 10, height: 10 }).toDocument()), []);
+});
+
+test("the built-in route reports the stack it was asked for and no family at all", async () => {
+  // No family drew this, which is the whole reason the route is unpublishable.
+  // Reporting the request with nothing resolved against it is the honest
+  // record: the stack was named and ignored.
+  const raster = await rasterizeSheet(composition, { route: "builtin", scale: 0.05 });
+  assert.deepEqual(raster.family.requested, SHEET_THEME.stack.family);
+  assert.equal(raster.family.resolved, null);
+  assert.match(raster.family.how, /built-in single stroke alphabet/);
+});
+
+test("the browser route says which family it actually drew in", { skip }, async () => {
+  // The point of recording it. The SVG names a stack it cannot guarantee, so a
+  // sheet rasterized here and one rasterized on another machine may be set in
+  // two different faces - and without this field neither file says which.
+  const raster = await rasterizeSheet(composition, { route: "browser", scale: 0.05 });
+  assert.deepEqual(raster.family.requested, SHEET_THEME.stack.family);
+  assert.ok(
+    raster.family.requested.includes(raster.family.resolved),
+    `${raster.family.resolved} is not one of the families the sheet asked for`
+  );
+  assert.match(raster.family.how, /measured in the engine/);
+});
+
+test("and a generic keyword resolves to itself, because every engine has one", { skip }, async () => {
+  // The probe measures a family against the generic beside it, which cannot
+  // work for a generic: it would be comparing a thing with itself. So a stack
+  // reaching a generic has found its face and stops there.
+  const generic = composeSheet(
+    { title: "Generic", code: [{ text: "const a = 1;" }] },
+    { seed: 1, theme: { stack: { ...SHEET_THEME.stack, family: ["Nothing Has This Name", "monospace"] } } }
+  );
+  const raster = await rasterizeSheet(generic.composition, { route: "browser", scale: 0.05 });
+  assert.equal(raster.family.resolved, "monospace");
 });
 
 test("auto takes the browser where there is one", { skip }, async () => {

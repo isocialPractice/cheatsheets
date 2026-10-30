@@ -1,19 +1,22 @@
 // A second theme, so the same document can be drawn twice and compared.
 //
-// **What a theme is here.** `SHEET_LANGUAGE` is exported from
-// `api/cheatsheet/language.mjs` as one object precisely so a caller can pass a
-// modified copy rather than reach for module state, and `composeSheet` takes
-// it as `options.language`. A theme is therefore a copy of that object with
-// some of it replaced, and anything the design language records is themeable
-// by the same move.
+// **What a theme is here.** A theme is the model in
+// `api/cheatsheet/theme.mjs`: the themeable half of the design language on its
+// own - the palette roles, the syntax roles, the type stack and scale, the
+// spacing, the curve and shape tokens, the stroke weights - with none of the
+// record's coordinates in it. `composeSheet` takes one as `options.theme`, and
+// since 2026.10.30 that is the only way to re-tint a sheet: the whole design
+// language record used to be accepted as `options.language` and is now refused
+// by name, because a caller who wanted six colours changed was being handed
+// every band, division and baseline on the sheet along with them.
 //
-// **There is a theme model as well, since 2026.10.29**, in
-// `api/cheatsheet/theme.mjs`, and this example deliberately does not use it.
-// The model is the themeable half of the record on its own, which is the right
-// thing to hand across a boundary; what this file demonstrates is that a theme
-// moves paint and a seed moves geometry, and a copy of the whole record is the
-// shortest way to show both axes starting from one object. `themeFrom` and
-// `languageFor` convert between the two, so neither route is a dead end.
+// **It is written as a partial, which is the point.** The object below names a
+// title and two palettes and nothing else. `themeOver` lays it over the
+// recorded theme and validates the result, so everything this file does not
+// mention - the stack, the four measured sizes, the step, the curves, the
+// stroke weights - stays exactly where the design language put it. Restating
+// those to change a colour is how a theme file ends up carrying a figure
+// nobody meant to move.
 //
 // **What a theme is not.** It is not an inversion. The colour roles are named
 // after the artwork's own colours and each carries two jobs: `navy` is the
@@ -29,20 +32,28 @@
 // text that has to be read on a light ground. This amber is at 2.71:1 and
 // carries a nominated substitute for the same reason, which is what keeps
 // `readableInk` meaningful under the theme instead of silently inert.
+//
+// It is also what keeps the theme compositional at all. `composeSheet` refuses
+// a theme whose type cannot be read on the grounds the layout pairs it with,
+// before anything is drawn, so an amber nominated for nothing would be an
+// error here rather than a sheet with an illegible footer.
 
-import { SHEET_LANGUAGE } from "../api/cheatsheet/language.mjs";
+import { languageFor, themeOver } from "../api/cheatsheet/theme.mjs";
+
+/** The name the examples print and file their output under. */
+export const EMBER = "ember";
 
 /**
  * Deep plum and amber: the recorded structure, a different palette.
  *
- * Every ink here clears the 4.5:1 text floor against the ground it is drawn
- * on, and `restyle-sheet.mjs` measures that rather than taking this comment
- * for it.
+ * A **partial** theme - two palettes and a name. Every ink here clears the
+ * 4.5:1 text floor against the ground it is drawn on, and `restyle-sheet.mjs`
+ * measures that rather than taking this comment for it.
  *
- * @type {typeof SHEET_LANGUAGE}
+ * @type {Partial<import('../api/cheatsheet/theme.mjs').SheetTheme>}
  */
 export const emberTheme = {
-  ...SHEET_LANGUAGE,
+  name: EMBER,
   colors: {
     /** The masthead and code panel ground, the footer mark square and type. */
     navy: "#241B2F",
@@ -65,5 +76,16 @@ export const emberTheme = {
   },
 };
 
-/** The name the examples print and file their output under. */
-export const EMBER = "ember";
+/**
+ * The same theme as a design language, for the tools that draw one.
+ *
+ * `tools/compose-language-asset.mjs` composes a picture **of** a design
+ * language - the palette with its measured area shares, the type scale, the
+ * census - so it takes a whole record and not a theme, and that is right: the
+ * record is its subject rather than its styling. Derived here rather than
+ * written out, so the two cannot drift: there is one palette in this file and
+ * everything else is a conversion of it.
+ *
+ * @type {typeof import('../api/cheatsheet/language.mjs').SHEET_LANGUAGE}
+ */
+export const emberLanguage = languageFor(themeOver(emberTheme));

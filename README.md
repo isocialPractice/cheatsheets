@@ -64,16 +64,36 @@ the two it used.
 A caller describes a cheatsheet in three objects, each with a schema of its
 own: a **document** of a title and ordered sections of entries, each entry a
 term, a signature and a description; a **theme** of palette roles, a type stack
-and scale, the spacing step, the radius and the stroke weights; and a **layout**
-of a named composition, the grid it sits on, and the slots a section may
-occupy. The document says nothing about how any of it is drawn, which is what
-lets one document be set to two layouts.
+and scale, the spacing step, the curve and shape tokens and the stroke weights;
+and a **layout** of a named composition, the grid it sits on, and the slots a
+section may occupy. The document says nothing about how any of it is drawn,
+which is what lets one document be set to two layouts.
+
+The three are the whole public input surface, alongside a seed and the two
+brand assets. Nothing the renderer reads for itself is accepted: the design
+language record and the two width tables used to be passable as
+`options.language`, `options.face` and `options.codeFace`, and each is now
+refused by name pointing at the model that replaced it. So a caller composes a
+sheet without naming anything a renderer owns.
 
 The theme and the layout are both derived from
 [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) rather than written out again, so a
 figure corrected in the record is corrected in both. Pass neither and a sheet
 composes to what the eleven images were measured at; pass one and only what it
 carries moves - a theme changes every paint and not one coordinate.
+
+A theme may be **partial**: it is laid over the recorded theme and then
+validated, so one colour moves without the palette being restated, and a
+misspelt field is still named back by path. It is also held to being readable
+before anything is drawn - every pairing of ink and ground the theme and the
+layout imply is measured against the text floor, after the one substitution the
+design language nominates, and a theme that fails is refused rather than
+composed and annotated.
+
+The type stack is a list of families rather than a CSS string, and a render
+records which of them actually drew it: the SVG names a stack it cannot
+guarantee, so `rasterizeSheet` measures what the engine resolved and reports it
+beside the bytes.
 
 A model that is wrong is refused with the path to the field, in the notation a
 caller would reach it by:
@@ -115,9 +135,10 @@ engine, which draws the face the design language measured, or the drawing
 surface's own dependency free rasterizer, which draws a built in single stroke
 alphabet. It reports which one answered, because a file that does not say that
 cannot be reviewed against the design language. `--theme` and `--layout` each
-take the one name the record supports or a path to a JSON model of its own,
-`--data-only` emits the document and what the composition chose without
-rendering anything, `--list` names what there is, and `--help` the rest.
+take the one name the record supports or a path to a JSON model of its own (and
+a `--theme` file may be partial), `--data-only` emits the document and what the
+composition chose without rendering anything, `--list` names what there is, and
+`--help` the rest.
 
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a

@@ -82,6 +82,64 @@ cheatsheet: there is one problem with the sheet document.
 The models are in `api/cheatsheet/`: `document.mjs`, `theme.mjs`,
 `layout.mjs`, and `schema.mjs` behind all three.
 
+### What `composeSheet` takes, and what it will not
+
+Since 2026.10.30 the three models are the whole input surface, alongside a seed
+and the two brand assets:
+
+```js
+const { composition, variation } = composeSheet(doc, {
+  seed: "splicing-arrays",
+  theme: { name: "amber", colors: { green: "#E8833A" } },
+  layout: SHEET_LAYOUT,
+  brand,
+});
+```
+
+Three options it used to take are refused by name, each pointing at what
+replaced it, because a sheet composed in the recorded palette when a caller
+asked for another one reports success and is wrong:
+
+| Gone | Say it with |
+| --- | --- |
+| `language`, the whole design language record | `theme`. `themeFrom(language)` reads one out of a record you already hold |
+| `face`, a width table | `theme.stack`, which is the metrics a theme owns |
+| `codeFace`, the same for the code panel | `theme.stack`. A sheet is set in one stack |
+
+**A theme may be partial.** It is laid over the recorded theme and then
+validated, so the example above is a complete theme and the four measured type
+sizes, the step, the curves and the stroke weights all stay where the design
+language put them. The merge happens before the validation rather than instead
+of it, which is what keeps a typo honest: `{ colours: {...} }` comes back as
+`theme.colours: is not a field of this cheatsheet theme`.
+
+**A theme has to be readable before it draws.** Every pairing of ink and ground
+the theme and the layout imply is measured against the theme's own text floor -
+the five fixed runs and the code panel's six syntax roles - after the one
+substitution the design language nominates for green on a light ground. A theme
+that fails is refused, naming each pairing and its ratio. The structural fills
+are deliberately not in that set: the green spine and the four flanking bars
+reach 2.80:1 on the sheets' white, and **The one place the sheets break the
+site's own rule** records that as a reading rather than a defect.
+
+**Shape and curve are named tokens**, like the type sizes already were. A slot
+says `shape: "block"` and the theme answers with a form and a corner radius in
+sheet pixels, so a layout carries no raw geometry a second backend could read
+differently. The record names two curves, `square` and `display`; every
+structural region of the eleven is `square`, which is why the committed SVG
+fixture did not move when the tokens landed. A slot that names no shape takes
+the token for the way it is drawn - `block` for a fill, `bar` for a stroke -
+and a token whose form disagrees with that is refused.
+
+**The type stack is a list, and a render says which family drew it.**
+`theme.stack.family` is `["Helvetica Neue", "Arial", "system-ui", "sans-serif"]`
+rather than that string, so a caller adds a fallback by pushing onto it.
+`rasterizeSheet` then reports what the renderer actually resolved: the built-in
+route resolves nothing, because it draws its own alphabet, and the browser route
+measures a probe string against each generic to find the first family the engine
+really has. An SVG names a stack it cannot guarantee, so without that field two
+rasters of one document can be set in two faces with neither file saying so.
+
 ### Rendering one, from the command line
 
 `tools/cheatsheet.mjs` is what writes a render. It composes a document through
@@ -122,7 +180,13 @@ validated, and refused by the path to the offending field:
 
 ```bash
 node tools/cheatsheet.mjs --generate <slug> --layout .tmp/two-column.layout.json
+node tools/cheatsheet.mjs --generate <slug> --theme .tmp/amber.theme.json
 ```
+
+A `--theme` file is a **theme** rather than a design language, and it may be
+partial - `{ "colors": { "green": "#E8833A" } }` is a whole answer. It used to
+be parsed straight into the retired `options.language`, so changing six colours
+meant writing out every coordinate on the sheet.
 
 Seed the ledger before rendering the whole catalog at once -
 `cross-os-social seed --workspace mcp-todo` - or the first bulk run reads as 28

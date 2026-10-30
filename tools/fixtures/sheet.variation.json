@@ -10,6 +10,16 @@
   "titleCap": 141,
   "subtitleCap": 112,
   "face": "sheet",
+  "stack": {
+    "family": [
+      "Helvetica Neue",
+      "Arial",
+      "system-ui",
+      "sans-serif"
+    ],
+    "css": "\"Helvetica Neue\", Arial, system-ui, sans-serif",
+    "resolved": null
+  },
   "brand": {
     "logo": "drawn",
     "footer": "drawn"

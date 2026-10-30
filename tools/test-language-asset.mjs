@@ -39,7 +39,7 @@ import {
   RUNS,
   SHEET_LANGUAGE,
 } from "../api/cheatsheet/language.mjs";
-import { emberTheme } from "../examples/ember-theme.mjs";
+import { emberLanguage, emberTheme } from "../examples/ember-theme.mjs";
 import { SHEET_FONT_FAMILY, sizeForCap } from "../api/cheatsheet/faces.mjs";
 import { analyzeSvg, analyzeMedia } from "../ai-helper/graphic-designer/skills/design-language/scripts/analyze-media.mjs";
 
@@ -306,10 +306,10 @@ test("and names that scale, because a smaller raster is a different measurement"
 /* --- 7. Whose census it is ------------------------------------------------ */
 
 test("the language object carries no census, because a spread copy would carry the wrong one", () => {
-  // A theme is `{ ...SHEET_LANGUAGE, colors, syntax }`, so a `census` field
-  // would survive that spread naming four colours the theme never draws - and
-  // read as measured, because every other figure beside it was.
-  assert.ok(!("census" in SHEET_LANGUAGE), "a theme spread from this would inherit the sheets' hexes");
+  // `languageFor` writes a theme's palettes into a copy of this record, so a
+  // `census` field would survive that copy naming four colours the theme never
+  // draws - and read as measured, because every other figure beside it was.
+  assert.ok(!("census" in SHEET_LANGUAGE), "a record copied from this would inherit the sheets' hexes");
   assert.deepEqual(censusFor(SHEET_LANGUAGE), CENSUS);
 });
 
@@ -334,7 +334,7 @@ test("and an asset composed for a theme is drawn in it, ink as well as regions",
   // they read `colors`, and the two panel rows keep the sheets' syntax greys
   // because they read the module. The asset then measures as the theme with
   // two foreign colours in it, and the palette looks measured, because it was.
-  const themed = composeLanguageAsset({ language: emberTheme });
+  const themed = composeLanguageAsset({ language: emberLanguage });
   const fills = [...new Set(rects(themed.composition.toSVG()).map((r) => r.fill?.toLowerCase()).filter(Boolean))];
   const wanted = Object.values(themed.census).map((entry) => entry.hex.toLowerCase());
   assert.deepEqual(fills.sort(), wanted.sort());

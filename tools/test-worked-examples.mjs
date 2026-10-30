@@ -36,6 +36,7 @@ import {
   RUNS,
   SHEET_LANGUAGE,
   contrastRatio,
+  themeOver,
 } from "../api/cheatsheet/index.mjs";
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { EMBER, emberTheme } from "../examples/ember-theme.mjs";
@@ -169,8 +170,13 @@ test("the theme's accent sits where the recorded green sits, so the substitution
   // silently inert, and the example would demonstrate a check that never
   // fires. The recorded green is 2.80:1 on white; this is held to the same
   // side of the floor.
-  const floor = emberTheme.contrast.text;
-  const white = emberTheme.colors.white;
+  // Off the merged theme rather than off the partial, because the partial names
+  // no floor: the whole point of its being partial is that the floor it is
+  // measured against is the record's, and reading it from the file would read
+  // `undefined` and pass every comparison below.
+  const theme = themeOver(emberTheme);
+  const floor = theme.contrast.text;
+  const white = theme.colors.white;
   assert.ok(
     contrastRatio(SHEET_LANGUAGE.colors.green, SHEET_LANGUAGE.colors.white) < floor,
     "the recorded green now passes as text, so this comparison has lost its subject"

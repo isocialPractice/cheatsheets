@@ -111,6 +111,7 @@ export const SLOT_KINDS = ["heading", "entries", "brand"];
  * @property {{ x: number, y: number, width: number, height: number }} [box] Explicit geometry, off the grid.
  * @property {{ top?: number, right?: number, bottom?: number, left?: number }} [bleed] Extends the slot past its row and column.
  * @property {string} [paint] A palette role of the theme, for a slot that is drawn.
+ * @property {string} [shape] A shape token of the theme, for a slot that is drawn. Defaults to `block`.
  * @property {string} [ground] The palette role behind it, for the contrast measurement.
  * @property {number} [weight] Stroke weight, for a `stroke` slot.
  * @property {string} [holds] The kind of content a section may put here.
@@ -164,6 +165,7 @@ export function layoutFor(language, options = {}) {
     stage: "rule",
     row: "heading",
     paint: "green",
+    shape: "block",
     box: {
       x: side === "left" ? 0 : canvas - rules.width,
       y: rules[key].y,
@@ -186,7 +188,7 @@ export function layoutFor(language, options = {}) {
     },
     slots: [
       // --- The grounds, which go down before anything is set on them -------
-      { name: "masthead", draw: "fill", stage: "ground", row: "masthead", paint: "navy" },
+      { name: "masthead", draw: "fill", stage: "ground", row: "masthead", paint: "navy", shape: "block" },
       {
         name: "code-panel",
         draw: "fill",
@@ -194,6 +196,7 @@ export function layoutFor(language, options = {}) {
         row: "code",
         column: "panel",
         paint: "navy",
+        shape: "block",
         holds: "entries",
       },
       // The spine starts a `step-4` above the panel it runs beside and ends
@@ -205,9 +208,10 @@ export function layoutFor(language, options = {}) {
         row: "code",
         column: "spine",
         paint: "green",
+        shape: "block",
         bleed: { top: insets.spineTop },
       },
-      { name: "divider", draw: "fill", stage: "ground", row: "divider", paint: "green" },
+      { name: "divider", draw: "fill", stage: "ground", row: "divider", paint: "green", shape: "block" },
 
       // --- The four bars flanking the title --------------------------------
       flank("upper", "left"),
@@ -216,7 +220,7 @@ export function layoutFor(language, options = {}) {
       flank("lower", "right"),
 
       // --- The mark square, drawn only where the footer asset is absent ----
-      { name: "mark-square", draw: "fill", stage: "mark", row: "footer", paint: "navy", box: { ...markSquare } },
+      { name: "mark-square", draw: "fill", stage: "mark", row: "footer", paint: "navy", shape: "block", box: { ...markSquare } },
 
       // --- The two places an asset is placed rather than shapes drawn ------
       {
@@ -392,6 +396,7 @@ export const LAYOUT_SCHEMA = {
             },
           },
           paint: { type: "string", optional: true, notEmpty: true },
+          shape: { type: "string", optional: true, notEmpty: true },
           ground: { type: "string", optional: true, notEmpty: true },
           weight: { type: "number", optional: true, min: 0 },
           holds: { type: "string", optional: true, oneOf: SLOT_KINDS },
@@ -549,6 +554,84 @@ export function paintOf(theme, role, where) {
 }
 
 /**
+ * The form a shape token has to carry, per the way a slot is drawn.
+ *
+ * Two entries, because a rectangle and a line are the two things the drawing
+ * surface makes and `fill` and `stroke` are how a slot asks for each. The map
+ * is what makes a token's `form` load bearing rather than a label: without it
+ * a slot could be drawn as a stroke while naming a token that describes a
+ * rectangle, and nothing would say so.
+ */
+const FORM_FOR_DRAW = { fill: "rectangle", stroke: "line" };
+
+/** The shape token a slot of each kind takes when it names none. */
+const SHAPE_FOR_DRAW = { fill: "block", stroke: "bar" };
+
+/**
+ * The shape token a slot is drawn as, resolved against a theme.
+ *
+ * A slot naming none takes the token for the way it is drawn: `block` for a
+ * fill, which is what every structural region of the eleven is, and `bar` for
+ * a stroke. Those defaults are what let a layout written before shape tokens
+ * existed go on drawing exactly what it drew, and they are the reason both are
+ * tokens a theme has to name.
+ *
+ * A token whose `form` disagrees with the way the slot is drawn is refused. It
+ * is the one cross reference between the two models that neither reader can
+ * make alone: `readLayout` never sees a theme, and `readTheme` never sees a
+ * layout, so the first moment both are in hand is here.
+ *
+ * @param {import('./theme.mjs').SheetTheme} theme
+ * @param {LayoutSlot} slot
+ * @returns {import('./theme.mjs').ThemeShape}
+ */
+export function shapeOf(theme, slot) {
+  const name = slot.shape ?? SHAPE_FOR_DRAW[slot.draw] ?? "block";
+  if (!Object.hasOwn(theme.shapes, name)) {
+    throw new Error(
+      `cheatsheet: the ${slot.name} slot is shaped ${JSON.stringify(name)}, which is no shape of ` +
+        `the ${JSON.stringify(theme.name)} theme. It has ${Object.keys(theme.shapes).join(", ")}`
+    );
+  }
+  const shape = theme.shapes[name];
+  const wanted = FORM_FOR_DRAW[slot.draw];
+  if (wanted !== undefined && shape.form !== wanted) {
+    throw new Error(
+      `cheatsheet: the ${slot.name} slot is drawn as a ${slot.draw}, which is a ${wanted}, but it ` +
+        `is shaped ${JSON.stringify(name)} and that token is a ${shape.form}. A slot drawn as a ` +
+        `${slot.draw} takes a shape whose form is ${JSON.stringify(wanted)}`
+    );
+  }
+  return shape;
+}
+
+/**
+ * The corner radius a slot is drawn with, in sheet pixels.
+ *
+ * Resolved through the shape token rather than read off the slot, which is the
+ * whole of what makes a curve a **token**: the number lives in one place a
+ * caller can move, and the same layout drawn through two themes takes each
+ * theme's own answer.
+ *
+ * `readTheme` has already checked that every shape names a curve the theme
+ * has, so the lookup here cannot miss on a validated theme. The guard is for
+ * the recorded theme and a hand built one, neither of which goes through the
+ * reader.
+ *
+ * @param {import('./theme.mjs').SheetTheme} theme
+ * @param {LayoutSlot} slot
+ * @returns {number}
+ */
+export function curveOf(theme, slot) {
+  const { curve } = shapeOf(theme, slot);
+  if (Object.hasOwn(theme.curves, curve)) return theme.curves[curve];
+  throw new Error(
+    `cheatsheet: the ${slot.name} slot is curved ${JSON.stringify(curve)}, which is no curve of ` +
+      `the ${JSON.stringify(theme.name)} theme. It has ${Object.keys(theme.curves).join(", ")}`
+  );
+}
+
+/**
  * Draws every slot of one stage onto a composition.
  *
  * This is the mapping the layout model exists for: a slot becomes a `rect` or
@@ -575,8 +658,29 @@ export function placeSlots(composition, { layout, theme, stage, only }) {
     const box = boxOf(layout, slot);
     const paint = paintOf(theme, slot.paint, `the ${slot.name} slot`);
     if (slot.draw === "fill") {
-      composition.rect({ name: slot.name, x: box.x, y: box.y, width: box.width, height: box.height, fill: paint });
+      // `rx` only where the curve is one, so a square cornered slot writes the
+      // attribute it always wrote - which is none. The committed SVG fixture is
+      // byte for byte what it was, and that is the evidence the token did not
+      // change the drawing.
+      const curve = curveOf(theme, slot);
+      composition.rect({
+        name: slot.name,
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        fill: paint,
+        ...(curve > 0 ? { rx: curve } : {}),
+      });
     } else {
+      // Resolved for a stroke too, and the answer discarded: a line takes no
+      // corner, so the only thing a stroke's shape token decides is whether it
+      // agrees with the way the slot is drawn. `curveOf` makes that check for
+      // every fill as a side effect of reading the curve, and without this one
+      // a stroke slot shaped `block` would draw a line against a token
+      // describing a rectangle - half the slots that have a shape going
+      // unchecked by the only call that has both models in hand.
+      shapeOf(theme, slot);
       // A stroke is drawn down the middle of its box, along whichever axis the
       // box is longer on. A layout declaring one has said where it goes by
       // giving it a thin box, which is how a rule is thought about.

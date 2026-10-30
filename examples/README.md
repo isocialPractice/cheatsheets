@@ -21,7 +21,7 @@ and `--raster` writes a PNG beside it.
 | --- | --- |
 | `splicing-arrays.mjs` | The document both examples compose, and the seed they compose it at |
 | `reproduce-sheet.mjs` | The document through the recorded design language |
-| `ember-theme.mjs` | A second palette, as a modified copy of `SHEET_LANGUAGE` |
+| `ember-theme.mjs` | A second palette, as a partial theme over the recorded one |
 | `restyle-sheet.mjs` | The same document, the same seed, through that theme |
 
 ## 1. Reproducing a sheet
@@ -107,37 +107,50 @@ stopped. What is reproduced is every figure the artwork can be measured for.
 ## 2. Restyling it
 
 `restyle-sheet.mjs` composes the same document, at the same seed, through
-`ember-theme.mjs`. A theme is a modified copy of `SHEET_LANGUAGE`, passed as
-`options.language` - the design language is exported as one object for exactly
-this, so re-tinting it needs nothing else.
+`ember-theme.mjs`. A theme is the **theme model** in
+`api/cheatsheet/theme.mjs`: the themeable half of the design language on its
+own - the palette roles, the type stack and scale, the spacing step, the curve
+and shape tokens, the stroke weights - with a schema that refuses a role that
+is missing or a colour the renderer cannot read.
 
-Since 2026.10.29 there is also a **theme model**, in `api/cheatsheet/theme.mjs`:
-the themeable half of that record on its own - the palette roles, the type
-stack and scale, the spacing step, the radius and the stroke weights - with a
-schema that refuses a role that is missing or a colour the renderer cannot
-read. `composeSheet` takes one as `options.theme`, and the two routes agree by
-construction: `themeFrom(language)` reads a theme out of a record and
-`languageFor(theme)` puts one back in.
+It used to be a modified copy of `SHEET_LANGUAGE`, passed as
+`options.language`. That option was retired on 2026.10.30 and is refused by
+name: handing the whole record over to change six colours handed a caller every
+band, division and baseline on the sheet as well, with nothing saying which
+parts were theirs to move. `themeFrom(language)` is the way to read a theme out
+of a record you already hold, and `languageFor(theme)` puts one back in.
 
-Which to reach for is a question of what a caller is holding. This example
-keeps the copy, because the thing it demonstrates is that a theme moves paint
-and a seed moves geometry, and a copy of the whole record is the shortest way
-to show both axes starting from the same object. A caller handing a palette
-over a boundary wants the model, because the model is the half that is theirs
-to move and it says so by not carrying the other half at all.
+**The example's theme is written as a partial**, which is the shortest form
+there is: a name and two palettes, and nothing else. `composeSheet` lays it
+over the recorded theme and validates the result, so everything the file does
+not mention stays where the design language put it. Restating the four measured
+type sizes to change a colour is how a theme file ends up carrying a figure
+nobody meant to move - and the validation still happens after the merge, so a
+field that is *named* wrongly comes back as
+`theme.colours: is not a field of this cheatsheet theme`.
 
-The one recorded table not in that object is the colour census, and the reason
-is the copy: a census is an area measurement of the eleven sheets, so a spread
-with `colors` and `syntax` replaced would carry the sheets' hexes through under
-the theme's name. `censusFor(language)` restates it instead - the recorded
-shares, in whichever palette it is given.
+The one recorded table a theme does not carry is the colour census, and the
+reason is that a census is an **area** measurement of the eleven sheets: a
+record copied with `colors` and `syntax` replaced would carry the sheets' hexes
+through under the theme's name, reading as measured because everything beside
+it was. `censusFor(language)` restates it instead - the recorded shares, in
+whichever palette it is given. `ember-theme.mjs` exports `emberLanguage` for
+the tools that draw a design language rather than a sheet, derived from the same
+partial so the two cannot drift.
 
 ```js
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { emberTheme } from "./ember-theme.mjs";
 
-const { composition, variation } = composeSheet(doc, { seed, language: emberTheme });
+const { composition, variation } = composeSheet(doc, { seed, theme: emberTheme });
 ```
+
+**A theme is held to being readable before it draws.** Every pairing of ink and
+ground the theme and the layout imply is measured against the text floor, after
+the one substitution the design language nominates, and a theme that fails is
+refused with each pairing and its ratio named. So the contrast table the script
+prints is about what the sheet **drew** - which includes every ink that was
+substituted - rather than about whether the palette was usable at all.
 
 **The point of the pair is that the two axes are independent.** The theme moves
 every colour and nothing else; the seed moves the three free figures and

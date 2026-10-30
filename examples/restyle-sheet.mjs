@@ -19,6 +19,14 @@
 // language never saw, so the contrast check is the only thing standing between
 // a nice looking palette and a sheet nobody can read, and it runs on the
 // composed sheet rather than on the table.
+//
+// Two checks rather than one, since 2026.10.30. `composeSheet` refuses a theme
+// whose roles cannot be read on the grounds the layout pairs them with, so a
+// palette that fails is an exception rather than a table of failures - and the
+// table below then reports what the sheet **drew**, which is a different set: it
+// includes every ink `readableInk` substituted and, where the accent reader is
+// loaded, every token it coloured. The refusal is about the input; the table is
+// about the output.
 
 import { pathToFileURL } from "node:url";
 
@@ -33,7 +41,7 @@ import { SEED, splicingArrays } from "./splicing-arrays.mjs";
  * @returns {ReturnType<typeof composeSheet>}
  */
 export function restyle() {
-  return composeSheet(splicingArrays, { seed: SEED, language: emberTheme });
+  return composeSheet(splicingArrays, { seed: SEED, theme: emberTheme });
 }
 
 /**

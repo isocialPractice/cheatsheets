@@ -4,6 +4,116 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.30]
+
+### Changed
+
+- **The three models are the cheatsheet API's only public input surface.**
+  `composeSheet` takes a document, a theme, a layout, a seed and the two brand
+  assets, and nothing else. `options.language` - the whole design language
+  record, every band, division and baseline on the sheet - and `options.face`
+  and `options.codeFace`, which are the renderer's own width tables, are
+  refused by name, each pointing at the model that replaced it. They are
+  refused rather than ignored because a caller who asks for a palette and
+  silently gets the recorded one has a sheet that reports success and is not
+  the one they asked for. So a caller composes a sheet without naming anything
+  a renderer owns.
+- **`tools/cheatsheet.mjs --theme` reads a theme rather than a design
+  language**, and a theme file may be partial. It used to parse its file
+  straight into the retired `options.language`, so changing six colours meant
+  writing out every coordinate on the sheet. `--data-only` now reports which
+  theme answered beside which layout did.
+- **`theme.stack.family` is a list of families rather than one CSS string.**
+  `familyList` and `familyCss` convert between the two, and the join reproduces
+  the recorded stack exactly, which is what let the field change shape without
+  a glyph of committed output moving.
+- **The theme's `radius` is now the `display` curve of a named curve table.**
+  One figure, named, in one place: `languageFor` writes `curves.display` back
+  into the design language as `radius`, so the record and the theme cannot
+  disagree about it.
+- **`examples/ember-theme.mjs` is a partial theme** - a name and two palettes,
+  nothing else - where it was a modified copy of `SHEET_LANGUAGE`. It exports
+  `emberLanguage` for `tools/compose-language-asset.mjs`, which draws a design
+  language rather than a sheet and so legitimately takes a whole record;
+  the record is derived from the same partial, so the two cannot drift.
+- **A theme whose type cannot be read is refused rather than annotated.** It
+  used to compose, set `variation.contrastHolds` to `false`, write a note and
+  hand back a finished sheet nobody could read. The measurement of what a
+  sheet actually drew is unchanged and still reported; what moved is that a
+  theme, being an input, is now refused up front.
+
+### Added
+
+- **A partial theme, laid over the recorded theme and then validated.**
+  `themeOver(partial)` fills what a partial omits from the base and holds the
+  result to the whole schema, so a caller moves one colour without restating
+  the palette and a caller who misspells a field is still told which field, by
+  path. Omission is filled; error is not. `readTheme` is unchanged and remains
+  the strict reader a whole theme is held to.
+- **Shape and curve as named tokens on the theme**, which completes the set the
+  type sizes and the stroke weights were already in. `theme.curves` names the
+  corner radii in sheet pixels - `square` and the record's `display` - and
+  `theme.shapes` names a form and a curve together, so a layout slot says
+  `shape: "block"` and carries no geometry of its own for a second backend to
+  read differently. Every structural region of the eleven is `square`, which is
+  why the committed SVG fixture did not move. `shapeOf` and `curveOf` resolve a
+  slot against a theme and refuse a token the theme has not got, the way
+  `paintOf` already did for a palette role - and also refuse a token whose form
+  disagrees with the way the slot is drawn, which is the one cross reference
+  neither model's reader can make alone, since `readLayout` never sees a theme
+  and `readTheme` never sees a layout.
+- **`assertReadable`, `readableRoles` and `themePairings`**, which measure every
+  pairing of ink and ground a theme and a layout imply - the five fixed runs and
+  the code panel's six syntax roles - after the one substitution the design
+  language nominates for green on a light ground. The structural fills are
+  deliberately outside that set: the green spine and the four flanking bars
+  reach 2.80:1 on the sheets' white, and **The one place the sheets break the
+  site's own rule** records that as a reading rather than a defect, so a
+  boundary rejection would refuse the eleven sheets the floors were measured
+  off.
+- **A record of which face actually drew a render.** `variation.stack` carries
+  the families asked for and the CSS the markup names; `SheetRaster.family`
+  carries what the renderer resolved. The built-in route resolves nothing,
+  because it draws its own single stroke alphabet, and the browser route
+  measures a probe string against each generic to find the first family the
+  engine really has - `document.fonts.check` reports on loading rather than on
+  availability and comes back true for a family a machine has never had. An SVG
+  names a stack it cannot guarantee, so without this two rasters of one
+  document can be set in two faces with neither file saying so.
+
+### Fixed
+
+- **A stroke slot's shape token is resolved when the slot is drawn, so the one
+  cross reference between a layout and a theme is made for every slot that has
+  a shape rather than for the fills alone.** `placeSlots` reached `shapeOf`
+  only through `curveOf`, and only a fill reads a curve, so a layout whose
+  stroke slot named `block` - a token describing a rectangle - composed and
+  drew a line with nothing said. The recorded layout has no stroke slot, which
+  is why the committed output is unaffected and why a replacement layout was
+  the only thing exposed.
+- **`languageFor` no longer describes the `display` curve as inert.** Its
+  comment listed the curve beside `spacing.step` and `spacing.tokens` as
+  written through and moving nothing, which was true of the `radius` the field
+  replaced and is not true of the token: `curveOf` reads `curves.display` for
+  any slot shaped `display` and `placeSlots` writes it as that slot's `rx`. No
+  slot of the recorded layout names that shape, which is the real reason the
+  committed SVG did not move.
+
+### Notes
+
+- **The twenty-eight committed `sheet.json` documents stay in the provisional
+  shape, and that is now a decision rather than a deferral.** The item that
+  landed the narrowing above assumed they would move off it first. They should
+  not: each is a worked code listing with a syntax role per line and meaningful
+  indentation, and the formal document's entries are a term, a signature and a
+  description. Rewriting a listing as entries would lose the per-line roles the
+  three role tables colour, lose the indent-is-a-level rule, change every
+  rendered sheet and break the committed fixture - a loss of information rather
+  than a port. Both shapes remain the document model's, each held to its own
+  schema, and `--data-only` still declares which it emitted. What is actually
+  open is whether the formal model should learn to carry a listing at all, and
+  that is queued under **Implement Cheatsheet API** as its own item.
+
 ## [2026.10.29]
 
 ### Added

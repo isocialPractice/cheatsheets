@@ -114,7 +114,7 @@ import {
   slotNamed,
   SHEET_LAYOUT,
 } from "./layout.mjs";
-import { readTheme, themeFrom, languageFor, SHEET_THEME } from "./theme.mjs";
+import { assertReadable, familyCss, languageFor, themeOver, SHEET_THEME } from "./theme.mjs";
 import {
   centredAt,
   drawnWidth,
@@ -280,6 +280,7 @@ function widestLine(lines, cap, face) {
  * @property {number} titleCap
  * @property {number} subtitleCap
  * @property {string} face
+ * @property {StackReport} stack What face the sheet asked for, and what it got.
  * @property {Record<string, string>} brand How each brand slot was filled: `vector`, `image` or `drawn`.
  * @property {string} accents How the code panel was coloured: `token`, `line`, or `missing:<language>`.
  * @property {boolean} codeFits Whether every line of the example fits the panel.
@@ -292,15 +293,71 @@ function widestLine(lines, cap, face) {
  */
 
 /**
+ * What face a composed sheet asked for, and what it actually drew in.
+ *
+ * The two are not the same question and only one of them has an answer here.
+ * **Asked for** is the theme's stack, which this layer owns: a list of
+ * families, most preferred first, and the CSS string the markup carries. **Got**
+ * is the renderer's, and the renderer is not this module - an SVG is resolved
+ * by whatever opens it, and the two raster routes answer differently, one
+ * drawing a built-in alphabet and the other resolving the stack against the
+ * machine it is on. So `resolved` is `null` here and filled in by
+ * `rasterizeSheet`, which is the one place in this folder that has a renderer
+ * to ask.
+ *
+ * Why record it at all: the SVG names a family it cannot guarantee, so a sheet
+ * reviewed against the design language and a sheet rasterized on another
+ * machine may be set in two different faces with nothing saying so. A render
+ * that does not say which face drew it cannot be compared with one that does.
+ *
+ * @typedef {object} StackReport
+ * @property {string[]} family The families asked for, most preferred first.
+ * @property {string} css The stack as the markup carries it.
+ * @property {string | null} resolved The family a renderer actually used, where one was asked.
+ */
+
+/**
  * Options a composition is varied and themed through.
+ *
+ * **These are the whole public input surface, with the document.** A theme and
+ * a layout are models of this layer's own, defined in `theme.mjs` and
+ * `layout.mjs` with a schema each; a seed and a set of brand assets are neither
+ * models nor renderer internals. What is deliberately **not** here is anything
+ * the renderer reads for itself:
+ *
+ * | Gone | Say it with |
+ * | --- | --- |
+ * | `language`, the whole design language record | `theme`, which is its themeable half |
+ * | `face` and `codeFace`, the width tables | `theme.stack`, which is the metrics a theme owns |
+ *
+ * Each is refused by name rather than ignored, because a caller re-tinting a
+ * sheet through `language` and silently getting the recorded palette back is
+ * the one failure worse than an error.
  *
  * @typedef {object} ComposeOptions
  * @property {number | string} [seed] Selects the variation. Identical seeds compose identically.
- * @property {typeof SHEET_LANGUAGE} [language]
- * @property {import('./faces.mjs').Face} [face]
- * @property {import('./faces.mjs').Face} [codeFace]
+ * @property {Partial<import('./theme.mjs').SheetTheme>} [theme] Whole or partial; a partial is laid over the recorded theme.
+ * @property {import('./layout.mjs').SheetLayout} [layout]
  * @property {import('./brand.mjs').SheetBrand} [brand] Assets for the two brand slots. Each is optional.
  */
+
+/**
+ * The options this used to take and no longer does, and what replaced each.
+ *
+ * Read by {@link composeSheet} before anything else, so a call written against
+ * the additive surface fails with a sentence rather than drawing the recorded
+ * sheet and reporting success.
+ */
+const RETIRED_OPTIONS = {
+  language:
+    "hands over the whole design language record, which carries every coordinate on the " +
+    "sheet as well as its paints. Pass `theme` instead - it is the themeable half on its " +
+    "own, and `themeFrom(language)` derives one from a record you already have.",
+  face:
+    "hands over a width table, which is the renderer's own measurement. A theme carries the " +
+    "metrics that are a theme's in `theme.stack`.",
+  codeFace: "is the same, for the code panel. `theme.stack` is the one stack a sheet is set in.",
+};
 
 /**
  * Composes a cheatsheet document into a variation.
@@ -310,6 +367,16 @@ function widestLine(lines, cap, face) {
  * @returns {{ composition: import('../napkin-sketch/graphic-design/index.js').Composition, variation: VariationReport }}
  */
 export function composeSheet(doc, options = {}) {
+  // An option this call no longer takes, named back with what replaced it. It
+  // comes first because every other refusal below is about what was passed,
+  // and this one is about what the caller believes they are passing: a
+  // `language` quietly dropped would compose the recorded palette and report a
+  // success, which is the one outcome a caller cannot see is wrong.
+  for (const [name, why] of Object.entries(RETIRED_OPTIONS)) {
+    if (options[name] === undefined) continue;
+    throw new Error(`cheatsheet: \`options.${name}\` ${why}`);
+  }
+
   // Both refusals this used to carry by hand - a document with no title, and a
   // `language` that is not a string - are now the document model's, expressed
   // in `document.mjs` as schema and applied here by reading. The reason for
@@ -318,29 +385,39 @@ export function composeSheet(doc, options = {}) {
   // it instead, and a hand written check per field does not reach that far.
   readDocument(doc);
 
-  // A theme is the themeable half of a design language and a language is the
-  // whole record, so a caller may hand over either and the other is derived.
-  // Handing over both is legitimate too: the theme's paints over the
-  // language's positions, which is what `languageFor` composes.
-  const given = options.theme === undefined ? undefined : readTheme(options.theme);
-  const language = given
-    ? languageFor(given, options.language ?? SHEET_LANGUAGE)
-    : (options.language ?? SHEET_LANGUAGE);
-  // Derived rather than validated, where it was derived. A caller's language
-  // is allowed to be wrong in ways the theme schema would refuse - the paint
-  // check below is what reports an unreadable colour, in its own words - and
-  // validating a theme nobody wrote would turn that into a schema error about
-  // a field the caller never filled in.
-  const theme = given ?? (language === SHEET_LANGUAGE ? SHEET_THEME : themeFrom(language));
+  // A theme arrives whole or partial and is laid over the recorded theme either
+  // way, so a caller moves one colour without restating the palette. The
+  // validation happens after the merge rather than instead of it: omission is
+  // filled, and a misspelt field is still named back by path.
+  const theme = options.theme === undefined ? SHEET_THEME : themeOver(options.theme);
+  // The design language is the record's positions with the theme's paints and
+  // metrics written into it. It is derived rather than given: a caller handing
+  // over the whole record was handed every coordinate on the sheet along with
+  // the six colours they came for, which is how a "theme" ends up carrying a
+  // band at the wrong row.
+  const language = theme === SHEET_THEME ? SHEET_LANGUAGE : languageFor(theme);
   const layout =
     options.layout === undefined
-      ? language === SHEET_LANGUAGE
+      ? // The recorded layout rather than a fresh derivation of it, so the
+        // common case allocates nothing and two compositions of the default
+        // share one object.
+        language === SHEET_LANGUAGE
         ? SHEET_LAYOUT
         : layoutFor(language)
       : readLayout(options.layout);
 
-  const face = options.face ?? SHEET_FACE;
-  const codeFace = options.codeFace ?? CODE_FACE;
+  // Refused up front rather than noted after the fact. `assertReadable`
+  // measures every pairing of ink and ground this theme and this layout imply,
+  // after the one substitution the design language nominates, so a palette that
+  // is legible as colour and illegible as type never reaches the page.
+  assertReadable(theme, layout);
+
+  // The one stack a sheet is set in, as the string the renderer writes. The
+  // theme holds it as a list; `familyCss` is the join, and it reproduces the
+  // recorded stack exactly.
+  const fontFamily = familyCss(theme.stack.family);
+  const face = SHEET_FACE;
+  const codeFace = CODE_FACE;
   const variation = new Variation(options.seed);
   const {
     bands,
@@ -540,7 +617,7 @@ export function composeSheet(doc, options = {}) {
       y: mastheadSlot.baseline,
       text: wordmark,
       align: "left",
-      fontFamily: face.fontFamily,
+      fontFamily,
       fontSize: mastheadSize,
       fontWeight: mastheadSlot.size.weight,
       fill: mastheadSlot.fill,
@@ -567,7 +644,7 @@ export function composeSheet(doc, options = {}) {
       y: titleSlot.baseline,
       text: doc.title,
       align: "left",
-      fontFamily: face.fontFamily,
+      fontFamily,
       fontSize: titleSize,
       fontWeight: titleSlot.size.weight,
       fill: titleSlot.fill,
@@ -590,7 +667,7 @@ export function composeSheet(doc, options = {}) {
         y: subtitleSlot.baseline,
         text: doc.subtitle,
         align: "left",
-        fontFamily: face.fontFamily,
+        fontFamily,
         fontSize: subtitleSize,
         fontWeight: subtitleSlot.size.weight,
         fill: subtitleSlot.fill,
@@ -615,7 +692,7 @@ export function composeSheet(doc, options = {}) {
       y: leadInSlot.baseline,
       text: leadIn,
       align: "left",
-      fontFamily: face.fontFamily,
+      fontFamily,
       fontSize: sizeForCap(leadInCap, face),
       fontWeight: leadInSlot.size.weight,
       fill: leadInSlot.fill,
@@ -824,7 +901,7 @@ export function composeSheet(doc, options = {}) {
     const x = divisions.panel.x + leftInset;
     const shared = {
       align: "left",
-      fontFamily: codeFace.fontFamily,
+      fontFamily,
       fontSize: codeSize,
     };
 
@@ -955,7 +1032,7 @@ export function composeSheet(doc, options = {}) {
         y: followSlot.baseline,
         text: followLine,
         align: "left",
-        fontFamily: face.fontFamily,
+        fontFamily,
         fontSize: sizeForCap(followCap, face),
         fontWeight: followSlot.size.weight,
         fill: followSlot.fill,
@@ -1005,6 +1082,7 @@ export function composeSheet(doc, options = {}) {
       titleCap,
       subtitleCap,
       face: face.name,
+      stack: { family: [...theme.stack.family], css: fontFamily, resolved: null },
       brand: brandModes,
       accents: accentMode,
       codeFits,

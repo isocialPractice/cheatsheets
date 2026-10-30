@@ -42,10 +42,21 @@
 // Each has a schema, and `schema.mjs` is what refuses a bad one with the path
 // to the field rather than a sentence about the whole.
 //
-// They are additive on purpose. `composeSheet` still takes the provisional
-// document shape the twenty-eight committed `sheet.json` files are written in,
-// and takes a formal one as readily; a theme and a layout are derived from the
-// design language when the caller passes neither.
+// **Since 2026.10.30 they are the whole public input surface.** `composeSheet`
+// takes a document, a theme, a layout, a seed and a set of brand assets, and
+// nothing else: the design language record it used to accept as
+// `options.language` and the two width tables it accepted as `options.face` and
+// `options.codeFace` are refused by name, each pointing at the model that
+// replaced it. A caller therefore composes a sheet without naming anything the
+// renderer reads for itself.
+//
+// Within the document model the two shapes are still alternatives rather than a
+// field and its replacement. `composeSheet` takes the provisional shape the
+// twenty-eight committed `sheet.json` files are written in and takes a formal
+// one as readily, `readDocument` holds each to its own schema, and
+// `tools/cheatsheet.mjs --data-only` says which shape it emitted. A theme
+// arrives whole or partial and a layout is derived from the design language when
+// the caller passes neither.
 //
 // Everything exported here is browser-safe and reaches no further than this
 // folder and the drawing surface beside it, so the page loads it with a bare `import` and
@@ -64,11 +75,13 @@ export {
 
 export {
   boxOf,
+  curveOf,
   layoutFor,
   paintOf,
   placeSlots,
   readLayout,
   rowsFor,
+  shapeOf,
   slotNamed,
   slotsHolding,
   LAYOUT_SCHEMA,
@@ -84,11 +97,20 @@ export {
 } from "./schema.mjs";
 
 export {
+  assertReadable,
+  familyCss,
+  familyList,
   languageFor,
+  readableRoles,
   readTheme,
   resolvePalette,
   themeFrom,
+  themeOver,
+  themePairings,
+  CURVE_TOKENS,
   PALETTE_ROLES,
+  SHAPE_FORMS,
+  SHAPE_TOKENS,
   SHEET_THEME,
   SYNTAX_ROLES,
   THEME_SCHEMA,

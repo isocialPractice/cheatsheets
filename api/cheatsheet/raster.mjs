@@ -63,6 +63,30 @@
 // shows SVG, and a format nobody reads is a decoder nobody tests. Asking for
 // one is an error rather than a silent substitution, because a caller who
 // writes `sheet.gif` and receives a PNG has a file that lies about itself.
+//
+// ## Which face drew it
+//
+// A composed sheet asks for a **stack** of families and gets whichever of them
+// the machine happens to have, so two rasters of one document can be set in two
+// different faces with nothing in either file saying so. That is not a thing
+// this module can prevent and it is a thing it can record, which is why every
+// raster comes back carrying {@link SheetRaster.family}.
+//
+// The two routes answer differently, and both answers are real:
+//
+// | Route | What drew the type |
+// | --- | --- |
+// | `builtin` | The surface's own single stroke alphabet. No family at all, so `resolved` is `null` |
+// | `browser` | The first family of the stack the engine actually has, measured in the page |
+//
+// Measured rather than asked, because asking does not work. `document.fonts`
+// reports on loading rather than on availability, so `check()` comes back true
+// for a family the machine has never had - fallback is what it is describing.
+// What does work is the width of a probe string: a family the engine does not
+// have falls through to the generic beside it and measures identically to it,
+// and a family it does have almost never does. The one false negative that
+// leaves - a family metrically identical to all three generics - is worth more
+// than a true answer nobody can get.
 
 import { COLORS, DISPLAY_SCALE } from "./language.mjs";
 
@@ -164,7 +188,17 @@ export async function resolveChromium() {
  * @property {number} width Device pixels.
  * @property {number} height Device pixels.
  * @property {boolean} publishable Whether this may be posted or shown to a reader.
+ * @property {FamilyReport} family Which face actually drew the type.
  * @property {string[]} notes Why it is not publishable, and anything the route skipped.
+ */
+
+/**
+ * The stack a raster asked for, and the family it got.
+ *
+ * @typedef {object} FamilyReport
+ * @property {string[]} requested The families the composition names, most preferred first.
+ * @property {string | null} resolved The one that drew, or `null` where no family did.
+ * @property {string} how Where `resolved` came from, so a reader can weigh it.
  */
 
 /**
@@ -177,6 +211,39 @@ export async function resolveChromium() {
  * @property {'png' | 'jpeg' | 'webp'} [format] Default `png`.
  * @property {number} [quality] 0 to 100, for `jpeg` and `webp` only.
  */
+
+/**
+ * The font stack a composition names, read off what it actually drew.
+ *
+ * Off the composition rather than off a theme, because this module is handed a
+ * composition and nothing else. A sheet sets every run in one stack, so the
+ * first text element that names one is the answer; a composition with no type
+ * on it has no stack and gets an empty list.
+ *
+ * @param {{ elements: Array<Record<string, any>> }} doc
+ * @returns {string[]}
+ */
+export function stackOf(doc) {
+  /** @param {Array<Record<string, any>>} elements */
+  const walk = (elements) => {
+    for (const element of elements ?? []) {
+      if (typeof element.fontFamily === "string" && element.fontFamily.length > 0) {
+        return element.fontFamily;
+      }
+      if (element.type === "group") {
+        const found = walk(element.children);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  const css = walk(doc.elements);
+  if (!css) return [];
+  return css
+    .split(",")
+    .map((one) => one.trim().replace(/^"(.*)"$|^'(.*)'$/, "$1$2").trim())
+    .filter((one) => one.length > 0);
+}
 
 /**
  * Renders a composed sheet to a raster.
@@ -254,6 +321,14 @@ function builtinRaster(composition, { scale, background, format, notes }) {
     width: render.width,
     height: render.height,
     publishable: false,
+    // No family drew this, and that is the whole reason the route is not
+    // publishable. Reporting the stack it was asked for with nothing resolved
+    // against it is the honest record: the request was made and ignored.
+    family: {
+      requested: stackOf(composition.toDocument()),
+      resolved: null,
+      how: "the built-in single stroke alphabet, which reads no font stack",
+    },
     notes,
   };
 }
@@ -275,6 +350,7 @@ function builtinRaster(composition, { scale, background, format, notes }) {
 async function browserRaster(composition, { chromium, scale, background, format, quality, notes }) {
   const doc = composition.toDocument();
   const svg = composition.toSVG();
+  const requested = stackOf(doc);
   const width = Math.round(doc.width * scale);
   const height = Math.round(doc.height * scale);
 
@@ -296,6 +372,10 @@ async function browserRaster(composition, { chromium, scale, background, format,
     // still be pending on the first frame, and a screenshot taken before it is
     // a blank sheet that encodes perfectly well.
     await page.evaluate(() => document.fonts.ready);
+    // Asked before the screenshot rather than after, so the answer is about the
+    // page that was photographed. `resolveFamily` runs in the page because the
+    // engine is the only thing that knows what it has.
+    const resolved = await page.evaluate(resolveFamily, requested);
     const shot = await page.screenshot({
       type: format,
       ...(format === "png" ? {} : { quality: quality ?? 92 }),
@@ -309,9 +389,60 @@ async function browserRaster(composition, { chromium, scale, background, format,
       width,
       height,
       publishable: notes.length === 0,
+      family: { requested, resolved, how: "measured in the engine that drew it" },
       notes,
     };
   } finally {
     await browser.close();
   }
+}
+
+/**
+ * The first family of a stack the engine actually has.
+ *
+ * **Runs in the page, not here.** It is passed to `page.evaluate` as a
+ * function and is serialised to get there, so it may close over nothing at all:
+ * the generics and the probe string are inside it for that reason rather than
+ * beside the rest of this module's constants.
+ *
+ * The measurement is a probe string in the family against the same string in
+ * each generic alone. A family the engine does not have falls through to the
+ * generic and measures identically to it; a family it has almost never does.
+ *
+ * @param {string[]} families
+ * @returns {string | null}
+ */
+function resolveFamily(families) {
+  const generics = new Set([
+    "serif",
+    "sans-serif",
+    "monospace",
+    "cursive",
+    "fantasy",
+    "system-ui",
+    "ui-serif",
+    "ui-sans-serif",
+    "ui-monospace",
+    "ui-rounded",
+    "math",
+    "emoji",
+    "fangsong",
+  ]);
+  const probe = "mmmmmmmmmmlliWWW0123";
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) return null;
+  const widthIn = (stack) => {
+    context.font = `100px ${stack}`;
+    return context.measureText(probe).width;
+  };
+  for (const family of families) {
+    // A generic resolves to something on every engine, so a stack reaching one
+    // has found its face and there is nothing further down to try.
+    if (generics.has(family.toLowerCase())) return family;
+    const quoted = JSON.stringify(family);
+    for (const base of ["monospace", "serif", "sans-serif"]) {
+      if (widthIn(`${quoted}, ${base}`) !== widthIn(base)) return family;
+    }
+  }
+  return null;
 }

@@ -11,23 +11,25 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
-  - The models landed on 2026.10.29 and are additive: `composeSheet` takes a formal document or the provisional shape, and a theme or a whole design language as `options.language`. Narrowing it to the three means the twenty-eight committed `sheet.json` documents and `index.html` move off the provisional shape, which is the migration the readers' count in `.claude/user-note.md` has been measuring the cost of since 2026.09.24
-  - `tools/cheatsheet.mjs --data-only` emits `shape: "provisional"` beside the document, and that marker is the migration point to keep rather than remove: it is what tells a consumer which shape its reader was written against. The page has no such marker and still does not
-  - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Accept a partial theme and merge it over the default, so a caller overrides one color without restating the palette
-  - `readTheme` refuses a theme missing a role, which is right for a whole theme and is exactly what a partial one is not. The merge has to happen before the validation rather than instead of it, or a partial theme is the one input the model cannot refuse
-  - From: Implement Cheatsheet API `->` Configuration
-- [ ] Resolve every color role to a concrete value and reject any pairing below the contrast floor the design language sets
-  - Half of this is done: `resolvePalette` in `api/cheatsheet/theme.mjs` resolves every role through the parser `contrast.mjs` carries, and the schema refuses a colour the renderer cannot read. What is open is the rejection - `checkPairings` measures what a composition actually drew and reports it, so a theme that cannot be read is composed and noted rather than refused up front
-  - From: Implement Cheatsheet API `->` Configuration
-- [ ] Accept a font family list with fallbacks, and record which family a rendered sheet actually used
-  - The SVG names a family it cannot guarantee, and the browser raster route resolves it to whatever that machine has. Recording what a render actually used is the only way the two are comparable
-  - The theme model carries the stack as `theme.stack.family`, one string in CSS form. A list with fallbacks is a change to that field's shape, so it moves `THEME_SCHEMA` and the `face.fontFamily` the composition hands to every text element
-  - From: Implement Cheatsheet API `->` Configuration
-- [ ] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
-  - The theme already carries the spacing tokens, the radius and the stroke weights as numbers in sheet pixels rather than as CSS, so what is open is shape and curve. `RADIUS` is the only curve the record gives and the mark's square corners are why it is small, per **Spacing and radius** in `DESIGN_LANGUAGE.md`
-  - From: Implement Cheatsheet API `->` Configuration
+- [ ] Compose a document into a napkin-sketch `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
+  - A caller does this today by reaching past the layer: `composeSheet(doc, options).composition.toSVG()` names the drawing surface's own method, which is the same leak `options.language` was on the way in. The input surface was narrowed to the three models on 2026.10.30 and the output surface was not
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [ ] Render a document to an HTML fragment for embedding in a page
+  - `toSVG()` already returns the string the page injects, so the fragment is a wrapper around it rather than a second renderer
+  - `index.html` is that wrapper written out by hand, which is what makes this worth publishing rather than inventing: whatever the page does to the markup before it sets it is the behaviour to lift
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [ ] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
+  - The package already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only its `graphic-design/files` entry touches disk
+  - `rasterizeSheet` in `api/cheatsheet/raster.mjs` returns data and is not exported from `api/cheatsheet/index.mjs` at all, so the split exists and is unreachable through the published surface
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [ ] Take the raster route from the call rather than assuming one, and say which route produced a given file
+  - The package's `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
+  - Most of this is done inside `raster.mjs`: `route` takes `auto`, `browser` or `builtin`, the result names the route that actually ran, marks whether it may be published, and since 2026.10.30 names which font family drew it. What is open is the same thing as the item above - it is reached by importing a module rather than through the surface
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [ ] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
+  - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
+  - `tools/cheatsheet.mjs` covers all three for the command line, including `--out -` for standard output, so what is open is the library form rather than the behaviour. Nothing published may touch disk on import: the page loads this folder with a bare `import`, and `graphic-design/files` is the one entry that reads `node:fs`
+  - From: Implement Cheatsheet API `->` Renderers and Output
 
 ## GitHub Pages Deployment
 
@@ -867,15 +869,22 @@ signature or a section.
 
 ### The Core Model
 
+The three models are the API's only public input surface as of 2026.10.30:
+`composeSheet` takes a document, a theme, a layout, a seed and the two brand
+assets, and refuses the design language record and the two width tables by
+name, each pointing at the model that replaced it. So a caller composes a sheet
+without naming anything a renderer owns. What is left under this header is one
+decision rather than one task, and it is the one the narrowing turned up.
+
 The three models landed on 2026.10.29, in `api/cheatsheet/document.mjs`,
 `theme.mjs` and `layout.mjs`, with `schema.mjs` behind all three. A document is
 a title and ordered sections of entries, each carrying a term, a signature and
 a description, and it says nothing about how any of it is drawn: the projection
 from sections to the rows a panel carries is the layout's, which is what lets
 one document be set to two layouts. A theme is the palette roles, the type
-stack and scale, the spacing step, the radius and the stroke weights, derived
-from `language.mjs` rather than restated, with every role resolved through the
-colour parser `contrast.mjs` carries. A layout is a named composition, the row
+stack and scale, the spacing step, the curve and shape tokens and the stroke
+weights, derived from `language.mjs` rather than restated, with every role
+resolved through the colour parser `contrast.mjs` carries. A layout is a named composition, the row
 and column grid, and the slots on it; the sheet's nine structural rectangles
 and its five fixed runs are drawn from those slots, and the committed SVG
 fixture is byte for byte what it was, which is the evidence it is the same
@@ -884,16 +893,26 @@ field - `document.sections[2].entries[1].term` - and every offending field at
 once. `tools/cheatsheet.mjs --layout` is satisfied, and `--script` is still
 refused by name.
 
-- [ ] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
-  - The models are additive today: `composeSheet` takes the provisional shape every committed `sheet.json` is written in and takes a formal document as readily, and a caller may still hand over a whole design language as `options.language`. What is left is narrowing that to the three models, which means migrating the twenty-eight documents and the page off the provisional shape first
+- [ ] Decide whether the formal document should learn to carry a code listing, and settle the two shapes either way
+  - **Issue**: the item that published the three models assumed the twenty-eight committed `sheet.json` documents would move off the provisional shape first, and they should not. Each is a worked code listing with a syntax role per line and meaningful indentation; a formal entry is a term, a signature and a description. Rewriting a listing as entries loses the per-line roles the three role tables colour, loses the indent-is-a-level rule under **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`, changes every rendered sheet and breaks the committed fixture
+  - **Goal**: either give a section an alternative to `entries` that carries lines, which makes the formal model able to say everything the catalog says and the migration a port rather than a loss - or state that the two shapes are permanent alternatives, which is what the code does today, and stop calling one of them provisional. The second is cheaper and the first is what "independent of how any of it is drawn" asked for, so it is a decision rather than a task
+  - A section's `slot` already names a **kind** of slot rather than a slot, and `SLOT_KINDS` holds `heading`, `entries` and `brand`. A listing kind is the shape of the first answer, and `rowsFor` in `layout.mjs` is the one function that would change
 
 ### Configuration
 
-- [ ] Accept a partial theme and merge it over the default, so a caller overrides one color without restating the palette
-- [ ] Resolve every color role to a concrete value and reject any pairing below the contrast floor the design language sets
-- [ ] Accept a font family list with fallbacks, and record which family a rendered sheet actually used
-  - The SVG names a family it cannot guarantee, and the browser raster route resolves it to whatever that machine has. Recording what a render actually used is the only way the two are comparable
-- [ ] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
+Four of these landed on 2026.10.30. A theme may arrive partial and is laid over
+the recorded theme before it is validated, so omission is filled and error is
+not. Every pairing of ink and ground a theme and a layout imply is measured
+against the text floor and refused up front rather than annotated afterwards -
+the structural fills stay out of it, because the green bars are 2.80:1 on the
+sheets' white and the record calls that a reading rather than a defect. The
+type stack is a list of families and a render reports which of them the
+renderer actually resolved. And shape and curve are named tokens on the theme
+beside the type sizes and the stroke weights, so a layout slot carries no
+geometry of its own.
+
+What is left is the input side of a document: where one may be read from.
+
 - [ ] Load a document from JSON and from a plain object, and assume no other input format
 
 ### Renderers and Output
@@ -1704,5 +1723,23 @@ generate ideas about generating ideas.
   - From: Implement Cheatsheet API `->` The Core Model
 - [x] Validate a document and a theme against their schemas, failing with the path to the offending field rather than a generic error
   - From: Implement Cheatsheet API `->` The Core Model
+- [x] Publish those three models as the API's only public input surface, so a caller composes a sheet without ever naming a renderer
+  - The models landed on 2026.10.29 and are additive: `composeSheet` takes a formal document or the provisional shape, and a theme or a whole design language as `options.language`. Narrowing it to the three means the twenty-eight committed `sheet.json` documents and `index.html` move off the provisional shape, which is the migration the readers' count in `.claude/user-note.md` has been measuring the cost of since 2026.09.24
+  - `tools/cheatsheet.mjs --data-only` emits `shape: "provisional"` beside the document, and that marker is the migration point to keep rather than remove: it is what tells a consumer which shape its reader was written against. The page has no such marker and still does not
+  - **Done 2026.10.30, and the first note above was wrong about what it entailed.** The surface is narrowed: `options.language`, `options.face` and `options.codeFace` are refused by name and the three models are all a caller passes. The twenty-eight documents did **not** move off the provisional shape, because each is a worked code listing and a formal entry is a term, a signature and a description - rewriting one as the other loses the per-line roles, the indent rule and the committed fixture. Both shapes stay the document model's, and whether the formal one should learn to carry a listing is queued under **The Core Model** as its own item
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Accept a partial theme and merge it over the default, so a caller overrides one color without restating the palette
+  - `readTheme` refuses a theme missing a role, which is right for a whole theme and is exactly what a partial one is not. The merge has to happen before the validation rather than instead of it, or a partial theme is the one input the model cannot refuse
+  - From: Implement Cheatsheet API `->` Configuration
+- [x] Resolve every color role to a concrete value and reject any pairing below the contrast floor the design language sets
+  - Half of this is done: `resolvePalette` in `api/cheatsheet/theme.mjs` resolves every role through the parser `contrast.mjs` carries, and the schema refuses a colour the renderer cannot read. What is open is the rejection - `checkPairings` measures what a composition actually drew and reports it, so a theme that cannot be read is composed and noted rather than refused up front
+  - From: Implement Cheatsheet API `->` Configuration
+- [x] Accept a font family list with fallbacks, and record which family a rendered sheet actually used
+  - The SVG names a family it cannot guarantee, and the browser raster route resolves it to whatever that machine has. Recording what a render actually used is the only way the two are comparable
+  - The theme model carries the stack as `theme.stack.family`, one string in CSS form. A list with fallbacks is a change to that field's shape, so it moves `THEME_SCHEMA` and the `face.fontFamily` the composition hands to every text element
+  - From: Implement Cheatsheet API `->` Configuration
+- [x] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
+  - The theme already carries the spacing tokens, the radius and the stroke weights as numbers in sheet pixels rather than as CSS, so what is open is shape and curve. `RADIUS` is the only curve the record gives and the mark's square corners are why it is small, per **Spacing and radius** in `DESIGN_LANGUAGE.md`
+  - From: Implement Cheatsheet API `->` Configuration
 
 </details>

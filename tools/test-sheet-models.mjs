@@ -41,19 +41,26 @@ import {
 import { SHEET_CONDENSATION, SHEET_FACE, TYPE_ROLES } from "../api/cheatsheet/faces.mjs";
 import {
   boxOf,
+  curveOf,
   layoutFor,
   paintOf,
   placeSlots,
   readLayout,
   rowsFor,
+  shapeOf,
   slotNamed,
   slotsHolding,
   SHEET_LAYOUT,
   STAGES,
 } from "../api/cheatsheet/layout.mjs";
 import { SHEET_LANGUAGE } from "../api/cheatsheet/language.mjs";
+import { contrastRatio } from "../api/cheatsheet/contrast.mjs";
 import {
+  assertReadable,
+  familyCss,
+  familyList,
   languageFor,
+  readableRoles,
   readTheme,
   resolvePalette,
   themeFrom,
@@ -203,8 +210,10 @@ test("the default theme is the record, read through it rather than copied", () =
   assert.deepEqual(SHEET_THEME.contrast, SHEET_LANGUAGE.contrast);
   assert.equal(SHEET_THEME.spacing.step, SHEET_LANGUAGE.step);
   assert.deepEqual(SHEET_THEME.spacing.tokens, SHEET_LANGUAGE.tokens);
-  assert.equal(SHEET_THEME.radius, SHEET_LANGUAGE.radius);
-  assert.equal(SHEET_THEME.stack.family, SHEET_FACE.fontFamily);
+  assert.equal(SHEET_THEME.curves.display, SHEET_LANGUAGE.radius);
+  assert.equal(SHEET_THEME.curves.square, 0);
+  assert.deepEqual(SHEET_THEME.stack.family, familyList(SHEET_FACE.fontFamily));
+  assert.equal(familyCss(SHEET_THEME.stack.family), SHEET_FACE.fontFamily);
   assert.equal(SHEET_THEME.stack.capHeight, SHEET_FACE.capHeight);
   assert.equal(SHEET_THEME.stack.condensation, SHEET_CONDENSATION);
   for (const role of TYPE_SCALE_ROLES) {
@@ -214,6 +223,195 @@ test("the default theme is the record, read through it rather than copied", () =
   }
   assert.equal(SHEET_THEME.strokes.rules.upper, SHEET_LANGUAGE.rules.upper.height);
   assert.equal(SHEET_THEME.strokes.rules.lower, SHEET_LANGUAGE.rules.lower.height);
+});
+
+test("the font stack is a list, and the list is the recorded stack", () => {
+  // A list rather than a CSS string, so a caller adds a fallback by pushing on
+  // to it instead of splicing a comma into the middle of a string. The join is
+  // held to reproducing the recorded stack exactly, which is what let the field
+  // change shape without a glyph of committed output moving.
+  assert.ok(Array.isArray(SHEET_THEME.stack.family));
+  assert.deepEqual(SHEET_THEME.stack.family, ["Helvetica Neue", "Arial", "system-ui", "sans-serif"]);
+  // Quoted only where the name needs it, which is what the round trip rests on.
+  assert.equal(familyCss(["Helvetica Neue", "Arial"]), '"Helvetica Neue", Arial');
+  assert.equal(familyCss(["monospace"]), "monospace");
+  // And the parse strips the quoting rather than keeping it as part of a name.
+  assert.deepEqual(familyList('"Courier New", monospace'), ["Courier New", "monospace"]);
+  assert.deepEqual(familyList("  Arial ,, serif "), ["Arial", "serif"]);
+
+  // And the string form is not a theme's form. A caller handing over the CSS
+  // string gets it named back rather than silently parsed, because a field that
+  // accepts both shapes is a field nothing can report the shape of.
+  const stringly = structuredClone(SHEET_THEME);
+  stringly.stack.family = "Arial";
+  assert.throws(() => readTheme(stringly), /theme\.stack\.family: must be a list of font family names/);
+});
+
+test("a rendered sheet records the stack it asked for, because an SVG cannot promise one", () => {
+  // The SVG names a family it has no way to guarantee, so a sheet reviewed here
+  // and a sheet rasterized on another machine may be set in two different faces
+  // with nothing in either saying so. `resolved` is null in this layer on
+  // purpose: the renderer is the only thing that can answer it, and
+  // `rasterizeSheet` is where it is answered.
+  const { variation } = composeSheet(PROVISIONAL, { seed: 1 });
+  assert.deepEqual(variation.stack.family, SHEET_THEME.stack.family);
+  assert.equal(variation.stack.css, familyCss(SHEET_THEME.stack.family));
+  assert.equal(variation.stack.resolved, null);
+
+  // And the stack a theme names is the stack the markup carries, every run of
+  // it. One stack per sheet is the design language's rule, not an accident of
+  // the four runs happening to share a face.
+  const narrow = composeSheet(PROVISIONAL, {
+    seed: 1,
+    theme: { stack: { ...SHEET_THEME.stack, family: ["Courier New", "monospace"] } },
+  });
+  assert.equal(narrow.variation.stack.css, '"Courier New", monospace');
+  const families = new Set();
+  const walk = (elements) => {
+    for (const element of elements) {
+      if (element.fontFamily) families.add(element.fontFamily);
+      if (element.type === "group") walk(element.children);
+    }
+  };
+  walk(narrow.composition.toDocument().elements);
+  assert.deepEqual([...families], ['"Courier New", monospace']);
+});
+
+test("a curve is a token a slot names, and a square corner writes no attribute", () => {
+  // The record gives one curve, and the square corner every structural region
+  // of the eleven is actually drawn with. Both are named, so a layout says
+  // which it wants and a theme answers.
+  assert.deepEqual(Object.keys(SHEET_THEME.curves).sort(), ["display", "square"]);
+  for (const slot of SHEET_LAYOUT.slots) {
+    if (slot.draw !== "fill" && slot.draw !== "stroke") continue;
+    assert.equal(shapeOf(SHEET_THEME, slot).form, slot.draw === "fill" ? "rectangle" : "line", slot.name);
+    assert.equal(curveOf(SHEET_THEME, slot), 0, `${slot.name} is drawn square on the eleven`);
+  }
+
+  // A slot naming no shape takes the token for the way it is drawn, which is
+  // what lets a layout written before shape tokens existed go on drawing what
+  // it drew: `block` for a fill and `bar` for a stroke.
+  assert.equal(shapeOf(SHEET_THEME, { name: "bare", draw: "fill" }).form, "rectangle");
+  assert.equal(shapeOf(SHEET_THEME, { name: "bare", draw: "stroke" }).form, "line");
+  assert.equal(curveOf(SHEET_THEME, { name: "bare", draw: "fill" }), 0);
+
+  // Square writes no `rx` at all, which is the evidence the token changed
+  // nothing: the committed SVG fixture is byte for byte what it was.
+  const square = createComposition({ width: 100, height: 100 });
+  placeSlots(square, { layout: SHEET_LAYOUT, theme: SHEET_THEME, stage: "ground" });
+  for (const element of square.toDocument().elements) assert.equal(element.rx, undefined);
+
+  // And a shape pointed at the record's own curve rounds the corner.
+  const rounded = structuredClone(SHEET_LAYOUT);
+  rounded.slots.find((slot) => slot.name === "code-panel").shape = "display";
+  const drawn = createComposition({ width: 100, height: 100 });
+  placeSlots(drawn, { layout: rounded, theme: SHEET_THEME, stage: "ground" });
+  const panel = drawn.toDocument().elements.find((element) => element.name === "code-panel");
+  assert.equal(panel.rx, SHEET_LANGUAGE.radius);
+});
+
+test("a shape naming a curve the theme has not got is refused, and so is a slot naming no shape of it", () => {
+  const orphan = structuredClone(SHEET_THEME);
+  orphan.shapes.block.curve = "rounded";
+  assert.throws(() => readTheme(orphan), /theme\.shapes\.block\.curve: names no curve of this theme/);
+
+  const missing = structuredClone(SHEET_THEME);
+  delete missing.curves.display;
+  assert.throws(() => readTheme(missing), /theme\.curves\.display: must be a number, and is absent/);
+
+  const noBlock = structuredClone(SHEET_THEME);
+  delete noBlock.shapes.block;
+  assert.throws(() => readTheme(noBlock), /theme\.shapes\.block: must be a shape token, and is absent/);
+
+  const noBar = structuredClone(SHEET_THEME);
+  delete noBar.shapes.bar;
+  assert.throws(() => readTheme(noBar), /theme\.shapes\.bar: must be a shape token, and is absent/);
+
+  assert.throws(
+    () => shapeOf(SHEET_THEME, { name: "odd", draw: "fill", shape: "pill" }),
+    /the odd slot is shaped "pill", which is no shape of the "default" theme/
+  );
+
+  // And a token whose form disagrees with the way the slot is drawn. It is the
+  // one cross reference neither model's reader can make alone: `readLayout`
+  // never sees a theme and `readTheme` never sees a layout.
+  assert.throws(
+    () => shapeOf(SHEET_THEME, { name: "hairline", draw: "stroke", shape: "block" }),
+    /drawn as a stroke, which is a line, but it is shaped "block" and that token is a rectangle/
+  );
+  assert.throws(
+    () => shapeOf(SHEET_THEME, { name: "ground", draw: "fill", shape: "bar" }),
+    /drawn as a fill, which is a rectangle, but it is shaped "bar" and that token is a line/
+  );
+
+  // And `placeSlots` makes that check for both ways a slot is drawn, not only
+  // for the one that reads a curve. Only a fill takes a corner, so a stroke's
+  // token is resolved for its form alone - without which the eleven's own
+  // layout would be checked and a replacement one would be checked for half
+  // its slots.
+  for (const draw of ["fill", "stroke"]) {
+    const mismatched = structuredClone(SHEET_LAYOUT);
+    mismatched.slots.push({
+      name: `wrong-${draw}`,
+      draw,
+      stage: "ground",
+      row: "divider",
+      paint: "green",
+      shape: draw === "fill" ? "bar" : "block",
+      weight: 2,
+    });
+    assert.throws(
+      () =>
+        placeSlots(createComposition({ width: 100, height: 100 }), {
+          layout: mismatched,
+          theme: SHEET_THEME,
+          stage: "ground",
+        }),
+      new RegExp(`the wrong-${draw} slot is drawn as a ${draw}`),
+      `a ${draw} slot naming the other form's token composed without complaint`
+    );
+  }
+});
+
+test("every pairing of ink and ground the theme and the layout imply is readable", () => {
+  // The up-front half of the colour work: the composition measures what it drew
+  // and this measures what the theme and the layout *will* draw, before
+  // anything is on the page. The recorded theme passes, which is the floor this
+  // check was written against rather than one it was written to.
+  const measured = assertReadable(SHEET_THEME, SHEET_LAYOUT);
+  assert.ok(measured.every((pairing) => pairing.holds));
+  // The five fixed runs and the panel's six syntax roles. The roles are on no
+  // slot of their own - a line is painted by its role rather than its position -
+  // so a walk over the slots alone would miss all six.
+  const names = measured.map((pairing) => pairing.name);
+  for (const run of ["wordmark", "title", "subtitle", "lead-in", "follow-line"]) {
+    assert.ok(names.includes(run), `${run} was not measured`);
+  }
+  for (const role of SYNTAX_ROLES) {
+    assert.ok(names.includes(`code-panel/${role}`), `${role} was not measured on the panel`);
+  }
+
+  // The structural fills are deliberately not in it. The green spine and the
+  // four flanking bars reach 2.80:1 on the sheets' white, under the 3:1
+  // boundary floor, and the design language records that as a reading rather
+  // than a defect: on a white ground the green is a fill. A boundary rejection
+  // would refuse the eleven sheets the floors were measured off.
+  assert.ok(!names.includes("spine"));
+  assert.ok(contrastRatio(SHEET_THEME.colors.green, SHEET_THEME.colors.white) < SHEET_THEME.contrast.boundary);
+});
+
+test("and the one substitution the design language nominates is applied before measuring", () => {
+  // Measuring the role as declared rather than as drawn would report a failure
+  // the composition does not have: the green cannot carry text on white, and
+  // `readableInk` is what swaps the darker green in. A theme whose accent has
+  // to be substituted on a slot therefore passes, and the measured ink is the
+  // substitute rather than the declaration.
+  const accented = structuredClone(SHEET_LAYOUT);
+  accented.slots.find((slot) => slot.name === "title").paint = "green";
+  const measured = readableRoles(SHEET_THEME, accented);
+  const title = measured.find((pairing) => pairing.name === "title");
+  assert.equal(title.ink, SHEET_THEME.colors.greenOnWhite);
+  assert.ok(title.holds);
 });
 
 test("and every one of those figures is in DESIGN_LANGUAGE.md, which is the record", () => {
@@ -369,6 +567,9 @@ test("a theme derived from a language round trips back to it", () => {
     colors: { ...SHEET_LANGUAGE.colors, green: "#E8833A", greenOnWhite: "#9A4A10" },
   };
   assert.deepEqual(languageFor(themeFrom(ember, { name: "ember" }), ember), ember);
+  // Including the curve, which the theme now holds as a token rather than as a
+  // figure of its own: `languageFor` writes `curves.display` back as `radius`.
+  assert.equal(themeFrom(ember).curves.display, ember.radius);
 });
 
 // ## The layout model
