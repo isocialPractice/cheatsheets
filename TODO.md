@@ -11,25 +11,25 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Compose a document into a napkin-sketch `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
-  - A caller does this today by reaching past the layer: `composeSheet(doc, options).composition.toSVG()` names the drawing surface's own method, which is the same leak `options.language` was on the way in. The input surface was narrowed to the three models on 2026.10.30 and the output surface was not
-  - From: Implement Cheatsheet API `->` Renderers and Output
-- [ ] Render a document to an HTML fragment for embedding in a page
-  - `toSVG()` already returns the string the page injects, so the fragment is a wrapper around it rather than a second renderer
-  - `index.html` is that wrapper written out by hand, which is what makes this worth publishing rather than inventing: whatever the page does to the markup before it sets it is the behaviour to lift
-  - From: Implement Cheatsheet API `->` Renderers and Output
-- [ ] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
-  - The package already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only its `graphic-design/files` entry touches disk
-  - `rasterizeSheet` in `api/cheatsheet/raster.mjs` returns data and is not exported from `api/cheatsheet/index.mjs` at all, so the split exists and is unreachable through the published surface
-  - From: Implement Cheatsheet API `->` Renderers and Output
-- [ ] Take the raster route from the call rather than assuming one, and say which route produced a given file
-  - The package's `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
-  - Most of this is done inside `raster.mjs`: `route` takes `auto`, `browser` or `builtin`, the result names the route that actually ran, marks whether it may be published, and since 2026.10.30 names which font family drew it. What is open is the same thing as the item above - it is reached by importing a module rather than through the surface
-  - From: Implement Cheatsheet API `->` Renderers and Output
-- [ ] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
-  - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
-  - `tools/cheatsheet.mjs` covers all three for the command line, including `--out -` for standard output, so what is open is the library form rather than the behaviour. Nothing published may touch disk on import: the page loads this folder with a bare `import`, and `graphic-design/files` is the one entry that reads `node:fs`
-  - From: Implement Cheatsheet API `->` Renderers and Output
+- [ ] Load a document from JSON and from a plain object, and assume no other input format
+  - `readDocument` already takes a plain object and holds it to whichever of the two schemas it is written in, so what is open is reading one off disk - and the command line entry point directly below is the caller that wants it
+  - It reads a file, so it belongs in `api/cheatsheet/files.mjs` beside `writeRender` rather than in `document.mjs`. Nothing in the static graph of `index.mjs` may touch `node:fs`, and `tools/test-sheet-render.mjs` walks that graph and fails on one
+  - From: Implement Cheatsheet API `->` Configuration
+- [ ] Expose a command line entry point that reads a document file and writes an output file, with the raster backend optional
+  - SVG needs no browser and a raster does, which is the whole reason the backend is optional. `tools/cheatsheet.mjs` under **Raster Export and Example Images** is that entry point, and its flags are specified in `.claude/prompts/current-plan.prompt.md`
+  - What is open is the input: every route into it today is a catalog slug, so a document that is not in `cheatsheets.json` cannot be rendered at all. The output half is done - it renders and writes through the surface as of 2026.10.31
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [ ] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
+  - `--data-only` does this now, emitting the document, which shape it is in, which theme and layout answered, and the variation. What is left is the acceptance check, and the one thing to settle with it is whether a document read from a file rather than from the catalog reports the same fields
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [ ] Confirm the page reaches the vendored `api/napkin-sketch/api/index.js` through `api/cheatsheet/`, with no build step and no install between
+  - The vendored build is the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
+  - Half of it is written: `tools/test-sheet-render.mjs` walks the static import graph of `index.mjs` and fails on a Node builtin anywhere in it. What that walk stops at is this folder, so the half still open is the hop from here into the vendored surface and down through its chunks
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [ ] Document the public API surface with one worked example per output format
+  - Five formats rather than the two this item's note predates: `svg`, `html`, `png`, `jpeg` and `webp` are what `renderSheet` renders, and `html` has no example anywhere yet
+  - `examples/` holds two scripts over one document and writes through the package's own `writeComposition`. The surface has `renderToFile` now, so an example that demonstrates the published route is also an example that stops being a hand copy of it
+  - From: Implement Cheatsheet API `->` Embedding the API
 
 ## GitHub Pages Deployment
 
@@ -917,15 +917,35 @@ What is left is the input side of a document: where one may be read from.
 
 ### Renderers and Output
 
-- [ ] Compose a document into a napkin-sketch `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
-- [ ] Render a document to an HTML fragment for embedding in a page
-  - `toSVG()` already returns the string the page injects, so the fragment is a wrapper around it rather than a second renderer
-- [ ] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
-  - The package already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only its `graphic-design/files` entry touches disk
-- [ ] Take the raster route from the call rather than assuming one, and say which route produced a given file
-  - The package's `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
-- [ ] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
-  - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
+All five landed on 2026.10.31, and the asymmetry this header was queued to close
+is closed: the input surface was narrowed to the three models on 2026.10.30 and
+the output surface was not, so a caller still reached
+`composeSheet(doc, options).composition.toSVG()` for markup and imported
+`api/cheatsheet/raster.mjs` by path for pixels. `render.mjs` is the door both go
+through now. `renderSVG` is the canonical output and the only format with nothing
+behind it, `renderFragment` is that markup made embeddable - the declaration off,
+the size attributes off, the scaling rules inline, the wrapper named - and
+`renderSheet` names any of the five formats and takes the raster route from the
+call. Every one returns its bytes with the route, the family that drew and
+whether it may be shown to a reader on the result.
+
+Writing is `files.mjs`, which is the one module in the folder that reads
+`node:fs`, the way the drawing surface keeps its own writer behind
+`graphic-design/files`. One argument covers a named path, a directory under a
+filename derived from the sheet's title, standard output and nowhere at all. The
+page loads `index.mjs` with a bare `import`, so what makes that split a rule
+rather than a preference is that a Node builtin in the static graph of that file
+would fail a browser at load; `tools/test-sheet-render.mjs` walks the graph and
+holds it.
+
+Two things the five turned up are worth carrying forward rather than queuing.
+`index.html` and `tools/cheatsheet.mjs` are both consumers of the surface now
+instead of hand copies of it, which is what stops the page's fragment and the
+command's render from drifting while both keep working. And the command has no
+`--format html`: `sheet.html` is not a reserved name in a cheatsheet folder, so
+writing one beside a `sheet.json` would fail `tools/build-manifest.mjs --check`,
+and the reserved set is **Cheatsheet Catalog**'s to change rather than this
+header's. A fragment is a library answer, and nothing has asked for it as a file.
 
 ### Embedding the API
 
@@ -1741,5 +1761,24 @@ generate ideas about generating ideas.
 - [x] Take design element choices - shape, curve, size, weight - as named tokens rather than raw CSS, so one document renders the same on every backend
   - The theme already carries the spacing tokens, the radius and the stroke weights as numbers in sheet pixels rather than as CSS, so what is open is shape and curve. `RADIUS` is the only curve the record gives and the mark's square corners are why it is small, per **Spacing and radius** in `DESIGN_LANGUAGE.md`
   - From: Implement Cheatsheet API `->` Configuration
+- [x] Compose a document into a napkin-sketch `Composition` and render it with `toSVG()`, the one canonical output every other format is derived from
+  - A caller does this today by reaching past the layer: `composeSheet(doc, options).composition.toSVG()` names the drawing surface's own method, which is the same leak `options.language` was on the way in. The input surface was narrowed to the three models on 2026.10.30 and the output surface was not
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [x] Render a document to an HTML fragment for embedding in a page
+  - `toSVG()` already returns the string the page injects, so the fragment is a wrapper around it rather than a second renderer
+  - `index.html` is that wrapper written out by hand, which is what makes this worth publishing rather than inventing: whatever the page does to the markup before it sets it is the behaviour to lift
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [x] Return every render as raw data as well as writing a file, so a caller can embed the result without touching disk
+  - The package already splits this way: `toSVG`, `toPNG` and `rasterize` return data, and only its `graphic-design/files` entry touches disk
+  - `rasterizeSheet` in `api/cheatsheet/raster.mjs` returns data and is not exported from `api/cheatsheet/index.mjs` at all, so the split exists and is unreachable through the published surface
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [x] Take the raster route from the call rather than assuming one, and say which route produced a given file
+  - The package's `toPNG()` is dependency free and draws the built in alphabet; the browser route draws the real face. A file that does not say which one made it cannot be reviewed against the design language
+  - Most of this is done inside `raster.mjs`: `route` takes `auto`, `browser` or `builtin`, the result names the route that actually ran, marks whether it may be published, and since 2026.10.30 names which font family drew it. What is open is the same thing as the item above - it is reached by importing a module rather than through the surface
+  - From: Implement Cheatsheet API `->` Renderers and Output
+- [x] Write output to a named path, to a directory with a derived filename, or to an in-memory buffer
+  - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
+  - `tools/cheatsheet.mjs` covers all three for the command line, including `--out -` for standard output, so what is open is the library form rather than the behaviour. Nothing published may touch disk on import: the page loads this folder with a bare `import`, and `graphic-design/files` is the one entry that reads `node:fs`
+  - From: Implement Cheatsheet API `->` Renderers and Output
 
 </details>

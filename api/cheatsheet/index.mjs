@@ -58,11 +58,53 @@
 // arrives whole or partial and a layout is derived from the design language when
 // the caller passes neither.
 //
+// ## The output surface
+//
+// **Since 2026.10.31 the way out is this folder's too.** `render.mjs` carries
+// it: `renderSVG` for the canonical markup, `renderFragment` for that markup
+// made embeddable, and `renderSheet` for any of the five formats with the route
+// taken from the call and named on the result. Every one returns data, so a
+// caller embeds a sheet without naming a path.
+//
+// That closes the leak the input surface closed on 2026.10.30, pointing the
+// other way. Until it landed a caller reached `composition.toSVG()` on the
+// drawing surface's own object and imported `raster.mjs` by path, because this
+// file exported nothing from it - which is the same shape as composing through
+// `options.language`, and had the same consequence: the published surface could
+// not say what a render was for or what had drawn it.
+//
+// Two things are deliberately **not** exported here, both for one reason:
+//
+// | Module | Why it stays behind a path |
+// | --- | --- |
+// | `files.mjs` | It reads `node:fs`, so a page handed it fails at load |
+// | `raster.mjs` | It resolves a headless browser the page can never take |
+//
+// Neither is out of reach. `renderSheet` imports `raster.mjs` at the moment a
+// raster is asked for, so the route is reachable through this surface and stays
+// out of the page's module graph; `files.mjs` is one import by path, the way the
+// drawing surface's own `graphic-design/files` entry is.
+//
 // Everything exported here is browser-safe and reaches no further than this
 // folder and the drawing surface beside it, so the page loads it with a bare `import` and
 // no build step.
 
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
+
+export {
+  filenameFor,
+  fragmentFor,
+  renderFragment,
+  renderOf,
+  renderSVG,
+  renderSheet,
+  slugFor,
+  FRAGMENT_CLASS,
+  RASTER_RENDERS,
+  RENDER_EXTENSIONS,
+  RENDER_FORMATS,
+  RENDER_MEDIA_TYPES,
+} from "./render.mjs";
 
 export {
   entriesOf,

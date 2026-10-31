@@ -140,11 +140,88 @@ measures a probe string against each generic to find the first family the engine
 really has. An SVG names a stack it cannot guarantee, so without that field two
 rasters of one document can be set in two faces with neither file saying so.
 
+### What a render comes back as, and where it can go
+
+Since 2026.10.31 the way out is the layer's too. Until then a caller reached
+`composeSheet(doc, options).composition.toSVG()`, which names the drawing
+surface's own method, and imported `api/cheatsheet/raster.mjs` by path for
+pixels, because the published surface exported nothing from it. That is the
+same leak `options.language` was on the way in, pointing the other way:
+
+```js
+import { renderSheet, renderSVG, renderFragment } from "./api/cheatsheet/index.mjs";
+
+const markup = renderSVG(doc, { seed: "splicing-arrays" });
+const fragment = renderFragment(doc, { seed: "splicing-arrays" });
+const render = await renderSheet(doc, { format: "webp", route: "browser", scale: 0.4 });
+```
+
+**There are five formats and one of them is canonical.** `svg` is the
+composition itself, in the face the markup names, and every other format is
+derived from it - which is why it is the default and why it needs neither a
+renderer nor an encoder behind it.
+
+| Format | What it is |
+| --- | --- |
+| `svg` | The canonical output. `renderSVG` is the whole of it, and it is synchronous |
+| `html` | That markup made embeddable. A wrapper, not a second renderer |
+| `png` | Pixels, by the browser route or the dependency free one |
+| `jpeg`, `webp` | The same, through a codec the engine carries. Browser route only |
+
+**Every render returns its bytes**, as `data`, with `text` beside it where the
+format has a string form. So a caller embedding a sheet in a response, a data
+URL or a test never names a path. The result also says what answered: `route` is
+`composition`, `browser` or `builtin`, `family` is the stack asked for and the
+one that drew, and `publishable` is whether what came back draws the face the
+design language measured.
+
+`publishable` does **not** mean "may be posted". A weight cap, a destination and
+a watch pattern are policy and belong to whoever is publishing - the preset
+below is `tools/cheatsheet.mjs`'s, and the formats a post is drafted from are
+the social recipe's.
+
+**An HTML fragment is four things done to the markup**, three of which
+`index.html` did by hand before this was published, which is what made it worth
+lifting rather than inventing: the XML declaration comes off, because a browser
+parsing HTML has nowhere to put a prolog; the root's `width` and `height` come
+off so the element scales off its viewBox instead of overflowing its column; the
+two scaling rules travel inline, because the embedding document's CSS is not
+this repository's to write; and the wrapper is `role="img"` named by the sheet's
+own title, since a cheatsheet is a picture of text. `{ wrap: false }` asks for
+the element alone, which is what the page uses - its box already carries the
+role and the name.
+
+**Writing is a separate import, and that is deliberate.**
+`api/cheatsheet/files.mjs` is the one module in the folder that reads
+`node:fs`, the way the drawing surface keeps its own writer behind
+`graphic-design/files`. The page loads `index.mjs` with a bare `import` and no
+build step, so a Node builtin anywhere in that file's static graph would fail in
+a browser at load rather than at the call.
+
+```js
+import { renderToFile, writeRender } from "./api/cheatsheet/files.mjs";
+
+await renderToFile(doc, "out/sheet.webp", { format: "webp" }); // that exact file
+await renderToFile(doc, "out/", { format: "webp" });           // a derived filename
+await renderToFile(doc, null, { format: "svg" });              // nothing written; bytes back
+await writeRender(render, "-");                                // standard output
+```
+
+One argument for four destinations, because they are four values of the same
+question. A directory gets the sheet's title slugged, so it is a complete
+instruction rather than half of one, and `{ name: "sheet" }` overrides that.
+
+`raster.mjs` stays behind a path too, for a different reason: it resolves a
+headless browser the page can never take. It is still reachable through the
+surface - `renderSheet` imports it at the moment a raster is asked for - which
+keeps the route published and keeps the module out of the page's network.
+
 ### Rendering one, from the command line
 
-`tools/cheatsheet.mjs` is what writes a render. It composes a document through
-the same layer the page does and hands the composition to one of two
-renderers:
+`tools/cheatsheet.mjs` is what writes a render from the catalog. It composes a
+document through the same layer the page does and renders it through the surface
+above, so the two cannot answer differently; what it adds is the catalog lookup,
+the preset, and the rule about where a render is allowed to land:
 
 ```bash
 node tools/cheatsheet.mjs --list

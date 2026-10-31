@@ -31,6 +31,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { RENDER_EXTENSIONS } from "../api/cheatsheet/index.mjs";
 import { MIN_PUBLISH_SCALE, resolveChromium } from "../api/cheatsheet/raster.mjs";
 import { destinationFor, findEntry, parseFlags, run } from "./cheatsheet.mjs";
 
@@ -477,10 +478,35 @@ test("a format with no consumer here is refused, not substituted", async () => {
   );
 });
 
-test("`jpg` on the way in is `jpeg` on the way to the encoder, and `jpg` on disk", () => {
+test("`jpg` on the way in is `jpeg` on the way to the encoder, and `jpg` on disk", { skip }, async () => {
   // The extension and the codec name differ, and the social recipe watches the
   // extension: a file called `sheet.jpeg` matches none of `**/*.{jpg,webp}`.
-  assert.match(source, /jpg: \{ raster: true, ext: "jpg", mime: "image\/jpeg", route: "jpeg" \}/);
+  //
+  // Held at both ends rather than against the source text of the format table,
+  // which is where this was asserted until the table's field was renamed on
+  // 2026.10.31 and a passing test went red over a property that had not moved.
+  // The published surface names the codec, and a written file names the file.
+  assert.equal(RENDER_EXTENSIONS.jpeg, "jpg");
+
+  await mkdir(scratch, { recursive: true });
+  const { json } = await run([
+    "--generate",
+    RUNNABLE,
+    "--format",
+    "jpg",
+    "--renderer",
+    "browser",
+    "--scale",
+    "0.1",
+    "--out",
+    scratch,
+    "--json",
+  ]);
+  assert.equal(json.format, "jpg");
+  assert.match(json.written, /\.jpg$/);
+  // And the bytes really are JPEG, which is the half a name could lie about.
+  const bytes = await readFile(join(scratch, "sheet.jpg"));
+  assert.deepEqual([bytes[0], bytes[1]], [0xff, 0xd8], "the file does not open with the JPEG marker");
 });
 
 test("a renderer that is not one of the three is refused", async () => {

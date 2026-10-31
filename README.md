@@ -92,8 +92,26 @@ composed and annotated.
 
 The type stack is a list of families rather than a CSS string, and a render
 records which of them actually drew it: the SVG names a stack it cannot
-guarantee, so `rasterizeSheet` measures what the engine resolved and reports it
+guarantee, so the browser route measures what the engine resolved and reports it
 beside the bytes.
+
+The way out is the layer's too, as of 2026.10.31. `renderSVG` is the canonical
+output and every other format is derived from it, `renderFragment` is that
+markup made embeddable in a page, and `renderSheet` names any of the five
+formats and takes the raster route from the call:
+
+```js
+const render = await renderSheet(doc, { format: "webp", route: "browser" });
+render.data        // the bytes, on every format
+render.route       // which renderer answered
+render.publishable // whether it draws the face the design language measured
+```
+
+Every render comes back as data, so a sheet is embedded without a path being
+named. Writing one is a second import, `api/cheatsheet/files.mjs`, which is the
+only module in the folder that reads `node:fs` - the page loads the surface with
+a bare `import`, so a Node builtin in its static graph would fail in a browser
+at load.
 
 A model that is wrong is refused with the path to the field, in the notation a
 caller would reach it by:
@@ -129,12 +147,12 @@ resolve on Windows and 404 on the published site.
 **Rendering a Sheet Outside the Page**
 The page composes its sheet as SVG in the browser and nothing commits a raster,
 so a picture of a sheet is made on demand:
-`node tools/cheatsheet.mjs --generate <slug> --format webp`. It composes
-through the same layer the page does and then takes one of two routes - a real
-engine, which draws the face the design language measured, or the drawing
-surface's own dependency free rasterizer, which draws a built in single stroke
-alphabet. It reports which one answered, because a file that does not say that
-cannot be reviewed against the design language. `--theme` and `--layout` each
+`node tools/cheatsheet.mjs --generate <slug> --format webp`. It composes and
+renders through the same layer the page does, which then takes one of two
+routes - a real engine, which draws the face the design language measured, or
+the drawing surface's own dependency free rasterizer, which draws a built in
+single stroke alphabet. It reports which one answered, because a file that does
+not say that cannot be reviewed against the design language. `--theme` and `--layout` each
 take the one name the record supports or a path to a JSON model of its own (and
 a `--theme` file may be partial), `--data-only` emits the document and what the
 composition chose without rendering anything, `--list` names what there is, and

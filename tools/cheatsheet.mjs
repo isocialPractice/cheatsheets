@@ -14,6 +14,20 @@
 // this repository's own code, and the one optional dependency - a browser - is
 // resolved at run time and reported rather than required.
 //
+// ## What this command does, now that the layer has an output surface
+//
+// Since 2026.10.31 it composes and renders through `api/cheatsheet/`: one call
+// to `renderOf` per format, and one to `writeRender` for the bytes. It used to
+// branch on the format itself, call `composition.toSVG()` on one side and
+// import `rasterizeSheet` by path on the other, and work `publishable` out a
+// second time from the route and the scale. It no longer imports
+// `api/cheatsheet/raster.mjs` at all; a raster is reached through the surface,
+// which is where the alphabet and the publish floor are known.
+//
+// What is left here is the half that is policy rather than rendering, and all
+// three parts of it are this command's own rather than a library's: the catalog
+// lookup, the preset below, and the rule about where a render may land.
+//
 // ## Where a render is written, and why that is a rule rather than a default
 //
 //     publishable  ->  <the cheatsheet's own folder>/sheet.<ext>
@@ -97,7 +111,7 @@
 // been composed from a payload it had not.
 //
 // Run with: node tools/cheatsheet.mjs --help
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -106,10 +120,11 @@ import {
   isFormalDocument,
   prepareAccents,
   readLayout,
+  renderOf,
   SHEET_LANGUAGE,
   SHEET_LAYOUT,
 } from "../api/cheatsheet/index.mjs";
-import { MIN_PUBLISH_SCALE, rasterizeSheet } from "../api/cheatsheet/raster.mjs";
+import { namesDirectory, writeRender } from "../api/cheatsheet/files.mjs";
 import { readBrandAssets } from "./build-manifest.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -130,15 +145,20 @@ const PRESET = {
   capBytes: 300 * 1024,
 };
 
-/** The formats this command writes, and what each is. */
+/**
+ * The formats this command writes, and what each is.
+ *
+ * `format` is the name the output surface knows it by and `ext` is the name a
+ * file carries, which differ in exactly one case: `jpg` on the command line and
+ * on disk, `jpeg` to the surface, which names the codec rather than the
+ * extension. A file called `sheet.jpeg` would not match the social recipe's
+ * `**\/*.{jpg,webp}`.
+ */
 const FORMATS = {
-  svg: { raster: false, ext: "svg", mime: "image/svg+xml" },
-  png: { raster: true, ext: "png", mime: "image/png", route: "png" },
-  webp: { raster: true, ext: "webp", mime: "image/webp", route: "webp" },
-  // `jpg` on the way in and `jpeg` on the way to the raster layer, which names
-  // the codec rather than the extension. A file called `sheet.jpeg` would not
-  // match the social recipe's `**/*.{jpg,webp}`.
-  jpg: { raster: true, ext: "jpg", mime: "image/jpeg", route: "jpeg" },
+  svg: { raster: false, ext: "svg", mime: "image/svg+xml", format: "svg" },
+  png: { raster: true, ext: "png", mime: "image/png", format: "png" },
+  webp: { raster: true, ext: "webp", mime: "image/webp", format: "webp" },
+  jpg: { raster: true, ext: "jpg", mime: "image/jpeg", format: "jpeg" },
 };
 
 /** The renderers, as the command line names them. */
@@ -418,16 +438,13 @@ export function destinationFor({ entry, format, out, publishable }) {
     // file. Guessing from the extension is what lets both be written without a
     // second flag to say which was meant.
     //
-    // The extension is looked for in the last segment with its leading dots
-    // taken off first, or a dot directory reads as an extension and nothing
-    // else: `.tmp` ends in `.tmp`, so `--out .tmp` resolved to the folder
-    // itself and the write failed with `EISDIR` on the folder this command
-    // sends every unpublishable render to.
-    const last = out.split(/[\\/]/).pop();
-    const looksLikeDirectory =
-      /[\\/]$/.test(out) || !/\.[A-Za-z0-9]+$/.test(last.replace(/^\.+/, ""));
+    // The test itself is `namesDirectory` in `api/cheatsheet/files.mjs`, which
+    // is where this command's own dot directory trap is now recorded: `.tmp`
+    // ends in `.tmp`, so an extension test that did not strip the leading dots
+    // read `--out .tmp` as a file, resolved it to the folder itself, and failed
+    // the write with `EISDIR` on the folder every unpublishable render goes to.
     return {
-      path: looksLikeDirectory ? join(given, `sheet.${format.ext}`) : given,
+      path: namesDirectory(out) ? join(given, `sheet.${format.ext}`) : given,
       stdout: false,
     };
   }
@@ -607,37 +624,44 @@ async function generate(flags) {
         ? null
         : String(flags.background);
 
-  /** @type {string[]} */
-  const notes = [...variation.notes];
-  /** @type {Uint8Array} */
-  let data;
-  let route = "composition";
-  let pixels = null;
+  // The render is the published surface's as of 2026.10.31, rather than this
+  // command's: one call per format, with the bytes, the route that answered and
+  // whether it draws the sheet's own face all on the result. Until then this
+  // branched on `format.raster` itself, called `composition.toSVG()` on one side
+  // and imported `rasterizeSheet` by path on the other, and nothing a library
+  // caller reached could do either.
+  //
+  // What stays here is the policy half: the preset's weight cap, and where a
+  // render is allowed to land. Neither is the library's, and the header above
+  // says why.
+  const render = await renderOf(
+    { composition, variation },
+    format.raster
+      ? {
+          format: format.format,
+          route: renderer,
+          scale,
+          quality,
+          ...(background === undefined ? {} : { background }),
+        }
+      : { format: format.format }
+  );
+  const data = render.data;
+  const route = render.route;
+  const pixels = render.pixels;
 
-  if (!format.raster) {
-    if (flags.renderer !== undefined && renderer !== "auto") {
-      // Not an error, because `--format svg --renderer browser` is a
-      // reasonable thing to type and means nothing: the markup is the
-      // composition's own, whoever would have drawn it.
-      notes.push(`--renderer ${renderer} has no effect on SVG: the markup is the composition itself.`);
-    }
-    data = new TextEncoder().encode(composition.toSVG());
-  } else {
-    const raster = await rasterizeSheet(composition, {
-      route: renderer,
-      format: format.route,
-      scale,
-      quality,
-      ...(background === undefined ? {} : { background }),
-    });
-    data = raster.data;
-    route = raster.route;
-    pixels = { width: raster.width, height: raster.height };
-    notes.push(...raster.notes);
+  /** @type {string[]} */
+  const notes = [...render.notes];
+  if (!format.raster && flags.renderer !== undefined && renderer !== "auto") {
+    // Not an error, because `--format svg --renderer browser` is a reasonable
+    // thing to type and means nothing: the markup is the composition's own,
+    // whoever would have drawn it. Said here rather than left to the surface's
+    // own note so it names the flag that was typed.
+    notes.push(`--renderer ${renderer} has no effect on SVG: the markup is the composition itself.`);
   }
 
-  // Publishable is the raster layer's answer and the weight check together. The
-  // layer knows about the alphabet and the floor; the cap is the preset's, and
+  // Publishable is the surface's answer and the weight check together. The
+  // surface knows about the alphabet and the floor; the cap is the preset's, and
   // a file over it is one the recipe should not draft a post from.
   const overCap = data.byteLength > capBytes;
   if (overCap) {
@@ -651,8 +675,10 @@ async function generate(flags) {
     notes.push(`${kb(data.byteLength)} is over the ${kb(PRESET.targetBytes)} target and inside the cap.`);
   }
   // An SVG is the composition itself in the face the page uses, so it is
-  // publishable where a built-in raster is not.
-  const publishable = !overCap && (format.raster ? route === "browser" && scale >= MIN_PUBLISH_SCALE : true);
+  // publishable where a built-in raster is not. That judgement is
+  // `render.publishable`, measured where the alphabet and the floor are known
+  // rather than restated here from the route and the scale.
+  const publishable = !overCap && render.publishable;
 
   const out = flags.out === undefined ? undefined : String(flags.out);
   const target = destinationFor({ entry, format, out, publishable });
@@ -677,12 +703,10 @@ async function generate(flags) {
   };
 
   if (!flags["dry-run"]) {
-    if (target.stdout) {
-      process.stdout.write(data);
-    } else {
-      await mkdir(dirname(target.path), { recursive: true });
-      await writeFile(target.path, data);
-    }
+    // Standard output and a named file are one call, as of 2026.10.31. The
+    // destination is this command's decision and the writing is the surface's,
+    // which is the same division the render above follows.
+    await writeRender(render, target.stdout ? "-" : target.path);
   }
 
   if (flags.json) return { exit: 0, json: result };

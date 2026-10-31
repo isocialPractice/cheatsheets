@@ -259,9 +259,11 @@
  p.full-size a {
   color: var(--accent);
  }
- /* The composed graphic carries its own width and height in sheet pixels,
-    which the script strips so the element scales off the viewBox instead.
-    Without that the 3600px root would overflow the column at every width. */
+ /* The composed graphic carries its own width and height in sheet pixels, which
+    `fragmentFor` strips so the element scales off the viewBox instead. Without
+    that the 3600px root would overflow the column at every width. The fragment
+    carries these two declarations inline as well, so it holds in a page with no
+    stylesheet; the rule stays here because it is where the intent is readable. */
  div.col div.sheet > svg {
   display: block;
   width: 100%;
@@ -378,7 +380,7 @@
 // That is the reason this script is a module and the reason the page now has
 // to be served: `import` and `fetch` are both refused a `file://` document
 // under the same CORS rule, so `php -S localhost:8000` stops being optional.
-import { composeSheet, fetchSheetBrand, prepareAccents } from "./api/cheatsheet/index.mjs";
+import { composeSheet, fetchSheetBrand, fragmentFor, prepareAccents } from "./api/cheatsheet/index.mjs";
 
 // The catalog, by relative path so it resolves under the `/cheatsheets/`
 // project base path on Pages as well as at the root of a local server.
@@ -753,14 +755,18 @@ function drawSheet(entry, doc) {
  const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed, brand });
 
  const markup = composition.toSVG();
- const parsed = new DOMParser().parseFromString(markup, "image/svg+xml");
- const svg = parsed.documentElement;
- // The composition is 3600 square in sheet pixels. The viewBox carries that,
- // so the attributes are dropped and the stylesheet scales the element to the
- // column it sits in.
- svg.removeAttribute("width");
- svg.removeAttribute("height");
- sheetBox.replaceChildren(document.importNode(svg, true));
+ // What an embedded sheet needs doing to it is `fragmentFor`'s since
+ // 2026.10.31, rather than this page's: the composition is 3600 square in sheet
+ // pixels and carries that on the element, the viewBox carries it too, so the
+ // size attributes come off and the element scales to the column it sits in.
+ // Written out here by hand until the output surface published it, which is
+ // what made this the behaviour to lift rather than one to invent.
+ //
+ // `wrap: false` asks for the element alone. The wrapper the published form adds
+ // is a box with `role="img"` and the sheet's title as its name, and this page
+ // already has one: `sheetBox` is that div, and `showSheet` has already named it.
+ const parsed = new DOMParser().parseFromString(fragmentFor(markup, { wrap: false }), "image/svg+xml");
+ sheetBox.replaceChildren(document.importNode(parsed.documentElement, true));
  // The link gets the markup as it was composed, width and height intact, so the
  // tab it opens shows the sheet at its own 3600px rather than at the column's.
  offerFullSize(markup);
