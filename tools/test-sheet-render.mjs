@@ -1,0 +1,491 @@
+// Checks on the output surface: the five formats a composed sheet comes back
+// in, and the one module in the folder that writes anything.
+//
+// The property under test is not that a render produces bytes - every route
+// obviously does - but that **a caller never has to reach past the layer to get
+// them**. Until 2026.10.31 the way out of this API was
+// `composeSheet(doc, options).composition.toSVG()`, which names the drawing
+// surface's own method, and `import ... from "./raster.mjs"`, which named a
+// module `index.mjs` exported nothing from. Both worked. Neither was the
+// published surface, so neither could say what a render was for or what had
+// drawn it, which is the same failure `options.language` was on the way in.
+//
+// So most of what is below is about what the result says: the route that
+// answered, the family that drew, whether the render may be shown to a reader,
+// and where the bytes went.
+//
+// Two of the cases are about what is **not** exported, and they matter more than
+// they look. The page loads `api/cheatsheet/index.mjs` with a bare `import` and
+// no build step, so a module in that file's static graph that reaches a Node
+// builtin fails in a browser at load rather than at the call. `files.mjs` reads
+// `node:fs` and `raster.mjs` resolves a headless browser; the first is reached
+// by path and the second by a dynamic import inside `renderOf`, and the test
+// below is what holds that arrangement in place.
+//
+// The dependency free cases run everywhere. The browser cases resolve Chromium
+// at run time and skip with the install command as their reason, which is the
+// pattern `tools/test-sheet-raster.mjs` settled.
+//
+// Run with: node --test tools/test-sheet-render.mjs
+import { test, after } from "node:test";
+import assert from "node:assert/strict";
+import { readFile, readdir, rm } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import {
+  composeSheet,
+  filenameFor,
+  fragmentFor,
+  renderFragment,
+  renderOf,
+  renderSVG,
+  renderSheet,
+  slugFor,
+  FRAGMENT_CLASS,
+  RASTER_RENDERS,
+  RENDER_EXTENSIONS,
+  RENDER_FORMATS,
+  RENDER_MEDIA_TYPES,
+} from "../api/cheatsheet/index.mjs";
+import { namesDirectory, renderToFile, targetFor, writeRender } from "../api/cheatsheet/files.mjs";
+import { resolveChromium } from "../api/cheatsheet/raster.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const scratch = join(root, ".tmp", "sheet-render-cases");
+
+const { chromium, reason } = await resolveChromium();
+const skip = chromium ? false : reason;
+
+after(async () => {
+  await rm(scratch, { recursive: true, force: true });
+});
+
+/** A sheet with enough rows to fill the panel, so nothing under test is a void. */
+const DOC = {
+  title: "Splicing Array Elements",
+  subtitle: "Splice Array",
+  code: Array.from({ length: 20 }, (_, i) => ({
+    text: `console.log(fruits.splice(${i}, 1));`,
+    role: i % 4 === 3 ? "comment" : "plain",
+  })),
+};
+
+const SEED = "splicing-arrays";
+
+/** The opening `<svg>` tag of some markup. */
+const rootTag = (markup) => markup.slice(markup.indexOf("<svg"), markup.indexOf(">", markup.indexOf("<svg")) + 1);
+
+// --- The canonical output ---------------------------------------------------
+
+test("renderSVG is the composition's own markup, which is what canonical means", () => {
+  // Byte for byte rather than equivalent. An SVG that went through this surface
+  // and one taken off the composition by hand have to be the same file, or the
+  // published route is a second renderer wearing the name of the first.
+  const byHand = composeSheet(DOC, { seed: SEED }).composition.toSVG();
+  assert.equal(renderSVG(DOC, { seed: SEED }), byHand);
+});
+
+test("and renderSheet with no format named is that same SVG, as bytes and as text", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.equal(render.format, "svg");
+  assert.equal(render.mediaType, "image/svg+xml");
+  assert.equal(render.extension, "svg");
+  assert.equal(render.text, renderSVG(DOC, { seed: SEED }));
+  assert.equal(new TextDecoder().decode(render.data), render.text);
+  assert.equal(render.bytes, render.data.byteLength);
+});
+
+test("markup is composed by nothing, so it reports the composition as its route", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.equal(render.route, "composition");
+  assert.equal(render.scale, null);
+  assert.equal(render.pixels, null);
+  // The composition's own size is still reported, in the unit the markup is
+  // written in. Two fields rather than one, because device pixels and
+  // composition pixels are two units and a field whose unit moves with the
+  // format is a field nobody can read.
+  assert.deepEqual(render.size, { width: 3600, height: 3600 });
+});
+
+test("and it is publishable, because it is the sheet in the face the page draws", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.equal(render.publishable, true);
+  // What the markup cannot say is which of the families it names actually drew,
+  // because that is the reader's machine and not the file. A null `resolved` is
+  // that answer rather than a gap in it.
+  assert.deepEqual(render.family.resolved, null);
+  assert.ok(render.family.requested.length > 0, "the render names no font stack at all");
+  assert.match(render.family.how, /resolved by whatever opens it/);
+});
+
+test("the variation comes back with it, so a caller sees what the composition gave way on", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.equal(render.variation.seed, composeSheet(DOC, { seed: SEED }).variation.seed);
+  assert.ok(Array.isArray(render.notes));
+  assert.equal(render.title, "Splicing Array Elements");
+});
+
+// --- The HTML fragment ------------------------------------------------------
+
+test("a fragment drops the XML declaration, which is the one thing the page gets away without", () => {
+  // The page parses its markup as `image/svg+xml` and imports the element, so
+  // it never meets the prolog as HTML. A fragment set as HTML does, and a
+  // browser parsing HTML has nowhere to put one.
+  const markup = renderSVG(DOC, { seed: SEED });
+  assert.ok(markup.startsWith("<?xml"), "the composition no longer writes a declaration to drop");
+  assert.ok(!fragmentFor(markup).includes("<?xml"));
+});
+
+test("and drops the size attributes while keeping the viewBox, so the sheet scales", () => {
+  const tag = rootTag(fragmentFor(renderSVG(DOC, { seed: SEED })));
+  assert.ok(!/\swidth="/.test(tag), tag);
+  assert.ok(!/\sheight="/.test(tag), tag);
+  // The viewBox is what carries the 3600 square once the attributes are gone.
+  // Dropping both without it would leave an element with no intrinsic size at
+  // all, which collapses rather than scaling.
+  assert.match(tag, /viewBox="0 0 3600 3600"/);
+});
+
+test("and carries the two scaling rules inline, so it holds in a page with no stylesheet", () => {
+  // They are `div.col div.sheet > svg` in `index.html`. A fragment is embedded
+  // in a document whose CSS this repository does not write, so the rules travel
+  // with it.
+  const tag = rootTag(fragmentFor(renderSVG(DOC, { seed: SEED })));
+  assert.match(tag, /style="display:block;width:100%;height:auto"/);
+});
+
+test("a style already on the root is kept, with the scaling rules in front of it", () => {
+  // In front rather than over, so the caller's own declarations are the later
+  // ones and win. Last one wins is the whole of the CSS rule being relied on.
+  const tag = rootTag(fragmentFor('<svg viewBox="0 0 10 10" style="outline:1px solid red"></svg>'));
+  assert.match(tag, /style="display:block;width:100%;height:auto;outline:1px solid red"/);
+});
+
+test("the wrapper names the image rather than asking a reader to read the picture", () => {
+  // A cheatsheet is a picture of text. The page already does this to its own
+  // box; the fragment carries it so an embedder does not have to know to.
+  const fragment = renderFragment(DOC, { seed: SEED });
+  assert.match(fragment, new RegExp(`^<div class="${FRAGMENT_CLASS}" role="img" aria-label="`));
+  assert.match(fragment, /aria-label="Splicing Array Elements cheat sheet"/);
+  assert.ok(fragment.trimEnd().endsWith("</div>"));
+});
+
+test("and the class and the label are the caller's to change", () => {
+  const fragment = renderFragment(DOC, { seed: SEED, className: "demo-sheet", label: "A demo" });
+  assert.match(fragment, /^<div class="demo-sheet" role="img" aria-label="A demo">/);
+});
+
+test("a label with markup in it is escaped, because it lands in an attribute", () => {
+  const fragment = fragmentFor('<svg viewBox="0 0 10 10"></svg>', { label: 'a "quoted" <tag> & more' });
+  assert.match(fragment, /aria-label="a &quot;quoted&quot; &lt;tag&gt; &amp; more"/);
+});
+
+test("and an entity the composition already escaped is not escaped a second time", () => {
+  // `&amp;` in a composed title would come back `&amp;amp;` and read literally,
+  // which is the failure a blanket ampersand replacement makes.
+  const fragment = fragmentFor('<svg viewBox="0 0 10 10"><title>Rock &amp; Roll</title></svg>');
+  assert.match(fragment, /aria-label="Rock &amp; Roll cheat sheet"/);
+});
+
+test("`wrap: false` gives the element alone, which is what a page with its own box wants", () => {
+  const bare = fragmentFor(renderSVG(DOC, { seed: SEED }), { wrap: false });
+  assert.ok(bare.startsWith("<svg"), bare.slice(0, 40));
+  assert.ok(!bare.includes("<div"));
+  // And it is still the embeddable form: the declaration and the attributes are
+  // gone whether or not there is a wrapper.
+  assert.ok(!bare.includes("<?xml"));
+  assert.ok(!/\swidth="/.test(rootTag(bare)));
+});
+
+test("the fragment is a wrapper around the canonical markup and not a second renderer", () => {
+  // Everything between the root tag and the close is the composition's own
+  // output, unchanged. The whole claim of the item this closes.
+  const markup = renderSVG(DOC, { seed: SEED });
+  const bare = fragmentFor(markup, { wrap: false });
+  const body = (text) => text.slice(text.indexOf(">", text.indexOf("<svg")) + 1);
+  assert.equal(body(bare), body(markup).trimEnd());
+});
+
+test("markup that is not a composed sheet is refused rather than wrapped", () => {
+  for (const given of ["", "   ", null, 42, "<html><body>not a sheet</body></html>"]) {
+    assert.throws(() => fragmentFor(given), /cheatsheet:/, `${JSON.stringify(given)} was accepted`);
+  }
+});
+
+test("the page reads the fragment from this surface rather than stripping attributes itself", () => {
+  // The anti drift half of the item. The behaviour was written out by hand in
+  // the page, which is what made it worth publishing; a page that kept its own
+  // copy would drift from the published one invisibly, both working.
+  const page = readFileSync(join(root, "index.html"), "utf8");
+  assert.match(page, /fragmentFor\(markup, \{ wrap: false \}\)/);
+  assert.ok(
+    !page.includes('removeAttribute("width")'),
+    "the page still takes the size attributes off by hand"
+  );
+});
+
+// --- Every render comes back as data ----------------------------------------
+
+test("every format returns its bytes, which is what lets a caller embed without a path", async () => {
+  const cases = [{ format: "svg" }, { format: "html" }, { format: "png", route: "builtin", scale: 0.05 }];
+  for (const options of cases) {
+    const render = await renderSheet(DOC, { seed: SEED, ...options });
+    assert.ok(render.data instanceof Uint8Array, `${options.format} did not come back as bytes`);
+    assert.ok(render.data.byteLength > 0, `${options.format} came back empty`);
+    assert.equal(render.bytes, render.data.byteLength, options.format);
+    assert.equal(render.mediaType, RENDER_MEDIA_TYPES[options.format]);
+  }
+});
+
+test("a raster has no text form, and markup does", async () => {
+  // `text` is the string where there is one and null where there is not, rather
+  // than a decode of arbitrary bytes. A JPEG decoded as UTF-8 is not a string
+  // anybody wants.
+  assert.equal(typeof (await renderSheet(DOC, { seed: SEED })).text, "string");
+  const png = await renderSheet(DOC, { seed: SEED, format: "png", route: "builtin", scale: 0.05 });
+  assert.equal(png.text, null);
+});
+
+test("the public surface reaches no Node builtin, which is what the page's bare import needs", async () => {
+  // The invariant the whole arrangement rests on. `files.mjs` reads `node:fs`
+  // and `raster.mjs` resolves Playwright, so a static import of either from
+  // anything in this graph would fail a page at load rather than at the call.
+  const folder = join(root, "api", "cheatsheet");
+  const seen = new Set();
+  const builtins = [];
+  /** @param {string} name A module file in `api/cheatsheet/`. */
+  const walk = (name) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const source = readFileSync(join(folder, name), "utf8");
+    for (const [, specifier] of source.matchAll(
+      // `import x from "y"`, `export x from "y"` and a bare `import "y"`. A
+      // dynamic `import("y")` has no `from` and no leading keyword boundary of
+      // its own, so it is deliberately not matched: that is the form `renderOf`
+      // reaches `raster.mjs` by, and the whole point of reaching it that way.
+      /(?:^|\n)\s*(?:import|export)\s+(?:[^;'"]*?\sfrom\s+)?["']([^"']+)["']/g
+    )) {
+      if (specifier.startsWith("node:")) builtins.push(`${name} -> ${specifier}`);
+      if (specifier.startsWith("./")) walk(specifier.slice(2));
+    }
+  };
+  walk("index.mjs");
+  assert.deepEqual(builtins, [], `the published surface statically imports a Node builtin`);
+  // And the two that do are genuinely outside that graph rather than merely
+  // unreached by this walk.
+  assert.ok(seen.has("render.mjs"), "the walk never reached the output surface, so it proved nothing");
+  assert.ok(!seen.has("files.mjs"), "files.mjs is in the static graph of index.mjs");
+  assert.ok(!seen.has("raster.mjs"), "raster.mjs is in the static graph of index.mjs");
+  // Which is only interesting because they are reachable at all.
+  const surface = await import("../api/cheatsheet/index.mjs");
+  assert.equal(typeof surface.renderSheet, "function");
+});
+
+// --- The route is taken from the call, and named on the result ---------------
+
+test("the built-in route answers everywhere and says it may not be published", async () => {
+  const render = await renderSheet(DOC, { seed: SEED, format: "png", route: "builtin", scale: 0.05 });
+  assert.equal(render.route, "builtin");
+  assert.equal(render.requestedRoute, "builtin");
+  assert.equal(render.publishable, false);
+  assert.equal(render.family.resolved, null);
+  assert.ok(
+    render.notes.some((note) => note.includes("single stroke alphabet")),
+    `the notes were ${JSON.stringify(render.notes)}`
+  );
+  // Device pixels this time, off the scale that was asked for.
+  assert.deepEqual(render.pixels, { width: 180, height: 180 });
+  assert.equal(render.scale, 0.05);
+});
+
+test("the browser route draws the real face and says which family it got", { skip }, async () => {
+  const render = await renderSheet(DOC, { seed: SEED, format: "webp", route: "browser", scale: 0.4 });
+  assert.equal(render.route, "browser");
+  assert.equal(render.publishable, true);
+  assert.ok(render.family.resolved, "the browser route named no family");
+  assert.ok(
+    render.family.requested.includes(render.family.resolved),
+    `${render.family.resolved} is not one of ${JSON.stringify(render.family.requested)}`
+  );
+  assert.match(render.family.how, /measured/);
+});
+
+test("a route named for markup is a note rather than an error, because it means nothing", async () => {
+  // `format: "svg", route: "browser"` is a reasonable thing to write: the markup
+  // is the composition's own, whoever would have drawn it.
+  const render = await renderSheet(DOC, { seed: SEED, route: "browser" });
+  assert.equal(render.route, "composition");
+  assert.ok(
+    render.notes.some((note) => note.includes("has no effect on SVG")),
+    `the notes were ${JSON.stringify(render.notes)}`
+  );
+});
+
+test("and so is a scale, for the same reason", async () => {
+  const render = await renderSheet(DOC, { seed: SEED, format: "html", scale: 2 });
+  assert.ok(
+    render.notes.some((note) => note.includes("no pixels to apply it to")),
+    `the notes were ${JSON.stringify(render.notes)}`
+  );
+});
+
+test("a format with no consumer here is refused, not substituted", async () => {
+  // A caller who writes `sheet.gif` and receives a PNG has a file that lies
+  // about itself.
+  for (const format of ["gif", "tiff", "constructor", "__proto__"]) {
+    await assert.rejects(
+      () => renderSheet(DOC, { seed: SEED, format }),
+      /is not a format this surface renders/,
+      format
+    );
+  }
+  assert.deepEqual(RENDER_FORMATS, ["svg", "html", "png", "jpeg", "webp"]);
+  assert.deepEqual(RASTER_RENDERS, ["png", "jpeg", "webp"]);
+});
+
+test("an option this surface does not take is named back rather than ignored", async () => {
+  // Ignored is the failure that cannot be seen: a caller who wrote `scal: 0.4`
+  // and silently got the full 3600 square has a render nothing reports as wrong.
+  await assert.rejects(() => renderSheet(DOC, { scal: 0.4 }), /`options\.scal` is not an option/);
+  await assert.rejects(() => renderSheet(DOC, { renderer: "browser" }), /`options\.renderer` is not/);
+  assert.throws(() => renderSVG(DOC, { format: "png" }), /renderSVG renders SVG/);
+  assert.throws(() => renderSVG(DOC, { scale: 2 }), /has no meaning for SVG/);
+  assert.throws(() => renderFragment(DOC, { format: "png" }), /renderFragment renders HTML/);
+  // A fragment is markup too, so the raster options are as meaningless to it as
+  // they are to SVG - and it is the door with no notes to carry them on, since
+  // it hands back a string. It took them and dropped them until 2026.10.31,
+  // which is the one failure `splitOptions` exists to prevent: `scale` ignored
+  // reads as a fragment at the size that was asked for and is not one.
+  for (const option of [{ scale: 2 }, { quality: 10 }, { background: "red" }, { route: "browser" }]) {
+    assert.throws(
+      () => renderFragment(DOC, { seed: SEED, ...option }),
+      /has no meaning for a fragment/,
+      Object.keys(option)[0]
+    );
+  }
+  // And the three a fragment does take still pass through it.
+  assert.ok(renderFragment(DOC, { seed: SEED, wrap: false, className: "c", label: "l" }).startsWith("<svg"));
+});
+
+test("renderOf takes the pair composeSheet returns, and says so when it is handed less", async () => {
+  const composed = composeSheet(DOC, { seed: SEED });
+  const render = await renderOf(composed);
+  assert.equal(render.text, renderSVG(DOC, { seed: SEED }));
+  // A bare composition cannot say what stack it asked for or what it gave way
+  // on, so a render made from one would look like a render with nothing to say.
+  await assert.rejects(() => renderOf(composed.composition), /composeSheet returns/);
+  await assert.rejects(() => renderOf({ composition: composed.composition }), /no variation/);
+  // And a compose option has no meaning once the composition exists.
+  await assert.rejects(() => renderOf(composed, { seed: "other" }), /composed with rather than rendered with/);
+});
+
+// --- Writing it somewhere ---------------------------------------------------
+
+test("a named path is written exactly there", async () => {
+  const path = join(scratch, "named", "one.svg");
+  const { written } = await renderToFile(DOC, path, { seed: SEED });
+  assert.equal(written.path, path);
+  assert.equal(written.wrote, true);
+  assert.equal(written.derived, false);
+  assert.equal(await readFile(path, "utf8"), renderSVG(DOC, { seed: SEED }));
+});
+
+test("a directory gets a filename derived from the sheet's own title", async () => {
+  const folder = join(scratch, "derived");
+  const { written } = await renderToFile(DOC, folder, { seed: SEED });
+  assert.equal(written.derived, true);
+  assert.equal(written.path, join(folder, "splicing-array-elements.svg"));
+  assert.deepEqual(await readdir(folder), ["splicing-array-elements.svg"]);
+});
+
+test("and a name given with it wins over the derived one", async () => {
+  const folder = join(scratch, "named-in-folder");
+  const { written } = await renderToFile(DOC, folder, { seed: SEED, name: "sheet" });
+  assert.equal(written.path, join(folder, "sheet.svg"));
+  assert.equal(written.derived, false);
+});
+
+test("a dot directory is a directory, not a file with a long extension", async () => {
+  // `.tmp` ends in `.tmp`, so an extension test that did not strip the leading
+  // dots read it as a file and failed the write with `EISDIR`. The rule lives
+  // in `files.mjs` now, and `tools/cheatsheet.mjs` reads it from there.
+  const render = await renderSheet(DOC, { seed: SEED });
+  for (const given of [".tmp", ".tmp/", ".tmp/.staging"]) {
+    assert.equal(namesDirectory(given), true, given);
+  }
+  for (const given of [".tmp/.hidden.webp", "out/one.svg", "sheet.png"]) {
+    assert.equal(namesDirectory(given), false, given);
+  }
+  const where = targetFor(render, ".tmp/.staging", { root, name: "sheet" });
+  assert.equal(where.path, join(root, ".tmp", ".staging", "sheet.svg"));
+});
+
+test("null writes nothing and hands the bytes back, which is the in-memory case", async () => {
+  const before = await readdir(scratch).catch(() => []);
+  const render = await renderSheet(DOC, { seed: SEED, format: "html" });
+  const written = await writeRender(render, null);
+  assert.equal(written.path, null);
+  assert.equal(written.wrote, false);
+  // The bytes come back on every route, written or not, so a caller that wants
+  // the file and the data never reads the file back.
+  assert.equal(written.data, render.data);
+  assert.equal(written.bytes, render.bytes);
+  // And nothing appeared anywhere, which is the half a null path is for.
+  assert.deepEqual(await readdir(scratch).catch(() => []), before);
+});
+
+test("standard output is a target like any other, named `-`", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.deepEqual(targetFor(render, "-"), { path: "-", stdout: true, derived: false });
+});
+
+test("and a target that is none of the four is refused", async () => {
+  const render = await renderSheet(DOC, { seed: SEED });
+  assert.throws(() => targetFor(render, "   "), /a render target is a file, a directory/);
+  await assert.rejects(() => writeRender({ data: "not bytes" }), /carries its bytes as `data`/);
+});
+
+test("a filename is the title slugged, and a title that slugs to nothing is `sheet`", () => {
+  // A render's format and title are all a filename is read off, so the pair is
+  // written out here rather than produced: the built-in route encodes PNG only,
+  // and asking the browser route for a WebP to read a string off it would make
+  // this case skip on a bare clone for no reason.
+  const render = { format: "webp", title: DOC.title };
+  assert.equal(filenameFor(render, undefined), "splicing-array-elements.webp");
+  assert.equal(filenameFor(render, "sheet"), "sheet.webp");
+  assert.equal(slugFor("Splicing Array Elements"), "splicing-array-elements");
+  assert.equal(slugFor("  ---  "), "sheet");
+  assert.equal(slugFor(null), "sheet");
+  assert.equal(slugFor("Rock & Roll: Vol. 2"), "rock-roll-vol-2");
+  assert.throws(() => filenameFor({ format: "gif" }), /a format this surface writes/);
+  // `RENDER_EXTENSIONS` is an object literal, so a truth test on the lookup let
+  // every name on `Object.prototype` through: `format: "constructor"` named a
+  // file `splicing-array-elements.function Object() { [native code] }` and the
+  // error above was never thrown. The same guard `formatNamed` has, here too.
+  for (const format of ["constructor", "toString", "valueOf", "__proto__", undefined, 7]) {
+    assert.throws(
+      () => filenameFor({ format, title: DOC.title }),
+      /a format this surface writes/,
+      JSON.stringify(format)
+    );
+  }
+});
+
+test("the extension a format is written under is the one the social recipe watches", () => {
+  // The one place the format's name and the file's name differ: `jpeg` names the
+  // codec, and `**/*.{jpg,webp}` matches the file.
+  assert.equal(RENDER_EXTENSIONS.jpeg, "jpg");
+  for (const format of RENDER_FORMATS) {
+    assert.equal(typeof RENDER_EXTENSIONS[format], "string", format);
+  }
+});
+
+test("a write creates the folder it is given, including one that is not there yet", async () => {
+  const path = join(scratch, "deep", "deeper", "still", "one.svg");
+  const { written } = await renderToFile(DOC, path, { seed: SEED });
+  assert.equal(written.path, path);
+  assert.ok((await readFile(path, "utf8")).startsWith("<?xml"));
+  assert.ok(path.split(sep).includes("still"));
+});

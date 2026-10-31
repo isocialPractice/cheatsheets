@@ -4,6 +4,98 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.10.31]
+
+### Added
+
+- **The cheatsheet API has an output surface.** `renderSVG`, `renderFragment`,
+  `renderSheet` and `renderOf` are exported from `api/cheatsheet/index.mjs`, and
+  between them they are every way out of the layer. Until now a caller reached
+  past it for all of them: `composeSheet(doc, options).composition.toSVG()`
+  names the drawing surface's own method, and pixels meant importing
+  `api/cheatsheet/raster.mjs` by path, because the published surface exported
+  nothing from it. That is the same leak `options.language` was on the way in,
+  pointing the other way - and it had the same consequence, that the published
+  API could not say what a render was for or what had drawn it.
+- **Five formats, one of them canonical.** `svg` is the composition itself in
+  the face the markup names, so it needs neither a renderer nor an encoder and
+  is the default; `html` is that markup made embeddable; `png`, `jpeg` and
+  `webp` are a photograph of it by either raster route. A format with no
+  consumer here is refused rather than substituted, because a caller who writes
+  `sheet.gif` and receives a PNG has a file that lies about itself.
+- **Every render comes back as data**, as `data` on every format with `text`
+  beside it where the format has a string form, so a sheet is embedded in a
+  response, a data URL or a test without a path being named. The result also
+  says what answered: `route` is `composition`, `browser` or `builtin`,
+  `family` is the stack asked for beside the one that drew, and `publishable`
+  is whether what came back draws the face the design language measured. What
+  `publishable` does not mean is "may be posted" - a weight cap and a
+  destination are policy and stay with whoever publishes.
+- **An HTML fragment, which is four things done to the canonical markup** and
+  not a second renderer. The XML declaration comes off, because a browser
+  parsing HTML has nowhere to put a prolog; the root's `width` and `height`
+  come off so the element scales off its viewBox rather than overflowing its
+  column; the two scaling rules travel inline, because the embedding
+  document's CSS is not this repository's to write; and the wrapper is
+  `role="img"` named by the sheet's own title, since a cheatsheet is a picture
+  of text. Three of the four were written out by hand in `index.html`, which is
+  what made this worth publishing rather than inventing.
+- **`api/cheatsheet/files.mjs`, the one module in the folder that writes
+  anything.** `writeRender` takes a named path, a directory under a filename
+  derived from the sheet's own title, `-` for standard output, or `null` for
+  none at all - one argument for four destinations, because they are four
+  values of the same question. `renderToFile` is the whole route from a
+  document to a file. It is a separate import for the reason the drawing
+  surface keeps its own writer behind `graphic-design/files`: the page loads
+  `index.mjs` with a bare `import` and no build step, so a Node builtin
+  anywhere in that file's static graph would fail in a browser at load rather
+  than at the call. A test walks that graph and holds it.
+- **`namesDirectory`**, which is the rule that tells a directory from a file
+  with its leading dots stripped first. It was `tools/cheatsheet.mjs`'s own,
+  found there by a write that failed with `EISDIR` on `--out .tmp`; the command
+  reads it from the surface now, so there is one copy of a rule that cost a
+  failed write to find.
+
+### Changed
+
+- **`index.html` reads its fragment from the published surface** rather than
+  stripping the size attributes itself. The behaviour is unchanged; what
+  changed is that the page and the library can no longer drift apart while both
+  keep working, which is the failure a hand copy makes invisibly.
+- **`tools/cheatsheet.mjs` renders and writes through the surface too.** It
+  branched on the format itself, called `composition.toSVG()` on one side and
+  imported `rasterizeSheet` by path on the other, and judged `publishable` from
+  the route and the scale a second time; all three are the surface's now, and
+  the command no longer imports `api/cheatsheet/raster.mjs` at all. What stays
+  with the command is the half that is policy: the catalog lookup, the preset,
+  the weight cap, and the rule that a publishable render goes beside its own
+  `sheet.json` and anything else goes to `.tmp/`.
+- **The format table's `route` field is `format`**, the name the output surface
+  knows a format by. `jpg` on the command line and on disk is still `jpeg` to
+  the surface, which names the codec rather than the extension, and
+  `RENDER_EXTENSIONS` is where that one difference now lives.
+
+### Fixed
+
+- **`filenameFor` read its extension off the lookup with a truth test**, so
+  every name on `Object.prototype` passed for a format: `filenameFor({ format:
+  "constructor", title: "Splicing Array Elements" })` returned
+  `splicing-array-elements.function Object() { [native code] }` instead of the
+  error it documents, and `targetFor` resolved that into a path. It is
+  `Object.hasOwn` now, the guard `formatNamed` beside it already carried for the
+  same reason.
+- **`renderFragment` took the raster options and dropped them.** `scale`,
+  `quality`, `background` and `route` have no meaning for markup, and a fragment
+  is the one door that cannot report them as a note because it hands back a
+  string. `renderFragment(doc, { scale: 2 })` returned a fragment at the
+  composition's own size with nothing saying the option had been ignored, where
+  `renderSVG` refuses the same thing. It refuses it too.
+- **A test that asserted the format table's source text now asserts the
+  property.** It matched `route: "jpeg"` in `tools/cheatsheet.mjs` as a string,
+  so renaming the field turned a passing test red over something that had not
+  moved. It renders a `jpg` and reads the extension off the written file and
+  the marker out of its bytes instead, which is the claim it was always making.
+
 ## [2026.10.30]
 
 ### Changed
