@@ -39,12 +39,13 @@
 // what the repository carries as reference.
 
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
 import { sheetBrandFrom, BRAND_FILES } from "../api/cheatsheet/brand.mjs";
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
+import { writeRender } from "../api/cheatsheet/files.mjs";
+import { renderOf } from "../api/cheatsheet/render.mjs";
 import { SEED, splicingArrays } from "./splicing-arrays.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -128,18 +129,32 @@ async function main(argv) {
   const out = argv.includes("--out") ? argv[argv.indexOf("--out") + 1] : ".tmp/examples";
   // The PNG is off by default because the built-in rasterizer draws the
   // stroked alphabet rather than the sheet's face, so it is a shape level
-  // check and not something to look at. `api/cheatsheet/raster.mjs` is the
-  // route to a raster anyone publishes.
+  // check and not something to look at. `examples/render-formats.mjs` is the
+  // example that takes the route anyone publishes.
   const formats = argv.includes("--raster") ? ["svg", "png"] : ["svg"];
 
-  const { composition, variation } = reproduce(await brandAssets());
-  const written = await writeComposition(composition, out, "splicing-arrays", { formats });
+  const composed = reproduce(await brandAssets());
 
-  console.log(report(variation).join("\n"));
+  console.log(report(composed.variation).join("\n"));
   console.log("");
-  console.log(`svg               ${written.svg}`);
-  if (written.png) console.log(`png               ${written.png} (built-in alphabet, not the sheet's face)`);
-  for (const warning of written.warnings) console.log(`warning           ${warning}`);
+  // Rendered and written through `api/cheatsheet/` rather than through the
+  // drawing surface's own `writeComposition`, as of 2026.11.01. The published
+  // route is `renderOf` for the bytes and `writeRender` for the file, and an
+  // example that reached past it to the surface underneath was demonstrating a
+  // door this layer closed on 2026.10.31.
+  for (const format of formats) {
+    const render = await renderOf(composed, format === "png" ? { format, route: "builtin" } : { format });
+    const written = await writeRender(render, out, { name: "splicing-arrays" });
+    const aside = format === "png" ? " (built-in alphabet, not the sheet's face)" : "";
+    // Repository relative, for the reason `render-formats.mjs` records: an
+    // absolute path is the one thing in this report nobody can compare against
+    // anything, and on Windows it carries the reader's own home folder.
+    const shown = relative(root, written.path).split(sep).join("/");
+    console.log(`${format.padEnd(18)}${shown}${aside}`);
+    for (const note of render.notes) {
+      if (!composed.variation.notes.includes(note)) console.log(`note              ${note}`);
+    }
+  }
 }
 
 export { main };

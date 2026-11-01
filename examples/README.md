@@ -1,28 +1,38 @@
 # Worked examples
 
-Two scripts over one document. The first reproduces an existing cheatsheet
-from that document; the second takes the same document through a second theme.
-The pair is what the eleven kept images in `javaScriptArrays/` are for: the
-sheets are no longer the product, they are the reference the generated ones are
-measured against.
+Three scripts over one document. The first reproduces an existing cheatsheet
+from that document; the second takes the same document through a second theme;
+the third takes it out through every format the API renders. The first pair is
+what the eleven kept images in `javaScriptArrays/` are for: the sheets are no
+longer the product, they are the reference the generated ones are measured
+against.
 
-Nothing has to be installed. Both run on a bare clone.
+Nothing has to be installed. All three run on a bare clone - the two formats
+that need a browser report why they could not rather than failing the run.
 
 ```bash
 node examples/reproduce-sheet.mjs
 node examples/restyle-sheet.mjs
+node examples/render-formats.mjs
 ```
 
-Each writes an SVG to `.tmp/examples/`, which this repository ignores - the
-output is a demonstration, not an artifact. `--out <dir>` sends it elsewhere,
-and `--raster` writes a PNG beside it.
+Each writes into `.tmp/examples/`, which this repository ignores - the output is
+a demonstration, not an artifact. `--out <dir>` sends it elsewhere, and on the
+first two `--raster` writes a PNG beside the SVG.
 
 | File | What it is |
 | --- | --- |
-| `splicing-arrays.mjs` | The document both examples compose, and the seed they compose it at |
+| `splicing-arrays.mjs` | The document all three examples compose, and the seed they compose it at |
 | `reproduce-sheet.mjs` | The document through the recorded design language |
 | `ember-theme.mjs` | A second palette, as a partial theme over the recorded one |
 | `restyle-sheet.mjs` | The same document, the same seed, through that theme |
+| `render-formats.mjs` | The same composition through all five output formats |
+
+**Every example writes through `api/cheatsheet/`**, as of 2026.11.01. The first
+two used `writeComposition` from the drawing surface underneath, which worked
+and was a hand copy of the route this layer publishes: `renderOf` for the bytes
+and `writeRender` for the file. An example that reaches past the surface it is
+demonstrating documents a door rather than the one that was built.
 
 ## 1. Reproducing a sheet
 
@@ -199,6 +209,97 @@ at 2.80:1, and it carries a darker amber for text that has to be read on a
 light ground. A theme that skipped that would leave `readableInk` silently
 inert under it.
 
+## 3. One render per output format
+
+`render-formats.mjs` is the example for the **output** surface, the way the two
+above are examples for the input one. It composes the document once and renders
+it five times:
+
+```bash
+node examples/render-formats.mjs
+node examples/render-formats.mjs --format webp --out .tmp/examples/formats
+```
+
+| Format | What it is | Behind it | On a bare clone |
+| --- | --- | --- | --- |
+| `svg` | The composition itself, in the face the markup names | Nothing. `toSVG()` is the whole of it | Renders |
+| `html` | That markup made embeddable in a page | A string transform, no second renderer | Renders |
+| `png` | Pixels, by either route | A browser, or the built-in single stroke alphabet | Renders, and says which route answered |
+| `jpeg` | The same, through a codec the engine carries | A browser only | Reports why it could not |
+| `webp` | The same, and what a social post is drafted from | A browser only | Reports why it could not |
+
+**Composed once, rendered five times.** `renderOf` takes the pair
+`composeSheet` already returned, so composing - which is the expensive half -
+happens once for all five. `renderSheet(doc, options)` is the one-call form and
+is what a caller with a single format wants:
+
+```js
+import { renderSheet } from "../api/cheatsheet/index.mjs";
+
+const render = await renderSheet(doc, { format: "webp", route: "auto", quality: 80 });
+render.data        // the bytes, on every format
+render.route       // which renderer actually answered
+render.publishable // whether it draws the face the design language measured
+```
+
+Three things in the report are worth reading rather than skimming.
+
+**`drawn by` is the answer, not a request.** `route: "auto"` prefers a browser
+and falls back to the built-in alphabet where it can, and a file that does not
+say which one made it cannot be reviewed against the design language. The
+example names `auto` on all three rasters for that reason: naming `browser`
+would make it fail where there is none, and naming `builtin` would draw the
+stroked alphabet on a machine that could have drawn the real face.
+
+**`family` is `null` for markup, and that is an answer.** An SVG names a stack
+of families and whoever opens it resolves the name, so there is no family for the
+file to report. A raster has a renderer to ask, and the browser route asks it -
+which is why the `png`, `jpeg` and `webp` rows name a face and the first two
+say the reader's machine will decide.
+
+**`publishable` is about the face, not about permission.** It means the render
+draws the face the design language measured, so a reader looking at it is
+looking at the sheet. A weight cap, a destination and a watch pattern are
+policy and belong to whoever is publishing - the preset in `CONTRIBUTING.md` is
+`tools/cheatsheet.mjs`'s, and the formats a post is drafted from are the social
+recipe's.
+
+### The fragment has three doors and one transform
+
+`html` is the one format with a second entry point, because a page wants the
+markup rather than the bytes:
+
+| Call | Takes | Gives back |
+| --- | --- | --- |
+| `fragmentFor(markup, options)` | Markup already in hand | The fragment |
+| `renderFragment(doc, options)` | A document | The fragment, composed first |
+| `renderSheet(doc, { format: "html" })` | A document | The same fragment, as bytes |
+
+The fragment is the canonical markup with the four things a page has to do to it
+done already: the XML declaration off, the width and height attributes off, the
+two scaling rules inline so it holds in a page with no stylesheet, and a wrapper
+carrying an accessible name. `index.html` reads its sheets this way rather than
+stripping the attributes itself.
+
+### Writing is a second import, on purpose
+
+`writeRender` is in `api/cheatsheet/files.mjs` and is not exported from
+`index.mjs`:
+
+```js
+import { writeRender } from "../api/cheatsheet/files.mjs";
+
+await writeRender(render, "out/");   // out/<title slugged>.<ext>
+await writeRender(render, null);     // nothing written; the bytes come back
+```
+
+That module reads `node:fs`, and the page loads the surface with a bare
+`import` and no build step - so a Node builtin in the static graph of
+`index.mjs` would fail a browser at load rather than at the call. The `null`
+case is the one a test and a server response both want: a render is already in
+memory by the time it reaches a writer, so "write it nowhere" is the honest
+shape of that request.
+
 ## Where to read next
 
 - [the drawing surface's own reference](https://isocialpractice.github.io/napkin-sketch/) - the drawing
@@ -207,3 +308,5 @@ inert under it.
   and **Composing a sheet** for the algorithm that draws to it.
 - `tools/test-worked-examples.mjs` - these examples under test, so a reader who
   runs them gets what this file says they will.
+- `tools/cheatsheet.mjs --document <path>` - the same output surface from a
+  command line, over a JSON document rather than a module.

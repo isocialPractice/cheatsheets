@@ -28,12 +28,16 @@
 // loaded, every token it coloured. The refusal is about the input; the table is
 // about the output.
 
-import { pathToFileURL } from "node:url";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
 import { composeSheet } from "../api/cheatsheet/compose.mjs";
+import { writeRender } from "../api/cheatsheet/files.mjs";
+import { renderOf } from "../api/cheatsheet/render.mjs";
 import { EMBER, emberTheme } from "./ember-theme.mjs";
 import { SEED, splicingArrays } from "./splicing-arrays.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
  * Composes the same document through the second theme.
@@ -110,7 +114,6 @@ async function main(argv) {
 
   const recorded = composeSheet(splicingArrays, { seed: SEED });
   const themed = restyle();
-  const written = await writeComposition(themed.composition, out, `splicing-arrays.${EMBER}`, { formats });
 
   const sameGeometry =
     JSON.stringify(geometryOf(recorded.variation)) === JSON.stringify(geometryOf(themed.variation));
@@ -129,8 +132,19 @@ async function main(argv) {
   console.log(contrastTable(themed.variation.contrast).join("\n"));
   console.log("");
   console.log(`contrast holds    ${themed.variation.contrastHolds}`);
-  console.log(`svg               ${written.svg}`);
-  if (written.png) console.log(`png               ${written.png} (built-in alphabet, not the sheet's face)`);
+  // Through `api/cheatsheet/` rather than the drawing surface's own writer, for
+  // the reason `reproduce-sheet.mjs` records: the published route is `renderOf`
+  // and `writeRender`, and an example reaching past it demonstrates a door this
+  // layer closed.
+  for (const format of formats) {
+    const render = await renderOf(themed, format === "png" ? { format, route: "builtin" } : { format });
+    const written = await writeRender(render, out, { name: `splicing-arrays.${EMBER}` });
+    const aside = format === "png" ? " (built-in alphabet, not the sheet's face)" : "";
+    // Repository relative, as in the other two examples: an absolute path is
+    // the one thing in this report nobody can compare against anything.
+    const shown = relative(root, written.path).split(sep).join("/");
+    console.log(`${format.padEnd(18)}${shown}${aside}`);
+  }
   for (const note of themed.variation.notes) console.log(`note              ${note}`);
 }
 

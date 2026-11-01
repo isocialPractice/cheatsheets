@@ -22,6 +22,17 @@
 // by path and the second by a dynamic import inside `renderOf`, and the test
 // below is what holds that arrangement in place.
 //
+// Since 2026.11.01 that walk **crosses the folder boundary**, down through the
+// vendored drawing surface and its chunks, and the two entries the accent reader
+// loads on demand are walked as roots of their own. The page loads all of it
+// from this tree with nothing installed, so a builtin or a bare specifier one
+// hop past `api/cheatsheet/` fails it exactly as one inside would.
+//
+// The last section is the other direction through `files.mjs`: a document read
+// from a JSON file. `readDocument` is the object half of that model and belongs
+// to `tools/test-sheet-models.mjs`; what is here is that JSON is the only
+// format, and that a file is refused the way a literal is.
+//
 // The dependency free cases run everywhere. The browser cases resolve Chromium
 // at run time and skip with the install command as their reason, which is the
 // pattern `tools/test-sheet-raster.mjs` settled.
@@ -29,9 +40,9 @@
 // Run with: node --test tools/test-sheet-render.mjs
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFile, readdir, rm } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -49,7 +60,13 @@ import {
   RENDER_FORMATS,
   RENDER_MEDIA_TYPES,
 } from "../api/cheatsheet/index.mjs";
-import { namesDirectory, renderToFile, targetFor, writeRender } from "../api/cheatsheet/files.mjs";
+import {
+  namesDirectory,
+  readDocumentFile,
+  renderToFile,
+  targetFor,
+  writeRender,
+} from "../api/cheatsheet/files.mjs";
 import { resolveChromium } from "../api/cheatsheet/raster.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,6 +78,13 @@ const skip = chromium ? false : reason;
 after(async () => {
   await rm(scratch, { recursive: true, force: true });
 });
+
+/** Whether a path is there at all. */
+const exists = (path) =>
+  stat(path).then(
+    () => true,
+    () => false
+  );
 
 /** A sheet with enough rows to fill the panel, so nothing under test is a void. */
 const DOC = {
@@ -248,39 +272,134 @@ test("a raster has no text form, and markup does", async () => {
   assert.equal(png.text, null);
 });
 
+/**
+ * The static import graph of one or more entry files, as repository relative
+ * POSIX paths, with anything in it that a browser cannot take.
+ *
+ * **It crosses folder boundaries**, which is the half that was missing until
+ * 2026.11.01: the walk resolved `./` specifiers inside `api/cheatsheet/` and
+ * stopped there, so a `node:fs` reached one hop further - through the vendored
+ * drawing surface the page draws by - would have passed it. A specifier is now
+ * resolved against the directory of the file that wrote it, the way the runtime
+ * resolves one.
+ *
+ * Two things it reports rather than asserts, because the two failures are
+ * different:
+ *
+ * | Reported | What it would mean |
+ * | --- | --- |
+ * | `builtins` | A page fails at load: there is no `node:fs` in a browser |
+ * | `bare` | A page fails at load for a second reason: a bare specifier needs an install or an import map |
+ *
+ * A dynamic `import("y")` is deliberately not matched. That is the form
+ * `renderOf` reaches `raster.mjs` by and `prepareAccents` reaches the accent
+ * reader by, and keeping it out of this walk is the whole point of reaching
+ * them that way. The two entries that *are* reached dynamically are walked as
+ * their own roots below.
+ *
+ * @param {string[]} entries Repository relative paths.
+ * @returns {{ seen: string[], builtins: string[], bare: string[] }}
+ */
+function staticGraph(entries) {
+  const seen = new Set();
+  const builtins = [];
+  const bare = [];
+  const queue = entries.map((entry) => resolve(root, entry));
+  while (queue.length > 0) {
+    const file = queue.pop();
+    const name = relative(root, file).split(sep).join("/");
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const source = readFileSync(file, "utf8");
+    for (const [, specifier] of source.matchAll(
+      // `import x from "y"`, `export x from "y"` and a bare `import "y"`, in
+      // both of the shapes this tree is written in. `\bfrom` rather than
+      // `\sfrom`, because the vendored files are a minified build: they write
+      // `import{a as b}from"../chunks/x.js";import{...}from"..."`, with no
+      // space in front of `from` and a `;` where a hand written file has a
+      // newline. The boundary set is start of file, newline or `;` and nothing
+      // else, which is what keeps a line comment out - every fake import in
+      // this tree is in a `//` or ` * ` documentation block, and neither of
+      // those characters is whitespace after a newline.
+      /(?:^|[\n;])\s*(?:import|export)\s*(?:[^;'"]*?\bfrom\s*)?["']([^"']+)["']/g
+    )) {
+      if (specifier.startsWith("node:")) {
+        builtins.push(`${name} -> ${specifier}`);
+        continue;
+      }
+      if (specifier.startsWith(".")) {
+        queue.push(resolve(dirname(file), specifier));
+        continue;
+      }
+      bare.push(`${name} -> ${specifier}`);
+    }
+  }
+  return { seen: [...seen].sort(), builtins, bare };
+}
+
 test("the public surface reaches no Node builtin, which is what the page's bare import needs", async () => {
   // The invariant the whole arrangement rests on. `files.mjs` reads `node:fs`
   // and `raster.mjs` resolves Playwright, so a static import of either from
   // anything in this graph would fail a page at load rather than at the call.
-  const folder = join(root, "api", "cheatsheet");
-  const seen = new Set();
-  const builtins = [];
-  /** @param {string} name A module file in `api/cheatsheet/`. */
-  const walk = (name) => {
-    if (seen.has(name)) return;
-    seen.add(name);
-    const source = readFileSync(join(folder, name), "utf8");
-    for (const [, specifier] of source.matchAll(
-      // `import x from "y"`, `export x from "y"` and a bare `import "y"`. A
-      // dynamic `import("y")` has no `from` and no leading keyword boundary of
-      // its own, so it is deliberately not matched: that is the form `renderOf`
-      // reaches `raster.mjs` by, and the whole point of reaching it that way.
-      /(?:^|\n)\s*(?:import|export)\s+(?:[^;'"]*?\sfrom\s+)?["']([^"']+)["']/g
-    )) {
-      if (specifier.startsWith("node:")) builtins.push(`${name} -> ${specifier}`);
-      if (specifier.startsWith("./")) walk(specifier.slice(2));
-    }
-  };
-  walk("index.mjs");
-  assert.deepEqual(builtins, [], `the published surface statically imports a Node builtin`);
-  // And the two that do are genuinely outside that graph rather than merely
-  // unreached by this walk.
-  assert.ok(seen.has("render.mjs"), "the walk never reached the output surface, so it proved nothing");
-  assert.ok(!seen.has("files.mjs"), "files.mjs is in the static graph of index.mjs");
-  assert.ok(!seen.has("raster.mjs"), "raster.mjs is in the static graph of index.mjs");
+  const { seen, builtins, bare } = staticGraph(["api/cheatsheet/index.mjs"]);
+  assert.deepEqual(builtins, [], "the published surface statically imports a Node builtin");
+  // Nothing to install, which is the other half of "no build step and no
+  // install between": a bare specifier is a name only a package manager or an
+  // import map can answer, and the page has neither.
+  assert.deepEqual(bare, [], "the published surface statically imports a package by bare name");
+  // And the two that do reach a builtin are genuinely outside that graph rather
+  // than merely unreached by this walk.
+  assert.ok(seen.includes("api/cheatsheet/render.mjs"), "the walk never reached the output surface");
+  assert.ok(!seen.includes("api/cheatsheet/files.mjs"), "files.mjs is in the static graph of index.mjs");
+  assert.ok(!seen.includes("api/cheatsheet/raster.mjs"), "raster.mjs is in the static graph of index.mjs");
   // Which is only interesting because they are reachable at all.
   const surface = await import("../api/cheatsheet/index.mjs");
   assert.equal(typeof surface.renderSheet, "function");
+});
+
+test("and the walk crosses into the vendored surface, which is where it used to stop", () => {
+  // The hop this case exists for. `compose.mjs` imports the drawing surface by
+  // relative path and the surface imports its own chunks the same way, so the
+  // page loads all of it from this tree - and a builtin anywhere down there
+  // fails the page exactly as one in this folder would. The walk followed only
+  // `./` inside `api/cheatsheet/` until 2026.11.01, so the assertion above was
+  // true of thirteen files and silent about the rest.
+  const { seen } = staticGraph(["api/cheatsheet/index.mjs"]);
+  assert.ok(
+    seen.includes("api/napkin-sketch/graphic-design/index.js"),
+    `the walk never left api/cheatsheet/:\n${seen.join("\n")}`
+  );
+  const chunks = seen.filter((name) => name.startsWith("api/napkin-sketch/chunks/"));
+  assert.ok(chunks.length > 0, "the walk reached the surface entry and none of the chunks behind it");
+  // The surface's own writer is the file on the other side of the same split
+  // this folder makes, and it is reached by path the way `files.mjs` is.
+  assert.ok(
+    !seen.includes("api/napkin-sketch/graphic-design/files.js"),
+    "the surface's own writer is in the page's graph"
+  );
+});
+
+test("the accent reader is loaded on demand, and a browser can take that too", () => {
+  // The two entries `accents.mjs` imports dynamically. They are outside the
+  // static graph on purpose - 328.0 KB and 269.1 KB gzipped against 49.5 KB for
+  // the composition entry - but the page does load them, with the first
+  // `sheet.json` rather than in front of it, so the same two claims have to
+  // hold of them: no builtin, and nothing to install.
+  const entries = ["api/napkin-sketch/markdown/index.js", "api/napkin-sketch/api/index.js"];
+  for (const entry of entries) {
+    const { seen } = staticGraph(["api/cheatsheet/index.mjs"]);
+    assert.ok(!seen.includes(entry), `${entry} is in the page's first module graph`);
+  }
+  const { seen, builtins, bare } = staticGraph(entries);
+  assert.deepEqual(builtins, [], "the accent reader statically imports a Node builtin");
+  assert.deepEqual(bare, [], "the accent reader statically imports a package by bare name");
+  // Named in `accents.mjs` by the same two paths, so the entries walked here
+  // are the entries that are actually loaded.
+  const source = readFileSync(join(root, "api", "cheatsheet", "accents.mjs"), "utf8");
+  for (const entry of entries) {
+    assert.ok(seen.includes(entry), `${entry} was not reached`);
+    assert.ok(source.includes(entry.replace("api/napkin-sketch/", "../napkin-sketch/")), entry);
+  }
 });
 
 // --- The route is taken from the call, and named on the result ---------------
@@ -488,4 +607,104 @@ test("a write creates the folder it is given, including one that is not there ye
   assert.equal(written.path, path);
   assert.ok((await readFile(path, "utf8")).startsWith("<?xml"));
   assert.ok(path.split(sep).includes("still"));
+});
+
+// --- Reading a document, which is the other direction through the same door --
+//
+// `readDocument` in `document.mjs` is the object half of the input model and is
+// held by `tools/test-sheet-models.mjs`. What is below is only the file half:
+// that JSON is the one format, that a path which is not one is refused by name
+// rather than by `JSON.parse`, and that a document off disk is refused exactly
+// as a literal is - by field path, through the same reader.
+
+/** Writes a document into the scratch folder and gives back its path. */
+async function documentFile(name, document) {
+  const path = join(scratch, name);
+  await mkdir(scratch, { recursive: true });
+  await writeFile(path, JSON.stringify(document), "utf8");
+  return path;
+}
+
+test("a document is read from JSON and reports which of the two shapes held it", async () => {
+  const provisional = await readDocumentFile(await documentFile("provisional.json", DOC));
+  assert.equal(provisional.shape, "provisional");
+  // Nothing in the reader coerces, fills a default or reorders a section, which
+  // is what `readDocument` promises and this route has to keep - so what comes
+  // back deep equals the document that was written out, field for field.
+  assert.deepEqual(provisional.document, DOC);
+
+  const formal = {
+    title: "Array Methods",
+    sections: [{ title: "Removing", entries: [{ term: "splice", signature: "splice(start, count)" }] }],
+  };
+  const read = await readDocumentFile(await documentFile("formal.json", formal));
+  assert.equal(read.shape, "formal");
+  assert.deepEqual(read.document, formal);
+  // And the shape the reader reports is the shape the surface then renders, so
+  // the two cannot disagree about what was in the file.
+  assert.equal(renderSVG(read.document, { seed: SEED }).includes("Array Methods"), true);
+});
+
+test("the path it was read from comes back resolved, and a relative one needs a root", async () => {
+  const path = await documentFile("rooted.json", DOC);
+  const read = await readDocumentFile(path);
+  assert.equal(read.path, path);
+  // The same `root` option `targetFor` takes, so a caller holding a repository
+  // relative path has one answer for both directions.
+  const fromRoot = relative(root, path).split(sep).join("/");
+  assert.equal((await readDocumentFile(fromRoot, { root })).path, path);
+});
+
+test("JSON is the only input format, and another one is refused by name", async () => {
+  // `JSON.parse` on a YAML file reports a syntax error at character 1, which
+  // says the file is broken when what is true is that it is a file this reader
+  // was never going to open.
+  for (const [name, reason] of [
+    ["doc.yaml", /YAML needs a parser/],
+    ["doc.yml", /YAML needs a parser/],
+    ["doc.toml", /TOML needs a parser/],
+    ["doc.json5", /comments and trailing commas/],
+    ["doc.md", /prose rather than a document model/],
+    ["doc.mjs", /import it and hand it to `readDocument`/],
+  ]) {
+    await assert.rejects(() => readDocumentFile(name, { root: scratch }), reason, name);
+    await assert.rejects(
+      () => readDocumentFile(name, { root: scratch }),
+      /from JSON and from a plain object, and from nothing else/,
+      name
+    );
+  }
+  // Refused before the disk is touched, so a format this reader does not take
+  // says so whether the file is there or not.
+  assert.equal(await exists(join(scratch, "doc.yaml")), false);
+});
+
+test("a folder is refused rather than resolved to a document inside it", async () => {
+  // Which file in a folder is the document is a catalog convention, and
+  // `## Implement Cheatsheet API` holds that nothing in this layer may assume
+  // this repository's folder layout. `tools/cheatsheet.mjs --generate` is where
+  // that convention lives.
+  await mkdir(join(scratch, "folder"), { recursive: true });
+  await assert.rejects(
+    () => readDocumentFile(join(scratch, "folder")),
+    (error) => {
+      assert.match(error.message, /is a folder/);
+      assert.match(error.message, /sheet\.json/);
+      assert.match(error.message, /--generate/);
+      return true;
+    }
+  );
+});
+
+test("and a bad document off disk is refused by field path, the way a literal is", async () => {
+  const path = await documentFile("broken.json", { subtitle: "no title at all", code: [] });
+  await assert.rejects(() => readDocumentFile(path), /document\.title: must be a string, and is absent/);
+
+  // Three failures that have to read differently, because each sends a reader
+  // somewhere else: a path nobody typed right, a file that is not JSON, and a
+  // document that is JSON and is not a sheet.
+  await assert.rejects(() => readDocumentFile(join(scratch, "no-such.json")), /could not be read/);
+  await writeFile(join(scratch, "truncated.json"), '{"title": "Half', "utf8");
+  await assert.rejects(() => readDocumentFile(join(scratch, "truncated.json")), /is not valid JSON/);
+  await assert.rejects(() => readDocumentFile(""), /a document is read from a path to a JSON file/);
 });

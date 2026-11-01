@@ -111,7 +111,16 @@ Every render comes back as data, so a sheet is embedded without a path being
 named. Writing one is a second import, `api/cheatsheet/files.mjs`, which is the
 only module in the folder that reads `node:fs` - the page loads the surface with
 a bare `import`, so a Node builtin in its static graph would fail in a browser
-at load.
+at load. That module reads a document as well as writing a render:
+`readDocumentFile` takes a path and holds the JSON to whichever of the two
+document shapes it is written in, while `readDocument` beside it is the
+plain-object form. Those two are the whole input model, and a path naming any
+other format is refused by name rather than handed to `JSON.parse`.
+
+Each of the five formats has a worked example of its own in
+[examples/render-formats.mjs](examples/render-formats.mjs), which composes one document
+and renders it five times - and reports which route answered, which family
+drew, and whether the result may be shown to a reader.
 
 A model that is wrong is refused with the path to the field, in the notation a
 caller would reach it by:
@@ -157,6 +166,12 @@ take the one name the record supports or a path to a JSON model of its own (and
 a `--theme` file may be partial), `--data-only` emits the document and what the
 composition chose without rendering anything, `--list` names what there is, and
 `--help` the rest.
+
+A sheet does not have to be in the catalog to be rendered:
+`--document <path>` reads a JSON document from anywhere in place of a slug, so
+the command is an entry point for a document rather than for this repository's
+own index. It reports the same fields either way, with `source` saying which
+flag named the sheet.
 
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a

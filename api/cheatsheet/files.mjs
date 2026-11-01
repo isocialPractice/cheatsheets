@@ -41,10 +41,33 @@
 // ends in `.tmp`, so `.tmp` as a target resolved to the folder itself and the
 // write failed with `EISDIR`. That trap is recorded here rather than in
 // `tools/cheatsheet.mjs`, which found it, so there is one copy of the rule.
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, resolve } from "node:path";
+//
+// ## Reading a document, which is the other direction through the same door
+//
+// `readDocument` in `document.mjs` takes a **plain object** and holds it to
+// whichever of the two shapes it is written in. That is the whole of the input
+// model for a caller that already has the document in hand - a page that
+// parsed a `sheet.json`, a script that wrote one as a literal, a test with a
+// fixture. What it cannot do is open a file, because opening a file is
+// `node:fs` and `document.mjs` is in the static graph of `index.mjs`.
+//
+// So {@link readDocumentFile} is here, beside {@link writeRender}, for the
+// same reason that is: this module is the only one in the folder that touches
+// a disk, in either direction.
+//
+//     readDocumentFile("html-css/flexbox/sheet.json")  ->  { document, path, shape }
+//
+// **JSON is the only input format, and a path naming another one is refused
+// rather than parsed.** A document is data, and every other format a caller
+// might reach for is either data with a parser this repository would have to
+// install - YAML, TOML - or code, which is a plain object a caller imports and
+// hands straight to `composeSheet`. Refusing by name is what keeps that a
+// stated boundary instead of a `Unexpected token` from `JSON.parse`.
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { dirname, extname, isAbsolute, resolve } from "node:path";
 
 import { composeSheet } from "./compose.mjs";
+import { isFormalDocument, readDocument } from "./document.mjs";
 import { filenameFor, renderOf } from "./render.mjs";
 
 /**
@@ -66,6 +89,106 @@ import { filenameFor, renderOf } from "./render.mjs";
  * @property {boolean} wrote Whether anything left the process.
  * @property {boolean} derived Whether the filename was derived from the sheet's title.
  */
+
+/**
+ * What a document read off disk came back as.
+ *
+ * @typedef {object} ReadDocument
+ * @property {import('./document.mjs').CheatsheetDocument | import('./document.mjs').ProvisionalDocument} document
+ * @property {string} path The file it was read from, resolved.
+ * @property {'formal' | 'provisional'} shape Which of the two schemas held it.
+ */
+
+/** The one input format a document is read from. */
+export const DOCUMENT_FORMAT = "json";
+
+/**
+ * Extensions that name a format this reader does not take, and what to do
+ * instead.
+ *
+ * Each is a thing somebody will reasonably try, so each is refused by name.
+ * The alternative is `JSON.parse` reporting a syntax error at character 1 of a
+ * YAML file, which says the file is broken when what is true is that it is a
+ * file this reader was never going to open.
+ */
+const NOT_JSON = {
+  ".yaml": "YAML needs a parser this repository does not install",
+  ".yml": "YAML needs a parser this repository does not install",
+  ".toml": "TOML needs a parser this repository does not install",
+  ".json5": "JSON5 allows comments and trailing commas, which JSON does not",
+  ".jsonc": "JSONC allows comments, which JSON does not",
+  ".md": "Markdown is prose rather than a document model",
+  ".markdown": "Markdown is prose rather than a document model",
+  ".js": "a module exports a plain object - import it and hand it to `readDocument`",
+  ".mjs": "a module exports a plain object - import it and hand it to `readDocument`",
+  ".cjs": "a module exports a plain object - import it and hand it to `readDocument`",
+  ".ts": "a module exports a plain object - import it and hand it to `readDocument`",
+};
+
+/**
+ * Reads a document from a JSON file and holds it to its own schema.
+ *
+ * The file half of the input model. `readDocument` is the object half, and
+ * this calls it rather than repeating the refusals, so a bad field is reported
+ * by path - `document.sections[2].entries[1].term` - whether the document came
+ * off a disk or out of a literal.
+ *
+ * **A directory is refused rather than resolved to a document inside it.**
+ * Which file in a folder is the document is a catalog convention - this
+ * repository reserves `sheet.json` - and `## Implement Cheatsheet API` holds
+ * that nothing in this layer may assume this page, this folder layout or this
+ * category. `tools/cheatsheet.mjs` owns that convention and applies it before
+ * calling here, which is where a folder path is already a slug.
+ *
+ * @param {string} target The JSON file to read.
+ * @param {{ root?: string }} [options] `root` resolves a relative target, as in {@link targetFor}.
+ * @returns {Promise<ReadDocument>}
+ */
+export async function readDocumentFile(target, options = {}) {
+  if (typeof target !== "string" || target.trim().length === 0) {
+    throw new Error(
+      "cheatsheet: a document is read from a path to a JSON file. This was handed " +
+        `${JSON.stringify(target)}.`
+    );
+  }
+  const root = options.root === undefined ? undefined : String(options.root);
+  const path = root === undefined || isAbsolute(target) ? resolve(target) : resolve(root, target);
+  const extension = extname(path).toLowerCase();
+  if (Object.hasOwn(NOT_JSON, extension)) {
+    throw new Error(
+      `cheatsheet: ${target} is not a ${DOCUMENT_FORMAT.toUpperCase()} document - ` +
+        `${NOT_JSON[extension]}. A document is read from JSON and from a plain object, and from ` +
+        "nothing else."
+    );
+  }
+  // Asked of the filesystem rather than guessed from the name. `namesDirectory`
+  // below guesses because a write names a file that does not exist yet; a read
+  // has the answer in front of it, and a file with no extension is a real file
+  // that the guess would have turned into a folder.
+  const found = await stat(path).catch((error) => {
+    throw new Error(`cheatsheet: the document at ${target} could not be read. (${error.message})`);
+  });
+  if (found.isDirectory()) {
+    throw new Error(
+      `cheatsheet: ${target} is a folder. Name the JSON document inside it - this repository calls ` +
+        "it `sheet.json` - or pass the folder to `tools/cheatsheet.mjs --generate`, which knows the " +
+        "catalog's own layout."
+    );
+  }
+  const text = await readFile(path, "utf8");
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw new Error(
+      `cheatsheet: the document at ${target} is not valid ${DOCUMENT_FORMAT.toUpperCase()}. ` +
+        `(${error.message})`
+    );
+  }
+  const document = readDocument(parsed);
+  return { document, path, shape: isFormalDocument(document) ? "formal" : "provisional" };
+}
 
 /**
  * Whether a target names a directory rather than a file.

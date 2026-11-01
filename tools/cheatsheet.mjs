@@ -5,6 +5,7 @@
 // matters most - which of the two renderers answered.
 //
 //     node tools/cheatsheet.mjs --generate <slug> [options]
+//     node tools/cheatsheet.mjs --document <path> [options]
 //     node tools/cheatsheet.mjs --list            [--json]
 //     node tools/cheatsheet.mjs --check [<slug>]  [--json]
 //     node tools/cheatsheet.mjs --help
@@ -13,6 +14,30 @@
 // is invoked by path. Nothing is installed for it either: the composition is
 // this repository's own code, and the one optional dependency - a browser - is
 // resolved at run time and reported rather than required.
+//
+// ## The two inputs, and why a document off disk is not a catalog sheet
+//
+// `--generate <slug>` names a cheatsheet in `cheatsheets.json`. `--document
+// <path>` reads a JSON document from anywhere, through `readDocumentFile` in
+// `api/cheatsheet/files.mjs`, which holds it to whichever of the two shapes it
+// is written in. The two are alternatives and naming both is an error: they
+// answer the same question, and a call that gave both would have to pick one
+// silently.
+//
+// `--document` is what makes this command an entry point for a document rather
+// than for this repository's catalog. Until 2026.11.01 every route in was a
+// slug, so a sheet that was not in `cheatsheets.json` could not be rendered at
+// all - which made the command a catalog tool with a renderer behind it rather
+// than the other way round.
+//
+// **A document off disk has no folder of its own, so it is never written beside
+// itself.** The destination rule below sends a publishable render to the
+// cheatsheet's own folder, and that folder is a catalog fact: it is where
+// `sheet.json` lives and where the social recipe looks. A document named by
+// path has no entry, no slug and no folder the recipe knows about, so it goes
+// to `.tmp/` under a name slugged from its title unless `--out` says otherwise.
+// Writing it beside the file it was read from would drop a publishable image
+// into whatever folder a caller happened to point at.
 //
 // ## What this command does, now that the layer has an output surface
 //
@@ -121,10 +146,11 @@ import {
   prepareAccents,
   readLayout,
   renderOf,
+  slugFor,
   SHEET_LANGUAGE,
   SHEET_LAYOUT,
 } from "../api/cheatsheet/index.mjs";
-import { namesDirectory, writeRender } from "../api/cheatsheet/files.mjs";
+import { namesDirectory, readDocumentFile, writeRender } from "../api/cheatsheet/files.mjs";
 import { readBrandAssets } from "./build-manifest.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -182,6 +208,7 @@ const SWITCHES = new Set(["--check", "--data-only", "--dry-run", "--json", "--li
  */
 const VALUES = new Set([
   "--generate",
+  "--document",
   "--format",
   "--renderer",
   "--theme",
@@ -204,10 +231,12 @@ const NOT_YET = {
 
 const USAGE = `
 node tools/cheatsheet.mjs --generate <slug> [options]
+node tools/cheatsheet.mjs --document <path> [options]
 node tools/cheatsheet.mjs --list            [--json]
 node tools/cheatsheet.mjs --check [<slug>]  [--json]
 
   --generate <slug>      The cheatsheet to compose, by manifest slug or folder path
+  --document <path>      A JSON document to compose, in place of a catalog slug
   --format <fmt>         svg (default), png, webp or jpg. The preset's raster format is ${PRESET.format}
   --renderer <r>         auto (default), browser, or builtin
   --theme <name|path>    default (the recorded theme), or a path to a JSON one, whole or partial
@@ -224,7 +253,8 @@ node tools/cheatsheet.mjs --check [<slug>]  [--json]
   --help, -h             This
 
 A render goes beside its sheet.json when it is publishable, and into .tmp/ when
-it is not. See the header of this file for why that is a rule.
+it is not. A --document render has no folder in the catalog, so it goes to .tmp/
+whichever it is. See the header of this file for why that is a rule.
 `.trimStart();
 
 /**
@@ -395,7 +425,7 @@ function asNumber(name, value, fallback) {
 }
 
 /**
- * Composes one entry's document.
+ * Composes a document that has already been read.
  *
  * The accent reader and the brand assets are both loaded, because the point of
  * this command is a file somebody looks at: without the reader the code panel
@@ -403,27 +433,88 @@ function asNumber(name, value, fallback) {
  * masthead sets a lone wordmark. Neither is required - each falls back to what
  * the sheet drew before it existed - and what happened to each is reported.
  *
+ * Split from {@link compose} on 2026.11.01 so the two input routes share it: a
+ * catalog slug reads its `sheet.json` and a `--document` path reads a file, and
+ * everything after that point is one document being composed.
+ *
+ * @param {object} doc
+ * @param {{ seed?: string, theme?: object, layout?: object }} options
+ */
+async function composeDocument(doc, options) {
+  const [reader, brand] = await Promise.all([prepareAccents(), readBrandAssets(root)]);
+  const { composition, variation } = composeSheet(doc, {
+    seed: options.seed ?? doc.seed,
+    brand,
+    ...(options.theme ? { theme: options.theme } : {}),
+    ...(options.layout ? { layout: options.layout } : {}),
+  });
+  return { doc, composition, variation, reader };
+}
+
+/**
+ * Composes one catalog entry's document.
+ *
  * @param {object} entry
  * @param {{ seed?: string, theme?: object, layout?: object }} options
  */
 async function compose(entry, options) {
   const folder = join(root, ...entry.path.split("/"));
   const doc = JSON.parse(await readFile(join(folder, "sheet.json"), "utf8"));
-  const [reader, brand] = await Promise.all([prepareAccents(), readBrandAssets(root)]);
-  const { composition, variation } = composeSheet(doc, {
-    seed: options.seed ?? doc.seed ?? entry.seed,
-    brand,
-    ...(options.theme ? { theme: options.theme } : {}),
-    ...(options.layout ? { layout: options.layout } : {}),
-  });
-  return { folder, doc, composition, variation, reader };
+  const composed = await composeDocument(doc, { ...options, seed: options.seed ?? doc.seed ?? entry.seed });
+  return { folder, ...composed };
+}
+
+/**
+ * The sheet a call is about, from whichever of the two input flags named it.
+ *
+ * `id` and `path` are on both so a report has the same fields either way - a
+ * consumer parsing `--json` should not have to branch on which flag was typed -
+ * and `source` is what says which they mean. For a catalog entry `path` is the
+ * cheatsheet's folder; for a document it is the file, and `id` is the title
+ * slugged, which is the same derivation {@link filenameFor} uses for a name.
+ *
+ * @param {Record<string, string | boolean>} flags
+ * @param {{ seed?: string, theme?: object, layout?: object }} options
+ */
+async function subjectOf(flags, options) {
+  const named = flags.document === undefined ? undefined : String(flags.document);
+  if (named !== undefined) {
+    const { document, path } = await readDocumentFile(named, { root });
+    const composed = await composeDocument(document, options);
+    return {
+      source: "document",
+      id: slugFor(document.title),
+      path: relative(root, path).split(sep).join("/"),
+      folder: null,
+      ...composed,
+    };
+  }
+  const slug = String(flags.generate === true ? flags.slug ?? "" : flags.generate ?? flags.slug ?? "");
+  if (!slug) {
+    throw new Error(
+      "cheatsheet: --generate needs a cheatsheet to compose, or --document a JSON file. " +
+        "Run `--list` to see the catalog."
+    );
+  }
+  const entry = findEntry(entriesOf(await readManifest()), slug);
+  const { folder, ...composed } = await compose(entry, options);
+  return { source: "catalog", id: entry.id, path: entry.path, folder, ...composed };
 }
 
 /**
  * Where a render is written, and whether it may be published from there.
  *
+ * A subject whose `folder` is `null` is a document read by path rather than a
+ * cheatsheet in the catalog, and it has nowhere of its own to be published
+ * from: the folder in the rule above is where a `sheet.json` lives and where
+ * the social recipe looks, and a document named by path is in neither. So it
+ * takes the `.tmp/` route whether it is publishable or not, and `--out` is the
+ * way to put one anywhere else. An absent `folder` is the catalog's own case
+ * and is derived from `entry.path`, which is what every caller before
+ * 2026.11.01 passed.
+ *
  * @param {object} config
- * @param {object} config.entry
+ * @param {{ id: string, path?: string, folder?: string | null }} config.entry
  * @param {{ raster: boolean, ext: string }} config.format
  * @param {string | undefined} config.out
  * @param {boolean} config.publishable
@@ -448,8 +539,10 @@ export function destinationFor({ entry, format, out, publishable }) {
       stdout: false,
     };
   }
-  if (publishable) {
-    return { path: join(root, ...entry.path.split("/"), `sheet.${format.ext}`), stdout: false };
+  const folder =
+    entry.folder === undefined ? join(root, ...String(entry.path).split("/")) : entry.folder;
+  if (publishable && folder !== null) {
+    return { path: join(folder, `sheet.${format.ext}`), stdout: false };
   }
   // `.tmp/` is gitignored and the social recipe ignores it twice over, so an
   // unpublishable render cannot be drafted from here. The slug is in the name
@@ -543,11 +636,8 @@ async function checkSheets({ slug, json }) {
   return { exit: bad.length ? 1 : 0, text: lines.join("\n") };
 }
 
-/** `--generate`: composes one sheet and writes it, or says what it would write. */
+/** `--generate` and `--document`: composes one sheet and writes it, or says what it would write. */
 async function generate(flags) {
-  const slug = String(flags.generate === true ? flags.slug ?? "" : flags.generate ?? flags.slug ?? "");
-  if (!slug) throw new Error("cheatsheet: --generate needs a cheatsheet to compose. Run `--list` to see them.");
-
   const name = String(flags.format ?? "svg").toLowerCase();
   // `Object.hasOwn` rather than a truth test on the lookup. `FORMATS` is an
   // object literal, so `FORMATS.constructor` and `FORMATS.__proto__` are both
@@ -573,15 +663,14 @@ async function generate(flags) {
     );
   }
 
-  const entries = entriesOf(await readManifest());
-  const entry = findEntry(entries, slug);
   const theme = await readThemeOption(flags.theme === undefined ? undefined : String(flags.theme));
   const layout = await readLayoutOption(flags.layout === undefined ? undefined : String(flags.layout));
-  const { doc, composition, variation } = await compose(entry, {
+  const subject = await subjectOf(flags, {
     seed: flags.seed === undefined ? undefined : String(flags.seed),
     theme,
     layout,
   });
+  const { doc, composition, variation } = subject;
 
   if (flags["data-only"]) {
     // The document as this layer reads it, in whichever of the two shapes it
@@ -591,8 +680,13 @@ async function generate(flags) {
       exit: 0,
       json: {
         command: "data-only",
-        id: entry.id,
-        path: entry.path,
+        id: subject.id,
+        path: subject.path,
+        // Which flag named the sheet, so the two fields above can be read. They
+        // are the same fields on both routes on purpose - a consumer parsing
+        // this should not have to branch on which flag was typed - and they mean
+        // a folder on `catalog` and a file on `document`.
+        source: subject.source,
         // Read off the document rather than written out, because the marker
         // is only worth having if it can disagree with itself: a consumer of
         // this JSON should not have to guess whether the shape it was written
@@ -681,12 +775,18 @@ async function generate(flags) {
   const publishable = !overCap && render.publishable;
 
   const out = flags.out === undefined ? undefined : String(flags.out);
-  const target = destinationFor({ entry, format, out, publishable });
+  const target = destinationFor({
+    entry: { id: subject.id, folder: subject.folder },
+    format,
+    out,
+    publishable,
+  });
   const shown = target.stdout ? "-" : relative(root, target.path).split(sep).join("/");
 
   const result = {
     command: "generate",
-    id: entry.id,
+    id: subject.id,
+    source: subject.source,
     format: format.ext,
     renderer: route,
     requestedRenderer: renderer,
@@ -751,13 +851,34 @@ function reportOf(result) {
 export async function run(argv) {
   const flags = parseFlags(argv);
   if (flags.help || flags.h || argv.length === 0) return { exit: 0, text: USAGE };
+  if (flags.document !== undefined) {
+    // Refused rather than ranked, because each pairing would have to drop one
+    // of the two things that were asked for. A slug and a document are two
+    // answers to "which sheet"; `--list` and `--check` are questions about the
+    // catalog, and a document read by path is not in it.
+    if (flags.generate !== undefined || flags.slug !== undefined) {
+      throw new Error(
+        "cheatsheet: --document and --generate name the sheet two different ways. Pass one: a slug " +
+          "for a cheatsheet in the catalog, a path for a JSON document anywhere."
+      );
+    }
+    for (const other of ["list", "check"]) {
+      if (flags[other] !== undefined) {
+        throw new Error(
+          `cheatsheet: --${other} reads the catalog, and --document is a file outside it. ` +
+            "Run them separately."
+        );
+      }
+    }
+    return generate(flags);
+  }
   if (flags.list) return listCatalog({ json: Boolean(flags.json) });
   if (flags.check !== undefined) {
     const slug = flags.check === true ? flags.slug : flags.check;
     return checkSheets({ slug: slug === undefined ? undefined : String(slug), json: Boolean(flags.json) });
   }
   if (flags.generate !== undefined || flags.slug !== undefined) return generate(flags);
-  throw new Error("cheatsheet: nothing to do. Run `--help` for the three commands.");
+  throw new Error("cheatsheet: nothing to do. Run `--help` for the four commands.");
 }
 
 // Only when invoked, not when imported by the test file beside it.

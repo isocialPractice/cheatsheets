@@ -350,6 +350,157 @@ test("--data-only emits the document and what the composition chose, and writes 
   assert.equal(await exists(join(root, ...RUNNABLE.split("/"), "sheet.svg")), before);
 });
 
+// ## The document route
+//
+// `--document <path>` is the half of this command that is not about the
+// catalog: a JSON document anywhere, composed and rendered the same way a slug
+// is. The acceptance question the roadmap item asks is the one in the second
+// case below - whether a document read from a file reports the same fields as
+// one read from the catalog - because a consumer of `--json` that has to branch
+// on which flag was typed is a consumer that will branch wrongly.
+
+/** Writes a document into the scratch folder and gives back its repository relative path. */
+async function documentFile(name, document) {
+  await mkdir(scratch, { recursive: true });
+  await writeFile(join(scratch, name), JSON.stringify(document), "utf8");
+  return `./.tmp/cheatsheet-cli-cases/${name}`;
+}
+
+/** A document that is deliberately not in `cheatsheets.json`. */
+const OFF_CATALOG = {
+  title: "Off Catalog Sheet",
+  subtitle: "A document nobody indexed",
+  language: "javascript",
+  seed: "off-catalog",
+  code: Array.from({ length: 18 }, (_, index) => ({
+    text: `console.log(items.at(${index}));`,
+    role: index % 4 === 3 ? "comment" : "plain",
+  })),
+};
+
+test("--document composes a JSON document that is not in the catalog at all", async () => {
+  // The gap this flag closed. Every route in was a slug until 2026.11.01, so a
+  // document that `tools/build-manifest.mjs` had never seen could not be
+  // rendered by this command at any format.
+  const path = await documentFile("off-catalog.json", OFF_CATALOG);
+  const { json } = await run(["--document", path, "--data-only"]);
+  assert.equal(json.command, "data-only");
+  assert.equal(json.source, "document");
+  // The id is the title slugged, which is the same derivation `filenameFor`
+  // uses, so the name in the report and the name on disk agree.
+  assert.equal(json.id, "off-catalog-sheet");
+  assert.match(json.path, /off-catalog\.json$/);
+  assert.equal(json.shape, "provisional");
+  assert.equal(json.document.title, OFF_CATALOG.title);
+  // And it really is off the catalog, or the case proves nothing.
+  const catalogued = manifest.categories.flatMap((category) => category.cheatsheets);
+  assert.equal(
+    catalogued.some((sheet) => sheet.id === json.id || sheet.title === OFF_CATALOG.title),
+    false,
+    "the document under test turns out to be in the catalog"
+  );
+});
+
+test("and reports the same fields a catalog slug does, which is what makes --json parsable", async () => {
+  // The acceptance check for the data only mode. Both routes answer the same
+  // question and a reader should not have to know which flag was typed to read
+  // the answer: `source` is what says which, and it is a field rather than a
+  // shape change for exactly that reason.
+  const path = await documentFile("parity.json", OFF_CATALOG);
+  const fromCatalog = await run(["--generate", RUNNABLE, "--data-only"]);
+  const fromFile = await run(["--document", path, "--data-only"]);
+  assert.deepEqual(Object.keys(fromFile.json), Object.keys(fromCatalog.json));
+  assert.equal(fromCatalog.json.source, "catalog");
+  assert.equal(fromFile.json.source, "document");
+  // And the fields whose meaning the two share really do carry the same kinds
+  // of value, so the parity is more than a key list.
+  for (const field of ["command", "shape", "theme", "layout"]) {
+    assert.equal(fromFile.json[field], fromCatalog.json[field], field);
+  }
+  for (const field of ["id", "path", "document", "variation"]) {
+    assert.equal(typeof fromFile.json[field], typeof fromCatalog.json[field], field);
+  }
+  // `path` means the cheatsheet's folder on one route and the file on the
+  // other, which is the one difference and the reason `source` is published.
+  assert.equal(fromCatalog.json.path, RUNNABLE);
+  assert.match(fromFile.json.path, /\.json$/);
+});
+
+test("a formal document goes through the same flag, and says which shape it was", async () => {
+  // The two shapes are alternatives rather than a field and its replacement,
+  // per `api/cheatsheet/document.mjs`, so the flag has to take either and the
+  // report has to say which arrived.
+  const path = await documentFile("formal.json", {
+    title: "Array Methods",
+    subtitle: "Reach for these first",
+    sections: [
+      {
+        title: "Removing elements",
+        entries: [
+          { term: "splice", signature: "splice(start, count)", description: "Removes in place." },
+          { term: "slice", signature: "slice(start, end)", description: "Copies a range." },
+        ],
+      },
+    ],
+  });
+  const { json } = await run(["--document", path, "--data-only"]);
+  assert.equal(json.shape, "formal");
+  assert.equal(json.id, "array-methods");
+  assert.ok(Array.isArray(json.document.sections));
+});
+
+test("a document render goes to .tmp/ even when it is publishable, having no folder of its own", async () => {
+  // The destination rule is a catalog fact: the folder a publishable render
+  // lands in is where a `sheet.json` lives and where the social recipe looks.
+  // A document named by path is in neither, so it takes the `.tmp/` route and
+  // `--out` is the way to put one anywhere else.
+  const path = await documentFile("destination.json", OFF_CATALOG);
+  const { json } = await run(["--document", path, "--dry-run", "--json"]);
+  assert.equal(json.publishable, true, "an SVG is publishable, so the diversion is the rule and not the floor");
+  assert.equal(json.wouldWrite, ".tmp/off-catalog-sheet.sheet.svg");
+  assert.equal(json.source, "document");
+
+  // And `--out` is obeyed on this route exactly as on the other.
+  const out = join(scratch, "document-out");
+  const named = await run(["--document", path, "--out", out, "--json"]);
+  assert.match(named.json.written, /document-out\/sheet\.svg$/);
+  assert.equal(await exists(join(out, "sheet.svg")), true);
+});
+
+test("--document and --generate are refused together rather than one winning silently", async () => {
+  const path = await documentFile("refusals.json", OFF_CATALOG);
+  await assert.rejects(
+    () => run(["--document", path, "--generate", RUNNABLE]),
+    /name the sheet two different ways/
+  );
+  // A bare slug is the same mistake written shorter.
+  await assert.rejects(() => run(["--document", path, RUNNABLE]), /name the sheet two different ways/);
+  // `--list` and `--check` are questions about the catalog, and a document read
+  // by path is not in it, so neither pairing has an answer to give.
+  await assert.rejects(() => run(["--document", path, "--list"]), /--list reads the catalog/);
+  await assert.rejects(() => run(["--document", path, "--check"]), /--check reads the catalog/);
+});
+
+test("and a document that is not one is refused by the reader rather than composed", async () => {
+  // The refusals are `readDocumentFile`'s, reached through the flag, so the
+  // command gains the layer's messages instead of a second set of its own.
+  const broken = await documentFile("no-title.json", { subtitle: "nothing above it", code: [] });
+  await assert.rejects(() => run(["--document", broken, "--data-only"]), /document\.title: must be a string/);
+  await assert.rejects(
+    () => run(["--document", "./.tmp/cheatsheet-cli-cases/nope.yaml", "--data-only"]),
+    /YAML needs a parser/
+  );
+  await assert.rejects(
+    () => run(["--document", `./${RUNNABLE}`, "--data-only"]),
+    (error) => {
+      assert.match(error.message, /is a folder/);
+      assert.match(error.message, /--generate/);
+      return true;
+    },
+    "a folder was taken for a document"
+  );
+});
+
 test("--layout names the recorded composition, or a file, and refuses anything else", async () => {
   const { json } = await run(["--generate", RUNNABLE, "--layout", "sheet", "--data-only"]);
   assert.equal(json.layout, "sheet");

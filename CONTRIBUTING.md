@@ -227,11 +227,25 @@ the preset, and the rule about where a render is allowed to land:
 node tools/cheatsheet.mjs --list
 node tools/cheatsheet.mjs --check
 node tools/cheatsheet.mjs --generate html-css/html-apis/web-storage --format webp
+node tools/cheatsheet.mjs --document .tmp/draft.json --format webp
 node tools/cheatsheet.mjs --help
 ```
 
-Three things about it are worth knowing before the first call, and the rest is
+Four things about it are worth knowing before the first call, and the rest is
 in `--help` and the file's own header.
+
+**A document does not have to be in the catalog.** `--generate <slug>` names a
+cheatsheet in `cheatsheets.json`; `--document <path>` reads a JSON document from
+anywhere and composes that, through `readDocumentFile` in
+`api/cheatsheet/files.mjs`, which holds it to whichever of the two document
+shapes it is written in. Naming both is refused rather than ranked - they are
+two answers to the same question - and so is pairing `--document` with `--list`
+or `--check`, which are questions about the catalog.
+
+A `--document` render always goes to `.tmp/`, publishable or not, and the rule
+below says why: the folder a publishable render lands in is where a `sheet.json`
+lives and where the social recipe looks, and a document named by path is in
+neither. `--out` is the way to put one anywhere else.
 
 **It reports which renderer answered, and that is not cosmetic.** The browser
 route draws the face the design language measured; the built-in route draws a

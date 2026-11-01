@@ -4,6 +4,69 @@
 
 The date of the change is the version, written `YYYY.MM.DD`.
 
+## [2026.11.01]
+
+### Added
+
+- **A document can be read from a file.** `readDocumentFile` in
+  `api/cheatsheet/files.mjs` takes a path, parses the JSON, and holds it to
+  whichever of the two document schemas it is written in - reporting which one
+  did. It is in `files.mjs` rather than in `document.mjs` because reading a file
+  is `node:fs`, and `document.mjs` is in the static graph of `index.mjs`, which
+  the page loads with a bare `import`. `readDocument` beside it is still the
+  plain-object form, and the file route calls it rather than repeating the
+  refusals, so a bad field comes back as
+  `document.sections[2].entries[1].term` either way.
+- **JSON is the only input format, and another one is refused by name.** A path
+  ending in `.yaml`, `.yml`, `.toml`, `.json5`, `.jsonc`, `.md` or a module
+  extension is turned down with what to do instead - a parser this repository
+  does not install, or a plain object a caller imports and hands over - before
+  the disk is touched. `JSON.parse` on a YAML file reports a syntax error at
+  character 1, which says the file is broken when what is true is that it is a
+  file this reader was never going to open. A folder is refused as well: which
+  file in a folder is the document is a catalog convention, and nothing in this
+  layer may assume this repository's layout.
+- **`tools/cheatsheet.mjs --document <path>` composes a document that is not in
+  the catalog.** Every route into the command was a manifest slug until now, so
+  a sheet `tools/build-manifest.mjs` had never seen could not be rendered at any
+  format - which made the command a catalog tool with a renderer behind it
+  rather than an entry point for a document. Both routes report the same fields,
+  with a new `source` saying which flag named the sheet, because a consumer
+  parsing `--json` should not have to branch on which was typed.
+- **`examples/render-formats.mjs`, one worked example per output format.** It
+  composes the document the other two examples compose, once, and renders it to
+  all five formats through `renderOf`, reporting which route answered, which
+  family drew, the pixels, the bytes and whether the result may be shown to a
+  reader. Three of the five need nothing installed; `jpeg` and `webp` are
+  browser only and come back with the reason rather than bringing the run down,
+  which is what lets the whole example run on a bare clone.
+
+### Changed
+
+- **The static import walk crosses the folder boundary**, in
+  `tools/test-sheet-render.mjs`. It followed only `./` specifiers inside
+  `api/cheatsheet/`, so "the published surface reaches no Node builtin" was
+  true of thirteen files and silent about everything past them - including the
+  vendored drawing surface the page actually draws through. A specifier is now
+  resolved against the directory of the file that wrote it, the way the runtime
+  resolves one, which takes the walk into `graphic-design/index.js` and down
+  through its chunks. It also reports a bare specifier, which is the
+  module-level form of "nothing to install", and the two entries the accent
+  reader loads on demand are walked as roots of their own, because the page does
+  load them. Seventeen modules in the static graph and eleven in the on-demand
+  one, with no builtin and no bare name in either.
+- **The worked examples write through `api/cheatsheet/` rather than through the
+  drawing surface underneath.** `reproduce-sheet.mjs` and `restyle-sheet.mjs`
+  both called `writeComposition` from `graphic-design/files`, which worked and
+  was a hand copy of the route this layer published on 2026.10.31 - so the
+  published route had no example at all. Both render with `renderOf` and write
+  with `writeRender` now. One visible consequence: the restyled sheet is
+  `splicing-arrays-ember.svg` rather than `splicing-arrays.ember.svg`, because a
+  derived filename is slugged. Both report the file repository relative, the way
+  `render-formats.mjs` does - `writeRender` hands back a resolved path, and an
+  absolute one is the single figure in these reports nobody can compare against
+  anything, besides carrying the reader's own home folder on Windows.
+
 ## [2026.10.31]
 
 ### Added

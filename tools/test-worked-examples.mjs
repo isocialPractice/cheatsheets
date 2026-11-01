@@ -14,6 +14,11 @@
 //      not true.
 //   3. **The theme is safe to read.** Every pairing the themed sheet draws
 //      clears the text floor, measured rather than asserted.
+//   4. **There is one example per output format**, and each goes through the
+//      published surface. That claim was added on 2026.11.01 with
+//      `render-formats.mjs`, and the part of it worth testing is the second
+//      half: an example that reached past `api/cheatsheet/` to the drawing
+//      surface's own writer would be demonstrating a door this layer closed.
 //
 // The example modules are imported and their own functions called, rather than
 // the checks being written out again here. A test that reimplemented the
@@ -35,6 +40,7 @@ import {
   RULES,
   RUNS,
   SHEET_LANGUAGE,
+  RENDER_FORMATS,
   contrastRatio,
   themeOver,
 } from "../api/cheatsheet/index.mjs";
@@ -42,6 +48,7 @@ import { composeSheet } from "../api/cheatsheet/compose.mjs";
 import { EMBER, emberTheme } from "../examples/ember-theme.mjs";
 import { SEED, splicingArrays } from "../examples/splicing-arrays.mjs";
 import { report, reproduce } from "../examples/reproduce-sheet.mjs";
+import { CASES, composeExample, renderOne } from "../examples/render-formats.mjs";
 import { contrastTable, geometryOf, paintsOf, restyle } from "../examples/restyle-sheet.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -196,4 +203,59 @@ test("both examples are wired to the same document, so the pair really is a pair
   assert.equal(EMBER, "ember");
   assert.match(readme, /reproduce-sheet\.mjs/);
   assert.match(readme, /restyle-sheet\.mjs/);
+});
+
+// ## One example per output format
+
+test("there is a case for every format the surface renders, and no case for one it does not", () => {
+  // Read off `RENDER_FORMATS` rather than written out, so a format added to the
+  // surface fails here instead of quietly having no example.
+  assert.deepEqual(Object.keys(CASES).sort(), [...RENDER_FORMATS].sort());
+  for (const format of RENDER_FORMATS) {
+    assert.equal(typeof CASES[format].about, "string", format);
+    assert.ok(CASES[format].about.length > 0, format);
+    assert.match(readme, new RegExp(`\`${format}\``), `the README names no example for ${format}`);
+  }
+  assert.match(readme, /render-formats\.mjs/);
+});
+
+test("the three formats that need nothing installed render, and each says what drew it", async () => {
+  // `svg` and `html` are the composition's own markup, and `png` is the one
+  // raster the built-in route can encode - so these three are what a bare clone
+  // gets, and they are the three asserted. `jpeg` and `webp` are browser only
+  // and their row is a reason rather than a render where there is none.
+  const composed = await composeExample();
+  for (const format of ["svg", "html", "png"]) {
+    // `null` renders without writing, which is the in-memory case and the one a
+    // test wants: nothing here should put a file beside a cheatsheet.
+    const row = await renderOne(composed, format, null);
+    assert.equal(row.failed, undefined, `${format} did not render: ${row.failed}`);
+    assert.ok(row.bytes > 0, format);
+    assert.equal(row.path, null, `${format} wrote a file when it was handed nowhere to write`);
+    assert.equal(row.route, format === "png" ? row.route : "composition", format);
+    // Markup is drawn by nothing, so the route it reports is the composition
+    // and the family that drew is the reader's machine.
+    if (format !== "png") assert.equal(row.family, null, format);
+  }
+});
+
+test("and every example writes through this layer rather than the surface underneath", () => {
+  // The claim the format example was queued to make true of the other two as
+  // well. `writeComposition` is the drawing surface's own writer, reached by
+  // path, and every example used it until 2026.11.01 - which meant the
+  // published route had no example at all.
+  //
+  // The import is what is matched, not the name: all three files mention
+  // `writeComposition` in prose, saying what they used to do and why they
+  // stopped, and that record is worth keeping. What must not come back is the
+  // `graphic-design/files` import it was reached by.
+  for (const name of ["reproduce-sheet.mjs", "restyle-sheet.mjs", "render-formats.mjs"]) {
+    const source = readFileSync(join(root, "examples", name), "utf8");
+    assert.doesNotMatch(
+      source,
+      /^\s*import[^;]*graphic-design\/files/m,
+      `${name} still writes through the drawing surface`
+    );
+    assert.match(source, /writeRender/, `${name} does not write through api/cheatsheet/files.mjs`);
+  }
 });

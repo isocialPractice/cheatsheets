@@ -11,25 +11,30 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Load a document from JSON and from a plain object, and assume no other input format
-  - `readDocument` already takes a plain object and holds it to whichever of the two schemas it is written in, so what is open is reading one off disk - and the command line entry point directly below is the caller that wants it
-  - It reads a file, so it belongs in `api/cheatsheet/files.mjs` beside `writeRender` rather than in `document.mjs`. Nothing in the static graph of `index.mjs` may touch `node:fs`, and `tools/test-sheet-render.mjs` walks that graph and fails on one
-  - From: Implement Cheatsheet API `->` Configuration
-- [ ] Expose a command line entry point that reads a document file and writes an output file, with the raster backend optional
-  - SVG needs no browser and a raster does, which is the whole reason the backend is optional. `tools/cheatsheet.mjs` under **Raster Export and Example Images** is that entry point, and its flags are specified in `.claude/prompts/current-plan.prompt.md`
-  - What is open is the input: every route into it today is a catalog slug, so a document that is not in `cheatsheets.json` cannot be rendered at all. The output half is done - it renders and writes through the surface as of 2026.10.31
+- [ ] Decide whether the formal document should learn to carry a code listing, and settle the two shapes either way
+  - **Issue**: the item that published the three models assumed the twenty-eight committed `sheet.json` documents would move off the provisional shape first, and they should not. Each is a worked code listing with a syntax role per line and meaningful indentation; a formal entry is a term, a signature and a description. Rewriting a listing as entries loses the per-line roles the three role tables colour, loses the indent-is-a-level rule under **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`, changes every rendered sheet and breaks the committed fixture
+  - **Goal**: either give a section an alternative to `entries` that carries lines, which makes the formal model able to say everything the catalog says and the migration a port rather than a loss - or state that the two shapes are permanent alternatives, which is what the code does today, and stop calling one of them provisional. The second is cheaper and the first is what "independent of how any of it is drawn" asked for, so it is a decision rather than a task
+  - A section's `slot` already names a **kind** of slot rather than a slot, and `SLOT_KINDS` holds `heading`, `entries` and `brand`. A listing kind is the shape of the first answer, and `rowsFor` in `layout.mjs` is the one function that would change
+  - First of the five, because it is the only item left that can move what a committed render looks like - and the item below it commits one
+  - From: Implement Cheatsheet API `->` The Core Model
+- [ ] Cover the API with tests that render a fixture document to every format and compare against committed output
+  - Rendering is deterministic in both formats, so the comparison is byte for byte rather than approximate
+  - `examples/render-formats.mjs` renders a fixture document to all five formats now and `tools/test-worked-examples.mjs` asserts the three that need nothing installed, so what is open is the committed output half rather than the rendering
+  - `tools/fixtures/sheet.svg` and `tools/fixtures/sheet.png.sha256` are the pattern to follow, including the `MCP_FIXTURE_UPDATE=1` route that regenerates them. `jpeg` and `webp` are browser only, so a bare clone cannot compare those two and the case has to say so rather than fail
   - From: Implement Cheatsheet API `->` Embedding the API
-- [ ] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
-  - `--data-only` does this now, emitting the document, which shape it is in, which theme and layout answered, and the variation. What is left is the acceptance check, and the one thing to settle with it is whether a document read from a file rather than from the catalog reports the same fields
-  - From: Implement Cheatsheet API `->` Embedding the API
-- [ ] Confirm the page reaches the vendored `api/napkin-sketch/api/index.js` through `api/cheatsheet/`, with no build step and no install between
-  - The vendored build is the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
-  - Half of it is written: `tools/test-sheet-render.mjs` walks the static import graph of `index.mjs` and fails on a Node builtin anywhere in it. What that walk stops at is this folder, so the half still open is the hop from here into the vendored surface and down through its chunks
-  - From: Implement Cheatsheet API `->` Embedding the API
-- [ ] Document the public API surface with one worked example per output format
-  - Five formats rather than the two this item's note predates: `svg`, `html`, `png`, `jpeg` and `webp` are what `renderSheet` renders, and `html` has no example anywhere yet
-  - `examples/` holds two scripts over one document and writes through the package's own `writeComposition`. The surface has `renderToFile` now, so an example that demonstrates the published route is also an example that stops being a hand copy of it
-  - From: Implement Cheatsheet API `->` Embedding the API
+- [ ] Settle what "add `graphic-designer` as a collaborator" means, because no commit has ever done it
+  - **Issue**: found 2026.10.26. The `## Collaborators` constant asks for it on any commit that creates an image, `CONTRIBUTING.md` restates it as a rule a drawing commit follows, and every cheatsheet item in **New Cheatsheets** carries it as a line of its own. `git log --grep=graphic-designer -i` returns nothing, and no commit in the history carries a trailer naming it - including `1aaf579`, which added the six **General CSS Overview** sheets. So the rule is stated in three places and satisfied in none
+  - **Issue**: it is not clear which of two things it asks for, which is probably why. A commit trailer naming a co-author is one reading; a GitHub repository collaborator, added once in the repository's settings rather than per commit, is the other. "Add as a collaborator" is the vocabulary of the second and "on a commit" is the vocabulary of the first, and `CONTRIBUTING.md` currently reads as both at once
+  - **Goal**: decide which it is and make it true. If it is a trailer, it has to be something the committing step can add, since a run records a commit mode and does not run `git` - so either the mode file carries it or the automation learns the rule, and `CONTRIBUTING.md` should name the exact trailer. If it is a repository collaborator, check whether the account is already one and reword the constant and `CONTRIBUTING.md` to stop implying a per-commit act. Either way, drop the line from the remaining cheatsheet items in **New Cheatsheets** if it is not something an item can carry out
+  - Queued before the next cheatsheet item rather than after, which is what the roadmap section asks for: more than fifty items still carry the line, and each records an intention no commit fulfils
+  - From: version.control = null
+- [ ] Write `tools/cheatsheet-site.mjs`, a dependency free Node script that crawls a site tree, collects marked content and writes cheatsheet pages
+  - Unblocked as of 2026.11.01: what held this section back was an undocumented API surface, and both halves of it are published and have a worked example per output format now
+  - It crawls and emits rather than composing, so it is clear of the listing decision above - rendering a generated page through the API is `### Building on the API`'s item rather than this one's
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [ ] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
+  - The same half of the tool as the item above it, and the half that touches disk, so the two belong in one run
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
 
 ## GitHub Pages Deployment
 
@@ -900,6 +905,18 @@ refused by name.
 
 ### Configuration
 
+Finished on 2026.11.01, when the last of the five - where a document may be read
+from - landed as `readDocumentFile` in `api/cheatsheet/files.mjs`. It is there
+rather than in `document.mjs` because reading a file is `node:fs`, and
+`document.mjs` is in the static graph of `index.mjs`. **JSON is the only input
+format**: a path naming YAML, TOML, JSON5 or a module is refused by name, with
+what to do instead, rather than handed to `JSON.parse` to fail at character 1.
+A folder is refused too - which file in a folder is the document is a catalog
+convention, and nothing in this layer may assume this repository's layout.
+`readDocument` beside it is still the plain-object half, and the file route calls
+it rather than repeating the refusals, so a bad field is reported by path either
+way.
+
 Four of these landed on 2026.10.30. A theme may arrive partial and is laid over
 the recorded theme before it is validated, so omission is filled and error is
 not. Every pairing of ink and ground a theme and a layout imply is measured
@@ -910,10 +927,6 @@ type stack is a list of families and a render reports which of them the
 renderer actually resolved. And shape and curve are named tokens on the theme
 beside the type sizes and the stroke weights, so a layout slot carries no
 geometry of its own.
-
-What is left is the input side of a document: where one may be read from.
-
-- [ ] Load a document from JSON and from a plain object, and assume no other input format
 
 ### Renderers and Output
 
@@ -949,15 +962,54 @@ header's. A fragment is a library answer, and nothing has asked for it as a file
 
 ### Embedding the API
 
-- [ ] Confirm the page reaches the vendored `api/napkin-sketch/api/index.js` through `api/cheatsheet/`, with no build step and no install between
-  - The vendored build is the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
-- [ ] Expose a command line entry point that reads a document file and writes an output file, with the raster backend optional
-  - SVG needs no browser and a raster does, which is the whole reason the backend is optional. `tools/cheatsheet.mjs` under **Raster Export and Example Images** is that entry point, and its flags are specified in `.claude/prompts/current-plan.prompt.md`
-- [ ] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
-- [ ] Document the public API surface with one worked example per output format
-  - Two formats now rather than five, since GIF and TIFF are dropped
+Four of these landed on 2026.11.01, and what they close is the gap between a
+layer that composes any document and a command that could only reach the
+twenty-eight in `cheatsheets.json`. `tools/cheatsheet.mjs --document <path>`
+reads a JSON document from anywhere and composes it, through the reader under
+**Configuration** above, so the command is an entry point for a document rather
+than for this repository's own index. Both routes report the same fields - a
+consumer parsing `--json` should not have to branch on which flag was typed -
+with `source` saying which named the sheet, and `path` meaning the cheatsheet's
+folder on one and the file on the other.
+
+Three things about that are decisions rather than details. A `--document`
+render always goes to `.tmp/`, publishable or not: the folder a publishable
+render lands in is a catalog fact, and a document named by path has no entry,
+no slug and no folder the social recipe knows about. `--document` with
+`--generate` is refused rather than ranked, since each pairing would have to
+drop one of the two things asked for, and so is `--document` with `--list` or
+`--check`, which are questions about the catalog. And the refusals are the
+reader's, reached through the flag, so the command gained the layer's messages
+instead of a second set of its own.
+
+The acceptance check for the vendored reach is the one that found something.
+`tools/test-sheet-render.mjs` walked the static import graph of `index.mjs` and
+failed on a Node builtin in it, but followed only `./` inside
+`api/cheatsheet/` - so it was true of thirteen files and silent about
+everything past them, which is where the drawing surface the page actually
+draws through lives. The walk resolves a specifier against the directory of the
+file that wrote it now, the way the runtime does, which takes it into
+`graphic-design/index.js` and down through its chunks; it also reports a bare
+specifier, which is the module-level form of "no install between". The two
+entries the accent reader loads on demand are walked as roots of their own,
+because the page does load them, with the first `sheet.json` rather than in
+front of it. Seventeen modules in the static graph, eleven in the on-demand
+one, no builtin and nothing to install in either.
+
+The format examples are `examples/render-formats.mjs`: one composition rendered
+five times, reporting which route answered, which family drew, and whether the
+result may be shown to a reader. Three of the five need nothing installed -
+`svg` and `html` are markup, and `png` is the one raster the built-in route can
+encode - and `jpeg` and `webp` come back with the reason rather than bringing
+the run down, which is what lets the example be an example on a bare clone. The
+other two examples moved onto the published route at the same time: both wrote
+through the drawing surface's own `writeComposition`, which worked and was a
+hand copy of `renderOf` and `writeRender`, so the surface published on
+2026.10.31 had no example at all.
+
 - [ ] Cover the API with tests that render a fixture document to every format and compare against committed output
   - Rendering is deterministic in both formats, so the comparison is byte for byte rather than approximate
+  - `examples/render-formats.mjs` renders a fixture document to all five now and `tools/test-worked-examples.mjs` asserts the three that need nothing installed, so what is open is the committed output half rather than the rendering: `tools/fixtures/sheet.svg` and `sheet.png.sha256` are the pattern, and `jpeg` and `webp` are browser only and so cannot be compared on a bare clone
 
 ## Dedicated cheatsheet website
 
@@ -1780,5 +1832,24 @@ generate ideas about generating ideas.
   - The package's `writeComposition(source, dir, name, options)`, from its `graphic-design/files` entry, already covers the second and third
   - `tools/cheatsheet.mjs` covers all three for the command line, including `--out -` for standard output, so what is open is the library form rather than the behaviour. Nothing published may touch disk on import: the page loads this folder with a bare `import`, and `graphic-design/files` is the one entry that reads `node:fs`
   - From: Implement Cheatsheet API `->` Renderers and Output
+- [x] Load a document from JSON and from a plain object, and assume no other input format
+  - `readDocument` already takes a plain object and holds it to whichever of the two schemas it is written in, so what is open is reading one off disk - and the command line entry point directly below is the caller that wants it
+  - It reads a file, so it belongs in `api/cheatsheet/files.mjs` beside `writeRender` rather than in `document.mjs`. Nothing in the static graph of `index.mjs` may touch `node:fs`, and `tools/test-sheet-render.mjs` walks that graph and fails on one
+  - From: Implement Cheatsheet API `->` Configuration
+- [x] Expose a command line entry point that reads a document file and writes an output file, with the raster backend optional
+  - SVG needs no browser and a raster does, which is the whole reason the backend is optional. `tools/cheatsheet.mjs` under **Raster Export and Example Images** is that entry point, and its flags are specified in `.claude/prompts/current-plan.prompt.md`
+  - What is open is the input: every route into it today is a catalog slug, so a document that is not in `cheatsheets.json` cannot be rendered at all. The output half is done - it renders and writes through the surface as of 2026.10.31
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [x] Give the command line a data only mode that structures and orders cheatsheet content without rendering it, for callers that want the organized data rather than the picture
+  - `--data-only` does this now, emitting the document, which shape it is in, which theme and layout answered, and the variation. What is left is the acceptance check, and the one thing to settle with it is whether a document read from a file rather than from the catalog reports the same fields
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [x] Confirm the page reaches the vendored `api/napkin-sketch/api/index.js` through `api/cheatsheet/`, with no build step and no install between
+  - The vendored build is the dependency free ES module this item used to ask for, so what is left is the acceptance check rather than the work
+  - Half of it is written: `tools/test-sheet-render.mjs` walks the static import graph of `index.mjs` and fails on a Node builtin anywhere in it. What that walk stops at is this folder, so the half still open is the hop from here into the vendored surface and down through its chunks
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [x] Document the public API surface with one worked example per output format
+  - Five formats rather than the two this item's note predates: `svg`, `html`, `png`, `jpeg` and `webp` are what `renderSheet` renders, and `html` has no example anywhere yet
+  - `examples/` holds two scripts over one document and writes through the package's own `writeComposition`. The surface has `renderToFile` now, so an example that demonstrates the published route is also an example that stops being a hand copy of it
+  - From: Implement Cheatsheet API `->` Embedding the API
 
 </details>
