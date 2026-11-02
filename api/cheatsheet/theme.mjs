@@ -80,7 +80,7 @@
 import { checkPairings, parseSheetColor, readableInk } from "./contrast.mjs";
 import { SHEET_CONDENSATION, SHEET_FACE, TYPE_ROLES } from "./faces.mjs";
 import { SHEET_LANGUAGE } from "./language.mjs";
-import { paintOf } from "./layout.mjs";
+import { paintOf, slotsHolding } from "./layout.mjs";
 import { assertValid } from "./schema.mjs";
 
 /**
@@ -638,8 +638,15 @@ export function themePairings(theme, layout) {
       ground: paintOf(theme, slot.ground, `the ground under the ${slot.name} slot`),
     });
   }
+  // Every slot that carries rows of code, which is a slot holding entries or a
+  // listing: both become rows painted by their syntax role, so both put the
+  // same six inks on the same ground. Resolved through `slotsHolding` rather
+  // than by comparing the field, because `holds` may name one kind or several -
+  // this sheet's own code panel names both - and an equality test against it
+  // silently measured nothing the day that became true.
+  const rowed = new Set([...slotsHolding(layout, "entries"), ...slotsHolding(layout, "listing")]);
   for (const slot of layout.slots) {
-    if (slot.holds !== "entries" || slot.paint === undefined) continue;
+    if (!rowed.has(slot) || slot.paint === undefined) continue;
     const ground = paintOf(theme, slot.paint, `the ${slot.name} slot`);
     for (const role of SYNTAX_ROLES) {
       pairings.push({ name: `${slot.name}/${role}`, ink: theme.syntax[role], ground });

@@ -1,0 +1,37 @@
+[
+  {
+    "format": "svg",
+    "mediaType": "image/svg+xml",
+    "extension": "svg",
+    "raster": false,
+    "filename": "splicing-array-elements.svg"
+  },
+  {
+    "format": "html",
+    "mediaType": "text/html",
+    "extension": "html",
+    "raster": false,
+    "filename": "splicing-array-elements.html"
+  },
+  {
+    "format": "png",
+    "mediaType": "image/png",
+    "extension": "png",
+    "raster": true,
+    "filename": "splicing-array-elements.png"
+  },
+  {
+    "format": "jpeg",
+    "mediaType": "image/jpeg",
+    "extension": "jpg",
+    "raster": true,
+    "filename": "splicing-array-elements.jpg"
+  },
+  {
+    "format": "webp",
+    "mediaType": "image/webp",
+    "extension": "webp",
+    "raster": true,
+    "filename": "splicing-array-elements.webp"
+  }
+]

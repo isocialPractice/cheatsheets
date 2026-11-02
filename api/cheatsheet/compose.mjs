@@ -91,13 +91,19 @@
 // sheets' green becoming `#2E7534` where it has to be read on white - is
 // applied rather than merely recorded.
 //
-// ## The document model is provisional
+// ## Two document shapes compose through here, and both are permanent
 //
-// What this reads is the minimum the six regions need. The formal model - a
-// title, ordered sections, entries carrying a term, a signature and a
-// description, with schemas and validation - is **The Core Model** under
-// **Implement Cheatsheet API** in `TODO.md`, and it is deliberately not
-// invented here. When it lands, this algorithm is what it composes through.
+// A **compact** document is a title and an array of code lines, which is the
+// minimum the six regions need and what the twenty-eight committed
+// `sheet.json` files are written in. A **formal** document is a title and
+// ordered sections, each holding entries or a listing. Both are
+// `document.mjs`'s, each held to its own schema, and the choice between them
+// is a caller's rather than a migration: see **Both shapes are permanent, and
+// neither is a draft** in that file.
+//
+// This algorithm reads neither shape directly. It validates, asks the layout
+// for rows, and composes rows - so the only line below that knows there are
+// two shapes is the one that picks which projection to call.
 
 import { createComposition, placeBrand } from "../napkin-sketch/graphic-design/index.js";
 
@@ -456,10 +462,10 @@ export function composeSheet(doc, options = {}) {
   const floors = language.floors ?? SHEET_LANGUAGE.floors;
   const contrastFloor = (language.contrast ?? SHEET_LANGUAGE.contrast).text;
 
-  // A formal document carries sections of entries rather than rows, and what
-  // turns one into the other is the layout's - `rowsFor` in `layout.mjs`, and
-  // the reason it lives there rather than in the document model is the whole
-  // point of that model. The provisional shape goes through unchanged.
+  // A formal document carries sections rather than rows, and what turns one
+  // into the other is the layout's - `rowsFor` in `layout.mjs`, and the reason
+  // it lives there rather than in the document model is the whole point of
+  // that model. The compact shape is already rows and goes through unchanged.
   const lines = isFormalDocument(doc) ? rowsFor(doc) : codeLines(doc.code);
   /** @type {string[]} */
   const notes = [];

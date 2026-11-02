@@ -50,13 +50,16 @@
 // replaced it. A caller therefore composes a sheet without naming anything the
 // renderer reads for itself.
 //
-// Within the document model the two shapes are still alternatives rather than a
-// field and its replacement. `composeSheet` takes the provisional shape the
-// twenty-eight committed `sheet.json` files are written in and takes a formal
-// one as readily, `readDocument` holds each to its own schema, and
-// `tools/cheatsheet.mjs --data-only` says which shape it emitted. A theme
-// arrives whole or partial and a layout is derived from the design language when
-// the caller passes neither.
+// Within the document model the two shapes are alternatives, and **since
+// 2026.11.02 both are permanent**. `composeSheet` takes the **compact** shape
+// the twenty-eight committed `sheet.json` files are written in and takes a
+// **formal** one as readily, `readDocument` holds each to its own schema, and
+// `tools/cheatsheet.mjs --data-only` says which shape it emitted. A formal
+// section holds `entries` or `lines`, so the formal model can say everything
+// the catalog says and the compact shape is the shorthand for a document of one
+// listing rather than a draft awaiting a port - which is why nothing here calls
+// it provisional any more. A theme arrives whole or partial and a layout is
+// derived from the design language when the caller passes neither.
 //
 // ## The output surface
 //
@@ -111,8 +114,8 @@ export {
   isFormalDocument,
   readDocument,
   CODE_ROLES,
+  COMPACT_SCHEMA,
   DOCUMENT_SCHEMA,
-  PROVISIONAL_SCHEMA,
 } from "./document.mjs";
 
 export {

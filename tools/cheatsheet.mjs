@@ -674,8 +674,9 @@ async function generate(flags) {
 
   if (flags["data-only"]) {
     // The document as this layer reads it, in whichever of the two shapes it
-    // was written in. Every committed one is provisional today, and a consumer
-    // of that shape should expect it to grow fields.
+    // was written in. Every committed one is compact, and both shapes are
+    // permanent as of 2026.11.02 - so what the marker below reports is which
+    // shape a consumer is looking at, not how long it has left.
     return {
       exit: 0,
       json: {
@@ -687,13 +688,13 @@ async function generate(flags) {
         // this should not have to branch on which flag was typed - and they mean
         // a folder on `catalog` and a file on `document`.
         source: subject.source,
-        // Read off the document rather than written out, because the marker
-        // is only worth having if it can disagree with itself: a consumer of
-        // this JSON should not have to guess whether the shape it was written
-        // against may grow fields, and a constant could never tell it.
-        // `isFormalDocument` is the same predicate `composeSheet` branches on.
-        // See `api/cheatsheet/document.mjs`.
-        shape: isFormalDocument(doc) ? "formal" : "provisional",
+        // Read off the document rather than written out, because the marker is
+        // only worth having if it can disagree with itself: a `--document`
+        // route is handed whichever shape the file is in, and a consumer
+        // reading `code` or `sections` out of the JSON below should not have to
+        // probe for which. `isFormalDocument` is the same predicate
+        // `composeSheet` branches on. See `api/cheatsheet/document.mjs`.
+        shape: isFormalDocument(doc) ? "formal" : "compact",
         // Which theme and which layout answered, for the same reason: a
         // consumer reading the geometry and the stack out of the variation
         // cannot tell from the figures alone which grid they were measured on

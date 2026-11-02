@@ -94,9 +94,9 @@ import { filenameFor, renderOf } from "./render.mjs";
  * What a document read off disk came back as.
  *
  * @typedef {object} ReadDocument
- * @property {import('./document.mjs').CheatsheetDocument | import('./document.mjs').ProvisionalDocument} document
+ * @property {import('./document.mjs').CheatsheetDocument | import('./document.mjs').CompactDocument} document
  * @property {string} path The file it was read from, resolved.
- * @property {'formal' | 'provisional'} shape Which of the two schemas held it.
+ * @property {'formal' | 'compact'} shape Which of the two schemas held it.
  */
 
 /** The one input format a document is read from. */
@@ -187,7 +187,7 @@ export async function readDocumentFile(target, options = {}) {
     );
   }
   const document = readDocument(parsed);
-  return { document, path, shape: isFormalDocument(document) ? "formal" : "provisional" };
+  return { document, path, shape: isFormalDocument(document) ? "formal" : "compact" };
 }
 
 /**

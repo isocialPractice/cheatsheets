@@ -36,7 +36,7 @@ import {
   readDocument,
   CODE_ROLES,
   DOCUMENT_SCHEMA,
-  PROVISIONAL_SCHEMA,
+  COMPACT_SCHEMA,
 } from "../api/cheatsheet/document.mjs";
 import { SHEET_CONDENSATION, SHEET_FACE, TYPE_ROLES } from "../api/cheatsheet/faces.mjs";
 import {
@@ -51,6 +51,7 @@ import {
   slotNamed,
   slotsHolding,
   SHEET_LAYOUT,
+  SLOT_KINDS,
   STAGES,
 } from "../api/cheatsheet/layout.mjs";
 import { SHEET_LANGUAGE } from "../api/cheatsheet/language.mjs";
@@ -94,8 +95,34 @@ const FORMAL = {
   ],
 };
 
-/** The provisional shape, which is what every committed `sheet.json` is in. */
-const PROVISIONAL = {
+/**
+ * A formal document whose sections carry listings rather than entries.
+ *
+ * The shape that settles the two: a worked listing, with a role on the lines
+ * that are comments and an indent on the one that is nested, sitting inside the
+ * section structure the formal model brought.
+ */
+const LISTING = {
+  title: "Splicing Array Elements",
+  language: "javascript",
+  sections: [
+    {
+      title: "Removing",
+      lines: [
+        { text: "// remove two from index one", role: "comment" },
+        { text: "const removed = items.splice(1, 2);" },
+        { text: "  console.log(removed);" },
+      ],
+    },
+    {
+      title: "Inserting",
+      lines: [{ text: "items.splice(1, 0, 'demo');" }],
+    },
+  ],
+};
+
+/** The compact shape, which is what every committed `sheet.json` is in. */
+const COMPACT = {
   title: "Splicing Array Elements",
   subtitle: "Add and remove in one call",
   code: [
@@ -113,18 +140,19 @@ function named(composition, name) {
 
 test("the two shapes are told apart by the field the formal model added", () => {
   assert.equal(isFormalDocument(FORMAL), true);
-  assert.equal(isFormalDocument(PROVISIONAL), false);
-  // A document carrying both is a document being migrated, and the formal
-  // field is read first so it can be migrated one sheet at a time.
-  assert.equal(isFormalDocument({ ...PROVISIONAL, sections: FORMAL.sections }), true);
+  assert.equal(isFormalDocument(COMPACT), false);
+  // A document carrying both is a document halfway between the two, and the
+  // formal field is read first so that reads as a formal document with a
+  // stray field rather than a compact one with a field nothing draws.
+  assert.equal(isFormalDocument({ ...COMPACT, sections: FORMAL.sections }), true);
   for (const value of [null, undefined, "a sheet", 7, []]) assert.equal(isFormalDocument(value), false);
 });
 
 test("each shape is read against its own schema, and both pass", () => {
   assert.equal(readDocument(FORMAL), FORMAL);
-  assert.equal(readDocument(PROVISIONAL), PROVISIONAL);
+  assert.equal(readDocument(COMPACT), COMPACT);
   assert.equal(DOCUMENT_SCHEMA.name, "document");
-  assert.equal(PROVISIONAL_SCHEMA.name, "document");
+  assert.equal(COMPACT_SCHEMA.name, "document");
 });
 
 test("a field deep inside a section is refused by its path", () => {
@@ -142,20 +170,20 @@ test("and a description without a term is not an entry at all", () => {
   assert.throws(() => readDocument(broken), /document\.sections\[0\]\.entries\[0\]\.term: must be a string, and is absent/);
 });
 
-test("the formal shape is closed and the provisional one is open, which is deliberate", () => {
+test("the formal shape is closed and the compact one is open, which is deliberate", () => {
   // The formal model is new, so it catches `section` misspelt for `sections`
-  // while nothing on disk is written in it. The provisional shape predates
+  // while nothing on disk is written in it. The compact shape predates
   // every model here and is handed to `composeSheet` whole by the page, so a
   // field added to the catalog's documents must not stop the page drawing.
   assert.throws(() => readDocument({ ...FORMAL, subtitel: "typo" }), /document\.subtitel: is not a field/);
-  assert.equal(readDocument({ ...PROVISIONAL, notAField: 1 }).notAField, 1);
+  assert.equal(readDocument({ ...COMPACT, notAField: 1 }).notAField, 1);
 });
 
 test("a seed is a string or a number, and nothing else", () => {
-  for (const seed of ["splice-array", 42, 0]) assert.ok(readDocument({ ...PROVISIONAL, seed }));
+  for (const seed of ["splice-array", 42, 0]) assert.ok(readDocument({ ...COMPACT, seed }));
   for (const seed of [true, {}, ["x"]]) {
     assert.throws(
-      () => readDocument({ ...PROVISIONAL, seed }),
+      () => readDocument({ ...COMPACT, seed }),
       /document\.seed: must be a string or a number/,
       `${JSON.stringify(seed)} was taken as a seed`
     );
@@ -168,7 +196,7 @@ test("a code line's role is a string rather than one of the six, and the six are
   // fallback - including one for a role named after a property of
   // `Object.prototype`. A schema refusing the role would make a documented,
   // tested behaviour unreachable.
-  assert.ok(readDocument({ ...PROVISIONAL, code: [{ text: "a", role: "invented" }] }));
+  assert.ok(readDocument({ ...COMPACT, code: [{ text: "a", role: "invented" }] }));
   assert.deepEqual(CODE_ROLES, ["plain", "comment", "identifier", "keyword", "string", "number"]);
   assert.deepEqual(CODE_ROLES.slice().sort(), Object.keys(SHEET_LANGUAGE.syntax).sort());
 });
@@ -183,9 +211,9 @@ test("the entries flatten in reading order, with the section each came from", ()
   assert.deepEqual(flat.map((one) => one.entry.term), ["splice", "length", "splice"]);
   assert.deepEqual(flat.map((one) => one.section.title), ["Removing", "Removing", "Inserting"]);
   assert.deepEqual(flat.map((one) => one.index), [0, 1, 2]);
-  // A provisional document has no sections, and flattening one is empty
+  // A compact document has no sections, and flattening one is empty
   // rather than an error: the field is simply not there.
-  assert.deepEqual(entriesOf(PROVISIONAL), []);
+  assert.deepEqual(entriesOf(COMPACT), []);
 });
 
 test("nothing in the document model reaches the drawing, which is what it is for", () => {
@@ -253,7 +281,7 @@ test("a rendered sheet records the stack it asked for, because an SVG cannot pro
   // with nothing in either saying so. `resolved` is null in this layer on
   // purpose: the renderer is the only thing that can answer it, and
   // `rasterizeSheet` is where it is answered.
-  const { variation } = composeSheet(PROVISIONAL, { seed: 1 });
+  const { variation } = composeSheet(COMPACT, { seed: 1 });
   assert.deepEqual(variation.stack.family, SHEET_THEME.stack.family);
   assert.equal(variation.stack.css, familyCss(SHEET_THEME.stack.family));
   assert.equal(variation.stack.resolved, null);
@@ -261,7 +289,7 @@ test("a rendered sheet records the stack it asked for, because an SVG cannot pro
   // And the stack a theme names is the stack the markup carries, every run of
   // it. One stack per sheet is the design language's rule, not an accident of
   // the four runs happening to share a face.
-  const narrow = composeSheet(PROVISIONAL, {
+  const narrow = composeSheet(COMPACT, {
     seed: 1,
     theme: { stack: { ...SHEET_THEME.stack, family: ["Courier New", "monospace"] } },
   });
@@ -472,7 +500,7 @@ test("and the two rule weights are named, because a record would take any two ke
   // And the height still reaches the bar when the theme is a whole one.
   const thin = structuredClone(SHEET_THEME);
   thin.strokes.rules.upper = 12;
-  const { composition } = composeSheet(PROVISIONAL, { seed: 1, theme: thin });
+  const { composition } = composeSheet(COMPACT, { seed: 1, theme: thin });
   assert.equal(named(composition, "rule-upper-left").height, 12);
   assert.equal(named(composition, "rule-lower-left").height, SHEET_LANGUAGE.rules.lower.height);
 });
@@ -499,8 +527,8 @@ test("a theme composes a sheet, and moves every paint without moving a coordinat
     heading: "#3A3A40",
     greenOnWhite: "#9A4A10",
   };
-  const recorded = composeSheet(PROVISIONAL, { seed: 7 });
-  const themed = composeSheet(PROVISIONAL, { seed: 7, theme: amber });
+  const recorded = composeSheet(COMPACT, { seed: 7 });
+  const themed = composeSheet(COMPACT, { seed: 7, theme: amber });
   for (const slot of ["masthead", "spine", "divider", "code-panel"]) {
     const was = named(recorded.composition, slot);
     const now = named(themed.composition, slot);
@@ -682,8 +710,8 @@ test("a replacement layout composes a different sheet, which is the whole point 
   const moved = structuredClone(SHEET_LAYOUT);
   moved.name = "deep-spine";
   moved.slots.find((slot) => slot.name === "spine").bleed = { top: SHEET_LANGUAGE.tokens["step-9"] };
-  const recorded = composeSheet(PROVISIONAL, { seed: 3 });
-  const replaced = composeSheet(PROVISIONAL, { seed: 3, layout: moved });
+  const recorded = composeSheet(COMPACT, { seed: 3 });
+  const replaced = composeSheet(COMPACT, { seed: 3, layout: moved });
   assert.equal(
     named(recorded.composition, "spine").height,
     SHEET_LANGUAGE.bands.code.height + SHEET_LANGUAGE.insets.spineTop
@@ -696,7 +724,7 @@ test("a replacement layout composes a different sheet, which is the whole point 
   // rather than inside the drawing surface.
   const broken = structuredClone(SHEET_LAYOUT);
   broken.slots[0].draw = "scribble";
-  assert.throws(() => composeSheet(PROVISIONAL, { layout: broken }), /layout\.slots\[0\]\.draw: must be one of/);
+  assert.throws(() => composeSheet(COMPACT, { layout: broken }), /layout\.slots\[0\]\.draw: must be one of/);
 });
 
 test("a layout derived from a replaced language follows the language, not the record", () => {
@@ -778,7 +806,7 @@ test("and a stroke with no weight is refused, because a hairline of nothing draw
 });
 
 test("a text slot becomes a text element, placed from the slot's own baseline", () => {
-  const { composition } = composeSheet(PROVISIONAL, { seed: 1 });
+  const { composition } = composeSheet(COMPACT, { seed: 1 });
   for (const name of ["wordmark", "title", "subtitle", "lead-in", "follow-line"]) {
     const element = named(composition, name);
     assert.ok(element, `the ${name} slot drew nothing`);
@@ -791,7 +819,7 @@ test("a paint naming no role of the theme is refused, naming the slot and the ro
   const painted = structuredClone(SHEET_LAYOUT);
   painted.slots.find((slot) => slot.name === "divider").paint = "chartreuse";
   assert.throws(
-    () => composeSheet(PROVISIONAL, { layout: painted }),
+    () => composeSheet(COMPACT, { layout: painted }),
     /the divider slot is painted "chartreuse", which is no role of the "default" theme/
   );
   // Read as an own property, the guard this layer carries everywhere a role
@@ -825,7 +853,7 @@ test("a section becomes a comment row and an entry becomes two, in reading order
 });
 
 test("a signature carries no role, so a document naming a language is coloured by token", () => {
-  // The provisional shape's own rule, inherited rather than restated: a
+  // The compact shape's own rule, inherited rather than restated: a
   // declared role is the fallback, and the accent reader is the first choice.
   for (const row of rowsFor(FORMAL)) {
     if (row.text.startsWith("//") || row.text === "") continue;
@@ -841,21 +869,120 @@ test("a blank row sits between sections and at neither end", () => {
   assert.deepEqual(rowsFor({ ...FORMAL, sections: [FORMAL.sections[0]] }).filter((row) => row.text === ""), []);
 });
 
-test("a formal document composes through the same algorithm the provisional one does", () => {
+// ## A listing section, which is what settles the two shapes
+
+test("a listing section's lines pass through as rows, role and indent intact", () => {
+  // The identity projection, and the only correct one for a listing: the
+  // indent means a nesting level and the role means a syntax colour, so a
+  // layout that re-wrapped or re-indented would change what the document says
+  // rather than how it is set.
+  assert.deepEqual(rowsFor(LISTING), [
+    { text: "// Removing", role: "comment" },
+    { text: "// remove two from index one", role: "comment" },
+    { text: "const removed = items.splice(1, 2);" },
+    { text: "  console.log(removed);" },
+    { text: "" },
+    { text: "// Inserting", role: "comment" },
+    { text: "items.splice(1, 0, 'demo');" },
+  ]);
+  // Copied rather than handed out by reference: the composition reaches into a
+  // row to record what it drew, and the caller's document is not this
+  // function's to open.
+  const rows = rowsFor(LISTING);
+  assert.notEqual(rows[1], LISTING.sections[0].lines[0]);
+  assert.deepEqual(rows[1], LISTING.sections[0].lines[0]);
+});
+
+test("the compact shape is exactly a document of one untitled listing", () => {
+  // The claim the decision of 2026.11.02 rests on - `{ title, code }` says
+  // what `{ title, sections: [{ lines: code }] }` says - asserted where it
+  // would break: through the whole algorithm, to the markup. An untitled
+  // single section adds no comment row and no blank row, so the rows are the
+  // lines, and the same rows from the same seed draw the same sheet.
+  const wrapped = {
+    title: COMPACT.title,
+    subtitle: COMPACT.subtitle,
+    sections: [{ lines: COMPACT.code }],
+  };
+  assert.deepEqual(rowsFor(wrapped), COMPACT.code);
+  const shorthand = composeSheet(COMPACT, { seed: "splice-array" });
+  const longhand = composeSheet(wrapped, { seed: "splice-array" });
+  assert.equal(longhand.composition.toSVG(), shorthand.composition.toSVG());
+  // Which is to say a port off the shorthand is available and loses nothing.
+  // It is not taken: the twenty-eight committed documents stay as they are,
+  // because the shorthand is the shape a sheet that is one listing wants.
+  assert.deepEqual(longhand.variation, shorthand.variation);
+});
+
+test("a section holds entries or lines, and is refused for holding both or neither", () => {
+  assert.equal(readDocument(LISTING), LISTING);
+  const both = structuredClone(LISTING);
+  both.sections[0].entries = FORMAL.sections[0].entries;
+  assert.throws(
+    () => readDocument(both),
+    /document\.sections\[0\]: carries both `entries` and `lines`, and a section holds one or the other/
+  );
+  const neither = structuredClone(LISTING);
+  delete neither.sections[0].lines;
+  assert.throws(
+    () => readDocument(neither),
+    /document\.sections\[0\]: must carry `entries` or `lines`, and carries neither/
+  );
+  // And a listing is held to the same line shape `code` is, by the same node.
+  const broken = structuredClone(LISTING);
+  broken.sections[1].lines[0].text = 7;
+  assert.throws(
+    () => readDocument(broken),
+    /document\.sections\[1\]\.lines\[0\]\.text: must be a string, and is 7/
+  );
+});
+
+test("a listing is content, so `entriesOf` reports none rather than inventing one per line", () => {
+  // The honest answer: lines are not entries. Inventing an entry per line
+  // would hand a table of contents six rows that are each half a statement.
+  assert.deepEqual(entriesOf(LISTING), []);
+  assert.deepEqual(entriesOf({ sections: [...FORMAL.sections, ...LISTING.sections] }).length, 3);
+});
+
+test("a listing asks for a kind of slot, and this layout answers with the code panel", () => {
+  assert.ok(SLOT_KINDS.includes("listing"));
+  assert.deepEqual(slotsHolding(SHEET_LAYOUT, "listing").map((slot) => slot.name), ["code-panel"]);
+  // Both kinds land in the same slot here because entries become rows and a
+  // listing already is rows. A layout setting the descriptions in a margin
+  // would name two slots, which is why a section asks for a kind.
+  assert.deepEqual(slotsHolding(SHEET_LAYOUT, "entries").map((slot) => slot.name), ["code-panel"]);
+});
+
+test("a slot's `holds` names kinds the layout knows, one or several", () => {
+  const one = structuredClone(SHEET_LAYOUT);
+  one.slots[1].holds = "listing";
+  assert.ok(readLayout(one));
+  for (const holds of ["lines", ["entries", "lines"], [], 7, [7]]) {
+    const broken = structuredClone(SHEET_LAYOUT);
+    broken.slots[1].holds = holds;
+    assert.throws(
+      () => readLayout(broken),
+      /layout\.slots\[1\]\.holds: must name/,
+      `${JSON.stringify(holds)} was taken as a kind`
+    );
+  }
+});
+
+test("a formal document composes through the same algorithm the compact one does", () => {
   const formal = composeSheet(FORMAL, { seed: "splice-array" });
-  const provisional = composeSheet(PROVISIONAL, { seed: "splice-array" });
+  const compact = composeSheet(COMPACT, { seed: "splice-array" });
   // The same seed, hashed the same way, and the same choices made from it.
   // Not the same geometry: `topPadding` is drawn from the seed and then held
   // to the room the content leaves, so two documents of different lengths
   // land in different places from one seed. That is the panel being a fixed
   // frame around free content, which is the one region of which the design
   // language says it.
-  assert.equal(formal.variation.seed, provisional.variation.seed);
+  assert.equal(formal.variation.seed, compact.variation.seed);
   assert.deepEqual(
     formal.variation.choices.map((choice) => choice.name),
-    provisional.variation.choices.map((choice) => choice.name)
+    compact.variation.choices.map((choice) => choice.name)
   );
-  assert.equal(formal.variation.leftInset, provisional.variation.leftInset);
+  assert.equal(formal.variation.leftInset, compact.variation.leftInset);
   // And the rows are the projection's, one text element each - numbered by
   // their position among all the rows rather than among the inked ones, so a
   // blank row between sections keeps its slot instead of closing the gap up.

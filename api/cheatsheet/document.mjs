@@ -6,11 +6,11 @@
 // Since the composition algorithm was written, a "document" in this layer has
 // meant the minimum the six drawn regions need: a title, a subtitle and an
 // array of code lines, each line optionally naming the colour role it is set
-// in. `compose.mjs` calls that shape **provisional** in its own header and in
-// the output of `tools/cheatsheet.mjs --data-only`, because it was never a
-// model of a cheatsheet - it was a list of the arguments the drawing needed.
+// in. That shape was never a model of a cheatsheet - it was a list of the
+// arguments the drawing needed, which is why it carried no notion of a term or
+// a section.
 //
-// Thirty-three readers of that shape exist, twenty-eight of them the
+// Thirty-four readers of that shape exist, twenty-eight of them the
 // `sheet.json` documents in the catalog, so it is not going anywhere and this
 // file does not replace it. What it adds is the model the shape was standing
 // in for: a title, ordered **sections**, and **entries** carrying a term, a
@@ -21,19 +21,47 @@
 // They answer different questions, and the difference is the reason the formal
 // model is worth having:
 //
-// | | Provisional | Formal |
+// | | Compact | Formal |
 // | --- | --- | --- |
-// | An example is | lines of text with a colour each | entries with a term, a signature and a description |
+// | A sheet is | one listing | ordered sections |
+// | An entry is | lines of text with a colour each | a term, a signature and a description |
 // | Reordering it means | editing an array of strings | moving an entry |
 // | A term can be | found by reading the lines | read off the field |
 // | Drawn how | one line per row of the panel | however the layout says |
 //
-// The provisional shape has the drawing baked into it: a line is a row,
-// because a row is what it was written to fill. A formal document says what
-// the sheet is *about* and leaves every question of rows, columns, colours and
-// sizes to the theme and the layout. That is the whole of what "independent of
-// how any of it is drawn" buys, and it is why `code` and `sections` are
-// alternatives rather than a field and its replacement.
+// A formal document says what the sheet is *about* and leaves every question
+// of rows, columns, colours and sizes to the theme and the layout. That is the
+// whole of what "independent of how any of it is drawn" buys, and it is why
+// `code` and `sections` are alternatives rather than a field and its
+// replacement.
+//
+// ## Both shapes are permanent, and neither is a draft
+//
+// Settled on 2026.11.02. Until then the compact shape was called
+// **provisional** - here, in `compose.mjs`, and in the output of
+// `tools/cheatsheet.mjs --data-only` - on the understanding that the
+// twenty-eight committed `sheet.json` documents would be ported to `sections`
+// and the word retired with them. They will not be, and the reason is that the
+// port would lose information rather than move it: each is a worked code
+// listing with a syntax role per line and indentation that means a nesting
+// level, and a formal entry had no field for either.
+//
+// Two things follow, and the second is what makes the first honest.
+//
+// - **A formal section can carry a listing.** A section holds `entries` **or**
+//   `lines`, and `lines` is the same line shape `code` has always carried, so
+//   the formal model can now say everything the catalog says. A port is
+//   available to anyone who wants one and is lossless when taken.
+// - **The compact shape is therefore a shorthand rather than a draft.**
+//   `{ title, code }` is exactly `{ title, sections: [{ lines: code }] }`, and
+//   a sheet that is one listing is the common case, so the shorthand earns its
+//   place. It is named `compact` now, in this file and in `--data-only`, and
+//   nothing calls it provisional.
+//
+// What this is *not* is the catalog's documents moving. Not one of them was
+// rewritten, because the shorthand they are written in is permanent. The
+// listing kind exists so the formal model is complete, not so the catalog has
+// somewhere to go.
 //
 // ## Neither shape is coerced into the other here
 //
@@ -50,7 +78,7 @@
 import { assertValid } from "./schema.mjs";
 
 /**
- * The colour roles a provisional code line may declare.
+ * The colour roles a code line may declare.
  *
  * The same six `SYNTAX` in `language.mjs` paints, named here so a document
  * declaring a role nobody paints is refused by the schema rather than drawn in
@@ -59,7 +87,11 @@ import { assertValid } from "./schema.mjs";
 export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string", "number"];
 
 /**
- * One line of the example, in the provisional shape.
+ * One line of a code listing, in either shape.
+ *
+ * The compact document carries an array of these as its `code`, and a formal
+ * section carries one as its `lines`. They are the same line, which is what
+ * makes a port between the two shapes lossless.
  *
  * @typedef {object} CodeLine
  * @property {string} text
@@ -82,18 +114,34 @@ export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string"
  */
 
 /**
- * An ordered group of entries.
+ * An ordered group of entries, or one code listing.
+ *
+ * **A section carries `entries` or `lines`, exactly one of the two.** Entries
+ * are the model's own shape - a term, a signature and a description, each a
+ * field a consumer can read. Lines are a worked listing, which is what
+ * twenty-eight of this repository's sheets are, and what no arrangement of
+ * entries can express: a listing's per-line syntax role and its indentation
+ * both carry meaning, per **An indent is a level, and a column is not
+ * addressable** in `DESIGN_LANGUAGE.md`, and an entry has nowhere to put
+ * either.
+ *
+ * Both are content rather than drawing, which is what lets them sit side by
+ * side here. A listing says *these lines, in this order, this one a comment
+ * and that one nested a level*; it says nothing about which row of which panel
+ * any of it lands on, and `rowsFor` in `layout.mjs` is still what decides
+ * that.
  *
  * `slot` is the one field here that points outward, and it names a **kind** of
- * slot rather than a slot: a section asks for somewhere that holds entries,
- * and the layout decides which of its slots that is. Naming the slot itself
- * would tie the document to a layout, which is the dependency this model is
- * defined to avoid.
+ * slot rather than a slot: a section asks for somewhere that holds entries, or
+ * somewhere that holds a listing, and the layout decides which of its slots
+ * that is. Naming the slot itself would tie the document to a layout, which is
+ * the dependency this model is defined to avoid.
  *
  * @typedef {object} SheetSection
  * @property {string} [title]
  * @property {string} [slot] The kind of slot this section occupies. Defaults to the layout's own.
- * @property {SheetEntry[]} entries
+ * @property {SheetEntry[]} [entries] The entries this section groups. Mutually exclusive with `lines`.
+ * @property {CodeLine[]} [lines] The listing this section carries. Mutually exclusive with `entries`.
  */
 
 /**
@@ -114,7 +162,7 @@ export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string"
 /**
  * A cheatsheet, as the drawing has always taken it.
  *
- * @typedef {object} ProvisionalDocument
+ * @typedef {object} CompactDocument
  * @property {string} title
  * @property {string} [subtitle]
  * @property {string} [kind]
@@ -184,6 +232,59 @@ function sharedFields() {
 }
 
 /**
+ * One line of a listing, as a schema node.
+ *
+ * A function for the same reason {@link sharedFields} is one: the compact
+ * shape's `code` and a formal section's `lines` are the same line, and handing
+ * both schemas one node by reference is the sharing that stops being harmless
+ * the moment one of them wants a field worded differently.
+ *
+ * @returns {import('./schema.mjs').Schema}
+ */
+function codeLine() {
+  return {
+    type: "object",
+    label: "code line",
+    fields: {
+      text: { type: "string" },
+      // A string, not one of {@link CODE_ROLES}. The composition paints an
+      // unrecognised role in the plain colour on purpose, and that fallback is
+      // held by two cases of its own - including one for a role named after a
+      // property of `Object.prototype`. A schema refusing the role would make
+      // a documented, tested behaviour unreachable, so what the list is for is
+      // naming the six that paint rather than refusing a seventh.
+      role: { type: "string", optional: true },
+    },
+  };
+}
+
+/**
+ * Whether a section carries one of the two things a section may hold.
+ *
+ * The rule the schema vocabulary cannot state: `entries` and `lines` are both
+ * optional fields, and exactly one of them has to be there. A keyword for it
+ * would be a keyword with one caller, which is what `check` exists to avoid
+ * growing.
+ *
+ * Both messages name the two fields, because a section that has neither is
+ * usually a section whose author did not know the second one existed.
+ *
+ * @param {any} section
+ * @returns {string | undefined}
+ */
+function holdsOneThing(section) {
+  const entries = Object.hasOwn(section, "entries") && section.entries !== undefined;
+  const lines = Object.hasOwn(section, "lines") && section.lines !== undefined;
+  if (entries && lines) {
+    return "carries both `entries` and `lines`, and a section holds one or the other";
+  }
+  if (!entries && !lines) {
+    return "must carry `entries` or `lines`, and carries neither";
+  }
+  return undefined;
+}
+
+/**
  * The formal document's schema.
  *
  * @type {import('./schema.mjs').Schema}
@@ -200,11 +301,18 @@ export const DOCUMENT_SCHEMA = {
       values: {
         type: "object",
         label: "section",
+        check: holdsOneThing,
         fields: {
           title: { type: "string", optional: true },
           slot: { type: "string", optional: true, notEmpty: true },
+          // Optional in the schema and required by `holdsOneThing` above, which
+          // is what "one or the other" costs in a vocabulary with no union. The
+          // two refusals a reader meets are still the two that matter: a bad
+          // entry is named by path, and a section holding neither field is told
+          // which two it may hold.
           entries: {
             type: "array",
+            optional: true,
             notEmpty: true,
             values: {
               type: "object",
@@ -216,6 +324,13 @@ export const DOCUMENT_SCHEMA = {
               },
             },
           },
+          lines: {
+            type: "array",
+            optional: true,
+            notEmpty: true,
+            message: "must be an array of code lines",
+            values: codeLine(),
+          },
         },
       },
     },
@@ -223,15 +338,21 @@ export const DOCUMENT_SCHEMA = {
 };
 
 /**
- * The provisional shape's schema, which is what the twenty-eight committed
+ * The compact shape's schema, which is what the twenty-eight committed
  * `sheet.json` documents are held to.
+ *
+ * The shape is a shorthand for a document of one listing, and a permanent one:
+ * `{ title, code }` says what `{ title, sections: [{ lines: code }] }` says,
+ * and a sheet that is one listing is the common case. See **Both shapes are
+ * permanent, and neither is a draft** in this file's header for why that was a
+ * decision rather than an observation.
  *
  * **It is the one open schema here**, and the asymmetry is deliberate rather
  * than an oversight. The formal document is new, so it can refuse a field it
  * does not name from its first day and catch a `sections` misspelt as
- * `section` while there is still nothing on disk to break. The provisional
- * shape predates every model in this folder: twenty-eight documents are
- * written in it, `index.html` hands a whole parsed `sheet.json` straight to
+ * `section` while there is still nothing on disk to break. The compact shape
+ * predates every model in this folder: twenty-eight documents are written in
+ * it, `index.html` hands a whole parsed `sheet.json` straight to
  * `composeSheet`, and `tools/build-manifest.mjs` spreads the document and adds
  * to it. Closing it would mean a field added to the catalog's documents
  * stopping the page from drawing any sheet at all, which is a far worse
@@ -239,7 +360,7 @@ export const DOCUMENT_SCHEMA = {
  *
  * @type {import('./schema.mjs').Schema}
  */
-export const PROVISIONAL_SCHEMA = {
+export const COMPACT_SCHEMA = {
   name: "document",
   label: "cheatsheet document",
   type: "object",
@@ -249,21 +370,7 @@ export const PROVISIONAL_SCHEMA = {
     code: {
       type: "array",
       message: "must be an array of code lines, or a string of them",
-      values: {
-        type: "object",
-        label: "code line",
-        fields: {
-          text: { type: "string" },
-          // A string, not one of {@link CODE_ROLES}. The composition paints an
-          // unrecognised role in the plain colour on purpose, and that
-          // fallback is held by two cases of its own - including one for a
-          // role named after a property of `Object.prototype`. A schema
-          // refusing the role would make a documented, tested behaviour
-          // unreachable, so what the list is for is naming the six that paint
-          // rather than refusing a seventh.
-          role: { type: "string", optional: true },
-        },
-      },
+      values: codeLine(),
     },
   },
 };
@@ -272,9 +379,9 @@ export const PROVISIONAL_SCHEMA = {
  * Which shape a value is in, without validating it.
  *
  * Read off `sections` rather than off `code`, because `sections` is the field
- * this model added: a document carrying both is a document being migrated, and
- * reading the formal field first is what lets it be migrated one sheet at a
- * time instead of all twenty-eight at once.
+ * this model added: a document carrying both is a document halfway between the
+ * two, and reading the formal field first is what makes that a formal document
+ * with a stray field rather than a compact one with a field nothing reads.
  *
  * @param {any} value
  * @returns {boolean}
@@ -291,21 +398,24 @@ export function isFormalDocument(value) {
  * coerces, fills a default or reorders a section, so what comes back is what
  * went in and a caller can hold on to the reference.
  *
- * @param {CheatsheetDocument | ProvisionalDocument} doc
- * @returns {CheatsheetDocument | ProvisionalDocument}
+ * @param {CheatsheetDocument | CompactDocument} doc
+ * @returns {CheatsheetDocument | CompactDocument}
  */
 export function readDocument(doc) {
-  // A string `code` is the one shortcut the provisional shape allows - a whole
+  // A string `code` is the one shortcut the compact shape allows - a whole
   // example as one blob, split on newlines by the composition - and a schema
   // whose `code` is an array cannot express it. Validating the rest and
   // checking this by hand is the smaller of the two distortions; teaching the
   // validator a union for one field is the larger.
+  //
+  // A formal section's `lines` takes no such shortcut, on purpose: the shortcut
+  // is what the compact shape is *for*, and a section is already the long form.
   if (!isFormalDocument(doc) && typeof doc === "object" && doc !== null && typeof doc.code === "string") {
     const { code, ...rest } = doc;
-    assertValid({ ...rest, code: [] }, PROVISIONAL_SCHEMA, "sheet document");
+    assertValid({ ...rest, code: [] }, COMPACT_SCHEMA, "sheet document");
     return doc;
   }
-  const schema = isFormalDocument(doc) ? DOCUMENT_SCHEMA : PROVISIONAL_SCHEMA;
+  const schema = isFormalDocument(doc) ? DOCUMENT_SCHEMA : COMPACT_SCHEMA;
   return assertValid(doc, schema, "sheet document");
 }
 
@@ -317,6 +427,12 @@ export function readDocument(doc) {
  * table of contents - and each would otherwise write the same two nested
  * loops, with the same chance of reading the sections in whatever order
  * `Object.keys` happened to give.
+ *
+ * **A listing section contributes nothing**, which is the honest answer rather
+ * than a gap: its lines are not entries, and the alternative - inventing an
+ * entry per line with the line as its term - would hand a table of contents
+ * twenty rows that are each half a statement. A consumer wanting the lines
+ * reads `section.lines`, and one wanting rows calls `rowsFor` in `layout.mjs`.
  *
  * @param {CheatsheetDocument} doc
  * @returns {Array<{ section: SheetSection, entry: SheetEntry, index: number }>}

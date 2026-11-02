@@ -35,14 +35,14 @@ named `sheet.anything`. Any other file in the folder fails
 
 ### Two shapes a document may be written in
 
-Every committed `sheet.json` is in the **provisional** shape: a title, a
-subtitle, the language the example is in, a seed, and a `code` array of lines
-each naming the colour role it is set in. Write a new one the same way - it is
-what the catalog is in, what the page reads, and what
+Every committed `sheet.json` is in the **compact** shape: a title, a subtitle,
+the language the example is in, a seed, and a `code` array of lines each naming
+the colour role it is set in. Write a new one the same way - it is what the
+catalog is in, what the page reads, and what
 `node tools/cheatsheet.mjs --check` holds the whole catalog to.
 
 Since 2026.10.29 the layer also takes a **formal** document, which carries
-ordered sections of entries instead of rows:
+ordered sections instead of one flat run of rows:
 
 ```json
 {
@@ -65,10 +65,40 @@ ordered sections of entries instead of rows:
 ```
 
 `sections` is what tells the two apart, and either composes. The difference is
-that the provisional shape has the drawing baked into it - a line is a row,
-because a row is what it was written to fill - while a formal document says
-what the sheet is about and leaves every question of rows to the layout. An
-entry's `term` is required; its `signature` and `description` are not.
+that the compact shape is a flat run of rows, while a formal document says what
+the sheet is about in groups and leaves every question of rows to the layout.
+An entry's `term` is required; its `signature` and `description` are not.
+
+A formal section carries **`entries` or `lines`, exactly one of the two.**
+Entries are the model's own shape, three readable fields each. `lines` is a
+worked listing - the same lines the compact shape's `code` carries - and it is
+there because a listing says things entries cannot: the syntax role per line
+and the indentation that means a nesting level.
+
+```json
+{
+  "title": "Splicing Array Elements",
+  "sections": [
+    {
+      "title": "Removing",
+      "lines": [
+        { "text": "// remove two from index one", "role": "comment" },
+        { "text": "const removed = items.splice(1, 2);" }
+      ]
+    }
+  ]
+}
+```
+
+**Both shapes are permanent, and neither is going away** - settled 2026.11.02,
+and the reason the compact shape is no longer called "provisional" anywhere.
+`{ "title": ..., "code": [...] }` says exactly what
+`{ "title": ..., "sections": [{ "lines": [...] }] }` says, so the compact shape
+is the shorthand for the common case of a sheet that is one listing. A sheet
+that groups its material reaches for the formal shape; a sheet that is one
+worked example does not have to. `node tools/cheatsheet.mjs --data-only` reports
+`shape` as `compact` or `formal` so a consumer of that JSON knows which it is
+holding without probing for a field.
 
 Both shapes are refused with the path to the offending field rather than a
 sentence about the whole document, which is the half worth knowing when the
@@ -514,13 +544,67 @@ number their sheets from 1 without colliding.
 ## A commit that draws gets a collaborator
 
 A composed sheet is drawn rather than captured, so creating a `sheet.json` or
-writing a render out is image work. Any commit that does either adds
-`graphic-designer` as a collaborator, per the collaborators constant this
-repository is maintained under.
+writing a render out is image work. Any commit that does either credits
+`graphic-designer`, per the collaborators constant this repository is
+maintained under.
 
 That applies to a new cheatsheet, to a correction that changes what a sheet
 draws, and to a render written beside one. It does not apply to a commit that
 only moves, renames or regenerates what is already there.
+
+### What "collaborator" means here, settled 2026.11.02
+
+**It is a trailer on the commit message, and it is exactly this:**
+
+```text
+Co-Authored-By: graphic-designer <noreply@anthropic.com>
+```
+
+The wording had read two ways for as long as it was written down - a co-author
+on a commit, or a collaborator on the repository - and until this was settled no
+commit had ever satisfied either. `git log --grep=graphic-designer -i` returned
+nothing and no commit in the history carried a trailer naming it.
+
+**The repository-collaborator reading is not merely unintended; it is wrong,
+and the cheap way to find that out is to look the name up.** `graphic-designer`
+is a real GitHub account, registered in 2014, belonging to a designer with no
+connection to this project. Adding it to this repository's collaborators would
+hand push access to a stranger who never asked for it. So "collaborator" never
+means a repository collaborator here, whatever the vocabulary suggests, and the
+one safe act is the trailer above.
+
+Two details of that trailer are deliberate:
+
+- **The email is `noreply@anthropic.com`,** which is the address this
+  repository's history already credits its agent work to. GitHub attributes a
+  `Co-Authored-By` trailer by matching the **email**, never the name, so this
+  form credits the agent in the log and links to no account at all. An address
+  that resolved to the unrelated `graphic-designer` account would put a
+  stranger's avatar on the drawing commits, which is the same mistake as the
+  collaborator reading wearing different clothes.
+- **The name is the agent, not a person.** `graphic-designer` is the design
+  skill this repository ships at `ai-helper/graphic-designer/` and installs into
+  `.claude/skills/`. Crediting it is the same kind of record as the
+  `Co-Authored-By: Claude ...` trailer every commit here already carries.
+
+### Who adds it
+
+**Whoever writes the commit** - a contributor committing by hand, or the
+automation that commits on a run's behalf.
+
+It is **not** a step the work itself carries out, and that distinction is the
+reason the rule went unsatisfied for so long. A run working this repository
+records a commit *mode* in `.claude/commit-mode.request` and does not call
+`git`; that file is two lines, a mode and a description, with nowhere to put a
+trailer. So an item in `TODO.md` that lists "add `graphic-designer` as a
+collaborator" among its steps is listing something it cannot do, and the
+convention under **New Cheatsheets** says so rather than asking for it.
+
+`tools/test-drawing-credit.mjs` holds the trailer's exact text against this
+section, refuses the collaborator reading in writing, and fails any queued item
+that lists adding the collaborator among its own steps - so the form above and
+the form a committer copies cannot drift apart, and the line cannot creep back
+into work that has no way to carry it out.
 
 ## What is in `javaScriptArrays/`
 

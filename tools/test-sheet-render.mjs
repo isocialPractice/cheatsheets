@@ -626,12 +626,12 @@ async function documentFile(name, document) {
 }
 
 test("a document is read from JSON and reports which of the two shapes held it", async () => {
-  const provisional = await readDocumentFile(await documentFile("provisional.json", DOC));
-  assert.equal(provisional.shape, "provisional");
+  const compact = await readDocumentFile(await documentFile("compact.json", DOC));
+  assert.equal(compact.shape, "compact");
   // Nothing in the reader coerces, fills a default or reorders a section, which
   // is what `readDocument` promises and this route has to keep - so what comes
   // back deep equals the document that was written out, field for field.
-  assert.deepEqual(provisional.document, DOC);
+  assert.deepEqual(compact.document, DOC);
 
   const formal = {
     title: "Array Methods",

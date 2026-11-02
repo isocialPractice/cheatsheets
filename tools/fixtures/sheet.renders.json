@@ -1,0 +1,96 @@
+{
+  "svg": {
+    "format": "svg",
+    "mediaType": "image/svg+xml",
+    "extension": "svg",
+    "title": "Splicing Array Elements",
+    "bytes": 5970,
+    "route": "composition",
+    "requestedRoute": null,
+    "size": {
+      "width": 3600,
+      "height": 3600
+    },
+    "pixels": null,
+    "scale": null,
+    "publishable": true,
+    "family": {
+      "requested": [
+        "Helvetica Neue",
+        "Arial",
+        "system-ui",
+        "sans-serif"
+      ],
+      "resolved": null,
+      "how": "named by the markup and resolved by whatever opens it"
+    },
+    "notes": [
+      "The follow line was stepped down from a 154 px cap to 150 px to fit the 2736 px its region leaves."
+    ],
+    "filename": "splicing-array-elements.svg"
+  },
+  "html": {
+    "format": "html",
+    "mediaType": "text/html",
+    "extension": "html",
+    "title": "Splicing Array Elements",
+    "bytes": 6040,
+    "route": "composition",
+    "requestedRoute": null,
+    "size": {
+      "width": 3600,
+      "height": 3600
+    },
+    "pixels": null,
+    "scale": null,
+    "publishable": true,
+    "family": {
+      "requested": [
+        "Helvetica Neue",
+        "Arial",
+        "system-ui",
+        "sans-serif"
+      ],
+      "resolved": null,
+      "how": "named by the markup and resolved by whatever opens it"
+    },
+    "notes": [
+      "The follow line was stepped down from a 154 px cap to 150 px to fit the 2736 px its region leaves."
+    ],
+    "filename": "splicing-array-elements.html"
+  },
+  "png": {
+    "format": "png",
+    "mediaType": "image/png",
+    "extension": "png",
+    "title": "Splicing Array Elements",
+    "bytes": 904171,
+    "route": "builtin",
+    "requestedRoute": "builtin",
+    "size": {
+      "width": 3600,
+      "height": 3600
+    },
+    "pixels": {
+      "width": 3600,
+      "height": 3600
+    },
+    "scale": 1,
+    "publishable": false,
+    "family": {
+      "requested": [
+        "Helvetica Neue",
+        "Arial",
+        "system-ui",
+        "sans-serif"
+      ],
+      "resolved": null,
+      "how": "the built-in single stroke alphabet, which reads no font stack"
+    },
+    "notes": [
+      "The follow line was stepped down from a 154 px cap to 150 px to fit the 2736 px its region leaves.",
+      "Drawn by the built-in single stroke alphabet rather than the face the design language measured, so it is a shape level regression target and not a sheet to publish."
+    ],
+    "filename": "splicing-array-elements.png"
+  }
+}

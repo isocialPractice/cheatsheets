@@ -62,12 +62,20 @@ the two it used.
 
 **The Three Models**
 A caller describes a cheatsheet in three objects, each with a schema of its
-own: a **document** of a title and ordered sections of entries, each entry a
-term, a signature and a description; a **theme** of palette roles, a type stack
-and scale, the spacing step, the curve and shape tokens and the stroke weights;
-and a **layout** of a named composition, the grid it sits on, and the slots a
-section may occupy. The document says nothing about how any of it is drawn,
-which is what lets one document be set to two layouts.
+own: a **document** of a title and ordered sections; a **theme** of palette
+roles, a type stack and scale, the spacing step, the curve and shape tokens and
+the stroke weights; and a **layout** of a named composition, the grid it sits
+on, and the slots a section may occupy. The document says nothing about how any
+of it is drawn, which is what lets one document be set to two layouts.
+
+A section carries **entries or lines**: entries are a term, a signature and a
+description each, and `lines` is a worked code listing, whose syntax role per
+line and whose indentation both carry meaning an entry has nowhere to put. A
+document may also be written in the **compact** shape - a title and one flat
+`code` array, which is what every `sheet.json` in this repository is in and what
+the page reads. Both shapes are permanent: the compact one is exactly a formal
+document of one untitled listing, so it is the shorthand for the common case
+rather than a draft of anything.
 
 The three are the whole public input surface, alongside a seed and the two
 brand assets. Nothing the renderer reads for itself is accepted: the design
@@ -172,6 +180,17 @@ A sheet does not have to be in the catalog to be rendered:
 the command is an entry point for a document rather than for this repository's
 own index. It reports the same fields either way, with `source` saying which
 flag named the sheet.
+
+**Generating Cheatsheets From Another Site**
+A site that already publishes code examples and explanatory sections holds
+everything a cheatsheet needs; `node tools/cheatsheet-site.mjs <site>` is what
+reads it. It crawls the tree for elements carrying `data-cheatsheet`, collects
+what each one wraps, and writes a cheatsheet page per source page that carried
+any. The output folder is resolved before anything is written - `cheatsheets/`
+under the site root, then `cheatsheets/cheatsheets/`, then
+`cheatsheets/cheatsheets_0/` and upward until a name is free - so a site that
+already has one of those keeps it. The script imports nothing but Node
+builtins, because it runs against somebody else's checkout.
 
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a

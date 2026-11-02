@@ -55,6 +55,7 @@ import { writeComposition } from "../api/napkin-sketch/graphic-design/files.js";
 import { decodePng } from "../api/napkin-sketch/api/index.js";
 import { composeSheet } from "../api/cheatsheet/index.mjs";
 import { fixtureComposition } from "./fixtures/shapes.mjs";
+import { fixtureDocument, FIXTURE_SEED } from "./fixtures/sheet.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtures = join(root, "tools", "fixtures");
@@ -63,36 +64,17 @@ const update = process.env.MCP_FIXTURE_UPDATE === "1";
 /**
  * The sheet fixture: a real document at a named seed.
  *
+ * Both live in `tools/fixtures/sheet.mjs`, beside the files they are pinned as
+ * and beside `shapes.mjs`, so `tools/test-render-formats.mjs` pins the output
+ * surface over the same sheet rather than over a copy of it. See that module's
+ * header for why one copy matters here.
+ *
  * Seeded by a slug rather than a number, because that is how a cheatsheet is
  * seeded in practice - the sheet regenerates from its own name with nobody
  * having to record a figure beside it - and it is the path worth pinning.
  */
-const SHEET_SEED = "splicing-arrays";
-const SHEET = {
-  title: "Splicing Array Elements",
-  subtitle: "Splice Array",
-  code: [
-    { text: "var fruits = ['Banana', 'Orange', 'Apple', 'Mango'];", role: "plain" },
-    { text: "console.log(fruits.splice(2, 2, 'Lemon', 'Kiwi'));", role: "plain" },
-    { text: "// (2) ['Apple', 'Mango']", role: "comment" },
-    { text: "", role: "plain" },
-    { text: "var trees = ['Maple', 'Spruce', 'Palm'];", role: "plain" },
-    { text: "trees.splice(3, 0, 'Birch');", role: "plain" },
-    { text: "// (4) ['Maple', 'Spruce', 'Palm', 'Birch']", role: "comment" },
-    { text: "", role: "plain" },
-    { text: "var mapleTrees = ['Silver', 'Norway', 'Bigleaf'];", role: "plain" },
-    { text: "console.log(mapleTrees.length);", role: "plain" },
-    { text: "// 3", role: "comment" },
-    { text: "", role: "plain" },
-    { text: "var sliced = fruits.slice(1, 3);", role: "plain" },
-    { text: "console.log(sliced.join(' and '));", role: "plain" },
-    { text: "// Orange and Apple", role: "comment" },
-    { text: "", role: "plain" },
-    { text: "var joined = fruits.concat(trees, mapleTrees);", role: "plain" },
-    { text: "console.log(joined.indexOf('Birch'));", role: "plain" },
-    { text: "// 6", role: "comment" },
-  ],
-};
+const SHEET_SEED = FIXTURE_SEED;
+const SHEET = fixtureDocument();
 
 /**
  * Whether a block of bytes opens with the PNG signature.

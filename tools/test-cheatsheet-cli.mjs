@@ -338,9 +338,10 @@ test("--data-only emits the document and what the composition chose, and writes 
   const { json } = await run(["--generate", RUNNABLE, "--data-only"]);
   assert.equal(json.command, "data-only");
   assert.equal(json.id, RUNNABLE);
-  // Said in the output rather than only in the header: this is the provisional
-  // shape, and the formal document model is still **Implement Cheatsheet API**'s.
-  assert.equal(json.shape, "provisional");
+  // Said in the output rather than only in the header, because the two shapes
+  // are alternatives rather than a sequence: a consumer reading `code` or
+  // `sections` out of the document below should not have to probe for which.
+  assert.equal(json.shape, "compact");
   assert.equal(typeof json.document.title, "string");
   assert.ok(Array.isArray(json.document.code));
   assert.equal(typeof json.variation.seed, "number");
@@ -390,7 +391,7 @@ test("--document composes a JSON document that is not in the catalog at all", as
   // uses, so the name in the report and the name on disk agree.
   assert.equal(json.id, "off-catalog-sheet");
   assert.match(json.path, /off-catalog\.json$/);
-  assert.equal(json.shape, "provisional");
+  assert.equal(json.shape, "compact");
   assert.equal(json.document.title, OFF_CATALOG.title);
   // And it really is off the catalog, or the case proves nothing.
   const catalogued = manifest.categories.flatMap((category) => category.cheatsheets);

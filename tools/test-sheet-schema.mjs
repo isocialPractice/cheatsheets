@@ -140,7 +140,7 @@ test("a closed object refuses a field it does not name, and says what it takes",
   assert.match(error, /It takes title, groups/);
 });
 
-test("and an open one tolerates it, which is what the provisional shape needs", () => {
+test("and an open one tolerates it, which is what the compact shape needs", () => {
   const open = { ...NESTED, open: true };
   assert.deepEqual(validate({ ...good(), extra: 1 }, open), []);
 });

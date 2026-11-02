@@ -72,8 +72,17 @@ import { SHEET_LANGUAGE } from "./language.mjs";
 /** The stages a sheet is painted in, in order. */
 export const STAGES = ["ground", "rule", "mark", "run"];
 
-/** The kinds of content a slot can hold, which is what a section asks for. */
-export const SLOT_KINDS = ["heading", "entries", "brand"];
+/**
+ * The kinds of content a slot can hold, which is what a section asks for.
+ *
+ * `listing` joined the three on 2026.11.02, when a formal section gained
+ * `lines` beside `entries`. The two are different content and ask for
+ * different things - entries are a term and a signature each, a listing is a
+ * worked example whose indentation means a nesting level - even where one
+ * layout answers both with the same slot, which is what this sheet's own
+ * `code-panel` does.
+ */
+export const SLOT_KINDS = ["heading", "entries", "listing", "brand"];
 
 /**
  * A row of the grid: a band across the full width of the canvas.
@@ -114,7 +123,7 @@ export const SLOT_KINDS = ["heading", "entries", "brand"];
  * @property {string} [shape] A shape token of the theme, for a slot that is drawn. Defaults to `block`.
  * @property {string} [ground] The palette role behind it, for the contrast measurement.
  * @property {number} [weight] Stroke weight, for a `stroke` slot.
- * @property {string} [holds] The kind of content a section may put here.
+ * @property {string | string[]} [holds] The kind of content a section may put here, or the kinds.
  * @property {string} [size] A role of the theme's type scale, for a `text` slot.
  * @property {number} [baseline] Where a run of text is placed from.
  * @property {number} [left] Where a left aligned run starts.
@@ -197,7 +206,12 @@ export function layoutFor(language, options = {}) {
         column: "panel",
         paint: "navy",
         shape: "block",
-        holds: "entries",
+        // Both, because on this sheet they land in the same place: a listing
+        // is already rows, and entries become rows through `rowsFor`. A layout
+        // that set the descriptions in a margin would name two slots here
+        // instead, which is the whole reason a section asks for a kind rather
+        // than for a slot.
+        holds: ["entries", "listing"],
       },
       // The spine starts a `step-4` above the panel it runs beside and ends
       // with it, which is the one vertical use of that token on the sheet.
@@ -313,6 +327,29 @@ export function layoutFor(language, options = {}) {
 export const SHEET_LAYOUT = layoutFor(SHEET_LANGUAGE);
 
 /**
+ * Whether a slot's `holds` names a kind of content, or a set of them.
+ *
+ * A string or an array of strings, which is the shape the vocabulary has no
+ * keyword for - so it goes through `any` and a `check`, the way a document's
+ * `seed` does. An empty array is refused rather than read as "holds nothing",
+ * because a slot that holds nothing says so by omitting the field, and an
+ * empty list is far more likely to be a filter that matched none of what its
+ * author meant.
+ *
+ * @param {any} value
+ * @returns {string | undefined}
+ */
+function holdsKinds(value) {
+  const kinds = Array.isArray(value) ? value : [value];
+  if (kinds.length === 0) return "must name at least one kind, or be absent";
+  const named = kinds.map((kind) => JSON.stringify(kind)).join(", ");
+  if (!kinds.every((kind) => typeof kind === "string" && SLOT_KINDS.includes(kind))) {
+    return `must name kinds out of ${SLOT_KINDS.map((kind) => JSON.stringify(kind)).join(", ")}, and names ${named}`;
+  }
+  return undefined;
+}
+
+/**
  * The layout's schema.
  *
  * @type {import('./schema.mjs').Schema}
@@ -399,7 +436,7 @@ export const LAYOUT_SCHEMA = {
           shape: { type: "string", optional: true, notEmpty: true },
           ground: { type: "string", optional: true, notEmpty: true },
           weight: { type: "number", optional: true, min: 0 },
-          holds: { type: "string", optional: true, oneOf: SLOT_KINDS },
+          holds: { type: "any", optional: true, check: holdsKinds },
           size: { type: "string", optional: true, notEmpty: true },
           baseline: { type: "number", optional: true },
           left: { type: "number", optional: true },
@@ -483,16 +520,22 @@ export function slotNamed(layout, name) {
  * Every slot that may hold a given kind of content, in layout order.
  *
  * This is what a section's `slot` is resolved against: a section asks for
- * somewhere that holds entries, and the layout answers with the slot it keeps
- * for them. A document never names a slot, which is what keeps it independent
- * of the layout it is drawn to.
+ * somewhere that holds entries, or a listing, and the layout answers with the
+ * slot it keeps for that. A document never names a slot, which is what keeps
+ * it independent of the layout it is drawn to.
+ *
+ * A slot may hold more than one kind, so the match is membership rather than
+ * equality. On this sheet's own layout the code panel holds both `entries` and
+ * `listing`, because entries become rows and a listing already is rows.
  *
  * @param {SheetLayout} layout
  * @param {string} kind
  * @returns {LayoutSlot[]}
  */
 export function slotsHolding(layout, kind) {
-  return layout.slots.filter((slot) => slot.holds === kind);
+  return layout.slots.filter((slot) =>
+    Array.isArray(slot.holds) ? slot.holds.includes(kind) : slot.holds === kind
+  );
 }
 
 /**
@@ -710,9 +753,24 @@ export function placeSlots(composition, { layout, theme, stage, only }) {
  * document in two columns, or put the descriptions in a margin, and nothing in
  * the document would change.
  *
- * The roles are the provisional shape's own. A signature carries none, so a
+ * The roles are the compact shape's own. A signature carries none, so a
  * document naming its `language` has it coloured token by token by the accent
  * reader, exactly as a hand written `code` array is.
+ *
+ * ## A listing section passes straight through
+ *
+ * A section carrying `lines` rather than `entries` is already rows - that is
+ * what makes it a listing rather than a list - so the projection for one is
+ * the identity, and the only work here is copying each line so a caller cannot
+ * reach the document through the result.
+ *
+ * It is worth being plain about why that is not a shortcut. A projection is
+ * the layout's to choose, and for a worked listing the only correct choice is
+ * to leave it alone: its indentation means a nesting level and its per-line
+ * role means a syntax colour, so a layout that re-wrapped it, re-indented it
+ * or merged two of its lines would be changing what the document says rather
+ * than how it is set. The freedom a layout has over entries is freedom the
+ * document gave it by not saying; a listing says.
  *
  * @param {import('./document.mjs').CheatsheetDocument} doc
  * @returns {import('./document.mjs').CodeLine[]}
@@ -727,7 +785,14 @@ export function rowsFor(doc) {
     // see rather than spacing that leaves it short.
     if (index > 0) rows.push({ text: "" });
     if (section.title) rows.push({ text: `// ${section.title}`, role: "comment" });
-    for (const entry of section.entries) {
+    if (section.lines) {
+      // Spread rather than pushed by reference: the caller's document is not
+      // this function's to hand out a window onto, and the composition does
+      // reach into a row to record what it drew.
+      for (const line of section.lines) rows.push({ ...line });
+      return;
+    }
+    for (const entry of section.entries ?? []) {
       const prose = entry.description ? `${entry.term} - ${entry.description}` : entry.term;
       rows.push({ text: `// ${prose}`, role: "comment" });
       if (entry.signature) rows.push({ text: entry.signature });
