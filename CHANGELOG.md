@@ -1,8 +1,159 @@
 # Changelog
 
-> Release mode: dated - this project does not publish versions, tags, or releases.
+All notable changes to this project are documented in this file.
 
-The date of the change is the version, written `YYYY.MM.DD`.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## The versioning changed on 2026.11.02
+
+**Every version below `1.0.0-alpha` is a date, and every version from it is
+semantic.** The repository recorded its changes by the date they were applied,
+written `YYYY.MM.DD`, for as long as there was nothing to version: the
+deliverable was a page and a folder of images, and a semantic version of those
+would have been a number nobody could read a promise out of.
+
+What changed is that there is an API. **Implement Cheatsheet API** is finished
+as of 2026.11.02 - the document, theme and layout models, the configuration
+surface, the five output formats, the command line, and the tests that render a
+fixture document to every format and compare it against committed output - so
+there is now a public surface a caller writes against, and a version is the
+only honest way to say what moved under them.
+
+`1.0.0-alpha` carries the pre-release suffix on purpose. The surface is whole
+and its shape is settled, and `alpha` is the statement that it has not yet been
+depended on from outside this repository.
+
+**The dated sections stay exactly as they are.** They are the record of how the
+design language was measured, how the catalog was built and how the API was
+written, and renumbering them as versions would invent promises that were never
+made. Read the heading form to know which kind you are looking at: a component
+of four digits that scans as a year is a date.
+
+## [1.0.0-alpha]
+
+### Added
+
+- **A formal section can carry a code listing.** A section holds `entries` or
+  `lines`, exactly one of the two, and `lines` is the same line shape the
+  compact `code` array has always carried - a text and an optional syntax role.
+  `rowsFor` in `api/cheatsheet/layout.mjs` passes a listing through as rows
+  unchanged, which is the only correct projection for one: its indentation means
+  a nesting level and its role means a syntax colour, so a layout that re-wrapped
+  or re-indented it would be changing what the document says rather than how it
+  is set. `SLOT_KINDS` gained `listing` beside `heading`, `entries` and `brand`,
+  and a slot's `holds` may now name one kind or several - this sheet's own
+  `code-panel` names both, because entries become rows and a listing already is
+  rows.
+- **`tools/test-render-formats.mjs` pins the output surface against committed
+  output, one render per format.** The SVG is the committed `sheet.svg` byte for
+  byte, which is the claim worth making about that format: the surface adds
+  nothing to the composition's own markup. The fragment is committed in full as
+  `tools/fixtures/sheet.fragment.html`, the built-in raster at scale 1 is the
+  committed digest reached through the door, and every render's report -
+  media type, extension, route, pixels, `publishable`, family, notes - is
+  committed as `tools/fixtures/sheet.renders.json`. `jpeg` and `webp` pin their
+  declared surface rather than their bytes, and skip with the install command on
+  a clone with no browser: an engine's raster moves with its build, its platform
+  font stack and its codec, none of which is this repository's change, and a
+  digest over them would fail on somebody else's release schedule. A case holds
+  that there is an expectation for every format the surface names, so a sixth
+  arrives with a pin or with a stated reason it has none.
+- **`tools/fixtures/sheet.mjs`** holds the fixture document and its seed, beside
+  the files it is pinned as. Two test files now pin that sheet at two layers -
+  the composition in `test-render-fixture.mjs`, the output surface in
+  `test-render-formats.mjs` - and a copy in each would drift silently, because
+  the two pin different artifacts and nothing compares them.
+- **`tools/cheatsheet-site.mjs`**, a dependency free script that crawls a site
+  tree, collects the content it has marked with `data-cheatsheet`, and writes a
+  cheatsheet page per source page that carried any. It runs against somebody
+  else's checkout, so every import is a Node builtin and nothing assumes this
+  repository's layout. With no parser available the collector scans: it counts
+  tags of the same name to find where a marked element ends, refuses a name that
+  merely starts the same way on both the opening and the closing side, ignores a
+  comment and a `<script>` and a `<style>` on both counts - a marker inside one
+  is not a marker and a tag inside one is not a nesting level, so a `</div>`
+  written in a script string does not end the element early - and reports markup
+  it could not read as a finding against its page rather than writing a page
+  with the rest of the file in it.
+- **The output folder is resolved before anything is written.** `cheatsheets/`
+  under the site root, then `cheatsheets/cheatsheets/`, then
+  `cheatsheets/cheatsheets_0/` counting upward until a name is free, bounded at a
+  hundred tries. Resolving creates nothing, which is what makes the ladder
+  reachable at all - a resolution that created the folder as it tested it would
+  find its first candidate taken by the time it considered the second. A file
+  with the folder's name counts as taken, and every name after the first sits
+  inside the first, so a site ends up with one `cheatsheets/` however many runs
+  have resolved a name under it.
+- **Two pages wanting one output name is reported rather than resolved.** The
+  output folder is flat and a generated page takes its source file's base name,
+  so a site with `guide/index.html` and `reference/index.html` marked has two
+  pages asking for `index.html`. Neither is overwritten: the first in page order
+  is written, the second is a finding naming both, and the run exits non-zero
+  like any other finding. Qualifying the name instead would be a naming scheme,
+  and naming belongs to the parent tag method.
+- **`tools/test-drawing-credit.mjs`** holds the drawing-credit rule: the exact
+  trailer, the refusal of the dangerous reading, and a case that fails any queued
+  item listing the collaborator among its own steps.
+
+### Changed
+
+- **The compact document shape is no longer called provisional, because both
+  shapes are permanent.** The word carried a promise - that the twenty-eight
+  committed `sheet.json` documents would be ported to `sections` and the word
+  retired with them - and the port would lose information rather than move it.
+  With a listing kind in the formal model the port is available and lossless,
+  and the compact shape is what it always was: the shorthand for a document of
+  one listing, since `{ title, code }` says exactly what
+  `{ title, sections: [{ lines: code }] }` says. A case composes both through the
+  whole algorithm and compares the markup, which is where that claim would break
+  if it were only a claim. `PROVISIONAL_SCHEMA` is `COMPACT_SCHEMA`,
+  `ProvisionalDocument` is `CompactDocument`, and
+  `tools/cheatsheet.mjs --data-only` reports `shape: "compact"` rather than
+  `"provisional"` - a marker that says which shape a consumer is holding instead
+  of how long it has left. Not one document was rewritten.
+- **"Add `graphic-designer` as a collaborator" means a `Co-Authored-By` trailer,
+  and the exact text is in `CONTRIBUTING.md`.** The rule was stated in three
+  places and satisfied in none, and the reason was that it read two ways. The
+  repository-collaborator reading is not merely unintended: `graphic-designer` is
+  a real GitHub account registered in 2014 and belonging to someone with no
+  connection to this project, so acting on that reading would hand push access to
+  a stranger. The trailer's email is the address this repository already credits
+  agent work to, because GitHub attributes a co-author by email and never by
+  name. Whoever writes the commit adds it; it is not a step the work carries out,
+  which is why the conventions under **New Cheatsheets** now point at the rule
+  instead of asking more than fifty queued items to do something a run cannot.
+- **`themePairings` resolves the rowed slots through `slotsHolding`** rather than
+  by comparing `holds` for equality. The equality test measured nothing the day a
+  slot could hold two kinds, and what it stopped measuring was the six syntax
+  inks on the code panel - the only pairings on the sheet that are not on a slot
+  of their own.
+- **This repository versions semantically from here**, which is what finishing
+  **Implement Cheatsheet API** was the condition for. See **The versioning
+  changed on 2026.11.02** above for what that means and what it leaves alone;
+  this is the first version under it, and the dated sections below are
+  untouched.
+
+### Notes
+
+- **`.claude/constants.md` still records the policy this version replaces.** Its
+  **Versioning and releases** rule says the repository cuts no releases and
+  bumps no semantic version, and a run does not edit that file - it is the
+  operator's. The standing note that asked for this switch anticipated the
+  collision and put the constant's rewrite after the **release** of the first
+  semantic version rather than after the switch, so it is deliberately still
+  outstanding. The one line that needs changing is the rule's opening sentence.
+- **The drawing-credit rule is now checkable but still not automatic.** A commit
+  that creates a `sheet.json` or writes a render out carries
+  `Co-Authored-By: graphic-designer <noreply@anthropic.com>`, and whoever writes
+  the commit adds it: a run records a commit mode in a two-line file and does not
+  call `git`, so nothing in the work itself can.
+- **`cross-os-social` is still refusing every call**, measured again on
+  2026.11.02 with the same `The build is older than the source it came from`
+  that 2026.10.15 and 2026.10.27 met. No route record and no drift reading could
+  be taken. The watch pattern is not the fault: it matched the eleven original
+  JPEGs, all already in the ledger, which is a quiet day rather than a stale
+  recipe.
 
 ## [2026.11.01]
 

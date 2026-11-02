@@ -11,30 +11,40 @@ keys its entries by date, written `YYYY.MM.DD`.
 
 ## Current
 
-- [ ] Decide whether the formal document should learn to carry a code listing, and settle the two shapes either way
-  - **Issue**: the item that published the three models assumed the twenty-eight committed `sheet.json` documents would move off the provisional shape first, and they should not. Each is a worked code listing with a syntax role per line and meaningful indentation; a formal entry is a term, a signature and a description. Rewriting a listing as entries loses the per-line roles the three role tables colour, loses the indent-is-a-level rule under **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`, changes every rendered sheet and breaks the committed fixture
-  - **Goal**: either give a section an alternative to `entries` that carries lines, which makes the formal model able to say everything the catalog says and the migration a port rather than a loss - or state that the two shapes are permanent alternatives, which is what the code does today, and stop calling one of them provisional. The second is cheaper and the first is what "independent of how any of it is drawn" asked for, so it is a decision rather than a task
-  - A section's `slot` already names a **kind** of slot rather than a slot, and `SLOT_KINDS` holds `heading`, `entries` and `brand`. A listing kind is the shape of the first answer, and `rowsFor` in `layout.mjs` is the one function that would change
-  - First of the five, because it is the only item left that can move what a committed render looks like - and the item below it commits one
-  - From: Implement Cheatsheet API `->` The Core Model
-- [ ] Cover the API with tests that render a fixture document to every format and compare against committed output
-  - Rendering is deterministic in both formats, so the comparison is byte for byte rather than approximate
-  - `examples/render-formats.mjs` renders a fixture document to all five formats now and `tools/test-worked-examples.mjs` asserts the three that need nothing installed, so what is open is the committed output half rather than the rendering
-  - `tools/fixtures/sheet.svg` and `tools/fixtures/sheet.png.sha256` are the pattern to follow, including the `MCP_FIXTURE_UPDATE=1` route that regenerates them. `jpeg` and `webp` are browser only, so a bare clone cannot compare those two and the case has to say so rather than fail
-  - From: Implement Cheatsheet API `->` Embedding the API
-- [ ] Settle what "add `graphic-designer` as a collaborator" means, because no commit has ever done it
-  - **Issue**: found 2026.10.26. The `## Collaborators` constant asks for it on any commit that creates an image, `CONTRIBUTING.md` restates it as a rule a drawing commit follows, and every cheatsheet item in **New Cheatsheets** carries it as a line of its own. `git log --grep=graphic-designer -i` returns nothing, and no commit in the history carries a trailer naming it - including `1aaf579`, which added the six **General CSS Overview** sheets. So the rule is stated in three places and satisfied in none
-  - **Issue**: it is not clear which of two things it asks for, which is probably why. A commit trailer naming a co-author is one reading; a GitHub repository collaborator, added once in the repository's settings rather than per commit, is the other. "Add as a collaborator" is the vocabulary of the second and "on a commit" is the vocabulary of the first, and `CONTRIBUTING.md` currently reads as both at once
-  - **Goal**: decide which it is and make it true. If it is a trailer, it has to be something the committing step can add, since a run records a commit mode and does not run `git` - so either the mode file carries it or the automation learns the rule, and `CONTRIBUTING.md` should name the exact trailer. If it is a repository collaborator, check whether the account is already one and reword the constant and `CONTRIBUTING.md` to stop implying a per-commit act. Either way, drop the line from the remaining cheatsheet items in **New Cheatsheets** if it is not something an item can carry out
-  - Queued before the next cheatsheet item rather than after, which is what the roadmap section asks for: more than fifty items still carry the line, and each records an intention no commit fulfils
-  - From: version.control = null
-- [ ] Write `tools/cheatsheet-site.mjs`, a dependency free Node script that crawls a site tree, collects marked content and writes cheatsheet pages
-  - Unblocked as of 2026.11.01: what held this section back was an undocumented API surface, and both halves of it are published and have a worked example per output format now
-  - It crawls and emits rather than composing, so it is clear of the listing decision above - rendering a generated page through the API is `### Building on the API`'s item rather than this one's
+- [ ] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
+  - Write it from the answer rather than during the resolution. `resolveOutput` in `tools/cheatsheet-site.mjs` deliberately creates nothing, which is what makes its second candidate reachable at all - a resolution that wrote as it tested would find the first name taken by the time it considered the second
   - From: Dedicated cheatsheet website `->` The Scripted Tool
-- [ ] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
-  - The same half of the tool as the item above it, and the half that touches disk, so the two belong in one run
+- [ ] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
+  - Nearly free for the same reason the item above is careful: resolving already touches nothing, so what is left is not calling `writePages`. The case to write is that the site's tree is unchanged afterwards, which `resolving creates nothing, which is what makes the ladder reachable` already asserts for the folder and is the pattern to copy
   - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [ ] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
+  - The crawl is already sorted by path, which is a precondition rather than part of this: `readdir` answers in filesystem order, and a walk that reordered itself between two machines would make a committed page undiffable
+  - Third of the three because it is the comparison that reads what the other two write
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [ ] Collect every element carrying `data-cheatsheet` and take its content as that page's cheatsheet reference material
+  - Check before working it. Measured 2026.11.02: `collectMarked` in `tools/cheatsheet-site.mjs` collects every element carrying the attribute and hands back the inner markup of each, and `collectSite` attaches that to the page it came from - which is this item in its own words. If that still holds, close it by verification rather than by writing
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [ ] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
+  - The collector already carries the value through without judging it, and `renderPage` takes the `<title>` with the file name as its fallback. So this item is the judging: which value means which source, and what an unrecognised value does
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+
+### Code Review Override - the scanner's tag boundaries, and an unresolved slot kind
+
+#### Resolve Issues
+
+- [ ] Marked Tag Boundary 1
+  - **Issue**: the collector finds a start tag's edges with bare `indexOf` on `<` and `>`, so a `>` inside an attribute **value** is read as the end of the tag. Two inputs, both silent, both measured 2026.11.02. `<div title="a>b" data-cheatsheet><pre>REAL</pre></div>` collects **nothing**: `tagStartBefore` sees a `>` between the `<` and the marker, concludes the attribute is not in that tag and drops the candidate, so a marked page contributes no block, is written nowhere and raises no finding. `<div data-cheatsheet="a>b"><pre>REAL</pre></div>` collects the wrong thing: `tagEnd` lands on the `>` inside the value, so the block's `value` comes back as `"a` and its content as `b"><pre>REAL</pre>` - stray markup carried onto the generated page. A `>` in an attribute value is legal HTML and needs no escaping, so neither page is malformed
+  - **Goal**: find the end of a start tag by scanning it rather than by searching for a character - walk from the `<` tracking whether the cursor is inside a single or double quoted value, and treat only an unquoted `>` as the end. Then `tagStartBefore`, `tagEnd` and `attributeValue` all read the same boundary. Reach `attributeValue` from the scanned tag rather than from a slice, so the three cannot disagree. The limits list in the file's header states what scanning cannot do, and should name this once it is fixed or state it if it is not
+  - Not fixed in review because it is a tokenizer rather than a patch: the three functions share the assumption and the existing boundary cases around void elements, XHTML style closes and prefix names all read the same slices, so changing it under them needs its own cases rather than a smallest fix
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+
+#### Found Issues
+
+- [ ] A section's `slot` kind is validated and never resolved, so a document that names one is drawn as though it had not
+  - **Issue**: `SheetSection.slot` is documented as the field that points outward - "a section asks for somewhere that holds entries, or somewhere that holds a listing, and the layout decides which of its slots that is" - and `slotsHolding` is the query that would answer it. Nothing on the composition path calls it. `rowsFor` concatenates every section's rows into one stream regardless of `slot`, and `composeSheet` places that stream in the code panel, so `{ title, sections: [{ slot: "brand", entries: [...] }] }` validates, composes and draws its entries in the code panel with no refusal and no note. The only caller of `slotsHolding` is `themePairings`, which uses it to measure contrast rather than to place anything
+  - **Goal**: decide which of the two it is and make the document say it. Either resolve the kind - `slotsHolding(layout, section.slot ?? default)`, with a named refusal when the layout holds no slot of that kind - or state in the typedef and in `rowsFor` that a single-panel layout ignores `slot` and that it is recorded for a layout that has somewhere else to put a section. The second is honest and cheap; the first is what the field's own documentation currently promises
+  - Pre-existing rather than introduced on 2026.11.02, but this run widened the prose describing it, added `listing` to `SLOT_KINDS` and made `holds` name several kinds, so the gap between what the model says and what the composition does is wider than it was
+  - From: Code Review Override - the scanner's tag boundaries, and an unresolved slot kind
 
 ## GitHub Pages Deployment
 
@@ -245,12 +255,25 @@ category to exist and then for a second subject going into one.
 expect to find.
 
 What is left here is one standing constant nothing can currently follow, whose
-fix is outside this repository, and one question about what a commit trailer
-means. Measured again on 2026.10.27: every `cross-os-social` call, `--version`
-included, still exits with `The build is older than the source it came from`.
-`doctor`, the drift check and `run --dry-run` were all attempted that day and
-all three refused, so no route record and no drift reading was taken for the
-third run running.
+fix is outside this repository. Measured again on 2026.11.02: every
+`cross-os-social` call, `--version` included, still exits with `The build is
+older than the source it came from`. `doctor`, the drift check and
+`run --dry-run` have all been attempted on 2026.10.15, 2026.10.27 and
+2026.11.02, and all three refused each time, so no route record and no drift
+reading has been taken on any of them. The watch pattern itself is still live
+and not the fault: it matched the eleven original JPEGs on 2026.11.02, all of
+them already in the ledger, which is the quiet day rather than the stale
+recipe.
+
+The commit trailer question closed on 2026.11.02, and the answer was neither of
+the two readings the item weighed. "Collaborator" means a `Co-Authored-By`
+trailer, whose exact text is now in `CONTRIBUTING.md` under **What
+"collaborator" means here**; the repository-collaborator reading is refused in
+writing, because `graphic-designer` is a real GitHub account belonging to
+someone unconnected to this project and acting on it would hand a stranger push
+access. Whoever writes the commit adds the trailer, so no item asks for it any
+more - the conventions under **New Cheatsheets** point at the rule instead, and
+`tools/test-drawing-credit.mjs` fails any queued item that lists it as a step.
 
 The third item closed on 2026.10.27. `node --test` sweeps `test-results/`,
 which `tools/test-suite-invocation.mjs` excluded from its own walk, so both
@@ -264,12 +287,6 @@ any discovered file that is a working artifact and naming the remedy.
   - **Goal**: rebuild that package, then confirm from here that `doctor` reports `availableDrives` and that `recipes --from .claude/constants.md --heading "Recipe: cheatsheet-post" --json` reports `drift.differs`. If the toolbox is not going to be rebuilt, turn the constant off instead - a standing rule no run can follow is worse than no rule, because each run spends a step discovering it again
   - Filed here rather than as a found issue under `## Current` on purpose. The fix is outside this repository, so an override header carrying it would suppress the regular queue every run until someone rebuilt a tool this repository does not own
   - No draft was lost to it on 2026.10.15: the only image that run touched was `assets/footer.png`, which is a brand asset rather than a cheatsheet, and the recipe watches `jpg` and `webp` only
-  - From: version.control = null
-- [ ] Settle what "add `graphic-designer` as a collaborator" means, because no commit has ever done it
-  - **Issue**: found 2026.10.26. The `## Collaborators` constant asks for it on any commit that creates an image, `CONTRIBUTING.md` restates it as a rule a drawing commit follows, and every cheatsheet item in **New Cheatsheets** carries it as a line of its own. `git log --grep=graphic-designer -i` returns nothing, and no commit in the history carries a trailer naming it - including `1aaf579`, which added the six **General CSS Overview** sheets. So the rule is stated in three places and satisfied in none
-  - **Issue**: it is not clear which of two things it asks for, which is probably why. A commit trailer naming a co-author is one reading; a GitHub repository collaborator, added once in the repository's settings rather than per commit, is the other. "Add as a collaborator" is the vocabulary of the second and "on a commit" is the vocabulary of the first, and `CONTRIBUTING.md` currently reads as both at once
-  - **Goal**: decide which it is and make it true. If it is a trailer, it has to be something the committing step can add, since a run records a commit mode and does not run `git` - so either the mode file carries it or the automation learns the rule, and `CONTRIBUTING.md` should name the exact trailer. If it is a repository collaborator, check whether the account is already one and reword the constant and `CONTRIBUTING.md` to stop implying a per-commit act. Either way, drop the line from the remaining cheatsheet items in **New Cheatsheets** if it is not something an item can carry out
-  - Worth settling before the next cheatsheet item rather than after. More than fifty of them still carry the line, and each one currently records an intention no commit fulfils
   - From: version.control = null
 
 ## New Cheatsheets
@@ -319,10 +336,14 @@ item would otherwise be ambiguous once it is copied into `## Current`.
 - **`kind`** selects what the page does with the payload: `run` injects a
   browser script, `read` renders the source as text, `embed` loads
   `demo/index.html` in a sandboxed frame, `none` is graphic only.
-- **`graphic-designer` is added as a collaborator** on any commit that
-  creates or converts an image, per the collaborators constant in
-  `.claude/constants.md`. A sheet composed as SVG is drawn rather than
-  captured, so the constant binds on the composition as much as on a render.
+- **`graphic-designer` is credited on the commit, not by the item.** A sheet
+  composed as SVG is drawn rather than captured, so the collaborators constant
+  in `.claude/constants.md` binds on the composition as much as on a render -
+  but what it asks for is a `Co-Authored-By` trailer, and whoever writes the
+  commit is the only one who can add one. No item below lists it as a step,
+  because a run records a commit mode and does not call `git`. The exact
+  trailer and why the name is not a GitHub collaborator are under **What
+  "collaborator" means here** in `CONTRIBUTING.md`.
 - **Build order**: JavaScript first, because it absorbs the existing eleven
   array examples and proves the pipeline on `kind: run` alone. Then HTML/CSS,
   which forces `embed` and the first sub group. Then Programming, which
@@ -878,8 +899,23 @@ The three models are the API's only public input surface as of 2026.10.30:
 `composeSheet` takes a document, a theme, a layout, a seed and the two brand
 assets, and refuses the design language record and the two width tables by
 name, each pointing at the model that replaced it. So a caller composes a sheet
-without naming anything a renderer owns. What is left under this header is one
-decision rather than one task, and it is the one the narrowing turned up.
+without naming anything a renderer owns.
+
+Finished on 2026.11.02, when the decision the narrowing turned up was settled:
+**both document shapes are permanent, and a formal section can carry a code
+listing.** A section holds `entries` or `lines`, exactly one of the two, and
+`lines` is the same line shape the compact `code` array has always carried - so
+the formal model can say everything the catalog says, and a port off the
+shorthand is available and lossless. It is not taken, because the shorthand is
+not a draft: `{ title, code }` says exactly what
+`{ title, sections: [{ lines: code }] }` says, and a case composes both through
+the whole algorithm and compares the markup rather than asserting it. Not one of
+the twenty-eight committed documents was rewritten, and the word "provisional"
+is gone - `PROVISIONAL_SCHEMA` is `COMPACT_SCHEMA` and `--data-only` reports
+`shape: "compact"`, which says which shape a consumer holds instead of how long
+it has left. `SLOT_KINDS` gained `listing`, and a slot's `holds` may name one
+kind or several, because on this layout entries and a listing land in the same
+panel.
 
 The three models landed on 2026.10.29, in `api/cheatsheet/document.mjs`,
 `theme.mjs` and `layout.mjs`, with `schema.mjs` behind all three. A document is
@@ -897,11 +933,6 @@ composition expressed differently. A bad model is refused with the path to the
 field - `document.sections[2].entries[1].term` - and every offending field at
 once. `tools/cheatsheet.mjs --layout` is satisfied, and `--script` is still
 refused by name.
-
-- [ ] Decide whether the formal document should learn to carry a code listing, and settle the two shapes either way
-  - **Issue**: the item that published the three models assumed the twenty-eight committed `sheet.json` documents would move off the provisional shape first, and they should not. Each is a worked code listing with a syntax role per line and meaningful indentation; a formal entry is a term, a signature and a description. Rewriting a listing as entries loses the per-line roles the three role tables colour, loses the indent-is-a-level rule under **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`, changes every rendered sheet and breaks the committed fixture
-  - **Goal**: either give a section an alternative to `entries` that carries lines, which makes the formal model able to say everything the catalog says and the migration a port rather than a loss - or state that the two shapes are permanent alternatives, which is what the code does today, and stop calling one of them provisional. The second is cheaper and the first is what "independent of how any of it is drawn" asked for, so it is a decision rather than a task
-  - A section's `slot` already names a **kind** of slot rather than a slot, and `SLOT_KINDS` holds `heading`, `entries` and `brand`. A listing kind is the shape of the first answer, and `rowsFor` in `layout.mjs` is the one function that would change
 
 ### Configuration
 
@@ -1007,9 +1038,21 @@ through the drawing surface's own `writeComposition`, which worked and was a
 hand copy of `renderOf` and `writeRender`, so the surface published on
 2026.10.31 had no example at all.
 
-- [ ] Cover the API with tests that render a fixture document to every format and compare against committed output
-  - Rendering is deterministic in both formats, so the comparison is byte for byte rather than approximate
-  - `examples/render-formats.mjs` renders a fixture document to all five now and `tools/test-worked-examples.mjs` asserts the three that need nothing installed, so what is open is the committed output half rather than the rendering: `tools/fixtures/sheet.svg` and `sheet.png.sha256` are the pattern, and `jpeg` and `webp` are browser only and so cannot be compared on a bare clone
+**Finished on 2026.11.02, and with it the whole of this section.** The last item
+was the committed output half, and it is `tools/test-render-formats.mjs`: one
+render per format through the published surface, compared against files on disk
+rather than against a property. Two of those files are the ones
+`test-render-fixture.mjs` already commits, which is the claim worth making about
+`svg` and `png` - the surface adds nothing to the composition's own markup, and
+nothing to the built-in route's bytes. The fragment is committed in full, and
+every render's report is committed as `sheet.renders.json`, because a caller
+reads the media type, the extension and `publishable` off the result and never
+looks at the bytes at all. `jpeg` and `webp` pin their declared surface and skip
+with the install command without an engine: their bytes are the engine's and
+move with its build, its platform font stack and its codec, so a digest over
+them would fail on somebody else's release schedule. The fixture document moved
+to `tools/fixtures/sheet.mjs`, beside the files it is pinned as, because two test
+files pin that sheet at two layers now and a copy in each would drift in silence.
 
 ## Dedicated cheatsheet website
 
@@ -1028,8 +1071,24 @@ collector, so a page may use either and a site may use both.
 
 ### The Scripted Tool
 
-- [ ] Write `tools/cheatsheet-site.mjs`, a dependency free Node script that crawls a site tree, collects marked content and writes cheatsheet pages
-- [ ] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
+The tool exists as of 2026.11.02: `tools/cheatsheet-site.mjs` crawls a site
+tree, collects what it has marked with `data-cheatsheet`, and writes a
+cheatsheet page per source page that carried any. It imports nothing but Node
+builtins, because it runs against somebody else's checkout - which rules out a
+parser, so the collector scans and the limits of scanning are stated in the
+file's own header rather than discovered. The output folder is resolved before
+anything is written: `cheatsheets/`, then inside it, then numbered inside it,
+and resolving creates nothing, which is what makes the second name reachable at
+all.
+
+What is left here is the three items a second run needs. The first two were
+unblocked by the API's output surface landing, and these three are about the
+tool being run twice: a manifest so the menu builder and the next run read one
+location, a `--dry-run` that reports without touching disk, and the byte
+identical rerun that makes the generated pages committable. The crawl is
+already sorted by path for that last one, which is a precondition rather than
+the item.
+
 - [ ] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
 - [ ] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
 - [ ] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
@@ -1851,5 +1910,29 @@ generate ideas about generating ideas.
   - Five formats rather than the two this item's note predates: `svg`, `html`, `png`, `jpeg` and `webp` are what `renderSheet` renders, and `html` has no example anywhere yet
   - `examples/` holds two scripts over one document and writes through the package's own `writeComposition`. The surface has `renderToFile` now, so an example that demonstrates the published route is also an example that stops being a hand copy of it
   - From: Implement Cheatsheet API `->` Embedding the API
+- [x] Decide whether the formal document should learn to carry a code listing, and settle the two shapes either way
+  - **Issue**: the item that published the three models assumed the twenty-eight committed `sheet.json` documents would move off the provisional shape first, and they should not. Each is a worked code listing with a syntax role per line and meaningful indentation; a formal entry is a term, a signature and a description. Rewriting a listing as entries loses the per-line roles the three role tables colour, loses the indent-is-a-level rule under **An indent is a level, and a column is not addressable** in `DESIGN_LANGUAGE.md`, changes every rendered sheet and breaks the committed fixture
+  - **Goal**: either give a section an alternative to `entries` that carries lines, which makes the formal model able to say everything the catalog says and the migration a port rather than a loss - or state that the two shapes are permanent alternatives, which is what the code does today, and stop calling one of them provisional. The second is cheaper and the first is what "independent of how any of it is drawn" asked for, so it is a decision rather than a task
+  - A section's `slot` already names a **kind** of slot rather than a slot, and `SLOT_KINDS` holds `heading`, `entries` and `brand`. A listing kind is the shape of the first answer, and `rowsFor` in `layout.mjs` is the one function that would change
+  - First of the five, because it is the only item left that can move what a committed render looks like - and the item below it commits one
+  - From: Implement Cheatsheet API `->` The Core Model
+- [x] Cover the API with tests that render a fixture document to every format and compare against committed output
+  - Rendering is deterministic in both formats, so the comparison is byte for byte rather than approximate
+  - `examples/render-formats.mjs` renders a fixture document to all five formats now and `tools/test-worked-examples.mjs` asserts the three that need nothing installed, so what is open is the committed output half rather than the rendering
+  - `tools/fixtures/sheet.svg` and `tools/fixtures/sheet.png.sha256` are the pattern to follow, including the `MCP_FIXTURE_UPDATE=1` route that regenerates them. `jpeg` and `webp` are browser only, so a bare clone cannot compare those two and the case has to say so rather than fail
+  - From: Implement Cheatsheet API `->` Embedding the API
+- [x] Settle what "add `graphic-designer` as a collaborator" means, because no commit has ever done it
+  - **Issue**: found 2026.10.26. The `## Collaborators` constant asks for it on any commit that creates an image, `CONTRIBUTING.md` restates it as a rule a drawing commit follows, and every cheatsheet item in **New Cheatsheets** carries it as a line of its own. `git log --grep=graphic-designer -i` returns nothing, and no commit in the history carries a trailer naming it - including `1aaf579`, which added the six **General CSS Overview** sheets. So the rule is stated in three places and satisfied in none
+  - **Issue**: it is not clear which of two things it asks for, which is probably why. A commit trailer naming a co-author is one reading; a GitHub repository collaborator, added once in the repository's settings rather than per commit, is the other. "Add as a collaborator" is the vocabulary of the second and "on a commit" is the vocabulary of the first, and `CONTRIBUTING.md` currently reads as both at once
+  - **Goal**: decide which it is and make it true. If it is a trailer, it has to be something the committing step can add, since a run records a commit mode and does not run `git` - so either the mode file carries it or the automation learns the rule, and `CONTRIBUTING.md` should name the exact trailer. If it is a repository collaborator, check whether the account is already one and reword the constant and `CONTRIBUTING.md` to stop implying a per-commit act. Either way, drop the line from the remaining cheatsheet items in **New Cheatsheets** if it is not something an item can carry out
+  - Queued before the next cheatsheet item rather than after, which is what the roadmap section asks for: more than fifty items still carry the line, and each records an intention no commit fulfils
+  - From: version.control = null
+- [x] **Marked Tag Boundary**: Write `tools/cheatsheet-site.mjs`, a dependency free Node script that crawls a site tree, collects marked content and writes cheatsheet pages
+  - Unblocked as of 2026.11.01: what held this section back was an undocumented API surface, and both halves of it are published and have a worked example per output format now
+  - It crawls and emits rather than composing, so it is clear of the listing decision above - rendering a generated page through the API is `### Building on the API`'s item rather than this one's
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
+  - The same half of the tool as the item above it, and the half that touches disk, so the two belong in one run
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
 
 </details>
