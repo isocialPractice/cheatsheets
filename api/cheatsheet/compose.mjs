@@ -466,7 +466,12 @@ export function composeSheet(doc, options = {}) {
   // into the other is the layout's - `rowsFor` in `layout.mjs`, and the reason
   // it lives there rather than in the document model is the whole point of
   // that model. The compact shape is already rows and goes through unchanged.
-  const lines = isFormalDocument(doc) ? rowsFor(doc) : codeLines(doc.code);
+  //
+  // The layout is handed over, which is what resolves each section's `slot`
+  // against it: a section asking for somewhere this layout cannot put it is
+  // refused by path here rather than drawn in the panel as though it had asked
+  // for nothing. See `slotForSection` in `layout.mjs`.
+  const lines = isFormalDocument(doc) ? rowsFor(doc, layout) : codeLines(doc.code);
   /** @type {string[]} */
   const notes = [];
   /**

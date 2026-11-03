@@ -124,6 +124,71 @@ test("an attribute whose name starts with the marker is a different attribute", 
   assert.equal(collectMarked(`<div ${MARKER}-menu="page"></div><p ${MARKER}>real</p>`).length, 1);
 });
 
+test("a `>` inside an attribute value is not the end of the tag", () => {
+  // Both ways this went wrong, measured 2026.11.02 and fixed 2026.11.03. A `>`
+  // in an attribute value is legal HTML and needs no escaping, so neither page
+  // below is malformed and neither failure had anything to report itself with.
+
+  // Before the attribute: the `>` inside `title` looked like the end of the
+  // tag, so the marker read as sitting outside one and the page contributed
+  // nothing at all.
+  const before = collectMarked(`<div title="a>b" ${MARKER}><pre>REAL</pre></div>`);
+  assert.equal(before.length, 1);
+  assert.equal(before[0].tag, "div");
+  assert.equal(before[0].value, null);
+  assert.equal(before[0].content, "<pre>REAL</pre>");
+
+  // Inside the marker's own value: the tag was cut at that `>`, so the value
+  // came back as `"a` and the rest of the start tag was carried onto the
+  // generated page as content.
+  const within = collectMarked(`<div ${MARKER}="a>b"><pre>REAL</pre></div>`);
+  assert.equal(within.length, 1);
+  assert.equal(within[0].value, "a>b");
+  assert.equal(within[0].content, "<pre>REAL</pre>");
+
+  // Single quotes are a value the same way, and an `=` with space around it is
+  // still an `=`.
+  assert.equal(collectMarked(`<div ${MARKER}='p>q'>R</div>`)[0].value, "p>q");
+  assert.equal(collectMarked(`<div ${MARKER} = "page" >R</div>`)[0].value, "page");
+
+  // A quote only opens a value where an `=` introduced one, which is what
+  // keeps an unquoted value carrying one readable the way a browser reads it.
+  assert.equal(collectMarked(`<div class=a"b ${MARKER}>Y</div>`)[0].content, "Y");
+
+  // And the marker genuinely outside a tag is still not a marker: here the
+  // `<div title=a>` really does end before it, so what follows is text.
+  assert.deepEqual(collectMarked(`<div title=a>b ${MARKER}=page><p>X</p></div>`), []);
+});
+
+test("and the same boundary is read when counting to the closing tag", () => {
+  // `<div title="a/>b">` is a plain open. Taking the first `>` ended the tag
+  // early and left a `/` in front of it, so the depth never rose, the first
+  // `</div>` closed the marked element, and `TAIL` was dropped in silence - the
+  // count had reached zero, so the page looked cleanly closed.
+  const found = collectMarked(`<div ${MARKER}><div title="a/>b">inner</div>TAIL</div>`);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].status, undefined);
+  assert.equal(found[0].content, `<div title="a/>b">inner</div>TAIL`);
+
+  // A genuine XHTML style close is still not a nesting level, which is the
+  // behaviour the scan has to keep rather than trade for the one above.
+  const xhtml = collectMarked(`<div ${MARKER}><div/>inner</div>`);
+  assert.equal(xhtml.length, 1);
+  assert.equal(xhtml[0].content, "<div/>inner");
+});
+
+test("a closing tag spelled inside an attribute value is the limit the scan keeps", () => {
+  // Stated as a limit in the file's header rather than fixed: closing it needs
+  // the depth walk to pass over whole start tags instead of searching for one
+  // name. An unescaped `<` in an attribute value is a parse error, unlike the
+  // `>` above, so this is one step past the markup a site may legally write.
+  // The case is here so the limit is measured and a later fix has a case to
+  // flip rather than to discover.
+  const found = collectMarked(`<div ${MARKER}><p title="</div>">x</p>TAIL</div>`);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].content, `<p title="`);
+});
+
 test("a marker inside a comment, a script or a style is not a marker", () => {
   // A commented out section is exactly where a site owner leaves markup they
   // have decided against, and a string in a script is not markup at all.

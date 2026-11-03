@@ -90,6 +90,29 @@ and the indentation that means a nesting level.
 }
 ```
 
+A section may also name a **`slot`**, which asks for a *kind* of slot rather
+than a slot: `"entries"` or `"listing"`. Naming the slot itself would tie the
+document to one layout, which is what this model exists not to do, so the
+layout answers the kind with whichever of its own slots keeps that content -
+the code panel, on this repository's sheet, which holds both. A section naming
+nothing asks for the kind its content already is, so the field is one most
+documents never write.
+
+Since 2026.11.03 it is resolved rather than only validated. A section asking
+for a kind the layout holds no slot of, or for `"heading"` or `"brand"` - which
+a layout fills from the document's own title, subtitle and brand assets rather
+than from a section - is refused by path:
+
+```text
+cheatsheet: document.sections[0].slot asks for "brand", which a layout fills
+from the document's own fields rather than from a section. A section may ask
+for "entries" or "listing"
+```
+
+Before that the field was held to "a non-empty string" and read by nothing on
+the composition path, so such a document validated, composed, and drew its
+entries in the code panel exactly as though it had asked for nothing.
+
 **Both shapes are permanent, and neither is going away** - settled 2026.11.02,
 and the reason the compact shape is no longer called "provisional" anywhere.
 `{ "title": ..., "code": [...] }` says exactly what

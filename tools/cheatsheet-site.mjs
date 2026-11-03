@@ -29,6 +29,25 @@
 //   time is invisible to it. That is the right half to cover: a build step
 //   reads files, and **Expose a browser entry point** under **Building on the
 //   API** in `TODO.md` is what covers the other.
+// - A start tag is walked rather than searched, so a `>` inside an attribute
+//   value is not read as the end of it - `<div title="a>b" data-cheatsheet>` is
+//   one element and is collected as one. That was not true until 2026.11.03 and
+//   it failed two silent ways, which is why it is stated here rather than left
+//   to the scan: the marker after such a value looked like it was outside the
+//   tag and the page contributed nothing at all, and a `>` inside the marker's
+//   own value cut the tag in half and carried the rest of it onto the generated
+//   page as content.
+// - What the walk still cannot do is read a **closing** tag written inside an
+//   attribute value, because the depth count looks for one name rather than
+//   tokenizing every tag it passes: a `title="</div>"` on some other element
+//   inside a marked `<div>` closes it there. That is one more than legal HTML
+//   asks for - an unescaped `<` in an attribute value is a parse error, which
+//   the `>` this fixed is not - so it is a stated limit rather than the next
+//   fix. It is silent when it happens, like the early close a script string
+//   used to cause: the count reaches zero, so the element looks cleanly closed
+//   and the content after the cut is dropped with nothing said about it.
+//   Closing it needs the depth walk to pass over whole start tags rather than
+//   to search for one name, which is a tokenizer rather than a patch.
 // - It counts tags of the same name to find where a marked element ends, so
 //   unbalanced markup inside one reaches the end of the document rather than
 //   guessing. The page is reported as a finding instead of being written
@@ -207,19 +226,71 @@ function tagNameAt(html, at) {
 }
 
 /**
- * The offset of the `<` opening the tag that contains `at`.
+ * The start tag opening at `at`, scanned rather than searched for.
+ *
+ * **A `>` inside an attribute value is not the end of a tag**, and it needs no
+ * escaping to be there: `<div title="a>b" data-cheatsheet>` is legal HTML that
+ * a browser reads as one element. Finding the end with `indexOf(">")` read it
+ * as two, and both ways of being wrong were silent - a marker after the value
+ * looked like it was outside the tag and the page contributed nothing, while a
+ * `>` inside the marker's **own** value cut the tag in half and carried the
+ * remainder of it onto the generated page as content.
+ *
+ * So the end is found by walking the tag and tracking what the cursor is
+ * inside. A quote opens a value only where an `=` has introduced one, which is
+ * what keeps `<div class=a"b>` reading the way a browser reads it: the `"` is a
+ * character of an unquoted value, not the start of a quoted one.
+ *
+ * @param {string} html
+ * @param {number} at Offset of the `<`.
+ * @returns {{ start: number, end: number, text: string } | null} `null` where the tag is never ended.
+ */
+function startTagAt(html, at) {
+  if (html[at] !== "<") return null;
+  /** The quote character of the value being scanned, or `""` outside one. */
+  let quote = "";
+  /** An `=` has been read and the value it introduces has not started yet. */
+  let awaiting = false;
+  for (let i = at + 1; i < html.length; i += 1) {
+    const char = html[i];
+    if (quote !== "") {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === ">") return { start: at, end: i, text: html.slice(at, i + 1) };
+    if (char === "=") {
+      awaiting = true;
+      continue;
+    }
+    if (awaiting && (char === '"' || char === "'")) {
+      quote = char;
+      awaiting = false;
+      continue;
+    }
+    // Whitespace between the `=` and its value is allowed and keeps the wait
+    // open; anything else is the first character of an unquoted value.
+    if (!/\s/.test(char)) awaiting = false;
+  }
+  return null;
+}
+
+/**
+ * The start tag that contains `at`, or `null` where `at` is not inside one.
+ *
+ * The nearest `<` before the attribute, scanned through {@link startTagAt}. A
+ * tag that ends before `at` does not contain it: the attribute is text, or it
+ * belongs to the tag after this one.
  *
  * @param {string} html
  * @param {number} at An offset inside a start tag.
- * @returns {number} The offset, or `-1` where `at` is not inside one.
+ * @returns {{ start: number, end: number, text: string } | null}
  */
-function tagStartBefore(html, at) {
+function startTagAround(html, at) {
   const open = html.lastIndexOf("<", at);
-  if (open === -1) return -1;
-  // A `>` between the `<` and the attribute means the attribute is not in that
-  // tag at all - it is text, or part of the next one.
-  const close = html.indexOf(">", open);
-  return close !== -1 && close < at ? -1 : open;
+  if (open === -1) return null;
+  const tag = startTagAt(html, open);
+  if (tag === null) return null;
+  return tag.end < at ? null : tag;
 }
 
 /**
@@ -253,13 +324,16 @@ export function collectMarked(html) {
     // is a real one, and it belongs to **The Menu Element** rather than here.
     const after = html[marker + MARKER.length];
     if (after !== undefined && !/[\s=>/]/.test(after)) continue;
-    const start = tagStartBefore(html, marker);
-    if (start === -1) continue;
+    // One scan, and the three readings below all come off it: where the tag
+    // begins, where it ends, and the text the attribute is read out of. They
+    // used to be three separate searches and could disagree with each other,
+    // which is how a `>` inside an attribute value went two different kinds of
+    // wrong on one page.
+    const scanned = startTagAround(html, marker);
+    if (scanned === null) continue;
+    const { start, end: tagEnd, text: startTag } = scanned;
     const tag = tagNameAt(html, start);
     if (tag === "") continue;
-    const tagEnd = html.indexOf(">", marker);
-    if (tagEnd === -1) continue;
-    const startTag = html.slice(start, tagEnd + 1);
 
     const value = attributeValue(startTag, MARKER);
     if (VOID_ELEMENTS.includes(tag) || /\/>$/.test(startTag.trim())) {
@@ -318,7 +392,14 @@ function closingTagOf(html, tag, from, ranges = []) {
     // the depth and leave the element looking unclosed, and a close inside one
     // would end it early.
     if (inside(match.index, ranges)) continue;
-    const close = html.indexOf(">", match.index);
+    // Scanned rather than searched, for the reason {@link startTagAt} exists:
+    // `<div title="a/>b">` ends at the `>` after the closing quote, and taking
+    // the first `>` instead both ended the tag early and left a `/` in front of
+    // it, so the test below read a plain open as self-closing, never raised the
+    // depth, and let the next `</div>` close the marked element - dropping
+    // everything after it with no finding against the page.
+    const scanned = startTagAt(html, match.index);
+    const close = scanned === null ? -1 : scanned.end;
     if (match[1] === "/") {
       depth -= 1;
       if (depth === 0) return { start: match.index, end: close === -1 ? html.length : close + 1 };

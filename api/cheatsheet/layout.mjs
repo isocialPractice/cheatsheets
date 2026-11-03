@@ -85,6 +85,21 @@ export const STAGES = ["ground", "rule", "mark", "run"];
 export const SLOT_KINDS = ["heading", "entries", "listing", "brand"];
 
 /**
+ * The kinds a **section** may ask for, which is not every kind a slot holds.
+ *
+ * A slot holding `heading` or `brand` is filled from a **named field** of the
+ * document - the title and the subtitle on this sheet's two heading slots, the
+ * brand assets on its footer lockup - so a section asking for either kind is
+ * asking to be put somewhere nothing reads a section from. That is refused by
+ * name in {@link slotForSection} rather than drawn in the panel anyway, which
+ * is what it was until 2026.11.03.
+ *
+ * The two that are left are the two {@link rowsFor} projects to: entries become
+ * rows and a listing already is rows.
+ */
+export const SECTION_KINDS = ["entries", "listing"];
+
+/**
  * A row of the grid: a band across the full width of the canvas.
  *
  * @typedef {object} LayoutRow
@@ -539,6 +554,98 @@ export function slotsHolding(layout, kind) {
 }
 
 /**
+ * The kind of slot a section asks for.
+ *
+ * A section that names one has said what it wants. One that names none takes
+ * the kind its own content already is, which is why the field is optional: a
+ * document whose sections are all entries, or all listings, never has to say
+ * so twice.
+ *
+ * @param {import('./document.mjs').SheetSection} section
+ * @returns {string}
+ */
+export function kindOfSection(section) {
+  return section.slot ?? (section.lines ? "listing" : "entries");
+}
+
+/**
+ * The slot a section is placed in, or a refusal naming why there is none.
+ *
+ * This is where a section's `slot` stops being a validated string and starts
+ * deciding something. Until 2026.11.03 the field was held to "a non-empty
+ * string" by the document schema and read by nothing on the composition path,
+ * so `{ slot: "brand", entries: [...] }` validated, composed, and drew its
+ * entries in the code panel with no refusal and no note - the document said one
+ * thing and the drawing did another, which is the one failure a model whose
+ * whole purpose is to be independent of the layout cannot afford.
+ *
+ * Four refusals, and each is a different mistake:
+ *
+ * - **A kind that is no kind at all**, which is a misspelling rather than a
+ *   misplacement and says so, listing {@link SLOT_KINDS}.
+ * - **A real kind no section may ask for.** A `heading` or `brand` slot is
+ *   filled from a named field of the document, so asking for one is asking for
+ *   somewhere a section is never read from. Refused against
+ *   {@link SECTION_KINDS}, not against the layout, because the answer is the
+ *   same for every layout there will ever be.
+ * - **A kind this layout holds no slot of.** A layout with no listing slot
+ *   cannot set a listing, and the honest answer is to say which kinds it does
+ *   hold rather than to draw the rows somewhere that was not asked for.
+ * - **A kind held by more than one slot.** The composition places one row
+ *   stream, so a second slot of the same kind is a choice nothing here is able
+ *   to make. It cannot happen on this sheet's layout - `code-panel` is the only
+ *   slot holding either kind - and refusing says so out loud rather than
+ *   letting a layout grow a second panel that silently never fills.
+ *
+ * @param {SheetLayout} layout
+ * @param {import('./document.mjs').SheetSection} section
+ * @param {string} [at] The path of the section, for the message.
+ * @returns {LayoutSlot}
+ */
+export function slotForSection(layout, section, at = "document.section") {
+  const kind = kindOfSection(section);
+  const named = JSON.stringify(kind);
+  const mayAsk = `A section may ask for ${SECTION_KINDS.map((one) => JSON.stringify(one)).join(" or ")}`;
+  if (!SLOT_KINDS.includes(kind)) {
+    // Not a kind at all, which is a different mistake from asking for a real
+    // kind a section may not have, and reads as one if both share a message.
+    throw new Error(
+      `cheatsheet: ${at}.slot asks for ${named}, which is no kind of slot. The kinds are ` +
+        `${SLOT_KINDS.join(", ")}. ${mayAsk}`
+    );
+  }
+  if (!SECTION_KINDS.includes(kind)) {
+    throw new Error(
+      `cheatsheet: ${at}.slot asks for ${named}, which a layout fills from the document's own ` +
+        `fields rather than from a section. ${mayAsk}`
+    );
+  }
+  const holding = slotsHolding(layout, kind);
+  if (holding.length === 0) {
+    // Every kind the layout does hold, deduplicated and in layout order, so a
+    // caller is told what to ask for instead of what not to.
+    const held = [...new Set(layout.slots.flatMap((slot) => (slot.holds === undefined ? [] : [slot.holds].flat())))];
+    throw new Error(
+      `cheatsheet: ${at}.slot asks for ${named}, and the ${JSON.stringify(layout.name)} layout holds ` +
+        // A layout where no slot names a kind at all is a real state - every
+        // layout written before `holds` existed is one - and `Its slots hold `
+        // with nothing after it reads as a bug in the message rather than as
+        // the answer.
+        (held.length === 0 ? "nothing: none of its slots names a kind" : `no slot of that kind. Its slots hold ${held.join(", ")}`)
+    );
+  }
+  if (holding.length > 1) {
+    throw new Error(
+      `cheatsheet: ${at}.slot asks for ${named}, and the ${JSON.stringify(layout.name)} layout holds ` +
+        `${holding.length} slots of that kind - ${holding.map((slot) => slot.name).join(", ")}. ` +
+        `A composition places one stream of rows, so which of them a section goes in is not a ` +
+        `choice this layer can make for it`
+    );
+  }
+  return holding[0];
+}
+
+/**
  * Where a slot is, in canvas coordinates.
  *
  * A `box` wins over the grid, a named row or column narrows the canvas, and a
@@ -772,12 +879,34 @@ export function placeSlots(composition, { layout, theme, stage, only }) {
  * than how it is set. The freedom a layout has over entries is freedom the
  * document gave it by not saying; a listing says.
  *
+ * ## The layout is optional, and what passing it buys
+ *
+ * Handed a layout, every section's `slot` is resolved against it through
+ * {@link slotForSection} before any row is produced, so a section asking for
+ * somewhere this layout cannot put it is refused by path rather than drawn in
+ * the panel regardless. `composeSheet` always passes one, which is what makes
+ * the field mean something on the composition path.
+ *
+ * Called without one, the projection is what it always was: rows, concatenated,
+ * no slot resolved. That is the right default for the callers that have no
+ * layout to resolve against - a search index, a table of contents, a test
+ * asserting the projection itself - and it is why the parameter is second and
+ * optional rather than required.
+ *
  * @param {import('./document.mjs').CheatsheetDocument} doc
+ * @param {SheetLayout} [layout] Resolves each section's slot kind when given.
  * @returns {import('./document.mjs').CodeLine[]}
  */
-export function rowsFor(doc) {
+export function rowsFor(doc, layout) {
   /** @type {import('./document.mjs').CodeLine[]} */
   const rows = [];
+  // Every section resolved before the first row is built, so a document with a
+  // bad `slot` on its last section is refused whole rather than half projected.
+  if (layout !== undefined) {
+    (doc.sections ?? []).forEach((section, index) => {
+      slotForSection(layout, section, `document.sections[${index}]`);
+    });
+  }
   (doc.sections ?? []).forEach((section, index) => {
     // A blank row between sections, and none before the first or after the
     // last. A blank row occupies its slot exactly like an inked one, which is

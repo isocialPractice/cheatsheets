@@ -137,9 +137,17 @@ export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string"
  * that is. Naming the slot itself would tie the document to a layout, which is
  * the dependency this model is defined to avoid.
  *
+ * Which is why the schema below holds it to "a non-empty string" and no more.
+ * The set of kinds is the layout's, so validating against it here would be
+ * this model reading a layout - the thing it exists not to do. **The kind is
+ * resolved where the layout is**, by `slotForSection` in `layout.mjs`, which
+ * `rowsFor` calls for every section before it projects a row. A section
+ * omitting the field asks for the kind its own content already is: `listing`
+ * for one carrying `lines`, `entries` otherwise.
+ *
  * @typedef {object} SheetSection
  * @property {string} [title]
- * @property {string} [slot] The kind of slot this section occupies. Defaults to the layout's own.
+ * @property {string} [slot] The kind of slot this section occupies. Defaults to the kind its content is.
  * @property {SheetEntry[]} [entries] The entries this section groups. Mutually exclusive with `lines`.
  * @property {CodeLine[]} [lines] The listing this section carries. Mutually exclusive with `entries`.
  */
@@ -304,6 +312,9 @@ export const DOCUMENT_SCHEMA = {
         check: holdsOneThing,
         fields: {
           title: { type: "string", optional: true },
+          // Held to a string and no further, on purpose: the kinds are the
+          // layout's and `slotForSection` in `layout.mjs` is what resolves one
+          // against the layout in hand. See the `SheetSection` typedef above.
           slot: { type: "string", optional: true, notEmpty: true },
           // Optional in the schema and required by `holdsOneThing` above, which
           // is what "one or the other" costs in a vocabulary with no union. The

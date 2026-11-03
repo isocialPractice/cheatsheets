@@ -42,14 +42,17 @@ import { SHEET_CONDENSATION, SHEET_FACE, TYPE_ROLES } from "../api/cheatsheet/fa
 import {
   boxOf,
   curveOf,
+  kindOfSection,
   layoutFor,
   paintOf,
   placeSlots,
   readLayout,
   rowsFor,
   shapeOf,
+  slotForSection,
   slotNamed,
   slotsHolding,
+  SECTION_KINDS,
   SHEET_LAYOUT,
   SLOT_KINDS,
   STAGES,
@@ -951,6 +954,104 @@ test("a listing asks for a kind of slot, and this layout answers with the code p
   // listing already is rows. A layout setting the descriptions in a margin
   // would name two slots, which is why a section asks for a kind.
   assert.deepEqual(slotsHolding(SHEET_LAYOUT, "entries").map((slot) => slot.name), ["code-panel"]);
+});
+
+test("a section's slot kind is resolved against the layout, and not merely validated", () => {
+  // Until 2026.11.03 `slot` was held to "a non-empty string" by the document
+  // schema and read by nothing on the composition path, so a section naming a
+  // kind was drawn exactly as though it had named none. These are the four
+  // answers it has now.
+
+  // A kind its own content already is, where it names none. That is what keeps
+  // the field optional rather than making every document say it twice.
+  assert.equal(kindOfSection({ entries: [{ term: "a" }] }), "entries");
+  assert.equal(kindOfSection({ lines: [{ text: "a" }] }), "listing");
+  assert.equal(kindOfSection({ slot: "listing", entries: [{ term: "a" }] }), "listing");
+
+  // Resolved, where the layout holds a slot of it.
+  assert.equal(slotForSection(SHEET_LAYOUT, FORMAL.sections[0]).name, "code-panel");
+  assert.equal(slotForSection(SHEET_LAYOUT, LISTING.sections[0]).name, "code-panel");
+
+  // Refused by name, where it is no kind at all.
+  assert.throws(
+    () => slotForSection(SHEET_LAYOUT, { slot: "margin", entries: [{ term: "a" }] }, "document.sections[0]"),
+    /document\.sections\[0\]\.slot asks for "margin", which is no kind of slot/
+  );
+
+  // Refused by name, where it is a real kind a section may not ask for. Both
+  // are filled from the document's own fields - the title and subtitle, and the
+  // two brand assets - so a section asking for either is asking for somewhere
+  // nothing reads a section from.
+  assert.deepEqual(SECTION_KINDS, ["entries", "listing"]);
+  for (const kind of SLOT_KINDS.filter((one) => !SECTION_KINDS.includes(one))) {
+    assert.throws(
+      () => slotForSection(SHEET_LAYOUT, { slot: kind, entries: [{ term: "a" }] }, "document.sections[0]"),
+      /which a layout fills from the document's own fields rather than from a section/,
+      `${kind} was accepted as a kind a section may ask for`
+    );
+  }
+
+  // Refused, where this layout holds no slot of a kind a section may ask for.
+  const bare = structuredClone(SHEET_LAYOUT);
+  delete bare.slots[1].holds;
+  assert.throws(
+    () => slotForSection(bare, FORMAL.sections[0], "document.sections[0]"),
+    /the "sheet" layout holds no slot of that kind\. Its slots hold brand, heading/
+  );
+
+  // And a layout where no slot names a kind at all says so, rather than ending
+  // the sentence on "its slots hold" with nothing after it. Every layout
+  // written before `holds` existed is one of those.
+  const none = structuredClone(SHEET_LAYOUT);
+  for (const slot of none.slots) delete slot.holds;
+  assert.throws(
+    () => slotForSection(none, FORMAL.sections[0], "document.sections[0]"),
+    /holds nothing: none of its slots names a kind/
+  );
+
+  // And refused where more than one slot holds it, because the composition
+  // places one stream of rows and which of them a section goes in is then a
+  // choice nothing in this layer can make. It cannot happen on this sheet's
+  // layout, which is the reason to assert it against one that could.
+  const two = structuredClone(SHEET_LAYOUT);
+  two.slots.push({ ...two.slots[1], name: "code-panel-2" });
+  assert.throws(
+    () => slotForSection(two, FORMAL.sections[0], "document.sections[0]"),
+    /holds 2 slots of that kind - code-panel, code-panel-2/
+  );
+});
+
+test("and `composeSheet` is what resolves it, so a bad slot is refused rather than drawn", () => {
+  // The failure this closes, measured 2026.11.02: this document validated,
+  // composed, and drew its entries in the code panel with no refusal and no
+  // note - the document said one thing and the drawing did another.
+  const brand = { title: "Brand", sections: [{ slot: "brand", entries: [{ term: "alpha", signature: "a()" }] }] };
+  assert.throws(() => composeSheet(brand), /document\.sections\[0\]\.slot asks for "brand"/);
+
+  // The path is the section's own, so the one that is wrong is named rather
+  // than the document.
+  const second = {
+    title: "Second",
+    sections: [FORMAL.sections[0], { slot: "heading", entries: [{ term: "beta" }] }],
+  };
+  assert.throws(() => composeSheet(second), /document\.sections\[1\]\.slot asks for "heading"/);
+
+  // A section naming the kind this layout does hold composes exactly as one
+  // naming nothing does, which is what makes the field free to use.
+  const named = composeSheet({ ...FORMAL, sections: FORMAL.sections.map((one) => ({ ...one, slot: "entries" })) }, { seed: "splice-array" });
+  const plain = composeSheet(FORMAL, { seed: "splice-array" });
+  assert.deepEqual(named.composition.elements, plain.composition.elements);
+});
+
+test("the projection resolves slots only when it is given a layout to resolve against", () => {
+  // The parameter is second and optional because the callers with no layout -
+  // a search index, a table of contents, the cases above - have nothing to
+  // resolve against and are not asking for a refusal.
+  const bad = { title: "Brand", sections: [{ slot: "brand", entries: [{ term: "alpha" }] }] };
+  assert.deepEqual(rowsFor(bad), [{ text: "// alpha", role: "comment" }]);
+  assert.throws(() => rowsFor(bad, SHEET_LAYOUT), /asks for "brand"/);
+  // And handed one, a good document projects what it always projected.
+  assert.deepEqual(rowsFor(FORMAL, SHEET_LAYOUT), rowsFor(FORMAL));
 });
 
 test("a slot's `holds` names kinds the layout knows, one or several", () => {

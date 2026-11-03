@@ -192,6 +192,12 @@ under the site root, then `cheatsheets/cheatsheets/`, then
 already has one of those keeps it. The script imports nothing but Node
 builtins, because it runs against somebody else's checkout.
 
+Having no parser available is what makes the collector a scanner, and the
+limits of scanning are listed in that file's own header rather than left to be
+discovered. A start tag is walked rather than searched, so a `>` inside an
+attribute value is not read as the end of one: `<div title="a>b"
+data-cheatsheet>` is legal HTML, is one element, and is collected as one.
+
 **Adding to the Catalog**
 [CONTRIBUTING.md](CONTRIBUTING.md) is the record of how a cheatsheet and a
 whole category are added, written from what was done rather than from the rule:
