@@ -30,6 +30,99 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.1.0-alpha]
+
+### Added
+
+- **A section's `slot` is resolved against the layout, by `slotForSection` in
+  `api/cheatsheet/layout.mjs`.** `SECTION_KINDS` names the two kinds a section
+  may ask for, `kindOfSection` reports the kind a section asks for, and `rowsFor`
+  takes an optional second argument: handed a layout it resolves every section
+  before it projects a row, and handed none it projects exactly what it always
+  did. `composeSheet` passes one, so the resolution is on the composition path
+  and the three names are on the published surface through
+  `api/cheatsheet/index.mjs`.
+- **The site collector scans a start tag rather than searching it**, through a
+  private `startTagAt` in `tools/cheatsheet-site.mjs` that walks from the `<`
+  tracking whether the cursor is inside a single or double quoted value. Where
+  the tag begins, where it ends and the text an attribute is read out of now all
+  come off one scan, so the three cannot disagree with each other.
+
+### Fixed
+
+- **A section naming a `slot` this layout cannot answer is refused by name,
+  rather than drawn in the code panel regardless.** `SheetSection.slot` is documented as
+  the field that points outward and `slotsHolding` is the query that answers it,
+  and nothing on the composition path called it: `rowsFor` concatenated every
+  section's rows into one stream regardless, so
+  `{ title, sections: [{ slot: "brand", entries: [...] }] }` validated, composed
+  and drew its entries in the code panel with no refusal and no note. The model
+  said one thing and the drawing did another, which is the one failure a document
+  model defined to be independent of the layout cannot afford. Four answers now,
+  each a different mistake: a kind that is no kind at all, a real kind a section
+  may not ask for - `heading` and `brand` are filled from the document's own
+  title, subtitle and brand assets - a kind this layout holds no slot of, and a
+  kind more than one slot holds, which a composition placing one row stream
+  cannot choose between. Every refusal carries the section's own path, so
+  `document.sections[1].slot` names the one that is wrong rather than the
+  document. The field stays a plain string in the document schema on purpose:
+  the kinds are the layout's, and validating against them in `document.mjs`
+  would be the model reading a layout. What resolution buys, for now, is the
+  refusal and not the placement: the projection is still one stream of rows and
+  the code panel still draws it, so a layout keeping a separate slot per kind
+  resolves two slots and fills one. On this repository's sheet the two resolve
+  to the same panel, which is why the distinction does not show here.
+- **A `>` inside an attribute value is no longer read as the end of a start
+  tag**, which failed two silent ways on markup that needs no escaping to be
+  written. Before the marker, `<div title="a>b" data-cheatsheet><pre>x</pre></div>`
+  collected **nothing**: the `>` in the value looked like the end of the tag, so
+  the marker read as sitting outside one, the candidate was dropped, and the page
+  contributed no block and raised no finding. Inside the marker's own value,
+  `<div data-cheatsheet="a>b"><pre>x</pre></div>` collected the **wrong** thing:
+  the tag was cut at that `>`, so the value came back as `"a` and the remainder
+  of the start tag was carried onto the generated page as content.
+- **And the same boundary is read when counting to the closing tag.**
+  `<div title="a/>b">` is a plain open, and taking the first `>` ended the tag
+  early and left a `/` in front of it, so the XHTML self-close test read it as
+  one, the depth never rose, the first `</div>` closed the marked element, and
+  everything after it was dropped. Silently: the count reached zero, so the page
+  looked cleanly closed. Found while fixing the two above, from the same cause.
+
+### Changed
+
+- **`.claude/constants.md` records semantic versioning**, which the
+  `1.0.0-alpha` note below listed as deliberately outstanding. The standing note
+  put that rewrite after the **release** of the first semantic version rather
+  than after the switch, and `v1.0.0-alpha` was tagged and published on
+  2026.11.02, so it fired. The **Versioning and releases** rule is replaced and
+  carries the stage suffix; the other five rules in the file are untouched.
+- **`TODO.md` opens by saying the project is in released mode**, where it had
+  said dated. A roadmap section still states its intent rather than naming a
+  size, and every changelog entry below `1.0.0-alpha` is still keyed by the date
+  it was applied.
+- **`CONTRIBUTING.md` documents `slot`**, which it had not: what a kind is, why
+  a document names a kind rather than a slot, and the refusal a section gets for
+  asking to be put where nothing reads a section from.
+
+### Notes
+
+- **One scanning limit is kept rather than closed, and is stated in the file's
+  header.** A *closing* tag spelled inside an attribute value - a
+  `title="</div>"` on some other element inside a marked `<div>` - still closes
+  the marked element there, because the depth count looks for one name rather
+  than tokenizing every tag it passes. It is one step past the markup a site may
+  legally write, since an unescaped `<` in an attribute value is a parse error
+  where the `>` this version fixed is not, and closing it needs the walk to pass
+  over whole start tags: a tokenizer rather than a patch. It is silent when it
+  happens and there is a case measuring that, so a later fix has an expectation
+  to flip instead of a behaviour to discover.
+- **`cross-os-social` is still refusing every call**, measured again on
+  2026.11.03 with the same `The build is older than the source it came from`
+  that 2026.10.15, 2026.10.27 and 2026.11.02 met. No route record and no drift
+  reading could be taken. Nothing was owed a draft this run in any case: the
+  watch pattern matched the eleven original JPEGs, all already in the ledger,
+  and no image was created.
+
 ## [1.0.0-alpha]
 
 ### Added

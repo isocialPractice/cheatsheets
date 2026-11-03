@@ -4,10 +4,14 @@ Planned work for this cheatsheet example repository. `## Current` holds the
 next items to complete, in order; the level 2 sections below it are the
 roadmap those items are drawn from.
 
-This project is in **dated mode**. It has no releases and no tags, its source
-is browser based, and it exists to hold and demonstrate learning examples. No
-section applies a version, so each states its intent instead. `CHANGELOG.md`
-keys its entries by date, written `YYYY.MM.DD`.
+This project is in **released mode** as of 2026.11.02, when `1.0.0-alpha` was
+tagged and published. It was dated for as long as the deliverable was a page
+and a folder of images; what changed is that there is an API a caller writes
+against, so a version is the only honest way to say what moved under them. A
+roadmap section still states its intent rather than naming a major, minor or
+patch update, and **Version Priority** resolves the size from that. Every entry
+in `CHANGELOG.md` below `1.0.0-alpha` is keyed by the date it was applied,
+written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
@@ -28,23 +32,21 @@ keys its entries by date, written `YYYY.MM.DD`.
   - The collector already carries the value through without judging it, and `renderPage` takes the `<title>` with the file name as its fallback. So this item is the judging: which value means which source, and what an unrecognised value does
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
 
-### Code Review Override - the scanner's tag boundaries, and an unresolved slot kind
+### Code Review Override - the resolved slot is discarded, and `holds` is optional in one file and required in another
 
 #### Resolve Issues
 
-- [ ] Marked Tag Boundary 1
-  - **Issue**: the collector finds a start tag's edges with bare `indexOf` on `<` and `>`, so a `>` inside an attribute **value** is read as the end of the tag. Two inputs, both silent, both measured 2026.11.02. `<div title="a>b" data-cheatsheet><pre>REAL</pre></div>` collects **nothing**: `tagStartBefore` sees a `>` between the `<` and the marker, concludes the attribute is not in that tag and drops the candidate, so a marked page contributes no block, is written nowhere and raises no finding. `<div data-cheatsheet="a>b"><pre>REAL</pre></div>` collects the wrong thing: `tagEnd` lands on the `>` inside the value, so the block's `value` comes back as `"a` and its content as `b"><pre>REAL</pre>` - stray markup carried onto the generated page. A `>` in an attribute value is legal HTML and needs no escaping, so neither page is malformed
-  - **Goal**: find the end of a start tag by scanning it rather than by searching for a character - walk from the `<` tracking whether the cursor is inside a single or double quoted value, and treat only an unquoted `>` as the end. Then `tagStartBefore`, `tagEnd` and `attributeValue` all read the same boundary. Reach `attributeValue` from the scanned tag rather than from a slice, so the three cannot disagree. The limits list in the file's header states what scanning cannot do, and should name this once it is fixed or state it if it is not
-  - Not fixed in review because it is a tokenizer rather than a patch: the three functions share the assumption and the existing boundary cases around void elements, XHTML style closes and prefix names all read the same slices, so changing it under them needs its own cases rather than a smallest fix
-  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [ ] Slot Kind Resolution 1
+  - **Issue**: the resolution is a gate and never a placement, so the failure the item was closed on survives wherever a layout keeps a separate slot per kind. `rowsFor` in `api/cheatsheet/layout.mjs:907` calls `slotForSection` for its refusal and throws the answer away, and `composeSheet` draws the one row stream at `divisions.panel` and `bands.code` from the design language rather than at the slot that was resolved. Measured 2026.11.03 against `SHEET_LAYOUT` with `code-panel` narrowed to `holds: "entries"` and a second slot `listing-panel` added holding `"listing"`: a document whose first section carries `entries` and whose second carries `lines` resolves to `code-panel` and `listing-panel`, is refused nowhere, and draws **both** streams in the code panel - the listing row lands at x 624, which is `divisions.panel.x` plus the panel inset, while `listing-panel` is never filled. The document says one thing and the drawing does another, which is the sentence the item was filed on
+  - **Goal**: decide whether the resolved slot places anything, and make one of the two true. Either place by it - a row stream per resolved slot, which is a composition change rather than a patch because `composeSheet` measures one block against one panel's freedom - or state the limit where a caller reads it and refuse what cannot be honoured, by narrowing `slotForSection` to the slot the panel actually draws so a layout separating the kinds is refused rather than silently flattened. Whichever way it goes, the first line of `slotForSection`'s own docblock reads "The slot a section is placed in", which nothing places by; it is left alone here because correcting it either way pre-judges this decision
+  - From: Code Review Override - the resolved slot is discarded, and `holds` is optional in one file and required in another
 
 #### Found Issues
 
-- [ ] A section's `slot` kind is validated and never resolved, so a document that names one is drawn as though it had not
-  - **Issue**: `SheetSection.slot` is documented as the field that points outward - "a section asks for somewhere that holds entries, or somewhere that holds a listing, and the layout decides which of its slots that is" - and `slotsHolding` is the query that would answer it. Nothing on the composition path calls it. `rowsFor` concatenates every section's rows into one stream regardless of `slot`, and `composeSheet` places that stream in the code panel, so `{ title, sections: [{ slot: "brand", entries: [...] }] }` validates, composes and draws its entries in the code panel with no refusal and no note. The only caller of `slotsHolding` is `themePairings`, which uses it to measure contrast rather than to place anything
-  - **Goal**: decide which of the two it is and make the document say it. Either resolve the kind - `slotsHolding(layout, section.slot ?? default)`, with a named refusal when the layout holds no slot of that kind - or state in the typedef and in `rowsFor` that a single-panel layout ignores `slot` and that it is recorded for a layout that has somewhere else to put a section. The second is honest and cheap; the first is what the field's own documentation currently promises
-  - Pre-existing rather than introduced on 2026.11.02, but this run widened the prose describing it, added `listing` to `SLOT_KINDS` and made `holds` name several kinds, so the gap between what the model says and what the composition does is wider than it was
-  - From: Code Review Override - the scanner's tag boundaries, and an unresolved slot kind
+- [ ] A layout with no `holds` validates and then refuses every formal document, so the schema and the composition disagree about whether the field is optional
+  - **Issue**: `holds` is `{ type: "any", optional: true, check: holdsKinds }` in `LAYOUT_SCHEMA` at `api/cheatsheet/layout.mjs:454`, and `readLayout` accepts a layout that omits it on every slot. Since 2026.11.03 `composeSheet` of a **formal** document against that same layout throws `document.sections[0].slot asks for "entries", and the "sheet" layout holds nothing: none of its slots names a kind`. Measured 2026.11.03: `SHEET_LAYOUT` cloned with `holds` deleted from every slot passes `readLayout`, draws a compact document, and refuses a formal one - two document shapes the repository calls permanent, one layout, two answers. It is reachable from the documented CLI, `cheatsheet.mjs --layout <path>`, which takes a path to a JSON layout, and the layout model's own header calls replacing it the contract that flag was holding open. `tools/test-sheet-models.mjs:1002` names the state it refuses in its own comment - "Every layout written before `holds` existed is one of those" - and asserts the refusal five lines below it, so the break is deliberate and the inconsistency with the schema is what was not noticed
+  - **Goal**: put the requirement in one place. Either make `holds` required by `LAYOUT_SCHEMA` for at least the kinds a section may ask for, so `readLayout` refuses the layout by its own path and a caller is told which file is wrong, or have `slotForSection` read a layout that names no kind at all as one that predates the field and skip resolution, which is the behaviour every such layout had until 2026.11.03. The present state is the one combination that helps nobody: the schema says optional, the composition says required, and the message blames `document.sections[0]` for a defect in the layout
+  - From: Code Review Override - the resolved slot is discarded, and `holds` is optional in one file and required in another
 
 ## GitHub Pages Deployment
 
@@ -1934,5 +1936,15 @@ generate ideas about generating ideas.
 - [x] Resolve the output folder before writing anything: use `cheatsheets/`, and when that exists fall back to `cheatsheets/cheatsheets/`, then `cheatsheets/cheatsheets_0/` and upward until a free name is found
   - The same half of the tool as the item above it, and the half that touches disk, so the two belong in one run
   - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] Marked Tag Boundary 1
+  - **Issue**: the collector finds a start tag's edges with bare `indexOf` on `<` and `>`, so a `>` inside an attribute **value** is read as the end of the tag. Two inputs, both silent, both measured 2026.11.02. `<div title="a>b" data-cheatsheet><pre>REAL</pre></div>` collects **nothing**: `tagStartBefore` sees a `>` between the `<` and the marker, concludes the attribute is not in that tag and drops the candidate, so a marked page contributes no block, is written nowhere and raises no finding. `<div data-cheatsheet="a>b"><pre>REAL</pre></div>` collects the wrong thing: `tagEnd` lands on the `>` inside the value, so the block's `value` comes back as `"a` and its content as `b"><pre>REAL</pre>` - stray markup carried onto the generated page. A `>` in an attribute value is legal HTML and needs no escaping, so neither page is malformed
+  - **Goal**: find the end of a start tag by scanning it rather than by searching for a character - walk from the `<` tracking whether the cursor is inside a single or double quoted value, and treat only an unquoted `>` as the end. Then `tagStartBefore`, `tagEnd` and `attributeValue` all read the same boundary. Reach `attributeValue` from the scanned tag rather than from a slice, so the three cannot disagree. The limits list in the file's header states what scanning cannot do, and should name this once it is fixed or state it if it is not
+  - Not fixed in review because it is a tokenizer rather than a patch: the three functions share the assumption and the existing boundary cases around void elements, XHTML style closes and prefix names all read the same slices, so changing it under them needs its own cases rather than a smallest fix
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] **Slot Kind Resolution**: A section's `slot` kind is validated and never resolved, so a document that names one is drawn as though it had not
+  - **Issue**: `SheetSection.slot` is documented as the field that points outward - "a section asks for somewhere that holds entries, or somewhere that holds a listing, and the layout decides which of its slots that is" - and `slotsHolding` is the query that would answer it. Nothing on the composition path calls it. `rowsFor` concatenates every section's rows into one stream regardless of `slot`, and `composeSheet` places that stream in the code panel, so `{ title, sections: [{ slot: "brand", entries: [...] }] }` validates, composes and draws its entries in the code panel with no refusal and no note. The only caller of `slotsHolding` is `themePairings`, which uses it to measure contrast rather than to place anything
+  - **Goal**: decide which of the two it is and make the document say it. Either resolve the kind - `slotsHolding(layout, section.slot ?? default)`, with a named refusal when the layout holds no slot of that kind - or state in the typedef and in `rowsFor` that a single-panel layout ignores `slot` and that it is recorded for a layout that has somewhere else to put a section. The second is honest and cheap; the first is what the field's own documentation currently promises
+  - Pre-existing rather than introduced on 2026.11.02, but this run widened the prose describing it, added `listing` to `SLOT_KINDS` and made `holds` name several kinds, so the gap between what the model says and what the composition does is wider than it was
+  - From: Code Review Override - the scanner's tag boundaries, and an unresolved slot kind
 
 </details>
