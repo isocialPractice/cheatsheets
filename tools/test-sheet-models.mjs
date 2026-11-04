@@ -47,7 +47,9 @@ import {
   paintOf,
   placeSlots,
   readLayout,
+  rowSlot,
   rowsFor,
+  sectionSlots,
   shapeOf,
   slotForSection,
   slotNamed,
@@ -1067,6 +1069,144 @@ test("a slot's `holds` names kinds the layout knows, one or several", () => {
       `${JSON.stringify(holds)} was taken as a kind`
     );
   }
+});
+
+// ## Where the kinds a layout holds are counted
+
+test("`sectionSlots` is the subset of the holding slots a section can reach", () => {
+  // Four slots of the recorded layout carry a `holds`, and only one of them
+  // holds a kind a section may ask for. The other three are filled from named
+  // fields of the document, so counting every slot carrying the field would
+  // count the title, the subtitle and the footer lockup as places a section
+  // could go.
+  assert.deepEqual(
+    SHEET_LAYOUT.slots.filter((slot) => slot.holds !== undefined).map((slot) => slot.name),
+    ["code-panel", "footer-lockup", "title", "subtitle"]
+  );
+  assert.deepEqual(sectionSlots(SHEET_LAYOUT).map((slot) => slot.name), ["code-panel"]);
+  assert.deepEqual(rowSlot(SHEET_LAYOUT), slotNamed(SHEET_LAYOUT, "code-panel"));
+
+  // In layout order, and once each. A slot holding both kinds would come back
+  // twice if the slots were collected per kind, and two slots would come back
+  // in the order the kinds are listed rather than the order the layout is in.
+  assert.deepEqual(SHEET_LAYOUT.slots[1].holds, ["entries", "listing"]);
+  assert.deepEqual(sectionSlots(SHEET_LAYOUT).length, 1);
+});
+
+test("a layout keeping nowhere for a section is refused by its own path, not the document's", () => {
+  // The defect this closes, measured 2026.11.03: `holds` is optional on a slot
+  // and `readLayout` therefore accepted a layout that omitted it everywhere -
+  // which every layout written before the field existed does. That layout then
+  // composed a compact document and refused a formal one with
+  // `document.sections[0].slot asks for "entries"`, blaming the section for a
+  // field missing from the layout. The schema said optional, the composition
+  // said required, and the message named the wrong file.
+  const none = structuredClone(SHEET_LAYOUT);
+  for (const slot of none.slots) delete slot.holds;
+  assert.throws(
+    () => readLayout(structuredClone(none)),
+    /layout\.slots: keep nowhere for the content of a section/,
+    "a layout no section can be set in validated"
+  );
+  // Named back with what to write rather than with what not to.
+  assert.throws(() => readLayout(structuredClone(none)), /One slot has to hold "entries" or "listing"/);
+
+  // And one answer for both document shapes, which is the inconsistency
+  // itself: the layout is wrong whatever is composed against it, so the
+  // compact document is refused by the same path the formal one is.
+  for (const doc of [COMPACT, FORMAL]) {
+    assert.throws(
+      () => composeSheet(doc, { seed: 1, layout: structuredClone(none) }),
+      /layout\.slots: keep nowhere for the content of a section/,
+      `${isFormalDocument(doc) ? "a formal" : "a compact"} document got a different answer`
+    );
+  }
+});
+
+test("and a layout keeping two such slots is refused, because a composition sets one stream", () => {
+  // The other half of the same count, and the failure `Slot Kind Resolution`
+  // was reopened on: measured 2026.11.03, a layout narrowing `code-panel` to
+  // entries and adding a second slot for the listing validated, composed, and
+  // drew **both** streams in the code panel while the slot the listing section
+  // had resolved to was never filled.
+  const split = structuredClone(SHEET_LAYOUT);
+  const panel = split.slots.find((slot) => slot.name === "code-panel");
+  panel.holds = "entries";
+  split.slots.splice(split.slots.indexOf(panel) + 1, 0, {
+    name: "listing-panel",
+    draw: "fill",
+    stage: "ground",
+    row: "code",
+    column: "spine",
+    paint: "navy",
+    shape: "block",
+    holds: "listing",
+  });
+  assert.throws(
+    () => readLayout(structuredClone(split)),
+    /layout\.slots: keep the content of a section in 2 places - code-panel, listing-panel/
+  );
+  // Refused on the way into the composition, so the document that measured the
+  // flattening cannot be composed against it at all.
+  const mixed = { title: "Mixed", sections: [FORMAL.sections[0], LISTING.sections[0]] };
+  assert.throws(
+    () => composeSheet(mixed, { seed: 1, layout: structuredClone(split) }),
+    /A composition sets one stream of rows, so one slot holds every kind a section may ask for/
+  );
+});
+
+test("`rowSlot` refuses the same two counts, for a layout nothing read", () => {
+  // `readLayout` is the gate, and `rowsFor` takes a layout without passing one
+  // - so a hand built layout reaches the placement directly, and a placement
+  // from `undefined` draws every row at `NaN` rather than refusing.
+  const none = structuredClone(SHEET_LAYOUT);
+  for (const slot of none.slots) delete slot.holds;
+  assert.throws(() => rowSlot(none), /the "sheet" layout keeps no slot for the content of a section/);
+
+  const two = structuredClone(SHEET_LAYOUT);
+  two.slots.push({ ...two.slots[1], name: "code-panel-2" });
+  assert.throws(
+    () => rowSlot(two),
+    /the "sheet" layout keeps 2 slots for the content of a section - code-panel, code-panel-2/
+  );
+});
+
+test("the rows are set from the resolved slot's box, which is what makes resolution a placement", () => {
+  // Until 2026.11.04 the resolution was a gate and never a placement:
+  // `slotForSection` was called for its refusal and its answer thrown away,
+  // and every row was placed from the design language's `bands.code` and
+  // `divisions.panel` instead. On the recorded layout those are the same box,
+  // which is why nothing looked wrong.
+  assert.deepEqual(boxOf(SHEET_LAYOUT, rowSlot(SHEET_LAYOUT)), {
+    x: SHEET_LANGUAGE.divisions.panel.x,
+    y: SHEET_LANGUAGE.bands.code.y,
+    width: SHEET_LANGUAGE.divisions.panel.width,
+    height: SHEET_LANGUAGE.bands.code.height,
+  });
+
+  // Moved, and the rows move with it. Nothing else about the layout changes,
+  // so the inset is drawn from the same seed and lands on the same figure -
+  // which is what makes the difference in `x` the box's alone.
+  const moved = structuredClone(SHEET_LAYOUT);
+  moved.slots.find((slot) => slot.name === "code-panel").column = "spine";
+  assert.notEqual(
+    boxOf(moved, rowSlot(moved)).x,
+    SHEET_LANGUAGE.divisions.panel.x,
+    "the slot did not move, so this case measures nothing"
+  );
+  const recorded = composeSheet(FORMAL, { seed: "splice-array" });
+  const replaced = composeSheet(FORMAL, { seed: "splice-array", layout: moved });
+  assert.equal(recorded.variation.leftInset, replaced.variation.leftInset);
+  const xs = (report) => [
+    ...new Set(
+      report.composition
+        .toDocument()
+        .elements.filter((element) => /^code-\d+$/.test(element.name ?? ""))
+        .map((element) => element.x)
+    ),
+  ];
+  assert.deepEqual(xs(recorded), [SHEET_LANGUAGE.divisions.panel.x + recorded.variation.leftInset]);
+  assert.deepEqual(xs(replaced), [SHEET_LANGUAGE.divisions.spine.x + replaced.variation.leftInset]);
 });
 
 test("a formal document composes through the same algorithm the compact one does", () => {

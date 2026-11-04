@@ -30,6 +30,64 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.2.0-alpha]
+
+### Added
+
+- **`rowSlot` and `sectionSlots` in `api/cheatsheet/layout.mjs`**, both on the
+  published surface through `api/cheatsheet/index.mjs`. `sectionSlots` is the
+  subset of a layout's holding slots a section can reach - the title, the
+  subtitle and the footer lockup hold a kind each and are filled from named
+  fields of the document, so counting every slot carrying `holds` would count
+  three places a section can never go. `rowSlot` is the one of them a
+  composition sets its rows in, and it is what `composeSheet` now places from.
+
+### Fixed
+
+- **The resolved slot is what the rows are placed from**, which closes the
+  limitation the `1.1.0-alpha` note below records in its own words: *"what
+  resolution buys, for now, is the refusal and not the placement"*. `rowsFor`
+  called `slotForSection` for its refusal and threw the answer away, and
+  `composeSheet` took every figure of the code block - the padding ceiling, the
+  two usable measures, the spacing the fill floor allows, the fill it reports,
+  and the `x` and `y` of every row - from the design language's `bands.code` and
+  `divisions.panel` instead. The same region was written in two places and only
+  one of them was read, so a layout that moved its panel moved the ground and
+  left the rows behind, and a layout keeping a slot per kind drew both streams
+  in the code panel while the slot the document had resolved stayed empty.
+  Measured 2026.11.03 against a layout with a second `listing-panel`: six rows,
+  all at the code panel's own `x`, and the resolved slot never filled.
+  `composeSheet` now measures and places against `boxOf(layout,
+  rowSlot(layout))`, for a compact document as well as a formal one. On the
+  recorded layout that box is the language's panel to the pixel, so the eleven
+  sheets and every committed fixture reproduce byte for byte.
+- **A layout that keeps nowhere for a section is refused at the layout's own
+  path**, where the schema used to accept it and the composition used to blame
+  the document for it. `holds` is optional per slot and most slots hold nothing,
+  so a layout omitting it everywhere - which every layout written before the
+  field existed does - passed `readLayout`, composed a compact document, and
+  refused a formal one with `document.sections[0].slot asks for "entries"`. The
+  schema said optional, the composition said required, and the message named the
+  wrong file. The requirement is now counted once, over the whole layout, beside
+  the other cross references `readLayout` makes: `layout.slots: keep nowhere for
+  the content of a section ... One slot has to hold "entries" or "listing"`. Both
+  document shapes get that one answer.
+- **And a layout that keeps two of them is refused by the same count.** A
+  composition sets one stream of rows, so which slot a section goes in stops
+  being a choice the moment a layout offers two - `slotForSection` already
+  refused two slots holding *one* kind and said so, and the kinds split across
+  two slots went through. Named back with both slots, so the file that is wrong
+  says which lines are wrong. The refusals are kept on `rowSlot` as well, since
+  `rowsFor` takes a layout nothing read and a placement from `undefined` draws
+  every row at `NaN`.
+
+### Changed
+
+- **`README.md` and `CONTRIBUTING.md` state the one-slot rule**, which is where
+  a caller writing a layout for `--layout <path>` reads it. Neither said how
+  many slots a layout keeps for a section, and the answer had been "one" since
+  the field was added and enforced nowhere.
+
 ## [1.1.0-alpha]
 
 ### Added

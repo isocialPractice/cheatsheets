@@ -68,6 +68,13 @@ the stroke weights; and a **layout** of a named composition, the grid it sits
 on, and the slots a section may occupy. The document says nothing about how any
 of it is drawn, which is what lets one document be set to two layouts.
 
+A section asks the layout for a **kind** of slot rather than for a slot by
+name - `entries` or `listing` - and the layout answers with the one it keeps for
+that content. A composition sets one stream of rows, so a layout keeps **one**
+such slot, and the rows are placed from that slot's own box: a layout file that
+names no slot for a section, or that keeps two of them, is refused by path on
+the way in rather than drawn in a panel nobody asked for.
+
 A section carries **entries or lines**: entries are a term, a signature and a
 description each, and `lines` is a worked code listing, whose syntax role per
 line and whose indentation both carry meaning an entry has nowhere to put. A

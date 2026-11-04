@@ -116,6 +116,7 @@ import {
   paintOf,
   placeSlots,
   readLayout,
+  rowSlot,
   rowsFor,
   slotNamed,
   SHEET_LAYOUT,
@@ -426,8 +427,6 @@ export function composeSheet(doc, options = {}) {
   const codeFace = CODE_FACE;
   const variation = new Variation(options.seed);
   const {
-    bands,
-    divisions,
     colors,
     syntax,
     rules,
@@ -472,6 +471,30 @@ export function composeSheet(doc, options = {}) {
   // refused by path here rather than drawn in the panel as though it had asked
   // for nothing. See `slotForSection` in `layout.mjs`.
   const lines = isFormalDocument(doc) ? rowsFor(doc, layout) : codeLines(doc.code);
+
+  /**
+   * The region the rows are set in, read off the layout rather than the design
+   * language.
+   *
+   * **The other half of resolving a section's slot, and until 2026.11.04 the
+   * missing half.** Every figure below - the padding ceiling, the two usable
+   * measures, the spacing the fill floor allows, the fill it reports, and the
+   * `x` and `y` of every row - was taken from `bands.code` and
+   * `divisions.panel`, which is the design language's panel and not the slot
+   * anything had resolved. On the recorded layout those are the same box, so
+   * nothing looked wrong; on a layout keeping a slot per kind they were not,
+   * and the rows were drawn in the code panel while the slot the document had
+   * asked for stayed empty. Placing from `rowSlot` is what makes the
+   * resolution a placement, and `readLayout` refusing a layout that keeps two
+   * such slots is what keeps one box the right answer for every section.
+   *
+   * It is the layout's box for a compact document too. A document carrying
+   * `code` rather than sections resolves nothing, but where its rows go is the
+   * layout's statement either way, and the two shapes drawing in two places
+   * would be a worse answer than either.
+   */
+  const panel = boxOf(layout, rowSlot(layout));
+
   /** @type {string[]} */
   const notes = [];
   /**
@@ -715,6 +738,11 @@ export function composeSheet(doc, options = {}) {
   // The panel is a frame around free content, so its three free figures are
   // drawn from the seed. Every draw happens whatever the content is, so a
   // document that leaves no slack does not shift the choices after it.
+  //
+  // `panel` is the slot the layout keeps for a section's content, measured
+  // above. The figures below are the design language's - the padding range,
+  // the inset range, the fill floor - and the box they are measured against is
+  // the layout's.
 
   // Two counts of the same thing, and they differ for a one line example. The
   // divisors below must never be zero, so `gaps` floors at one; the block's own
@@ -750,7 +778,7 @@ export function composeSheet(doc, options = {}) {
   // floor to mean anything. Below the measured minimum padding it is dropped
   // entirely rather than inverted into an empty range.
   const blockOverFill = (gaps + CAP_SHARE * (1 + descenderShare)) / (gapsDrawn + CAP_SHARE);
-  const paddingCeiling = (bands.code.height * (1 - floors.panelFill * blockOverFill)) / 2;
+  const paddingCeiling = (panel.height * (1 - floors.panelFill * blockOverFill)) / 2;
   const paddingMax =
     paddingCeiling >= panelFreedom.topPadding.min
       ? Math.min(panelFreedom.topPadding.max, paddingCeiling)
@@ -771,8 +799,8 @@ export function composeSheet(doc, options = {}) {
 
   // How much room the lines have, once the padding above them and a matching
   // clearance below are taken out.
-  const usableHeight = bands.code.height - topPadding * 2;
-  const usableWidth = divisions.panel.width - leftInset * 2;
+  const usableHeight = panel.height - topPadding * 2;
+  const usableWidth = panel.width - leftInset * 2;
   const spacingThatFits = usableHeight / (gaps + CAP_SHARE * (1 + descenderShare));
 
   // The spacing the seed may choose from is the measured range narrowed from
@@ -799,7 +827,7 @@ export function composeSheet(doc, options = {}) {
   // range intact and is reported instead. The floor bounds what a seed may do,
   // and there is nothing a seed can do about a document with too little in it.
   const spacingMax = Math.min(panelFreedom.lineSpacing.max, spacingThatFits);
-  const spacingForFloor = (floors.panelFill * bands.code.height + 1) / (gapsDrawn + CAP_SHARE);
+  const spacingForFloor = (floors.panelFill * panel.height + 1) / (gapsDrawn + CAP_SHARE);
   // **Whatever the floor asks for, the bottom of the range is never above its
   // top.** `spacingMax` is what the panel physically has room for, so a minimum
   // above it does not narrow the range, it inverts it - and `Variation.between`
@@ -875,7 +903,7 @@ export function composeSheet(doc, options = {}) {
   // would leave one. A void that survives that is one the document caused by
   // carrying too little code, and `fillsPanel` is what says so.
   const codeHeight = lineSpacing * gapsDrawn + codeCap;
-  const panelFill = codeHeight / bands.code.height;
+  const panelFill = codeHeight / panel.height;
   const fillsPanel = panelFill >= floors.panelFill;
   if (!fillsPanel) {
     notes.push(
@@ -908,8 +936,8 @@ export function composeSheet(doc, options = {}) {
 
   lines.forEach((line, index) => {
     if (line.text.length === 0) return;
-    const y = bands.code.y + topPadding + codeCap + lineSpacing * index;
-    const x = divisions.panel.x + leftInset;
+    const y = panel.y + topPadding + codeCap + lineSpacing * index;
+    const x = panel.x + leftInset;
     const shared = {
       align: "left",
       fontFamily,

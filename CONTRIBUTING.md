@@ -113,6 +113,25 @@ Before that the field was held to "a non-empty string" and read by nothing on
 the composition path, so such a document validated, composed, and drew its
 entries in the code panel exactly as though it had asked for nothing.
 
+Since 2026.11.04 the resolved slot is also what the rows are **placed from**,
+and the layout carries the matching limit: a composition sets one stream of
+rows, so a layout keeps **one** slot for the content a section carries. A
+layout file naming none - which every layout written before `holds` existed
+does - and a layout file keeping a separate slot per kind are both refused by
+`readLayout`, at the layout's own path rather than at a section's:
+
+```text
+cheatsheet: there is one problem with the layout.
+  layout.slots: keep the content of a section in 2 places - code-panel,
+  listing-panel. A composition sets one stream of rows, so one slot holds every
+  kind a section may ask for
+```
+
+Before that the count was nobody's: the schema held `holds` to be optional, so
+a layout naming no kind validated and then refused every formal document with a
+message blaming `document.sections[0]`, and a layout keeping two slots
+validated and drew both streams in the first one while the second never filled.
+
 **Both shapes are permanent, and neither is going away** - settled 2026.11.02,
 and the reason the compact shape is no longer called "provisional" anywhere.
 `{ "title": ..., "code": [...] }` says exactly what

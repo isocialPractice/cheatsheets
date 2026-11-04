@@ -473,6 +473,13 @@ export const LAYOUT_SCHEMA = {
  * slot naming a row the grid does not have is a well formed slot and a broken
  * layout, and only the whole object can tell.
  *
+ * The last of them is about no slot in particular: a layout keeps **one** slot
+ * for the content a section carries, because a composition sets one stream of
+ * rows. That is the requirement `holds` expresses, and it lives here rather
+ * than on the field because the field is genuinely optional - the masthead and
+ * the divider hold nothing - and a count is something only the whole object
+ * can take. See {@link rowSlot}, which is what the composition places from.
+ *
  * @param {SheetLayout} layout
  * @returns {SheetLayout}
  */
@@ -504,6 +511,36 @@ export function readLayout(layout) {
       errors.push({ path: `${at}.paint`, message: `is required for a slot drawn as a ${slot.draw}` });
     }
   });
+  // The one cross reference that is about the layout rather than about a slot,
+  // and the reason `holds` is optional on a slot and still required of a
+  // layout: most slots hold nothing, and a layout that holds nowhere for a
+  // section is a layout no document with sections can be set in.
+  //
+  // **Both halves of this used to be the document's problem, which is the
+  // defect it closes.** A layout with no `holds` at all validated here and
+  // then refused every formal document with
+  // `document.sections[0].slot asks for "entries"`, blaming the section for a
+  // field missing from the layout; and a layout keeping a slot per kind
+  // validated here and drew both streams in one of them. Counted once, at the
+  // path of the file that is wrong, a caller is told which of the two it wrote.
+  const rowed = sectionSlots(layout);
+  const mayHold = SECTION_KINDS.map((one) => JSON.stringify(one)).join(" or ");
+  if (rowed.length === 0) {
+    errors.push({
+      path: "layout.slots",
+      message:
+        `keep nowhere for the content of a section, so no document with sections can be set in ` +
+        `this layout. One slot has to hold ${mayHold}`,
+    });
+  } else if (rowed.length > 1) {
+    errors.push({
+      path: "layout.slots",
+      message:
+        `keep the content of a section in ${rowed.length} places - ` +
+        `${rowed.map((slot) => slot.name).join(", ")}. A composition sets one stream of rows, so ` +
+        `one slot holds every kind a section may ask for`,
+    });
+  }
   if (errors.length > 0) {
     const error = new Error(
       `cheatsheet: there ${errors.length === 1 ? "is one problem" : `are ${errors.length} problems`} with the ` +
@@ -554,6 +591,68 @@ export function slotsHolding(layout, kind) {
 }
 
 /**
+ * Every slot a section's content may be set in, in layout order.
+ *
+ * Not every slot carrying a `holds`: the title, the subtitle and the footer
+ * lockup hold a kind each and are filled from a named field of the document
+ * rather than from a section, which {@link SECTION_KINDS} is the statement of.
+ * So this is the subset a document's own sections can reach, which is the
+ * subset {@link rowSlot} and {@link readLayout} both count.
+ *
+ * Filtered over the slots rather than collected per kind, because a slot
+ * holding both kinds would otherwise appear twice and two slots would come
+ * back in the order the kinds are listed rather than in the order the layout
+ * writes them.
+ *
+ * @param {SheetLayout} layout
+ * @returns {LayoutSlot[]}
+ */
+export function sectionSlots(layout) {
+  return layout.slots.filter((slot) =>
+    SECTION_KINDS.some((kind) => (Array.isArray(slot.holds) ? slot.holds.includes(kind) : slot.holds === kind))
+  );
+}
+
+/**
+ * The one slot a composition sets its rows in.
+ *
+ * **This is where the resolution stops being a gate.** A composition places
+ * one stream of rows - `composeSheet` draws a single block and measures it
+ * against a single region's freedom - so a layout keeps one slot for the
+ * content a section carries, and that slot is the box the rows are placed
+ * from. Until 2026.11.04 nothing read the resolved slot at all: the rows were
+ * placed from the design language's own panel, so a layout that kept a
+ * separate slot per kind was validated, composed, and drew both streams in the
+ * code panel while the second slot never filled.
+ *
+ * {@link readLayout} refuses both states this can refuse, by the layout's own
+ * path and before a document is in the picture, so a validated layout always
+ * answers. The refusals are kept here as well because the layout is the one
+ * model a caller may hand straight to {@link rowsFor} without reading it first,
+ * and a composition placed from `undefined` draws every row at `NaN`.
+ *
+ * @param {SheetLayout} layout
+ * @returns {LayoutSlot}
+ */
+export function rowSlot(layout) {
+  const slots = sectionSlots(layout);
+  if (slots.length === 1) return slots[0];
+  const named = JSON.stringify(layout.name);
+  const mayHold = SECTION_KINDS.map((one) => JSON.stringify(one)).join(" or ");
+  if (slots.length === 0) {
+    throw new Error(
+      `cheatsheet: the ${named} layout keeps no slot for the content of a section, so there is ` +
+        `nowhere to set one. A slot has to hold ${mayHold}`
+    );
+  }
+  throw new Error(
+    `cheatsheet: the ${named} layout keeps ${slots.length} slots for the content of a section - ` +
+      `${slots.map((slot) => slot.name).join(", ")}. A composition sets one stream of rows, so one ` +
+      `slot holds every kind a section may ask for`
+  );
+}
+
+/**
  * The kind of slot a section asks for.
  *
  * A section that names one has said what it wants. One that names none takes
@@ -579,6 +678,15 @@ export function kindOfSection(section) {
  * thing and the drawing did another, which is the one failure a model whose
  * whole purpose is to be independent of the layout cannot afford.
  *
+ * **The first line of this is true as of 2026.11.04, and was not before it.**
+ * The resolution was a gate and never a placement: the answer was thrown away
+ * at the call site and the rows were placed from the design language's panel
+ * instead, so the same two sentences were written twice and only one of them
+ * was ever read. What places by it now is {@link rowSlot}, and a layout where
+ * the two could disagree - one slot per kind, so a section resolving to the
+ * second would be drawn in the first - is refused by {@link readLayout} at the
+ * layout's own path.
+ *
  * Four refusals, and each is a different mistake:
  *
  * - **A kind that is no kind at all**, which is a misspelling rather than a
@@ -590,12 +698,17 @@ export function kindOfSection(section) {
  *   same for every layout there will ever be.
  * - **A kind this layout holds no slot of.** A layout with no listing slot
  *   cannot set a listing, and the honest answer is to say which kinds it does
- *   hold rather than to draw the rows somewhere that was not asked for.
+ *   hold rather than to draw the rows somewhere that was not asked for. A
+ *   layout holding **no** kind at all is a different mistake and the layout's
+ *   own: {@link readLayout} refuses one, so the message naming nothing is now
+ *   only reachable through a layout nothing read.
  * - **A kind held by more than one slot.** The composition places one row
  *   stream, so a second slot of the same kind is a choice nothing here is able
  *   to make. It cannot happen on this sheet's layout - `code-panel` is the only
  *   slot holding either kind - and refusing says so out loud rather than
- *   letting a layout grow a second panel that silently never fills.
+ *   letting a layout grow a second panel that silently never fills. This is
+ *   the same count {@link readLayout} takes across the kinds rather than
+ *   within one, which is what makes a validated layout always answer here.
  *
  * @param {SheetLayout} layout
  * @param {import('./document.mjs').SheetSection} section
@@ -886,6 +999,13 @@ export function placeSlots(composition, { layout, theme, stage, only }) {
  * somewhere this layout cannot put it is refused by path rather than drawn in
  * the panel regardless. `composeSheet` always passes one, which is what makes
  * the field mean something on the composition path.
+ *
+ * The rows still come back as one stream, and that is the whole statement of
+ * what resolution buys: a layout keeps one slot for a section's content, so
+ * every section of a document resolves to the same slot and a stream is all
+ * there is to hand back. Which slot that is, and therefore where this stream
+ * is set, is {@link rowSlot}; a layout that would need two is refused by
+ * {@link readLayout} rather than flattened into one here.
  *
  * Called without one, the projection is what it always was: rows, concatenated,
  * no slot resolved. That is the right default for the callers that have no
