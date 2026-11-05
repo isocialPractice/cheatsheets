@@ -3,6 +3,7 @@
 //
 //     node tools/cheatsheet-site.mjs <site>
 //     node tools/cheatsheet-site.mjs <site> --out <dir>
+//     node tools/cheatsheet-site.mjs <site> --dry-run
 //     node tools/cheatsheet-site.mjs --help
 //
 // ## What this is for
@@ -63,20 +64,17 @@
 //
 // ## What belongs to later items, and is deliberately absent
 //
-// This is the first of five items under **The Scripted Tool**, and the section
+// **The Scripted Tool** is finished here as of 2026.11.05, and the section
 // below it in `TODO.md` is a whole method of its own. Reading those as
 // scaffolding to leave hooks for would be the wrong shape; what is here is
 // whole, and what is missing is missing on purpose:
 //
 // | Absent | Owned by |
 // | --- | --- |
-// | Reading the attribute's **value** to choose the heading source | **The Parent Tag Method** |
 // | A camel case file name read as prose | **The Parent Tag Method** |
 // | A folder's pages grouped into one cheatsheet page | **The Parent Tag Method** |
 // | The `<!-- {% cheatsheet: ... %} -->` comment syntax | **The Comment Syntax Method** |
-// | A manifest recording the resolved folder | **The Scripted Tool**, item 3 |
-// | `--dry-run` | **The Scripted Tool**, item 4 |
-// | A second run proving byte identical output | **The Scripted Tool**, item 5 |
+// | A menu element filled from the resolved folder | **The Menu Element** |
 // | The page composed through `api/cheatsheet/` | **Building on the API** |
 //
 // The last of those is why the emitted page is string concatenation and says
@@ -109,6 +107,46 @@
 // {@link nameCollisions}: a name is a naming decision and naming belongs to
 // **The Parent Tag Method**, so what is here refuses to overwrite and says
 // which page it did not write.
+//
+// ## The manifest, and why the second run needs one
+//
+// The ladder above resolves one name per run, and that is exactly what makes a
+// second run land somewhere else: run one finds `cheatsheets/` free and writes
+// there, so run two finds it **taken** - by its own output - and resolves
+// `cheatsheets/cheatsheets/`. Nothing is overwritten and nothing is reported,
+// which is the worst shape the failure could take: a site owner who ran it
+// twice has two cheatsheet sections, one of them stale, and the generated
+// pages cannot be committed and diffed because the path moved under them.
+//
+// So the answer is written down. {@link MANIFEST_NAME} in the resolved folder
+// records the folder's own site relative name and the pages this run wrote, and
+// {@link readManifest} walks the same candidate ladder looking for one before
+// {@link resolveOutput} is ever called. Three things follow, and each is a
+// decision rather than a detail:
+//
+// - **It is written from the answer, never during the resolution.**
+//   {@link resolveOutput} still creates nothing, which is the only reason its
+//   second candidate is reachable at all - a resolution that wrote as it tested
+//   would find the first name taken by the time it considered the second.
+// - **Where the file is outranks what it says.** A manifest found under
+//   `cheatsheets/cheatsheets_0/` names that folder whatever its `output` field
+//   holds, so a site owner who renamed or copied the folder gets the folder
+//   they have rather than the one it was generated as. The field is there for a
+//   reader that has the file and not the ladder - the menu element being the
+//   one in `TODO.md` - and this run rewrites it, so a stale one heals.
+// - **It carries no timestamp.** The obvious field for a generated file is the
+//   time it was generated, and that one field is the whole of what would stop a
+//   second run over an unchanged site being byte identical. Every value in it
+//   is read off the site.
+//
+// ## `--dry-run`
+//
+// Reports the folder it resolved and the pages it would write, and touches
+// nothing - no folder created, no page written, no manifest. It is nearly free
+// for the same reason the manifest is careful: resolving already creates
+// nothing, so what is left is not calling {@link writePages}. The plan both
+// modes report from is one function, {@link plannedPages}, so what a dry run
+// says and what a real run does cannot drift.
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -118,6 +156,30 @@ export const MARKER = "data-cheatsheet";
 
 /** The folder name a generated cheatsheet section is written into. */
 export const OUTPUT_NAME = "cheatsheets";
+
+/** What this tool calls itself, in the manifest and in a generated page. */
+export const GENERATOR = "cheatsheet-site";
+
+/** The file a generated folder records its own location and contents in. */
+export const MANIFEST_NAME = "cheatsheet-site.json";
+
+/**
+ * The manifest shape, so a reader can refuse one it does not understand.
+ *
+ * Raised when a field changes meaning, not when one is added: a reader that
+ * ignores what it does not know keeps working across an addition, and this
+ * number is what tells it when it cannot.
+ */
+export const MANIFEST_VERSION = 1;
+
+/**
+ * The values `data-cheatsheet` names a heading source with.
+ *
+ * `title` takes the heading from the page's own `<title>`, `page` from its file
+ * name. Order matters only in what the findings print; which one a page gets is
+ * what it asked for.
+ */
+export const HEADING_SOURCES = ["title", "page"];
 
 /** The file extensions the walk reads as pages. */
 export const PAGE_EXTENSIONS = [".html", ".htm"];
@@ -562,6 +624,112 @@ export async function resolveOutput(root, options = {}) {
  */
 
 /**
+ * A page's file name with its extension taken off.
+ *
+ * The stem {@link pageFilename} names the output file after and
+ * {@link headingFor} reads as the `page` heading source, in one place because
+ * they have to agree: a generated `splice.html` headed `Splice` is one answer
+ * written twice.
+ *
+ * @param {SitePage} page
+ * @returns {string}
+ */
+function pageStem(page) {
+  return basename(page.id, extname(page.id));
+}
+
+/**
+ * Which source a page takes its heading from, and what to say about the asking.
+ *
+ * {@link collectMarked} carries the marker's value over without judging it.
+ * This is the judging: `title` reads the page's own `<title>`, `page` reads its
+ * file name, and a page that named neither keeps the behaviour it had - the
+ * `<title>` with the file name behind it.
+ *
+ * Three readings are worth stating, because each is a case a site writes and
+ * none of them is the obvious one:
+ *
+ * - **An attribute with no value and one set to the empty string both name no
+ *   source.** {@link collectMarked} reports the difference, deliberately, and
+ *   this is where it stops mattering: `data-cheatsheet=""` is what a template
+ *   with an empty variable emits, and refusing it would make the tool fail on
+ *   the commonest accident rather than on a real mistake.
+ * - **An unrecognised value is a finding and not a guess.** A site owner who
+ *   wrote `data-cheatsheet="heading"` meant something, and silently handing
+ *   back the default is how they come to believe the tool read their page. The
+ *   default is used anyway, so the page is still written - findings are the
+ *   site's to fix, per {@link main}.
+ * - **An explicit `title` on a page with no `<title>` is a finding; the default
+ *   on the same page is not.** The default has a documented fallback and the
+ *   ask does not: a page that was told to use a heading it has not got is a
+ *   page whose generated heading is its file name for a reason nobody wrote
+ *   down.
+ *
+ * A page has one heading, so two blocks naming two different sources is a page
+ * asking for two. The first in source order wins and the disagreement is
+ * reported, rather than the last write silently deciding it.
+ *
+ * @param {SitePage} page
+ * @returns {{ source: string, heading: string, findings: string[] }}
+ */
+export function headingFor(page) {
+  /** @type {string[]} */
+  const findings = [];
+  /** @type {string[]} */
+  const named = [];
+  /** @type {string[]} */
+  const unknown = [];
+  for (const block of page.blocks) {
+    // Trimmed and lower cased before matching. An attribute value is written by
+    // hand, so `data-cheatsheet=" Title "` is a site owner naming the title
+    // source rather than a third thing to report.
+    const value = (block.value ?? "").trim().toLowerCase();
+    if (value.length === 0) continue;
+    const into = HEADING_SOURCES.includes(value) ? named : unknown;
+    // Distinct values only. The finding names the page, so a value repeated on
+    // one page would print the same sentence twice.
+    if (!into.includes(value)) into.push(value);
+  }
+  const source = named[0] ?? "title";
+  // What answered, which is not always the source that was named. The `title`
+  // source has a fallback and the fallback is the file name, so on a page with
+  // no `<title>` at all the heading came from neither the named source nor the
+  // default - and a finding that said `title` would be telling a site owner
+  // their heading was read from an element their page has not got.
+  const answered =
+    source === "title" && page.title === null
+      ? "its file name, because the page has no <title>"
+      : named.length === 0
+        ? `${source}, the default`
+        : source;
+  for (const value of unknown) {
+    // The source that answered, named, rather than "the default" - a page that
+    // wrote an unknown value **and** a real one did not fall back to anything,
+    // and a finding saying it did disagrees with the report one line above it.
+    findings.push(
+      `${page.id}: ${MARKER}="${value}" names no heading source, so it was ignored and the heading came ` +
+        `from ${answered}. ` +
+        `The values it reads are ${HEADING_SOURCES.join(" and ")}.`
+    );
+  }
+  if (named.length > 1) {
+    findings.push(
+      `${page.id}: ${named.map((one) => `${MARKER}="${one}"`).join(" and ")} ask for two different headings ` +
+        `on one page, so the first in source order won. Mark one source per page.`
+    );
+  }
+  const stem = pageStem(page);
+  if (source === "page") return { source, heading: stem, findings };
+  if (page.title === null && named[0] === "title") {
+    findings.push(
+      `${page.id}: ${MARKER}="title" asks for the page's <title> and the page has none, so its file name ` +
+        `was used instead. Give the page a <title>, or mark it ${MARKER}="page".`
+    );
+  }
+  return { source, heading: page.title ?? stem, findings };
+}
+
+/**
  * Reads and collects every page of a site.
  *
  * A page that carries no marked element comes back with no blocks and is not
@@ -593,7 +761,12 @@ export async function collectSite(root) {
         );
       }
     }
-    pages.push({ path, id, title: titleOf(html), blocks, findings });
+    const page = { path, id, title: titleOf(html), blocks, findings };
+    // After the markup findings and from the finished page, because the heading
+    // is read off the page's own `<title>` as much as off the marker's value -
+    // what the site asked for and what it has are both part of the answer.
+    findings.push(...headingFor(page).findings);
+    pages.push(page);
   }
   return pages;
 }
@@ -602,15 +775,17 @@ export async function collectSite(root) {
  * The name a collected page is written under.
  *
  * The source file's own base name, which is the plain answer and the one a
- * site owner can predict. Reading the marker's value to choose a heading
- * source, and grouping a folder's pages under the folder's name, are both
- * **The Parent Tag Method**'s, so neither is attempted here.
+ * site owner can predict. Grouping a folder's pages under the folder's name is
+ * **The Parent Tag Method**'s, so it is not attempted here - and the marker's
+ * value chooses the page's **heading** rather than its name, per
+ * {@link headingFor}, so a page marked `data-cheatsheet="title"` is still
+ * written under its own file name.
  *
  * @param {SitePage} page
  * @returns {string}
  */
 export function pageFilename(page) {
-  return `${basename(page.id, extname(page.id))}.html`;
+  return `${pageStem(page)}.html`;
 }
 
 /**
@@ -628,7 +803,9 @@ export function pageFilename(page) {
  * @returns {string}
  */
 export function renderPage(page) {
-  const heading = page.title ?? basename(page.id, extname(page.id));
+  // The findings are {@link collectSite}'s to report; what is wanted here is
+  // the heading the page asked for.
+  const { heading } = headingFor(page);
   const lines = [
     "<!DOCTYPE html>",
     '<html lang="en">',
@@ -636,7 +813,7 @@ export function renderPage(page) {
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<title>${escapeHtml(heading)}</title>`,
-    `<meta name="generator" content="cheatsheet-site">`,
+    `<meta name="generator" content="${GENERATOR}">`,
     `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`,
     "</head>",
     "<body>",
@@ -725,13 +902,45 @@ export function nameCollisions(pages) {
 }
 
 /**
+ * What a run writes, as data, without touching a disk.
+ *
+ * The plan both modes read from. `--dry-run` reports it and stops, a real run
+ * reports it and writes it, and the manifest is built out of it - so what the
+ * dry run promises and what the write does cannot drift, which is the whole
+ * value of a dry run that is believed.
+ *
+ * A name a page already claimed is dropped rather than overwritten, which pairs
+ * with {@link nameCollisions}: the finding says which page was dropped and this
+ * is what makes the saying true. First in page order wins, so the answer does
+ * not depend on which page the walk reached first - the walk is sorted.
+ *
+ * Every field is read off the site and none off the clock or the machine, which
+ * is what lets {@link manifestFor} be written from this and still be byte
+ * identical on a second run.
+ *
+ * @param {SitePage[]} pages
+ * @returns {Array<{ id: string, name: string, heading: string, source: string, blocks: number }>}
+ */
+export function plannedPages(pages) {
+  const planned = [];
+  /** @type {Set<string>} */
+  const taken = new Set();
+  for (const page of carryingPages(pages)) {
+    const name = pageFilename(page);
+    if (taken.has(name)) continue;
+    taken.add(name);
+    const { source, heading } = headingFor(page);
+    planned.push({ id: page.id, name, heading, source, blocks: page.blocks.length });
+  }
+  return planned;
+}
+
+/**
  * Writes a page per collected page that carried material.
  *
- * A name a page already wrote is left alone rather than overwritten, which
- * pairs with {@link nameCollisions}: the finding says which page was dropped
- * and this is what makes the saying true. First in page order wins, so the
- * answer does not depend on which page the walk reached first - the walk is
- * sorted.
+ * The folder is created only where there is something to put in it, so a run
+ * over a site that marked nothing leaves no empty folder behind on somebody
+ * else's tree.
  *
  * @param {SitePage[]} pages
  * @param {string} out The resolved output folder.
@@ -739,35 +948,131 @@ export function nameCollisions(pages) {
  */
 export async function writePages(pages, out) {
   const written = [];
-  const carrying = carryingPages(pages);
-  if (carrying.length === 0) return written;
+  const planned = plannedPages(pages);
+  if (planned.length === 0) return written;
+  const byId = new Map(pages.map((page) => [page.id, page]));
   await mkdir(out, { recursive: true });
-  /** @type {Set<string>} */
-  const taken = new Set();
-  for (const page of carrying) {
-    const name = pageFilename(page);
-    if (taken.has(name)) continue;
-    taken.add(name);
-    const path = join(out, name);
-    await writeFile(path, renderPage(page), "utf8");
-    written.push({ id: page.id, path, blocks: page.blocks.length });
+  for (const one of planned) {
+    const path = join(out, one.name);
+    await writeFile(path, renderPage(byId.get(one.id)), "utf8");
+    written.push({ id: one.id, path, blocks: one.blocks });
   }
   return written;
 }
 
+/**
+ * The manifest for a run, as data.
+ *
+ * Read by {@link readManifest} on the next run and by anything else that wants
+ * the generated section without recomputing the ladder - **The Menu Element**
+ * in `TODO.md` being the one that will. Site relative throughout and with `/`
+ * separators, because an absolute path is this machine's answer rather than the
+ * site's, and a committed manifest is read on another.
+ *
+ * @param {string} name The output folder, site relative.
+ * @param {Array<{ id: string, name: string, heading: string, source: string, blocks: number }>} planned
+ * @returns {object}
+ */
+export function manifestFor(name, planned) {
+  return {
+    generator: GENERATOR,
+    manifestVersion: MANIFEST_VERSION,
+    marker: MARKER,
+    output: name,
+    pages: planned.map((one) => ({
+      source: one.id,
+      page: one.name,
+      heading: one.heading,
+      headingSource: one.source,
+      blocks: one.blocks,
+    })),
+  };
+}
+
+/**
+ * Writes the manifest into the folder it describes.
+ *
+ * Two spaces and a closing newline, which is what a reader expects of a JSON
+ * file somebody may commit, and the same bytes every run for the same site.
+ *
+ * @param {string} out The resolved output folder.
+ * @param {object} manifest
+ * @returns {Promise<string>} The path written.
+ */
+export async function writeManifest(out, manifest) {
+  const path = join(out, MANIFEST_NAME);
+  await mkdir(out, { recursive: true });
+  await writeFile(path, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return path;
+}
+
+/**
+ * The folder a previous run recorded, found by walking the same ladder.
+ *
+ * `null` where there is no manifest to find, which sends {@link main} to
+ * {@link resolveOutput} as before - a first run, or a site whose generated
+ * folder has been deleted.
+ *
+ * The folder is taken from **where the file is** rather than from its `output`
+ * field, for the reason in this file's header: a renamed or copied folder is
+ * the folder a site owner has, and the field they are not reading is the one
+ * that went stale. A file that is not this tool's manifest, or is one of a
+ * shape this does not understand, is passed over rather than read - the ladder
+ * carries on to the next candidate, so a site with a `cheatsheet-site.json` of
+ * its own does not have this tool's meaning read into it.
+ *
+ * The first rung is the one worth a short circuit. Every candidate after it is
+ * **inside** `cheatsheets/`, per {@link outputCandidates}, so a site without
+ * that folder has nothing on the ladder at all and the walk can stop before it
+ * starts. Past that the rungs are siblings and any of them may be missing - a
+ * site owner who deleted one generated section still has the next - so the walk
+ * reads every name rather than stopping at the first gap.
+ *
+ * @param {string} root
+ * @param {{ tries?: number }} [options]
+ * @returns {Promise<{ path: string, name: string, manifest: object } | null>}
+ */
+export async function readManifest(root, options = {}) {
+  const from = resolve(root);
+  if (!(await exists(join(from, OUTPUT_NAME)))) return null;
+  for (const name of outputCandidates(options.tries ?? MAX_OUTPUT_TRIES)) {
+    const folder = join(from, ...name.split("/"));
+    let manifest;
+    try {
+      // A missing folder and an unreadable file are one case here: neither is a
+      // manifest, and the ladder's next name is the answer to both.
+      manifest = JSON.parse(await readFile(join(folder, MANIFEST_NAME), "utf8"));
+    } catch {
+      continue;
+    }
+    if (manifest === null || typeof manifest !== "object") continue;
+    if (manifest.generator !== GENERATOR) continue;
+    if (manifest.manifestVersion !== MANIFEST_VERSION) continue;
+    return { path: folder, name, manifest };
+  }
+  return null;
+}
+
 /** What `--help` prints. */
 export const USAGE = [
-  "Usage: node tools/cheatsheet-site.mjs <site> [--out <dir>]",
+  "Usage: node tools/cheatsheet-site.mjs <site> [--out <dir>] [--dry-run]",
   "",
   `Crawls a site tree for elements carrying ${MARKER}, collects what each`,
   "wraps, and writes one cheatsheet page per source page that carried any.",
   "",
   "  <site>        The site root to crawl. Required.",
   `  --out <dir>   Write here instead of resolving ${OUTPUT_NAME}/ under the site.`,
+  "  --dry-run     Report the folder and the pages it would write, and touch nothing.",
   "  --help        Print this.",
   "",
   `Without --out the folder is ${OUTPUT_NAME}/, then ${OUTPUT_NAME}/${OUTPUT_NAME}/,`,
   `then ${OUTPUT_NAME}/${OUTPUT_NAME}_0/ and upward until a free name is found.`,
+  `A run records the name it resolved in ${OUTPUT_NAME}/.../${MANIFEST_NAME}, and a`,
+  "later run reads that rather than resolving a second folder beside the first.",
+  "",
+  `${MARKER}="title" heads a page from its own <title> and ${MARKER}="page"`,
+  "from its file name. Marked without a value, a page takes its title with its",
+  "file name behind it.",
 ].join("\n");
 
 /**
@@ -792,26 +1097,55 @@ export async function main(argv) {
   }
 
   const named = flag("--out");
+  const dry = argv.includes("--dry-run");
   // Resolved before a single page is read, which is the item's own wording and
   // the reason it is a step of its own: the folder is part of the report even
   // on a site that turns out to have marked nothing.
-  const out = named === undefined ? await resolveOutput(root) : { path: resolve(named), name: named, tried: [] };
+  //
+  // Three routes to one folder, in the order a run should prefer them: the name
+  // the site owner passed, the name a previous run recorded, and the ladder. The
+  // middle one is what stops a second run writing a second section beside the
+  // first - see {@link readManifest}.
+  const found = named === undefined ? await readManifest(root) : null;
+  const out =
+    named !== undefined
+      ? { path: resolve(named), name: named, tried: [], recorded: false }
+      : found !== null
+        ? { path: found.path, name: found.name, tried: [], recorded: true }
+        : { ...(await resolveOutput(root)), recorded: false };
 
   const pages = await collectSite(root);
   // Markup a page could not be read from, then names two pages both wanted.
   // The second is the site's own layout rather than its markup, so it is
   // collected across the pages rather than on one of them.
   const findings = [...pages.flatMap((page) => page.findings), ...nameCollisions(pages)];
-  const written = await writePages(pages, out.path);
+  const planned = plannedPages(pages);
+  // Measured off the resolved path rather than taken from `out.name`, because
+  // the three routes name the folder in three different ways and the manifest
+  // is committed: the ladder's name is already site relative, but `--out`
+  // carries the site owner's own argument - absolute, or relative to the shell
+  // they ran it from, with whatever separators they typed. Recording that puts
+  // one machine's answer in a file read on another, and this is the one place
+  // all three routes meet. The report below reads the same value, so the folder
+  // a run names on screen and the folder it writes down are one answer. A
+  // `--out` on another Windows drive has no site relative form at all and comes
+  // back absolute; nothing can be done about that one, and it is not silent.
+  const where = relative(root, out.path).split(sep).join("/") || ".";
+  // Nothing before this point has touched the disk, which is what makes
+  // `--dry-run` the absence of two calls rather than a mode of its own.
+  const written = dry ? [] : await writePages(pages, out.path);
+  if (!dry && planned.length > 0) await writeManifest(out.path, manifestFor(where, planned));
 
   const marked = pages.filter((page) => page.blocks.length > 0).length;
   process.stdout.write(
     [
       `${pages.length} page${pages.length === 1 ? "" : "s"} crawled, ${marked} marked`,
-      `output folder    ${relative(root, out.path).split(sep).join("/") || "."}`,
+      `output folder    ${where}`,
+      ...(out.recorded ? [`                 read from ${MANIFEST_NAME}`] : []),
       ...(out.tried.length > 1 ? [`names tried      ${out.tried.join(", ")}`] : []),
-      `pages written    ${written.length}`,
-      ...written.map((one) => `  ${one.id} -> ${basename(one.path)}`),
+      `pages ${dry ? "to write   " : "written    "}${dry ? planned.length : written.length}`,
+      ...planned.map((one) => `  ${one.id} -> ${one.name} (${one.source})`),
+      ...(dry ? ["nothing was written, because --dry-run"] : []),
       "",
     ].join("\n")
   );
