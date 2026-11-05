@@ -30,6 +30,69 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.3.0-alpha]
+
+### Added
+
+- **`tools/cheatsheet-site.mjs` records the folder it resolved**, in
+  `cheatsheet-site.json` inside that folder, and a later run reads it through
+  `readManifest` before the ladder is consulted. The manifest names the folder's
+  own site relative path and, per generated page, its source, its file name, its
+  heading and which source that heading came from - everything a reader needs to
+  find the generated section without recomputing the ladder, **The Menu Element**
+  being the one in `TODO.md` that will. Written from the answer rather than
+  during the resolution, so `resolveOutput` still creates nothing, which is the
+  only reason its second candidate is reachable at all. Where the file sits
+  outranks what its `output` field says, so a renamed or copied folder is the
+  folder a site owner has, and this run rewrites the field, so a stale one heals.
+- **`--dry-run` reports the folder and the pages a run would write, and touches
+  nothing** - no folder created, no page written, no manifest. It is nearly free
+  for the reason the manifest is careful: resolving already creates nothing, so
+  what is left is not calling `writePages`. Both modes report from one plan,
+  `plannedPages`, so what a dry run promises and what a real run does cannot
+  drift - held by comparing the two reports line for line rather than by
+  comparing the plan with itself.
+- **The marker's value chooses the page's heading**, through `headingFor`:
+  `data-cheatsheet="title"` reads the page's own `<title>` and
+  `data-cheatsheet="page"` reads its file name, trimmed and matched without
+  regard to case because an attribute value is written by hand. The file name is
+  taken verbatim - **Convert a camel case file name to prose** is the next item
+  under the same header. A value naming neither source is a finding against the
+  page it was written on, naming the source that did answer, and a value a page
+  cannot honour is a finding too: an explicit `title` on a page with no `<title>`
+  is reported where the default on the same page is not, because the default has
+  a documented fallback and the ask does not. Two sources named on one page is a
+  page asking for two headings, so the first in source order wins and the
+  disagreement is reported rather than left to the last write.
+
+### Fixed
+
+- **A second run over an unchanged site writes the same bytes into the same
+  folder.** It did neither. Run one found `cheatsheets/` free and wrote there, so
+  run two found that name taken - by its own output - and resolved
+  `cheatsheets/cheatsheets/`: a site owner who ran the tool twice had two
+  cheatsheet sections, one of them stale, nothing overwritten and nothing said
+  about it. The manifest is what closes it, and the case that pins it deletes the
+  manifest and watches the second run land in the second folder, so what the
+  file buys is asserted rather than described. Byte identity is held over three
+  runs with the manifest included in the comparison, and paired with the case
+  that keeps it from meaning frozen: a page the site changed is the only
+  generated page that changes.
+- **A generated page's heading no longer ignores what the page asked for.**
+  `collectMarked` had carried the marker's value through without judging it since
+  the collector was written, and `renderPage` took the `<title>` with the file
+  name behind it whatever the value said - so a page marked
+  `data-cheatsheet="page"` was headed from its title, in silence, and the two
+  values the attribute accepts meant nothing.
+
+### Changed
+
+- **`README.md` states the heading values, the dry run and the manifest**, which
+  is where a site owner pointing the tool at their own checkout reads what it
+  will leave behind. The generated folder now carries `cheatsheet-site.json`
+  beside the pages, and four cases in `tools/test-cheatsheet-site.mjs` that
+  asserted the folder's contents were updated to expect it.
+
 ## [1.2.0-alpha]
 
 ### Added

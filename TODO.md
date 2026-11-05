@@ -15,21 +15,17 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
-- [ ] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
-  - Write it from the answer rather than during the resolution. `resolveOutput` in `tools/cheatsheet-site.mjs` deliberately creates nothing, which is what makes its second candidate reachable at all - a resolution that wrote as it tested would find the first name taken by the time it considered the second
-  - From: Dedicated cheatsheet website `->` The Scripted Tool
-- [ ] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
-  - Nearly free for the same reason the item above is careful: resolving already touches nothing, so what is left is not calling `writePages`. The case to write is that the site's tree is unchanged afterwards, which `resolving creates nothing, which is what makes the ladder reachable` already asserts for the folder and is the pattern to copy
-  - From: Dedicated cheatsheet website `->` The Scripted Tool
-- [ ] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
-  - The crawl is already sorted by path, which is a precondition rather than part of this: `readdir` answers in filesystem order, and a walk that reordered itself between two machines would make a committed page undiffable
-  - Third of the three because it is the comparison that reads what the other two write
-  - From: Dedicated cheatsheet website `->` The Scripted Tool
-- [ ] Collect every element carrying `data-cheatsheet` and take its content as that page's cheatsheet reference material
-  - Check before working it. Measured 2026.11.02: `collectMarked` in `tools/cheatsheet-site.mjs` collects every element carrying the attribute and hands back the inner markup of each, and `collectSite` attaches that to the page it came from - which is this item in its own words. If that still holds, close it by verification rather than by writing
+- [ ] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
+  - Smallest of the four and first because the grouping needs it. `data-cheatsheet="page"` takes the file name verbatim today, so `someLongName.html` is headed `someLongName`, and a folder grouped under its own name wants the same conversion - writing it once, before there are two callers, is what keeps it one function
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
-- [ ] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
-  - The collector already carries the value through without judging it, and `renderPage` takes the `<title>` with the file name as its fallback. So this item is the judging: which value means which source, and what an unrecognised value does
+- [ ] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
+  - The one with reach: it changes which files are written and what `pageFilename` answers, so `nameCollisions`, the manifest's `pages` array and the byte identical rerun all read it. Decide the manifest shape deliberately - a folder's pages collapsing into one page is an entry with several sources - and raise `MANIFEST_VERSION` only if a field changes meaning rather than gains a sibling
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [ ] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
+  - A property of the grouping rather than a second job. `crawlSite` is already sorted by path, which is the precondition; what is left is a case holding the grouped page to it, since a `Map` iteration or a second sort is how the order would be lost without failing anything else
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [ ] Skip a page carrying no marked element rather than emitting an empty section for it
+  - Check before working it. Measured 2026.11.05: `carryingPages` in `tools/cheatsheet-site.mjs` is the one predicate deciding this, and it already decides it in all three places - which pages are written, whether the output folder is created at all, and which pages can collide over a name. If that still holds after the grouping above, close it by verification rather than by writing
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
 
 ## GitHub Pages Deployment
@@ -1067,22 +1063,29 @@ anything is written: `cheatsheets/`, then inside it, then numbered inside it,
 and resolving creates nothing, which is what makes the second name reachable at
 all.
 
-What is left here is the three items a second run needs. The first two were
-unblocked by the API's output surface landing, and these three are about the
-tool being run twice: a manifest so the menu builder and the next run read one
-location, a `--dry-run` that reports without touching disk, and the byte
-identical rerun that makes the generated pages committable. The crawl is
-already sorted by path for that last one, which is a precondition rather than
-the item.
-
-- [ ] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
-- [ ] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
-- [ ] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
+Finished on 2026.11.05, with the three items a second run needs. The tool
+records the folder it resolved in `cheatsheet-site.json` inside that folder, and
+a later run reads that before the ladder is consulted - which is what the
+manifest is for, because run one's own output is what makes `cheatsheets/` taken
+for run two. Without it a second run wrote a second section beside the first,
+overwrote nothing and said nothing about it, and that is the case the tests pin
+by deleting the manifest and watching it happen. `--dry-run` reports the folder
+and the pages and touches nothing, from the same plan a real run writes, and the
+byte identical rerun is held over three runs with the manifest in the comparison:
+it carries no timestamp, because that one field is the whole of what would put a
+diff in front of somebody every time the tool ran.
 
 ### The Parent Tag Method
 
-- [ ] Collect every element carrying `data-cheatsheet` and take its content as that page's cheatsheet reference material
-- [ ] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
+The simple authoring method: one attribute on the element wrapping the material,
+and no syntax to learn. The collector and the attribute's two heading values
+landed with **The Scripted Tool** on 2026.11.05 - `data-cheatsheet="title"` heads
+a page from its `<title>` and `data-cheatsheet="page"` from its file name, with a
+finding for a value naming neither and for an ask a page cannot honour. What is
+left is the naming and the grouping: a camel case file name read as prose, a
+folder's pages gathered into one page in the order the site reads them, and the
+empty page that is never emitted.
+
 - [ ] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
 - [ ] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
 - [ ] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
@@ -1938,5 +1941,21 @@ generate ideas about generating ideas.
   - **Issue**: `holds` is `{ type: "any", optional: true, check: holdsKinds }` in `LAYOUT_SCHEMA` at `api/cheatsheet/layout.mjs:454`, and `readLayout` accepts a layout that omits it on every slot. Since 2026.11.03 `composeSheet` of a **formal** document against that same layout throws `document.sections[0].slot asks for "entries", and the "sheet" layout holds nothing: none of its slots names a kind`. Measured 2026.11.03: `SHEET_LAYOUT` cloned with `holds` deleted from every slot passes `readLayout`, draws a compact document, and refuses a formal one - two document shapes the repository calls permanent, one layout, two answers. It is reachable from the documented CLI, `cheatsheet.mjs --layout <path>`, which takes a path to a JSON layout, and the layout model's own header calls replacing it the contract that flag was holding open. `tools/test-sheet-models.mjs:1002` names the state it refuses in its own comment - "Every layout written before `holds` existed is one of those" - and asserts the refusal five lines below it, so the break is deliberate and the inconsistency with the schema is what was not noticed
   - **Goal**: put the requirement in one place. Either make `holds` required by `LAYOUT_SCHEMA` for at least the kinds a section may ask for, so `readLayout` refuses the layout by its own path and a caller is told which file is wrong, or have `slotForSection` read a layout that names no kind at all as one that predates the field and skip resolution, which is the behaviour every such layout had until 2026.11.03. The present state is the one combination that helps nobody: the schema says optional, the composition says required, and the message blames `document.sections[0]` for a defect in the layout
   - From: Code Review Override - the resolved slot is discarded, and `holds` is optional in one file and required in another
+- [x] Record the resolved output folder in a generated manifest, so the menu builder and a second run read the same location rather than resolving it again
+  - Write it from the answer rather than during the resolution. `resolveOutput` in `tools/cheatsheet-site.mjs` deliberately creates nothing, which is what makes its second candidate reachable at all - a resolution that wrote as it tested would find the first name taken by the time it considered the second
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] Add a `--dry-run` mode reporting the pages it would write and the folder it resolved, without touching disk
+  - Nearly free for the same reason the item above is careful: resolving already touches nothing, so what is left is not calling `writePages`. The case to write is that the site's tree is unchanged afterwards, which `resolving creates nothing, which is what makes the ladder reachable` already asserts for the folder and is the pattern to copy
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] Make a second run over an unchanged site produce byte identical output, so the generated pages can be committed and diffed
+  - The crawl is already sorted by path, which is a precondition rather than part of this: `readdir` answers in filesystem order, and a walk that reordered itself between two machines would make a committed page undiffable
+  - Third of the three because it is the comparison that reads what the other two write
+  - From: Dedicated cheatsheet website `->` The Scripted Tool
+- [x] Collect every element carrying `data-cheatsheet` and take its content as that page's cheatsheet reference material
+  - Check before working it. Measured 2026.11.02: `collectMarked` in `tools/cheatsheet-site.mjs` collects every element carrying the attribute and hands back the inner markup of each, and `collectSite` attaches that to the page it came from - which is this item in its own words. If that still holds, close it by verification rather than by writing
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
+  - The collector already carries the value through without judging it, and `renderPage` takes the `<title>` with the file name as its fallback. So this item is the judging: which value means which source, and what an unrecognised value does
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
 
 </details>

@@ -199,6 +199,22 @@ under the site root, then `cheatsheets/cheatsheets/`, then
 already has one of those keeps it. The script imports nothing but Node
 builtins, because it runs against somebody else's checkout.
 
+The marker's value chooses the page's heading. `data-cheatsheet="title"` takes
+it from the page's own `<title>` and `data-cheatsheet="page"` from its file
+name; marked without a value, a page takes its title with its file name behind
+it. A value naming neither is reported with the page it was written on rather
+than quietly handed the default, as is an explicit `title` on a page that has
+none - the default has a documented fallback and the ask does not.
+
+A run can be read before it is trusted and run twice without moving anything.
+`--dry-run` reports the folder it resolved and the pages it would write, and
+touches nothing. A real run records the name it resolved in
+`cheatsheets/.../cheatsheet-site.json`, and a later run reads that rather than
+resolving a second section beside the first - which is what it would otherwise
+do, because run one's output is what makes `cheatsheets/` taken for run two.
+The manifest carries no timestamp, so a second run over an unchanged site
+writes the same bytes and the generated pages can be committed and diffed.
+
 Having no parser available is what makes the collector a scanner, and the
 limits of scanning are listed in that file's own header rather than left to be
 discovered. A start tag is walked rather than searched, so a `>` inside an
