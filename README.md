@@ -192,19 +192,34 @@ flag named the sheet.
 A site that already publishes code examples and explanatory sections holds
 everything a cheatsheet needs; `node tools/cheatsheet-site.mjs <site>` is what
 reads it. It crawls the tree for elements carrying `data-cheatsheet`, collects
-what each one wraps, and writes a cheatsheet page per source page that carried
-any. The output folder is resolved before anything is written - `cheatsheets/`
-under the site root, then `cheatsheets/cheatsheets/`, then
+what each one wraps, and writes a cheatsheet page per folder of the site that
+marked any. The output folder is resolved before anything is written -
+`cheatsheets/` under the site root, then `cheatsheets/cheatsheets/`, then
 `cheatsheets/cheatsheets_0/` and upward until a name is free - so a site that
 already has one of those keeps it. The script imports nothing but Node
 builtins, because it runs against somebody else's checkout.
+
+A folder is a subject, so a folder is a cheatsheet. `guide/install.html` and
+`guide/usage.html` are written as `guide.html`, headed for the folder, with a
+section per page in the order the site reads them - each keeping the heading it
+asked for. A page at the site root has no folder to be named for and is written
+under its own name. Neither the name nor the markup depends on how many pages a
+folder holds, so the day a second page arrives is not the day the first page's
+output changes its name. Two folders of one name under different parents, or a
+root page named for a folder beside it, still want one file in a flat folder:
+that is reported and the later one is not written, rather than one being
+overwritten in silence.
 
 The marker's value chooses the page's heading. `data-cheatsheet="title"` takes
 it from the page's own `<title>` and `data-cheatsheet="page"` from its file
 name; marked without a value, a page takes its title with its file name behind
 it. A value naming neither is reported with the page it was written on rather
 than quietly handed the default, as is an explicit `title` on a page that has
-none - the default has a documented fallback and the ask does not.
+none - the default has a documented fallback and the ask does not. A heading
+read off a **name** is read as prose - `somePageName.html` is headed
+`Some Page Name`, and `parseHTMLString.html` is `Parse HTML String` - while a
+`<title>` is left exactly as it was written, because a file name is written for
+a filesystem and a title was written to be read.
 
 A run can be read before it is trusted and run twice without moving anything.
 `--dry-run` reports the folder it resolved and the pages it would write, and
@@ -213,7 +228,10 @@ touches nothing. A real run records the name it resolved in
 resolving a second section beside the first - which is what it would otherwise
 do, because run one's output is what makes `cheatsheets/` taken for run two.
 The manifest carries no timestamp, so a second run over an unchanged site
-writes the same bytes and the generated pages can be committed and diffed.
+writes the same bytes and the generated pages can be committed and diffed. It
+records its own shape, and a run reads every shape the tool has written: the
+folder is read off where the file sits rather than out of the file, so an older
+manifest answers that as well as a current one and is rewritten on the way past.
 
 Having no parser available is what makes the collector a scanner, and the
 limits of scanning are listed in that file's own header rather than left to be

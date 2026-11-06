@@ -15,18 +15,21 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
-- [ ] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
-  - Smallest of the four and first because the grouping needs it. `data-cheatsheet="page"` takes the file name verbatim today, so `someLongName.html` is headed `someLongName`, and a folder grouped under its own name wants the same conversion - writing it once, before there are two callers, is what keeps it one function
-  - From: Dedicated cheatsheet website `->` The Parent Tag Method
-- [ ] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
-  - The one with reach: it changes which files are written and what `pageFilename` answers, so `nameCollisions`, the manifest's `pages` array and the byte identical rerun all read it. Decide the manifest shape deliberately - a folder's pages collapsing into one page is an entry with several sources - and raise `MANIFEST_VERSION` only if a field changes meaning rather than gains a sibling
-  - From: Dedicated cheatsheet website `->` The Parent Tag Method
-- [ ] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
-  - A property of the grouping rather than a second job. `crawlSite` is already sorted by path, which is the precondition; what is left is a case holding the grouped page to it, since a `Map` iteration or a second sort is how the order would be lost without failing anything else
-  - From: Dedicated cheatsheet website `->` The Parent Tag Method
-- [ ] Skip a page carrying no marked element rather than emitting an empty section for it
-  - Check before working it. Measured 2026.11.05: `carryingPages` in `tools/cheatsheet-site.mjs` is the one predicate deciding this, and it already decides it in all three places - which pages are written, whether the output folder is created at all, and which pages can collide over a name. If that still holds after the grouping above, close it by verification rather than by writing
-  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [ ] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
+  - First because nothing else in the method exists without it, and the scan is where the cost is. `opaqueRanges` already finds every comment in a document and `collectMarked` already drops markers inside one, so the range this has to read is a range the collector is currently throwing away - which makes the first decision whether a cheatsheet comment stops being opaque or stays opaque and is read separately. "The content that follows it" wants defining against the same depth walk `closingTagOf` uses: a comment has no closing tag, so what it applies to is the next element rather than something it encloses
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [ ] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
+  - The parse above answers nothing without this, which is why the two are queued together: a syntax that reads properties into nothing is a syntax with no effect. The options to map onto are the ones that exist - the heading source `HEADING_SOURCES` already names, and the folder grouping and output name `pageFilename` answers - and the vocabulary is better short and extended later than wide and half honoured. Record it where `HEADING_SOURCES` is recorded, as data rather than as a chain of comparisons, because the unknown property finding below reads the same list
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [ ] Accept more than one property per comment, as an array of property and value pairs
+  - A property of the parse rather than a second parse, and the reason the syntax carries brackets at all. Worth a case per separator a person actually writes - a trailing comma, a value holding a colon, a quoted value with a space in it - since this is hand written markup and the attribute reader already learned that lesson
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [ ] Report an unknown property with the file and line it appeared on rather than ignoring it
+  - The same judgement `headingFor` makes about an unrecognised attribute value, and for the same reason: a site owner who wrote something meant it, and silence is how they come to believe the tool read their page. The line number is the new part - every finding so far names a page and none names a position, so the scan has to carry an offset far enough to be turned into one
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [ ] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
+  - Last because it is the only one that cannot be decided from this method alone. The parent tag's defaults are now whole - the two heading values, the folder grouping, the prose naming - so what is left is stating which wins where both speak, and stating it in one place rather than wherever the two readings meet. A page naming two heading sources is already reported rather than silently resolved; this is the same question asked across methods instead of within one
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
 
 ## GitHub Pages Deployment
 
@@ -1081,17 +1084,43 @@ The simple authoring method: one attribute on the element wrapping the material,
 and no syntax to learn. The collector and the attribute's two heading values
 landed with **The Scripted Tool** on 2026.11.05 - `data-cheatsheet="title"` heads
 a page from its `<title>` and `data-cheatsheet="page"` from its file name, with a
-finding for a value naming neither and for an ask a page cannot honour. What is
-left is the naming and the grouping: a camel case file name read as prose, a
-folder's pages gathered into one page in the order the site reads them, and the
-empty page that is never emitted.
+finding for a value naming neither and for an ask a page cannot honour.
 
-- [ ] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
-- [ ] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
-- [ ] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
-- [ ] Skip a page carrying no marked element rather than emitting an empty section for it
+Finished on 2026.11.06, with the naming and the grouping. **A folder of a site
+is a cheatsheet**: every marked page in one is a section of a page named and
+headed for the folder, in the order `crawlSite` hands them over, and a page at
+the site root is written under its own name. A heading read off a name rather
+than off a `<title>` is read as prose, so `somePageName.html` is headed
+`Some Page Name` - one conversion, because a page headed from its own file name
+and a folder headed from its own name are the same answer read off two names.
+
+Two decisions inside the grouping are recorded rather than discovered, because
+the other reading of each is the tempting one. Neither the name nor the markup
+depends on **how many** pages a folder holds: grouping at two or more would make
+the day a second page arrived the day the first page's output changed its name,
+and these files are meant to be committed and diffed. And the grouping settled
+the collision the flat folder used to have most of - `guide/index.html` and
+`reference/index.html` are now the two folders' names rather than `index.html`
+twice - leaving the two it cannot settle, a repeated folder name under different
+parents and a root page named for a folder beside it, reported as before.
+
+The fourth item closed by verification, which is what it asked for.
+`carryingPages` already decided it in all three places, and grouping is where
+that could have stopped being true, since a folder's cheatsheet is built from
+the folder rather than from one page. The case that pins it puts an unmarked
+page and a page marking a void element beside a marked one in one folder, and
+holds the cheatsheet to one section.
 
 ### The Comment Syntax Method
+
+The second authoring method, for the case the parent tag cannot express: an
+attribute carries one value, and a page that wants to say several things about
+its material needs somewhere to put them. A comment is where, and it is a
+comment rather than a second attribute because it says something about the
+content that follows it rather than about an element it sits on. Both methods
+feed one collector, so a page may use either and a site may use both - which is
+what makes the precedence between them an item of its own rather than an
+accident of the scan order.
 
 - [ ] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
 - [ ] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
@@ -1956,6 +1985,18 @@ generate ideas about generating ideas.
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
 - [x] Read the attribute value: `title` takes the heading from the page's `<title>` element, `page` takes it from the page's file name
   - The collector already carries the value through without judging it, and `renderPage` takes the `<title>` with the file name as its fallback. So this item is the judging: which value means which source, and what an unrecognised value does
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Convert a camel case file name to prose for the heading, so `somePageName.html` becomes `Some Page Name`, splitting on case changes and digit boundaries
+  - Smallest of the four and first because the grouping needs it. `data-cheatsheet="page"` takes the file name verbatim today, so `someLongName.html` is headed `someLongName`, and a folder grouped under its own name wants the same conversion - writing it once, before there are two callers, is what keeps it one function
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Group the pages of a folder into one cheatsheet page named for that folder, so `sectionName/1.html` and `sectionName/2.html` produce `sectionName.html` in the resolved output folder
+  - The one with reach: it changes which files are written and what `pageFilename` answers, so `nameCollisions`, the manifest's `pages` array and the byte identical rerun all read it. Decide the manifest shape deliberately - a folder's pages collapsing into one page is an entry with several sources - and raise `MANIFEST_VERSION` only if a field changes meaning rather than gains a sibling
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Preserve the source order of the pages within a folder, so a generated cheatsheet reads in the order the site does
+  - A property of the grouping rather than a second job. `crawlSite` is already sorted by path, which is the precondition; what is left is a case holding the grouped page to it, since a `Map` iteration or a second sort is how the order would be lost without failing anything else
+  - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Skip a page carrying no marked element rather than emitting an empty section for it
+  - Check before working it. Measured 2026.11.05: `carryingPages` in `tools/cheatsheet-site.mjs` is the one predicate deciding this, and it already decides it in all three places - which pages are written, whether the output folder is created at all, and which pages can collide over a name. If that still holds after the grouping above, close it by verification rather than by writing
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
 
 </details>
