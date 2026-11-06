@@ -64,15 +64,14 @@
 //
 // ## What belongs to later items, and is deliberately absent
 //
-// **The Scripted Tool** is finished here as of 2026.11.05, and the section
-// below it in `TODO.md` is a whole method of its own. Reading those as
-// scaffolding to leave hooks for would be the wrong shape; what is here is
-// whole, and what is missing is missing on purpose:
+// **The Scripted Tool** is finished here as of 2026.11.05 and **The Parent Tag
+// Method** as of 2026.11.06; the sections below them in `TODO.md` are whole
+// methods of their own. Reading those as scaffolding to leave hooks for would be
+// the wrong shape; what is here is whole, and what is missing is missing on
+// purpose:
 //
 // | Absent | Owned by |
 // | --- | --- |
-// | A camel case file name read as prose | **The Parent Tag Method** |
-// | A folder's pages grouped into one cheatsheet page | **The Parent Tag Method** |
 // | The `<!-- {% cheatsheet: ... %} -->` comment syntax | **The Comment Syntax Method** |
 // | A menu element filled from the resolved folder | **The Menu Element** |
 // | The page composed through `api/cheatsheet/` | **Building on the API** |
@@ -82,11 +81,39 @@
 // composition, and making that true is an item with the whole output surface
 // behind it; writing a half-composition here would be something to undo.
 //
+// ## Naming, and a folder as a subject
+//
+// A folder of a site is a subject - `arrays/splice.html` and
+// `arrays/concat.html` are two pages about arrays - so **a folder is a
+// cheatsheet**. Every marked page in one is a section of `arrays.html`, headed
+// as that page asked to be headed, in the order the site reads them. A page at
+// the site root has no folder to be named for and is written under its own
+// name. See {@link pageFilename} and {@link groupCheatsheets}.
+//
+// Two decisions inside that are worth stating, because the other reading of
+// each is the tempting one:
+//
+// - **It does not depend on how many pages a folder holds.** Grouping only at
+//   two or more would mean the day a second page arrived was the day the first
+//   page's output changed its name, and the generated section is meant to be
+//   committed and diffed.
+// - **A folder's cheatsheet is sectioned and a root page's is not.** A folder
+//   cheatsheet is headed for the folder, so each page keeps its own heading as
+//   an `<h2>` inside a `<section data-cheatsheet-page>`; a root page is already
+//   headed for itself, and a section around it would be the heading twice. Same
+//   argument as above: the shape does not change with the count.
+//
+// A heading read off a **name** rather than off a `<title>` is read as prose,
+// per {@link prose}: `somePageName.html` is headed `Some Page Name`, and the
+// folder `someSection/` heads its cheatsheet `Some Section`. A `<title>` is
+// left exactly as the site wrote it - it was written to be read.
+//
 // One behaviour reads like a later item and is not. A page carrying no marked
-// element is written nowhere, because the collector found nothing on it and
-// there is no such thing here as an empty page to suppress. **Skip a page
-// carrying no marked element** states that as a rule of the parent tag method;
-// this is the same outcome arrived at by not having the other behaviour.
+// element is written nowhere, because the collector found nothing on it: there
+// is no empty page to suppress and, since {@link carryingPages} is what the
+// grouping reads, no empty section either. **Skip a page carrying no marked
+// element** states that as a rule of the parent tag method; this is the same
+// outcome arrived at by not having the other behaviour.
 //
 // ## The output folder
 //
@@ -101,12 +128,18 @@
 // cheatsheets folder behind when the ladder ran out, and the run that found a
 // name would be the run that had already used the wrong one.
 //
-// The folder is flat, and a generated page is named for its source file's base
-// name, so two marked pages in different folders can want one name - `index.html`
-// being the obvious pair. That is reported rather than resolved, per
-// {@link nameCollisions}: a name is a naming decision and naming belongs to
-// **The Parent Tag Method**, so what is here refuses to overwrite and says
-// which page it did not write.
+// The folder is flat, so two cheatsheets can still want one name even with the
+// grouping above. Grouping settles the case the flat folder used to have most
+// of - `guide/index.html` and `reference/index.html` are `guide.html` and
+// `reference.html` rather than `index.html` twice - and what it cannot settle
+// is two folders of the same name under different parents, or a root page named
+// for a folder beside it. Those are reported rather than resolved, per
+// {@link nameCollisions}: qualifying the name instead would be a scheme
+// **The Menu Element** and **Building on the API** would both have to honour, so
+// what is here refuses to overwrite and says which cheatsheet it did not write.
+// The same name is what the check compares, **without case**: `a/Guide/` and
+// `b/guide/` are one file on Windows and macOS, and the generated folder is
+// written wherever the site owner is.
 //
 // ## The manifest, and why the second run needs one
 //
@@ -139,6 +172,17 @@
 //   second run over an unchanged site being byte identical. Every value in it
 //   is read off the site.
 //
+// Its shape is versioned, and the version moved to `2` when a page entry's
+// `source` became `sources`: a cheatsheet named for a folder is made of every
+// marked page in it, and a scalar field left pointing at the first is a field
+// whose meaning changed in silence. A reader refusing a shape it does not know
+// is the point of the number - but {@link readManifest} reads **every** shape
+// this tool has written, per {@link MANIFEST_READABLE}, because the folder is
+// taken from where the file is rather than from anything in it. Refusing a
+// version-1 manifest would make a site owner's existing folder invisible and
+// cause exactly the second section the manifest exists to prevent; the run
+// rewrites the file, so one run heals the shape.
+//
 // ## `--dry-run`
 //
 // Reports the folder it resolved and the pages it would write, and touches
@@ -169,8 +213,32 @@ export const MANIFEST_NAME = "cheatsheet-site.json";
  * Raised when a field changes meaning, not when one is added: a reader that
  * ignores what it does not know keeps working across an addition, and this
  * number is what tells it when it cannot.
+ *
+ * `2` because a page entry's `source` became `sources`. Grouping a folder's
+ * pages into one cheatsheet means an entry has several of them, and a scalar
+ * `source` left pointing at the first is the field whose meaning changed
+ * without saying so - a reader that had one page per entry would carry on
+ * believing it.
  */
-export const MANIFEST_VERSION = 1;
+export const MANIFEST_VERSION = 2;
+
+/**
+ * The manifest versions {@link readManifest} will read a folder's location out
+ * of.
+ *
+ * Every shape this tool has written, not only the current one, and the reason
+ * is the failure the manifest exists to prevent. The location is taken from
+ * **where the file is** rather than from anything inside it, so an older
+ * manifest answers that question as well as a current one - while refusing it
+ * would make a site owner's existing `cheatsheets/` folder invisible and send
+ * the next run to write a second section beside it. The run rewrites the file
+ * at {@link MANIFEST_VERSION}, so one run heals the shape.
+ *
+ * A version this does not list is still passed over, which is what keeps a
+ * manifest from a later version of the tool from being read with this one's
+ * meaning.
+ */
+export const MANIFEST_READABLE = [1, 2];
 
 /**
  * The values `data-cheatsheet` names a heading source with.
@@ -180,6 +248,16 @@ export const MANIFEST_VERSION = 1;
  * what it asked for.
  */
 export const HEADING_SOURCES = ["title", "page"];
+
+/**
+ * The heading source of a cheatsheet named for the folder its pages sit in.
+ *
+ * Deliberately not in {@link HEADING_SOURCES}: that list is the values a site
+ * writes, and no site writes this one. A folder's cheatsheet is headed for the
+ * folder because that is what it is, and the pages inside it keep the headings
+ * they asked for as their own sections.
+ */
+export const FOLDER_SOURCE = "folder";
 
 /** The file extensions the walk reads as pages. */
 export const PAGE_EXTENSIONS = [".html", ".htm"];
@@ -639,6 +717,76 @@ function pageStem(page) {
 }
 
 /**
+ * A file or folder name read as prose.
+ *
+ * `somePageName` is `Some Page Name`. A file name is written for a filesystem
+ * and a heading is read by a person, and the gap between the two is the whole
+ * of this: a generated page headed `somePageName` is a page that looks
+ * generated.
+ *
+ * One function rather than one per caller, because there are two and they have
+ * to agree - a page headed from its own file name and a folder's cheatsheet
+ * headed from the folder's name are one answer read off two names.
+ *
+ * Four breaks, and each is a shape a real name has:
+ *
+ * - **A separator a name is already written with**: a space, a dot, an
+ *   underscore or a hyphen. `my-page_name` was already three words.
+ * - **A case change**: `somePageName`. The commonest shape, and the one the
+ *   item is named for.
+ * - **An acronym run before a capitalised word**: `parseHTMLString` is
+ *   `Parse HTML String` rather than `Parse H T M L String` or `Parse HTMLString`.
+ *   The last capital of the run belongs to the word after it.
+ * - **Either side of a digit run**: `base64Encode` is `Base 64 Encode`.
+ *
+ * Only the first letter of each word is touched. Lower casing the rest would
+ * read `HTML` as `Html`, and a site that wrote an acronym meant it - so a word
+ * already capitalised comes back as it was written.
+ *
+ * @param {string} name
+ * @returns {string} Prose, or `""` for a name with nothing readable in it.
+ */
+export function prose(name) {
+  const words = String(name)
+    .split(/[\s._-]+/)
+    .flatMap((part) =>
+      part
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+        .replace(/([A-Za-z])([0-9])/g, "$1 $2")
+        .replace(/([0-9])([A-Za-z])/g, "$1 $2")
+        .split(" ")
+    )
+    .filter((word) => word.length > 0);
+  return words.map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
+}
+
+/**
+ * The folder a page sits in, site relative, or `""` at the site root.
+ *
+ * The **immediate** parent, which is what makes one folder one cheatsheet: a
+ * site with `guide/arrays/splice.html` has an `arrays` cheatsheet, not a
+ * `guide` one with everything below it in it.
+ *
+ * @param {SitePage} page
+ * @returns {string} With `/` separators, as `id` carries them.
+ */
+export function pageFolder(page) {
+  const at = page.id.lastIndexOf("/");
+  return at === -1 ? "" : page.id.slice(0, at);
+}
+
+/**
+ * The last segment of a site relative folder path.
+ *
+ * @param {string} folder
+ * @returns {string}
+ */
+function folderName(folder) {
+  return folder.slice(folder.lastIndexOf("/") + 1);
+}
+
+/**
  * Which source a page takes its heading from, and what to say about the asking.
  *
  * {@link collectMarked} carries the marker's value over without judging it.
@@ -718,7 +866,10 @@ export function headingFor(page) {
         `on one page, so the first in source order won. Mark one source per page.`
     );
   }
-  const stem = pageStem(page);
+  // Read as prose wherever the file name is the answer, per {@link prose}. A
+  // `<title>` is not touched: it was written to be read, so whatever casing it
+  // carries is the site's own.
+  const stem = prose(pageStem(page));
   if (source === "page") return { source, heading: stem, findings };
   if (page.title === null && named[0] === "title") {
     findings.push(
@@ -772,24 +923,34 @@ export async function collectSite(root) {
 }
 
 /**
- * The name a collected page is written under.
+ * The name the cheatsheet a page belongs to is written under.
  *
- * The source file's own base name, which is the plain answer and the one a
- * site owner can predict. Grouping a folder's pages under the folder's name is
- * **The Parent Tag Method**'s, so it is not attempted here - and the marker's
- * value chooses the page's **heading** rather than its name, per
- * {@link headingFor}, so a page marked `data-cheatsheet="title"` is still
- * written under its own file name.
+ * **The folder the page sits in, and the page's own base name only at the site
+ * root.** A folder is a subject - `arrays/splice.html` and
+ * `arrays/concat.html` are two pages about arrays - so the cheatsheet is
+ * `arrays.html` and both pages are sections of it. A page at the root has no
+ * folder to be named for and keeps its own name.
+ *
+ * **It does not depend on how many pages the folder holds**, which is the
+ * decision worth stating because the other reading is tempting: grouping only
+ * where there are two or more would mean adding a second page to a folder
+ * renamed the first page's output, and the generated section is meant to be
+ * committed and diffed. One page in a folder is a cheatsheet with one section.
+ *
+ * The marker's value still chooses a **heading** rather than a name, per
+ * {@link headingFor}, so a page marked `data-cheatsheet="title"` is written
+ * into its folder's cheatsheet like any other.
  *
  * @param {SitePage} page
  * @returns {string}
  */
 export function pageFilename(page) {
-  return `${pageStem(page)}.html`;
+  const folder = pageFolder(page);
+  return `${folder === "" ? pageStem(page) : folderName(folder)}.html`;
 }
 
 /**
- * The markup of one generated cheatsheet page.
+ * The markup of one generated cheatsheet.
  *
  * **String concatenation, and temporarily so.** `Render each generated page
  * through the cheatsheet API` under **Building on the API** is the item that
@@ -799,33 +960,54 @@ export function pageFilename(page) {
  * composition: no styling, no script, and a `<main>` per block in source
  * order.
  *
- * @param {SitePage} page
+ * **A folder's cheatsheet is sectioned and a root page's is not**, and that is
+ * one rule rather than a count. A folder cheatsheet is headed for the folder,
+ * so each page inside it keeps the heading it asked for as an `<h2>` inside a
+ * `<section data-cheatsheet-page>` naming where it came from - which is what
+ * stops the grouping losing what every page but the first had to say. A page at
+ * the site root is the whole of its own cheatsheet and is already headed for
+ * itself, so a section around it would be the heading written twice.
+ *
+ * Writing the section only for a folder of two or more would be the same
+ * mistake {@link pageFilename} refuses: the first page's markup would change
+ * shape on the day a second one arrived.
+ *
+ * @param {Cheatsheet} sheet
  * @returns {string}
  */
-export function renderPage(page) {
-  // The findings are {@link collectSite}'s to report; what is wanted here is
-  // the heading the page asked for.
-  const { heading } = headingFor(page);
+export function renderCheatsheet(sheet) {
+  const grouped = sheet.folder !== "";
   const lines = [
     "<!DOCTYPE html>",
     '<html lang="en">',
     "<head>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    `<title>${escapeHtml(heading)}</title>`,
+    `<title>${escapeHtml(sheet.heading)}</title>`,
     `<meta name="generator" content="${GENERATOR}">`,
-    `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`,
+    // One per source, in source order. A reader looking for where a cheatsheet
+    // came from should find every page of it rather than the first.
+    ...sheet.pages.map((page) => `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`),
     "</head>",
     "<body>",
-    `<h1>${escapeHtml(heading)}</h1>`,
+    `<h1>${escapeHtml(sheet.heading)}</h1>`,
   ];
-  for (const block of page.blocks) {
-    if (block.content.trim().length === 0) continue;
-    lines.push(`<main data-cheatsheet-block="${block.tag}">`);
-    // The site's own markup, carried through rather than re-escaped: it is
-    // markup, and the whole premise is that the site already published it.
-    lines.push(block.content.trim());
-    lines.push("</main>");
+  for (const page of sheet.pages) {
+    if (grouped) {
+      lines.push(`<section data-cheatsheet-page="${escapeHtml(page.id)}">`);
+      // The findings are {@link collectSite}'s to report; what is wanted here
+      // is the heading the page asked for.
+      lines.push(`<h2>${escapeHtml(headingFor(page).heading)}</h2>`);
+    }
+    for (const block of page.blocks) {
+      if (block.content.trim().length === 0) continue;
+      lines.push(`<main data-cheatsheet-block="${block.tag}">`);
+      // The site's own markup, carried through rather than re-escaped: it is
+      // markup, and the whole premise is that the site already published it.
+      lines.push(block.content.trim());
+      lines.push("</main>");
+    }
+    if (grouped) lines.push("</section>");
   }
   lines.push("</body>", "</html>", "");
   return lines.join("\n");
@@ -861,44 +1043,152 @@ function carryingPages(pages) {
 }
 
 /**
- * Pages that want a name another page has already claimed.
+ * A cheatsheet, and the pages of the site that make it up.
  *
- * {@link pageFilename} answers with the source file's base name, and a flat
- * output folder makes that a name two pages can both ask for: a site with
- * `guide/index.html` and `reference/index.html` marked has two pages wanting
- * `index.html`, and `index.html` is the commonest file name a site has.
+ * @typedef {object} Cheatsheet
+ * @property {string} name The file it is written as.
+ * @property {string} folder The site relative folder it is named for, or `""` at the root.
+ * @property {string} heading Its own heading.
+ * @property {string} headingSource What that heading was read off: a value of
+ *   {@link HEADING_SOURCES} for a root page, {@link FOLDER_SOURCE} for a folder.
+ * @property {SitePage[]} pages In source order.
+ */
+
+/**
+ * The cheatsheets a site's pages group into, and what collided on the way.
  *
- * Reported rather than resolved, and the distinction is the point. Writing both
- * would leave one overwritten and the report claiming two, which is the one
- * outcome worth ruling out. Qualifying the name instead - `guide-index.html` -
- * would be a naming scheme, and naming is **The Parent Tag Method**'s: it is
- * the item that reads the marker's value to choose a heading source and groups
- * a folder's pages into one page, and a scheme invented here is a scheme that
- * item would have to undo. So this says what happened, in the site's own terms,
- * and the run exits non-zero like any other finding.
+ * One function, and the whole reason it is one: the grouping decides what is
+ * written, what the plan reports, what the manifest records and which names
+ * collided, and four readings of it would drift. It is the same argument
+ * {@link carryingPages} makes one step earlier.
+ *
+ * **Insertion order is the answer to the order item.** A `Map` keyed by
+ * cheatsheet iterates in the order its keys were first seen, and pages are
+ * pushed in the order {@link crawlSite} handed them over - which is sorted by
+ * path. So a folder's sections read in the order the site reads, and the
+ * cheatsheets themselves come back in page order, with no second sort to
+ * disagree with the first.
+ *
+ * **A name two cheatsheets want is reported rather than resolved.** Grouping
+ * settles the collision the flat folder used to have most of - `guide/index.html`
+ * and `reference/index.html` are now `guide.html` and `reference.html` - but it
+ * cannot settle two folders of the same name in different parents, or a root
+ * page named for a folder beside it. Writing both would leave one overwritten
+ * and the report claiming two, which is the one outcome worth ruling out, and
+ * qualifying the name instead would be a naming scheme invented here that
+ * **The Menu Element** and **Building on the API** would both have to honour.
+ * So the whole cheatsheet is dropped, in the site's own terms, and the run exits
+ * non-zero like any other finding. First in page order wins, and the walk is
+ * sorted, so which one that is does not depend on the filesystem.
+ *
+ * **A name is claimed without case**, because the generated folder is written
+ * on whatever filesystem the site owner has. `a/Guide/` and `b/guide/` want
+ * `Guide.html` and `guide.html`, which are two files on Linux and one file on
+ * Windows and macOS - so comparing the names as written would write both there,
+ * leave one overwritten, and report and record two, which is exactly the
+ * outcome the check above exists to rule out. The stricter reading is also the
+ * recoverable one: a site that really wants both names is told to rename one,
+ * and nothing is lost in silence.
  *
  * @param {SitePage[]} pages
- * @returns {string[]} A finding per collision, in page order.
+ * @returns {{ sheets: Cheatsheet[], collisions: string[] }}
  */
-export function nameCollisions(pages) {
-  /** @type {Map<string, string>} */
+function groupCheatsheets(pages) {
+  /** Keyed so a folder is one cheatsheet and each root page is its own. */
+  /** @type {Map<string, { name: string, folder: string, pages: SitePage[] }>} */
+  const groups = new Map();
+  /** Keyed by the name lower cased, and carrying it as written for the finding. */
+  /** @type {Map<string, { key: string, name: string }>} */
   const claimed = new Map();
+  /** Keys whose name was taken, so a second page of one is not reported twice. */
+  const dropped = new Set();
   /** @type {string[]} */
-  const findings = [];
+  const collisions = [];
   for (const page of carryingPages(pages)) {
-    const name = pageFilename(page);
-    const first = claimed.get(name);
-    if (first === undefined) {
-      claimed.set(name, page.id);
+    const folder = pageFolder(page);
+    const key = folder === "" ? `page:${page.id}` : `folder:${folder}`;
+    if (dropped.has(key)) continue;
+    const group = groups.get(key);
+    if (group !== undefined) {
+      group.pages.push(page);
       continue;
     }
-    findings.push(
-      `${page.id}: would be written as ${name}, which ${first} already claimed, so it was not written. ` +
-        `Two pages of a site cannot share a base name while the output folder is flat - rename one, ` +
-        `or pass --out and run them separately.`
-    );
+    const name = pageFilename(page);
+    const owner = claimed.get(name.toLowerCase());
+    if (owner !== undefined) {
+      dropped.add(key);
+      // The name the owner claimed, where that is not the name this one wanted.
+      // Two spellings of one name is the whole of what a case collision is, and
+      // a finding that printed only one of them would read as a plain repeat.
+      const spelled = owner.name === name ? "" : ` as ${owner.name}`;
+      collisions.push(
+        `${label(key)}: would be written as ${name}, which ${label(owner.key)} already claimed${spelled}, ` +
+          `so it was not written. Two cheatsheets of a site cannot share a name while the output folder ` +
+          `is flat, and two names that differ only in case are one name on a filesystem that ignores ` +
+          `case - rename one of them, or pass --out and run them separately.`
+      );
+      continue;
+    }
+    claimed.set(name.toLowerCase(), { key, name });
+    groups.set(key, { name, folder, pages: [page] });
   }
-  return findings;
+  const sheets = [...groups.values()].map((group) => {
+    if (group.folder === "") {
+      const { source, heading } = headingFor(group.pages[0]);
+      return { name: group.name, folder: "", heading, headingSource: source, pages: group.pages };
+    }
+    return {
+      name: group.name,
+      folder: group.folder,
+      heading: prose(folderName(group.folder)),
+      headingSource: FOLDER_SOURCE,
+      pages: group.pages,
+    };
+  });
+  return { sheets, collisions };
+}
+
+/**
+ * What a cheatsheet is called in a finding.
+ *
+ * A folder carries a trailing `/` and a root page does not, which is the whole
+ * of what tells `docs/` from `docs.html` in a sentence that names both.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+function label(key) {
+  return key.startsWith("folder:") ? `${key.slice("folder:".length)}/` : key.slice("page:".length);
+}
+
+/**
+ * The cheatsheets a site's pages group into, in page order.
+ *
+ * @param {SitePage[]} pages
+ * @returns {Cheatsheet[]}
+ */
+export function cheatsheets(pages) {
+  return groupCheatsheets(pages).sheets;
+}
+
+/**
+ * Cheatsheets that want a name another cheatsheet has already claimed.
+ *
+ * @param {SitePage[]} pages
+ * @returns {string[]} A finding per dropped cheatsheet, in page order.
+ */
+export function nameCollisions(pages) {
+  return groupCheatsheets(pages).collisions;
+}
+
+/**
+ * The blocks a cheatsheet carries, across every page of it.
+ *
+ * @param {Cheatsheet} sheet
+ * @returns {number}
+ */
+function sheetBlocks(sheet) {
+  return sheet.pages.reduce((total, page) => total + page.blocks.length, 0);
 }
 
 /**
@@ -909,34 +1199,25 @@ export function nameCollisions(pages) {
  * dry run promises and what the write does cannot drift, which is the whole
  * value of a dry run that is believed.
  *
- * A name a page already claimed is dropped rather than overwritten, which pairs
- * with {@link nameCollisions}: the finding says which page was dropped and this
- * is what makes the saying true. First in page order wins, so the answer does
- * not depend on which page the walk reached first - the walk is sorted.
- *
  * Every field is read off the site and none off the clock or the machine, which
  * is what lets {@link manifestFor} be written from this and still be byte
  * identical on a second run.
  *
  * @param {SitePage[]} pages
- * @returns {Array<{ id: string, name: string, heading: string, source: string, blocks: number }>}
+ * @returns {Array<{ name: string, heading: string, headingSource: string, sources: string[], blocks: number }>}
  */
 export function plannedPages(pages) {
-  const planned = [];
-  /** @type {Set<string>} */
-  const taken = new Set();
-  for (const page of carryingPages(pages)) {
-    const name = pageFilename(page);
-    if (taken.has(name)) continue;
-    taken.add(name);
-    const { source, heading } = headingFor(page);
-    planned.push({ id: page.id, name, heading, source, blocks: page.blocks.length });
-  }
-  return planned;
+  return cheatsheets(pages).map((sheet) => ({
+    name: sheet.name,
+    heading: sheet.heading,
+    headingSource: sheet.headingSource,
+    sources: sheet.pages.map((page) => page.id),
+    blocks: sheetBlocks(sheet),
+  }));
 }
 
 /**
- * Writes a page per collected page that carried material.
+ * Writes a page per cheatsheet the site's marked pages group into.
  *
  * The folder is created only where there is something to put in it, so a run
  * over a site that marked nothing leaves no empty folder behind on somebody
@@ -944,18 +1225,22 @@ export function plannedPages(pages) {
  *
  * @param {SitePage[]} pages
  * @param {string} out The resolved output folder.
- * @returns {Promise<Array<{ id: string, path: string, blocks: number }>>}
+ * @returns {Promise<Array<{ name: string, path: string, sources: string[], blocks: number }>>}
  */
 export async function writePages(pages, out) {
   const written = [];
-  const planned = plannedPages(pages);
-  if (planned.length === 0) return written;
-  const byId = new Map(pages.map((page) => [page.id, page]));
+  const sheets = cheatsheets(pages);
+  if (sheets.length === 0) return written;
   await mkdir(out, { recursive: true });
-  for (const one of planned) {
-    const path = join(out, one.name);
-    await writeFile(path, renderPage(byId.get(one.id)), "utf8");
-    written.push({ id: one.id, path, blocks: one.blocks });
+  for (const sheet of sheets) {
+    const path = join(out, sheet.name);
+    await writeFile(path, renderCheatsheet(sheet), "utf8");
+    written.push({
+      name: sheet.name,
+      path,
+      sources: sheet.pages.map((page) => page.id),
+      blocks: sheetBlocks(sheet),
+    });
   }
   return written;
 }
@@ -969,8 +1254,14 @@ export async function writePages(pages, out) {
  * separators, because an absolute path is this machine's answer rather than the
  * site's, and a committed manifest is read on another.
  *
+ * `sources` is an array because a cheatsheet named for a folder is made of
+ * every marked page in it, which is the field change {@link MANIFEST_VERSION}
+ * was raised for. It carries one entry for a root page, rather than being left
+ * off there: a reader that had to branch on the field's presence is a reader
+ * that would get the branch wrong.
+ *
  * @param {string} name The output folder, site relative.
- * @param {Array<{ id: string, name: string, heading: string, source: string, blocks: number }>} planned
+ * @param {Array<{ name: string, heading: string, headingSource: string, sources: string[], blocks: number }>} planned
  * @returns {object}
  */
 export function manifestFor(name, planned) {
@@ -980,10 +1271,10 @@ export function manifestFor(name, planned) {
     marker: MARKER,
     output: name,
     pages: planned.map((one) => ({
-      source: one.id,
+      sources: one.sources,
       page: one.name,
       heading: one.heading,
-      headingSource: one.source,
+      headingSource: one.headingSource,
       blocks: one.blocks,
     })),
   };
@@ -1047,7 +1338,11 @@ export async function readManifest(root, options = {}) {
     }
     if (manifest === null || typeof manifest !== "object") continue;
     if (manifest.generator !== GENERATOR) continue;
-    if (manifest.manifestVersion !== MANIFEST_VERSION) continue;
+    // Any shape this tool has written, per {@link MANIFEST_READABLE} - the
+    // folder is read off where the file is, so an older manifest answers the
+    // question as well as a current one, and refusing it would send this run to
+    // write a second section beside the folder it was meant to find.
+    if (!MANIFEST_READABLE.includes(manifest.manifestVersion)) continue;
     return { path: folder, name, manifest };
   }
   return null;
@@ -1058,7 +1353,7 @@ export const USAGE = [
   "Usage: node tools/cheatsheet-site.mjs <site> [--out <dir>] [--dry-run]",
   "",
   `Crawls a site tree for elements carrying ${MARKER}, collects what each`,
-  "wraps, and writes one cheatsheet page per source page that carried any.",
+  "wraps, and writes one cheatsheet page per folder of the site that marked any.",
   "",
   "  <site>        The site root to crawl. Required.",
   `  --out <dir>   Write here instead of resolving ${OUTPUT_NAME}/ under the site.`,
@@ -1070,9 +1365,14 @@ export const USAGE = [
   `A run records the name it resolved in ${OUTPUT_NAME}/.../${MANIFEST_NAME}, and a`,
   "later run reads that rather than resolving a second folder beside the first.",
   "",
+  "A folder is a cheatsheet: guide/one.html and guide/two.html are written as",
+  "guide.html, headed for the folder, with a section per page in the order the",
+  "site reads them. A page at the site root is written under its own name.",
+  "",
   `${MARKER}="title" heads a page from its own <title> and ${MARKER}="page"`,
   "from its file name. Marked without a value, a page takes its title with its",
-  "file name behind it.",
+  "file name behind it. A heading read off a name is read as prose, so",
+  "somePageName.html is headed Some Page Name.",
 ].join("\n");
 
 /**
@@ -1144,7 +1444,9 @@ export async function main(argv) {
       ...(out.recorded ? [`                 read from ${MANIFEST_NAME}`] : []),
       ...(out.tried.length > 1 ? [`names tried      ${out.tried.join(", ")}`] : []),
       `pages ${dry ? "to write   " : "written    "}${dry ? planned.length : written.length}`,
-      ...planned.map((one) => `  ${one.id} -> ${one.name} (${one.source})`),
+      // Every source of a cheatsheet, because a grouped page naming only the
+      // first would read as the others having been dropped.
+      ...planned.map((one) => `  ${one.sources.join(", ")} -> ${one.name} (${one.headingSource})`),
       ...(dry ? ["nothing was written, because --dry-run"] : []),
       "",
     ].join("\n")

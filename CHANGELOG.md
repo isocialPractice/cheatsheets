@@ -30,6 +30,96 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.4.0-alpha]
+
+### Added
+
+- **A folder of a site is a cheatsheet.** `tools/cheatsheet-site.mjs` wrote one
+  page per source page, named for that page's own file; it now groups every
+  marked page of a folder into one page named and headed for the folder, with a
+  `<section data-cheatsheet-page>` and an `<h2>` per source so each page keeps
+  the heading it asked for. A page at the site root has no folder to be named
+  for and is written under its own name, as before. `pageFolder` answers the
+  immediate parent, which is what makes one folder one cheatsheet rather than
+  one top-level section with everything below it in it, and `groupCheatsheets`
+  is the one function the write, the plan, the manifest and the collisions all
+  read - the same argument `carryingPages` makes one step earlier.
+- **A heading read off a name is read as prose**, through `prose`:
+  `somePageName.html` is headed `Some Page Name` and the folder `base64Utils/`
+  heads its cheatsheet `Base 64 Utils`. Four breaks, each a shape a real file
+  name has - a separator the name already carried, a case change, an acronym run
+  before a capitalised word, and either side of a digit run - so
+  `parseHTMLString` is `Parse HTML String` rather than `Parse H T M L String` or
+  `Parse HTMLString`. Only the first letter of a word is touched, because a site
+  that wrote `HTML` meant it and lower casing the rest would answer `Html`. A
+  `<title>` is left exactly as the site wrote it: a file name is written for a
+  filesystem and a title was written to be read.
+- **A folder's sections read in the order the site reads.** The `Map` the
+  grouping is built on iterates in insertion order and pages are pushed in the
+  order `crawlSite` hands them over, which is sorted by path, so there is no
+  second sort to disagree with the first. The case holds the grouped page
+  against `crawlSite` itself rather than against a list written beside it, which
+  is the only form in which the claim - that the two agree - is actually
+  asserted.
+
+### Fixed
+
+- **A name is no longer the one thing the collision report could not settle.**
+  `index.html` in two folders was the case the flat output folder collided on
+  most, and it was reported rather than resolved because naming belonged to this
+  item: `guide/index.html` and `reference/index.html` are now `guide.html` and
+  `reference.html`. What is left is the two the grouping cannot settle - a
+  repeated folder name under different parents, and a root page named for a
+  folder beside it - and those are still refused rather than overwritten, now
+  one finding per dropped cheatsheet instead of one per page, so a folder of
+  four pages that lost a name is one sentence. A finding writes a folder with a
+  trailing `/`, which is the whole of what tells `docs/` from `docs.html` in a
+  sentence naming both.
+- **A name is claimed without case**, so the check cannot be walked through on
+  the filesystems most site owners have. `a/Guide/` and `b/guide/` want
+  `Guide.html` and `guide.html`, which are two files on Linux and one file on
+  Windows and macOS: comparing the names as written wrote both there, left the
+  first one's material overwritten by the second, and reported and recorded two
+  cheatsheets with one file on disk and an exit code of `0` - the exact outcome
+  the collision check exists to rule out, reached through the check itself. The
+  second is now dropped and reported like any other collision, and the finding
+  names both spellings, since one of them printed twice would read as a plain
+  repeat rather than as the two names a case collision is made of.
+
+### Changed
+
+- **The manifest's shape is `2`**, because a page entry's `source` became
+  `sources`: a cheatsheet named for a folder is made of every marked page in it,
+  and a scalar field left pointing at the first is a field whose meaning changed
+  in silence. `headingSource` gained the value `folder`, which no marker names -
+  `HEADING_SOURCES` is still the two values a site writes.
+  **`readManifest` reads every shape this tool has written**, per
+  `MANIFEST_READABLE`, rather than only the current one. The folder is taken
+  from where the file is rather than from anything inside it, so an older
+  manifest answers that question as well as a current one - while refusing a
+  version-1 file would make an existing `cheatsheets/` folder invisible and
+  cause exactly the second section beside the first that the manifest exists to
+  prevent. The run rewrites the file, so one run heals the shape, and a version
+  this tool has never written is still passed over.
+- **`renderPage` is `renderCheatsheet`** and takes a cheatsheet rather than a
+  page, since a cheatsheet is what is written. `pageFilename` answers the
+  folder's name, `plannedPages` carries `sources` and a `headingSource` instead
+  of one `id` and one `source`, `writePages` carries a `name` and `sources`
+  instead of one `id`, and the report line names every source of a grouped page
+  - one naming only the first would read as the others having been dropped,
+  which is what a collision finding means.
+- **A generated page's file name moves for every page that sits in a folder.**
+  A site owner who committed `cheatsheets/install.html` from `guide/install.html`
+  gets `cheatsheets/guide.html` on the next run, with the old file left where it
+  was: the tool writes what the site has and removes nothing it did not write.
+  The project version is a minor step because the versioned public surface is
+  `api/cheatsheet/` and nothing in it moved; the tool's own artifact carries its
+  own compatibility number, and that is the one that was raised.
+- **`README.md` states the naming and the grouping**, which is what a site owner
+  reads before pointing the tool at their own checkout: a folder as a subject, a
+  root page under its own name, the prose conversion, and the two collisions that
+  are left.
+
 ## [1.3.0-alpha]
 
 ### Added
