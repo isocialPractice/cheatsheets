@@ -8,7 +8,7 @@
 // collected by any later run of the tool against this folder, and this
 // repository is not a site the tool is for.
 //
-// Eight questions are asked, one per item the file closes.
+// Nine questions are asked, one per item the file closes.
 //
 //   1. **Does the collector read the markup a site actually writes?** Not the
 //      markup a test would write to be easy - nested elements of the same name,
@@ -45,6 +45,12 @@
 //      finding nothing on it, and grouping is where that could have stopped
 //      being true: an unmarked page beside a marked one in the same folder is
 //      the case that would have emitted an empty section.
+//   9. **Does a comment say what an attribute cannot?** The five questions the
+//      comment syntax raises, which is one per item: what a comment applies to
+//      and where that reach stops, which properties it accepts and what each
+//      one sets, the shapes a hand written list of them has, what is reported
+//      with the page and the line when it says something unreadable, and which
+//      of the two methods wins where both speak about one page.
 //
 // Run with: node --test tools/test-cheatsheet-site.mjs
 import { test } from "node:test";
@@ -59,15 +65,20 @@ import {
   cheatsheets,
   collectMarked,
   collectSite,
+  commentDirectives,
+  commentOption,
   crawlSite,
   headingFor,
+  lineAt,
   main,
   manifestFor,
   nameCollisions,
+  namingFindings,
   opaqueRanges,
   outputCandidates,
   pageFilename,
   pageFolder,
+  pageGrouping,
   plannedPages,
   prose,
   readManifest,
@@ -76,14 +87,21 @@ import {
   titleOf,
   writeManifest,
   writePages,
+  ATTRIBUTE_METHOD,
+  COMMENT_KEYWORD,
+  COMMENT_METHOD,
+  COMMENT_PROBLEMS,
+  COMMENT_PROPERTIES,
   FOLDER_SOURCE,
   GENERATOR,
+  GROUPINGS,
   HEADING_SOURCES,
   MANIFEST_NAME,
   MANIFEST_READABLE,
   MANIFEST_VERSION,
   MARKER,
   MAX_OUTPUT_TRIES,
+  NAME_PATTERN,
   NOT_SITE,
   OUTPUT_NAME,
   PAGE_EXTENSIONS,
@@ -123,6 +141,34 @@ function marked(title, value, inner) {
   const head = title === null ? "<head></head>" : `<head><title>${title}</title></head>`;
   const attribute = value === null ? MARKER : `${MARKER}="${value}"`;
   return `<!DOCTYPE html>\n<html>${head}\n<body>\n<div ${attribute}>${inner}</div>\n</body></html>\n`;
+}
+
+/**
+ * A page whose material is marked by a cheatsheet comment.
+ *
+ * @param {string | null} title `null` writes no `<title>` element at all.
+ * @param {string | null} properties The property list, without its brackets, or
+ *   `null` for a comment naming the tool and nothing else.
+ * @param {string} inner
+ */
+function commented(title, properties, inner) {
+  const head = title === null ? "<head></head>" : `<head><title>${title}</title></head>`;
+  const list = properties === null ? "" : `: [${properties}]`;
+  return [
+    "<!DOCTYPE html>",
+    `<html>${head}`,
+    "<body>",
+    `<!-- {% ${COMMENT_KEYWORD}${list} %} -->`,
+    `<div>${inner}</div>`,
+    "</body></html>",
+    "",
+  ].join("\n");
+}
+
+/** One comment's properties, parsed out of a string rather than off a site. */
+function directive(properties) {
+  const list = properties === null ? "" : `: [${properties}]`;
+  return collectMarked(`<!-- {% ${COMMENT_KEYWORD}${list} %} -->\n<div><p>x</p></div>`)[0];
 }
 
 /**
@@ -1857,6 +1903,700 @@ test("the output folder is not crawled on the second run, so the pages do not co
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+// ## The comment syntax
+//
+// The second authoring method. The cases are the questions the five items ask:
+// what a comment applies to, what it may say, how more than one thing is said
+// in one comment, what is reported when it says something the tool cannot read,
+// and what happens where it and the attribute both speak about one page.
+//
+// A directive is parsed out of a string wherever the case is about the parse,
+// and run against a site wherever it is about the answer or about a finding,
+// because a finding names the page it was written on and a string has no page.
+
+test("a comment applies to the element that follows it, and gives back what that element wraps", () => {
+  const found = collectMarked(
+    `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->\n<section><p>Splice</p></section>`
+  );
+  assert.equal(found.length, 1);
+  assert.equal(found[0].method, COMMENT_METHOD);
+  assert.equal(found[0].tag, "section");
+  // The inner markup, exactly as the attribute method gives it back. A comment
+  // has no closing tag, so what it marks is the next element rather than
+  // something it encloses - and the element's extent is read with the same
+  // depth walk, which the nesting case below is what holds.
+  assert.equal(found[0].content, "<p>Splice</p>");
+  assert.deepEqual(found[0].properties, { heading: "page" });
+});
+
+test("the element it marks is closed by the same walk the attribute's is, so nesting is counted", () => {
+  const html = `<!-- {% ${COMMENT_KEYWORD} %} -->\n<div><div>one</div><div>two</div></div>`;
+  assert.equal(collectMarked(html)[0].content, "<div>one</div><div>two</div>");
+});
+
+test("a cheatsheet comment is still a comment, so a marker written inside one is still not a marker", () => {
+  // The decision this case pins. Making a cheatsheet comment transparent would
+  // have been the obvious way to read one, and it would have turned every
+  // marker a site owner had commented out back on - which is exactly the
+  // markup they had decided against.
+  const html = [
+    `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->`,
+    "<section><p>on</p></section>",
+    `<!-- <div ${MARKER}>off</div> -->`,
+  ].join("\n");
+  assert.deepEqual(
+    collectMarked(html).map((one) => one.content),
+    ["<p>on</p>"]
+  );
+});
+
+test("a directive is the whole of its comment, so a comment about the syntax is not one", () => {
+  // A comment explaining the markup, or leaving a note beside it, is a comment
+  // about the tool rather than an instruction to it.
+  assert.deepEqual(commentDirectives(`<!-- mark it with {% ${COMMENT_KEYWORD}: [heading: page] %} -->`), []);
+  assert.deepEqual(commentDirectives(`<!-- {% ${COMMENT_KEYWORD} %} and then a note -->`), []);
+  // And the keyword is a whole word, so the attribute's neighbour does not
+  // become the comment's: `data-cheatsheet-menu` is **The Menu Element**'s.
+  assert.deepEqual(commentDirectives(`<!-- {% ${COMMENT_KEYWORD}s %} -->`), []);
+  assert.equal(commentDirectives(`<!-- {% ${COMMENT_KEYWORD} %} -->\n<div>x</div>`).length, 1);
+});
+
+test("a comment naming the tool and nothing else marks what follows with the defaults", () => {
+  // The comment form of a valueless attribute.
+  assert.deepEqual(directive(null).properties, {});
+  assert.deepEqual(directive(null).problems, []);
+  assert.deepEqual(directive("").properties, {});
+  assert.deepEqual(directive("").problems, []);
+});
+
+test("both methods feed one collector, and the blocks come back in source order", () => {
+  const html = [
+    `<div ${MARKER}><p>one</p></div>`,
+    `<!-- {% ${COMMENT_KEYWORD} %} -->`,
+    "<div><p>two</p></div>",
+    `<div ${MARKER}><p>three</p></div>`,
+  ].join("\n");
+  const found = collectMarked(html);
+  assert.deepEqual(
+    found.map((one) => one.content),
+    ["<p>one</p>", "<p>two</p>", "<p>three</p>"]
+  );
+  assert.deepEqual(
+    found.map((one) => one.method),
+    [ATTRIBUTE_METHOD, COMMENT_METHOD, ATTRIBUTE_METHOD]
+  );
+});
+
+test("a comment whose element also carries the attribute is one block, not two", () => {
+  const found = collectMarked(
+    `<!-- {% ${COMMENT_KEYWORD}: [group: page] %} -->\n<div ${MARKER}="title"><p>x</p></div>`
+  );
+  assert.equal(found.length, 1);
+  // Collected once is a rule about the material, not about the attribute. Both
+  // answers are on the one block: the comment is what marked it, and the
+  // attribute's value is still what the page wrote.
+  assert.equal(found[0].method, COMMENT_METHOD);
+  assert.equal(found[0].value, "title");
+  assert.deepEqual(found[0].properties, { group: "page" });
+});
+
+test("a comment inside collected material is said rather than collected twice", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<div ${MARKER}>`,
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->`,
+      "<p>inner</p>",
+      "</div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    // One block of material, the outer one. The two methods are not treated
+    // alike when one is dropped: a nested attribute adds nothing to what its
+    // parent already said and goes in silence, while a nested comment carries
+    // properties that were being ignored.
+    assert.deepEqual(
+      guide.blocks.filter((one) => one.content.length > 0).map((one) => one.method),
+      [ATTRIBUTE_METHOD]
+    );
+    assert.equal(headingFor(guide).source, "title");
+    assert.equal(guide.findings.length, 1);
+    assert.match(guide.findings[0], /^guide\.html:4: a cheatsheet comment sits inside material/);
+    assert.match(guide.findings[0], /the heading it sets was ignored/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a comment with no element after it marked nothing, and each one says which line it was on", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<div><!-- {% ${COMMENT_KEYWORD}: [heading: page] %} --></div>`,
+      `<!-- {% ${COMMENT_KEYWORD} %} --> prose, which is not an element`,
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    // A closing tag and a run of prose are the same answer: the comment was
+    // written in front of nothing. Carrying the directive on to the next
+    // element it could find would apply it to material nobody wrote it for.
+    assert.deepEqual(guide.blocks.map((one) => one.content), ["", ""]);
+    assert.equal(guide.findings.length, 2);
+    assert.match(guide.findings[0], /^guide\.html:3: a cheatsheet comment has no element after it/);
+    assert.match(guide.findings[1], /^guide\.html:4: a cheatsheet comment has no element after it/);
+    assert.match(guide.findings[0], /with nothing but whitespace in between/);
+    // And the properties go with the marking. The one at line 3 set a heading
+    // and the page is told which, because a property dropped in silence is how
+    // a site owner comes to believe it was read.
+    assert.match(guide.findings[0], /so it marked nothing and the heading it sets was ignored\./);
+    assert.match(guide.findings[1], /so it marked nothing\. A comment applies/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a comment that marked nothing sets nothing, so it cannot outrank the one that did", async () => {
+  // The whole of why the properties go with the marking: the first answer in
+  // source order wins, so a comment left in front of prose would name the file
+  // and choose the heading over the comment that actually marked the material.
+  const root = await site({
+    "guide/one.html": [
+      "<html><head><title>One</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: [name: stray, group: page, heading: page] %} --> prose, not an element`,
+      `<!-- {% ${COMMENT_KEYWORD}: [name: real] %} -->`,
+      "<div><p>a</p></div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const pages = await collectSite(root);
+    assert.equal(commentOption(pages[0], "name").value, "real");
+    assert.equal(pageFilename(pages[0]), "real.html");
+    // Neither of the other two properties reached the page either, so the
+    // grouping and the heading are the ones the page would have had.
+    assert.equal(pageGrouping(pages[0]), "folder");
+    assert.equal(headingFor(pages[0]).source, "title");
+    assert.deepEqual(
+      plannedPages(pages).map((one) => one.name),
+      ["real.html"]
+    );
+    // One finding, naming all three of them, rather than a silent rename.
+    assert.equal(pages[0].findings.length, 1);
+    assert.match(
+      pages[0].findings[0],
+      /^guide\/one\.html:3: .* the name and group and heading it sets were ignored\./
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a comment in front of an element that cannot enclose anything is a finding too", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD} %} -->`,
+      '<img src="x.png">',
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    // Same judgement the attribute method makes about a marked `<img>`, said in
+    // the words of the method the page used: a finding names the markup the
+    // site owner wrote, not the markup they could have written instead.
+    assert.equal(guide.findings.length, 1);
+    assert.match(guide.findings[0], /^guide\.html:3: <img> cannot enclose anything/);
+    assert.match(guide.findings[0], /the cheatsheet comment in front of it collected nothing/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// ## The property vocabulary
+
+test("the properties are data, and the finding for one it does not know reads the same list", async () => {
+  // The reason the vocabulary is a record rather than a chain of comparisons:
+  // the parse reads this list to decide what a property is and the sentence
+  // reads it to say what the vocabulary is, so the two cannot disagree.
+  assert.deepEqual(Object.keys(COMMENT_PROPERTIES), ["heading", "group", "name"]);
+  assert.deepEqual(COMMENT_PROPERTIES.heading.values, HEADING_SOURCES);
+  assert.deepEqual(COMMENT_PROPERTIES.group.values, GROUPINGS);
+  // A name is the site's own text rather than one of a set, which is what the
+  // null says and what `NAME_PATTERN` is for instead.
+  assert.equal(COMMENT_PROPERTIES.name.values, null);
+  const root = await site({ "guide.html": commented("Guide", "colour: red", "<p>x</p>") });
+  try {
+    const [guide] = await collectSite(root);
+    assert.equal(guide.findings.length, 1);
+    for (const property of Object.keys(COMMENT_PROPERTIES)) {
+      assert.ok(guide.findings[0].includes(property), `${property} is not in: ${guide.findings[0]}`);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("heading maps onto the heading source, which is the option the attribute already set", async () => {
+  const root = await site({
+    "asked.html": commented("Asked Title", "heading: page", "<p>x</p>"),
+    "left.html": commented("Left Title", null, "<p>x</p>"),
+  });
+  try {
+    const [asked, left] = await collectSite(root);
+    assert.equal(headingFor(asked).source, "page");
+    assert.equal(headingFor(asked).heading, "Asked");
+    // And a comment that says nothing about the heading leaves the behaviour
+    // the tool had: the title, with the file name behind it.
+    assert.equal(headingFor(left).source, "title");
+    assert.equal(headingFor(left).heading, "Left Title");
+    assert.deepEqual([...asked.findings, ...left.findings], []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("group maps onto the folder grouping, which is the one thing a page in a folder could not say", async () => {
+  const root = await site({
+    "guide/one.html": page("One", "<p>a</p>"),
+    "guide/two.html": commented("Two Title", "group: page", "<p>b</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    assert.equal(pageGrouping(pages[0]), "folder");
+    assert.equal(pageGrouping(pages[1]), "page");
+    const sheets = cheatsheets(pages);
+    // One cheatsheet for the folder and one for the page that asked out of it,
+    // and the one that asked out is headed for itself rather than the folder.
+    assert.deepEqual(sheets.map((one) => one.name), ["guide.html", "two.html"]);
+    assert.deepEqual(sheets.map((one) => one.headingSource), [FOLDER_SOURCE, "title"]);
+    assert.deepEqual(sheets.map((one) => one.heading), ["Guide", "Two Title"]);
+    assert.deepEqual(sheets.flatMap((one) => one.pages.map((two) => two.id)), [
+      "guide/one.html",
+      "guide/two.html",
+    ]);
+    assert.deepEqual(pages.flatMap((one) => one.findings), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("name maps onto the file the cheatsheet is written as, and the heading is not renamed with it", async () => {
+  const root = await site({ "guide/one.html": commented("One", "name: splice", "<p>a</p>") });
+  try {
+    const pages = await collectSite(root);
+    assert.equal(pageFilename(pages[0]), "splice.html");
+    const [sheet] = cheatsheets(pages);
+    assert.equal(sheet.name, "splice.html");
+    // Still the folder's cheatsheet, so still headed for the folder. What a
+    // file is called and what a page is headed were two answers before a
+    // comment could set either, and they stay two.
+    assert.equal(sheet.heading, "Guide");
+    assert.equal(sheet.headingSource, FOLDER_SOURCE);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a value naming one of a set is read trimmed and without case; a name keeps the case it was written in", () => {
+  // The same judgement the attribute's value gets, and for the same reason:
+  // both are written by hand. A name is the exception because it names a file.
+  assert.deepEqual(directive("heading:  PAGE ").properties, { heading: "page" });
+  assert.deepEqual(directive("group: Folder").properties, { group: "folder" });
+  assert.deepEqual(directive("name: SpliceArrays").properties, { name: "SpliceArrays" });
+});
+
+// ## More than one property in one comment
+
+test("several properties are read, which is what the syntax carries brackets for", () => {
+  const block = directive("heading: page, group: page, name: splice");
+  assert.deepEqual(block.properties, { heading: "page", group: "page", name: "splice" });
+  assert.deepEqual(block.problems, []);
+});
+
+test("the shapes a hand written list has: a trailing comma, a colon in a value, a quoted space", () => {
+  // A trailing comma is a trailing comma, not a property with no name.
+  assert.deepEqual(directive("heading: page,").properties, { heading: "page" });
+  assert.deepEqual(directive("heading: page,").problems, []);
+  assert.deepEqual(directive("heading: page , , group: page").properties, { heading: "page", group: "page" });
+  // The first colon separates, so a value may hold one. The refusal is what
+  // reads the value back, which is the point of asserting on it here: the
+  // whole of `a.b:c` was taken as one value rather than split again.
+  assert.equal(directive("name: a.b:c").problems[0].value, "a.b:c");
+  // A quoted value is one value with a space or a comma inside it.
+  assert.equal(directive(`name: "one two"`).problems[0].value, "one two");
+  assert.equal(directive(`name: "one,two"`).problems[0].value, "one,two");
+  // And the quotes come off a value the tool does take.
+  assert.deepEqual(directive(`heading: "page", group: 'folder'`).properties, {
+    heading: "page",
+    group: "folder",
+  });
+});
+
+test("the same property written twice with two values keeps the first, and says which it dropped", () => {
+  const block = directive("heading: page, heading: title");
+  assert.deepEqual(block.properties, { heading: "page" });
+  assert.deepEqual(block.problems, [{ kind: "repeated", property: "heading", value: "title" }]);
+  // Written twice with one value is a repeat and says nothing, which is the
+  // silence a page naming one heading source twice already gets.
+  assert.deepEqual(directive("heading: page, heading: page").problems, []);
+});
+
+// ## What a comment got wrong, with the page and the line
+
+test("an unknown property is reported with the page and the line it appeared on", async () => {
+  const root = await site({ "guide.html": commented("Guide", "colour: red", "<p>x</p>") });
+  try {
+    const [guide] = await collectSite(root);
+    // The line is the item, not a detail of it. Every other finding in this
+    // tool names an element a reader can search their page for; the words of
+    // the wrong comment on a page of several are the same words.
+    assert.equal(guide.findings.length, 1);
+    assert.match(guide.findings[0], /^guide\.html:4: colour names no cheatsheet comment property/);
+    // And the content after it is still collected, with the defaults, because a
+    // finding is the site's to fix and not a reason to drop the page.
+    assert.equal(guide.blocks[0].content, "<p>x</p>");
+    assert.equal(headingFor(guide).heading, "Guide");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("and the line is each comment's own, so two of them on one page are told apart", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: [colour: red] %} -->`,
+      "<div><p>a</p></div>",
+      "<p>prose</p>",
+      `<!-- {% ${COMMENT_KEYWORD}: [colour: blue] %} -->`,
+      "<div><p>b</p></div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    assert.deepEqual(
+      guide.findings.map((one) => one.slice(0, "guide.html:3".length)),
+      ["guide.html:3", "guide.html:6"]
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a value the property does not take, and a property with no value, are said the same way", async () => {
+  const root = await site({
+    "value.html": commented("Value", "heading: banner", "<p>x</p>"),
+    "none.html": commented("None", "heading:", "<p>x</p>"),
+  });
+  try {
+    const [none, value] = await collectSite(root);
+    assert.match(value.findings[0], /^value\.html:4: heading: banner names no value the heading property takes/);
+    assert.match(value.findings[0], new RegExp(`It reads ${HEADING_SOURCES.join(" and ")}\\.$`));
+    assert.match(none.findings[0], /^none\.html:4: heading is written with no value/);
+    assert.match(none.findings[0], /It sets which source the page's heading is read from/);
+    // Neither was read, so both pages keep the heading they would have had.
+    assert.equal(headingFor(value).source, "title");
+    assert.equal(headingFor(none).source, "title");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a body that is not a bracketed list is reported, and the content after it is still collected", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: heading page %} -->`,
+      "<div><p>x</p></div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    assert.equal(guide.findings.length, 1);
+    assert.match(guide.findings[0], /^guide\.html:3: a cheatsheet comment reads "heading page"/);
+    assert.match(guide.findings[0], /where a bracketed property list was expected/);
+    assert.equal(guide.blocks[0].content, "<p>x</p>");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a name that is not a file name is refused rather than sanitised into one", async () => {
+  // The value becomes a path under the generated folder, so a `/` in it is
+  // either a folder this tool does not create or a way out of the one it
+  // resolved. A site owner who wrote it meant something, and quietly turning
+  // it into something else is how they come to believe it was read.
+  assert.ok(NAME_PATTERN.test("splice"));
+  assert.ok(NAME_PATTERN.test("base64-utils_2.0"));
+  for (const bad of ["../out", "a/b", "a\\b", ".hidden", "", "one two"]) {
+    assert.ok(!NAME_PATTERN.test(bad), `${bad} should not be a name`);
+  }
+  const root = await site({ "guide/one.html": commented("One", "name: ../out", "<p>a</p>") });
+  try {
+    const pages = await collectSite(root);
+    assert.match(pages[0].findings[0], /^guide\/one\.html:4: name: \.\.\/out is not a file name/);
+    // And the cheatsheet keeps the name it had.
+    assert.equal(pageFilename(pages[0]), "guide.html");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a comment finding reaches the report and the exit code, like any other", async () => {
+  const root = await site({ "guide.html": commented("Guide", "colour: red", "<p>x</p>") });
+  try {
+    const { code, err } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /cheatsheet-site: guide\.html:4: colour names no cheatsheet comment property/);
+    // And the page it could read is there, as every other finding leaves it.
+    assert.ok(readFileSync(join(root, OUTPUT_NAME, "guide.html"), "utf8").includes("<h1>Guide</h1>"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("every problem a comment can have has a sentence of its own, and none falls through", async () => {
+  // The composer's last arm is unreachable while this holds, and it holds by
+  // being checked rather than by being believed: one page writing all eight.
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: heading page %} -->`,
+      "<div><p>a</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [colour: red] %} -->`,
+      "<div><p>b</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: banner] %} -->`,
+      "<div><p>c</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [name:] %} -->`,
+      "<div><p>d</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [group: page, group: folder] %} -->`,
+      "<div><p>e</p>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->`,
+      "<p>f</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [name: ../out] %} -->`,
+      "<div><p>g</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD} %} -->`,
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    assert.equal(guide.findings.length, COMMENT_PROBLEMS.length);
+    for (const finding of guide.findings) {
+      assert.ok(!finding.includes("has no sentence for"), finding);
+      assert.match(finding, /^guide\.html:\d+: /);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a line is counted from 1, and an offset past the end is the last line", () => {
+  const text = "one\ntwo\nthree";
+  assert.equal(lineAt(text, 0), 1);
+  assert.equal(lineAt(text, 4), 2);
+  assert.equal(lineAt(text, text.length), 3);
+  assert.equal(lineAt(text, text.length + 50), 3);
+});
+
+// ## Mixing the two methods on one page
+
+test("where a comment and the attribute both name a heading, the comment wins and the page is told", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide Title</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->`,
+      `<div ${MARKER}="title"><p>x</p></div>`,
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    const { source, heading, findings } = headingFor(guide);
+    // The comment is the more specific of the two: it was written about this
+    // material, while an attribute sits on an element and may have been there
+    // first. Stated in one place rather than wherever the two readings meet.
+    assert.equal(source, "page");
+    assert.equal(heading, "Guide");
+    assert.equal(findings.length, 1);
+    assert.match(findings[0], /a cheatsheet comment asks for heading: page and data-cheatsheet="title"/);
+    assert.match(findings[0], /so the comment won/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("and the two saying one thing is not a disagreement", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide Title</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: title] %} -->`,
+      `<div ${MARKER}="title"><p>x</p></div>`,
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    assert.equal(headingFor(guide).heading, "Guide Title");
+    assert.deepEqual(headingFor(guide).findings, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("two comments naming two headings on one page is reported, and the first in source order wins", async () => {
+  const root = await site({
+    "guide.html": [
+      "<html><head><title>Guide Title</title></head>",
+      "<body>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: page] %} -->`,
+      "<div><p>a</p></div>",
+      `<!-- {% ${COMMENT_KEYWORD}: [heading: title] %} -->`,
+      "<div><p>b</p></div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const [guide] = await collectSite(root);
+    const { source, findings } = headingFor(guide);
+    assert.equal(source, "page");
+    assert.equal(findings.length, 1);
+    assert.match(findings[0], /heading: page and heading: title ask for two different headings on one page/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("group: folder on a page at the site root has no folder to join, and says so", async () => {
+  const root = await site({ "index.html": commented("Home", "group: folder", "<p>x</p>") });
+  try {
+    const [home] = await collectSite(root);
+    // The one ask that cannot be judged from the comment alone: a page knows
+    // whether it has a folder and a directive does not. The answer is the one
+    // the page would have had, so nothing moves - only the silence goes.
+    assert.equal(pageGrouping(home), "page");
+    assert.equal(pageFilename(home), "index.html");
+    assert.equal(home.findings.length, 1);
+    assert.match(home.findings[0], /^index\.html:4: group: folder asks this page to join its folder/);
+    assert.match(home.findings[0], /it has no folder to join/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("two pages of one folder naming it two files keeps the first, and says which it dropped", async () => {
+  const root = await site({
+    "guide/one.html": commented("One", "name: splice", "<p>a</p>"),
+    "guide/two.html": commented("Two", "name: concat", "<p>b</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    // A name belongs to the cheatsheet and not to the page, because a page is
+    // not what gets written: a folder of two pages is one file, and either of
+    // them can say what it is called. The alternative is the last page of a
+    // folder quietly renaming the file the others were written into.
+    const [sheet] = cheatsheets(pages);
+    assert.equal(sheet.name, "splice.html");
+    assert.deepEqual(sheet.pages.map((one) => one.id), ["guide/one.html", "guide/two.html"]);
+    const findings = namingFindings(pages);
+    assert.equal(findings.length, 1);
+    assert.match(findings[0], /^guide\/two\.html:4: name: concat renames a cheatsheet guide\/one\.html has/);
+    assert.match(findings[0], /so the first in source order was used/);
+    // And it reaches the report and the exit code like any other finding.
+    const { code, err } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /cheatsheet-site: guide\/two\.html:4: name: concat renames a cheatsheet/);
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "splice.html"].sort());
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("two pages of one folder naming it the same file is one name said twice, not a disagreement", async () => {
+  const root = await site({
+    "guide/one.html": commented("One", "name: splice", "<p>a</p>"),
+    "guide/two.html": commented("Two", "name: splice", "<p>b</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    assert.equal(cheatsheets(pages)[0].name, "splice.html");
+    assert.deepEqual(namingFindings(pages), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a name two cheatsheets both ask for collides like any other name", async () => {
+  const root = await site({
+    "a/one.html": commented("One", "name: shared", "<p>a</p>"),
+    "b/two.html": commented("Two", "name: shared", "<p>b</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    // The output folder is still flat, so a name a comment chose collides on
+    // exactly the terms a name read off a folder does - and the comment is not
+    // a way around the refusal.
+    const collisions = nameCollisions(pages);
+    assert.equal(collisions.length, 1);
+    assert.match(collisions[0], /^b\/: would be written as shared\.html, which a\/ already claimed/);
+    assert.deepEqual(cheatsheets(pages).map((one) => one.name), ["shared.html"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("commentOption reads the first answer in source order, and null where no comment gave one", async () => {
+  const root = await site({
+    "guide/one.html": page("One", "<p>a</p>"),
+    "guide/two.html": commented("Two", "group: page, name: splice", "<p>b</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    assert.equal(commentOption(pages[0], "group"), null);
+    assert.deepEqual(commentOption(pages[1], "group"), { value: "page", line: 4 });
+    assert.deepEqual(commentOption(pages[1], "name"), { value: "splice", line: 4 });
+    // A value the vocabulary does not know never reaches here: it is reported
+    // with its line and left out of the properties.
+    assert.equal(commentOption(pages[1], "heading"), null);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the usage names the comment syntax, its properties and which method wins", async () => {
+  const { code, out } = await run(["--help"]);
+  assert.equal(code, 0);
+  assert.match(out, /\{% cheatsheet: \[heading: page, group: page, name: splice\] %\}/);
+  for (const property of Object.keys(COMMENT_PROPERTIES)) assert.match(USAGE, new RegExp(`${property}:`));
+  assert.match(USAGE, /the comment wins/);
 });
 
 // ## What the tool may depend on

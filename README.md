@@ -221,6 +221,20 @@ read off a **name** is read as prose - `somePageName.html` is headed
 `<title>` is left exactly as it was written, because a file name is written for
 a filesystem and a title was written to be read.
 
+A page with more than one thing to say marks its material with a comment
+instead. `<!-- {% cheatsheet: [heading: page, group: page, name: splice] %} -->`
+applies to the element that follows it, with nothing but whitespace in between,
+and carries as many properties as it needs: `heading` names the source the
+heading is read from, `group` says whether the page joins its folder's
+cheatsheet or is one of its own, and `name` says what file the cheatsheet is
+written as. A cheatsheet comment is still a comment, so a marker written inside
+one is still not a marker. Both methods feed one collector, so a page may use
+either and a site may use both - and where the two speak about one heading the
+comment wins, because it was written about the material rather than left on an
+element. The disagreement is reported either way, as is a property the
+vocabulary does not hold or a value it does not take, with the page and the
+line it was written on.
+
 A run can be read before it is trusted and run twice without moving anything.
 `--dry-run` reports the folder it resolved and the pages it would write, and
 touches nothing. A real run records the name it resolved in

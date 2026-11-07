@@ -9,10 +9,11 @@
 // ## What this is for
 //
 // A site that already publishes code examples, tables and explanatory sections
-// holds everything a cheatsheet needs; what it lacks is a way to say so. The
-// saying is one attribute - `data-cheatsheet` on the element wrapping the
-// material - and this is the half that reads it: the walk, the collector, the
-// output folder and the write.
+// holds everything a cheatsheet needs; what it lacks is a way to say so. There
+// are two ways of saying it - `data-cheatsheet` on the element wrapping the
+// material, and a `<!-- {% cheatsheet: [...] %} -->` comment in front of it -
+// and this is the half that reads them: the walk, the collector, the output
+// folder and the write.
 //
 // It runs against **somebody else's site**, which is the constraint that shapes
 // every decision below. Nothing here may assume this repository's layout, its
@@ -62,17 +63,60 @@
 //   hand back content that stopped in the wrong place with nothing to say it
 //   had.
 //
+// ## The comment syntax, and what a comment says that an attribute cannot
+//
+// An attribute carries one value, so a page that wants to say several things
+// about its material has nowhere to put them. A comment is where:
+//
+//     <!-- {% cheatsheet: [heading: page, group: page, name: splice] %} -->
+//     <section>...</section>
+//
+// Four decisions are worth stating, because each had a tempting other reading:
+//
+// - **A cheatsheet comment stays opaque.** It is still a comment, so a
+//   `data-cheatsheet` written inside one is still not a marker - that is the
+//   whole of what a commented-out section means. The directive is read by a
+//   scan of its own, {@link commentDirectives}, out of the comment ranges
+//   {@link opaqueRanges} already found. Making the comment transparent instead
+//   would have turned every marker a site owner had commented out back on.
+// - **It applies to the element that follows it, with nothing but whitespace
+//   in between.** A comment has no closing tag, so what it marks is the next
+//   element rather than something it encloses, and the element's extent is read
+//   with the same depth walk {@link closingTagOf} gives the attribute. A
+//   comment with prose, another comment or a closing tag after it is reported
+//   rather than carried forward to the next element it can find: the generous
+//   reading would silently move a directive past the material it was written
+//   for.
+// - **Both methods are one collector, and a block is collected once.**
+//   {@link collectMarked} gathers candidates from both and one merge decides
+//   between them, which is what makes "collected once" a rule about the
+//   material rather than a rule about the attribute. A comment whose element
+//   also carries the attribute is one block carrying both answers, and either
+//   method written inside the other's element is part of it.
+// - **Where both speak, the comment wins**, and {@link headingFor} is the one
+//   place that is stated. A comment is the more specific of the two - it was
+//   written about this material rather than left on an element - and a page
+//   that says two things about one heading is reported either way, which is the
+//   same judgement **The Parent Tag Method** already makes within one method.
+//
+// The properties are {@link COMMENT_PROPERTIES}, recorded as data for the
+// reason {@link HEADING_SOURCES} is: the finding for an unknown property reads
+// the same list the parse does, so the two cannot disagree about what the
+// vocabulary is. It is three properties rather than a wide surface half
+// honoured - a page may set the heading source, whether it joins its folder's
+// cheatsheet, and the file the cheatsheet is written as, which is every option
+// the tool has to set.
+//
 // ## What belongs to later items, and is deliberately absent
 //
-// **The Scripted Tool** is finished here as of 2026.11.05 and **The Parent Tag
-// Method** as of 2026.11.06; the sections below them in `TODO.md` are whole
-// methods of their own. Reading those as scaffolding to leave hooks for would be
-// the wrong shape; what is here is whole, and what is missing is missing on
-// purpose:
+// **The Scripted Tool** is finished here as of 2026.11.05, **The Parent Tag
+// Method** as of 2026.11.06 and **The Comment Syntax Method** as of 2026.11.07;
+// the sections below them in `TODO.md` are whole methods of their own. Reading
+// those as scaffolding to leave hooks for would be the wrong shape; what is here
+// is whole, and what is missing is missing on purpose:
 //
 // | Absent | Owned by |
 // | --- | --- |
-// | The `<!-- {% cheatsheet: ... %} -->` comment syntax | **The Comment Syntax Method** |
 // | A menu element filled from the resolved folder | **The Menu Element** |
 // | The page composed through `api/cheatsheet/` | **Building on the API** |
 //
@@ -259,6 +303,98 @@ export const HEADING_SOURCES = ["title", "page"];
  */
 export const FOLDER_SOURCE = "folder";
 
+/**
+ * How a block was marked, as data, so a finding can name the method a site used.
+ *
+ * Carried on the block rather than inferred from which other fields are set.
+ * The two methods say the same thing in different places, so a sentence about
+ * one of them written for a page that used the other is a sentence that sends a
+ * site owner to look at markup they did not write.
+ */
+export const ATTRIBUTE_METHOD = "attribute";
+
+/** @see {@link ATTRIBUTE_METHOD} */
+export const COMMENT_METHOD = "comment";
+
+/** The keyword a cheatsheet comment names this tool with. */
+export const COMMENT_KEYWORD = "cheatsheet";
+
+/**
+ * The values the `group` property names.
+ *
+ * `folder` is the default and is what {@link pageFilename} does without being
+ * asked: a page is a section of its folder's cheatsheet. `page` takes it back
+ * out and makes it a cheatsheet of its own, which is the one thing a page in a
+ * folder could not say before - a reference page that belongs beside its
+ * siblings on the site and not inside their cheatsheet.
+ */
+export const GROUPINGS = ["folder", "page"];
+
+/**
+ * The properties a cheatsheet comment accepts, and the option each one sets.
+ *
+ * Data for the reason {@link HEADING_SOURCES} is data: the parse reads this to
+ * decide what a property is, and the finding for a property it does not know
+ * reads the same list to say what the vocabulary is. Two readings of one list
+ * cannot disagree; a parse of one list and a sentence listing another can, and
+ * the sentence is the half nobody tests.
+ *
+ * Three properties, which is every option the tool has to set rather than every
+ * property a syntax could carry. A vocabulary is better short and extended when
+ * an option arrives than wide and half honoured - a property that parses and
+ * sets nothing is worse than one that was never accepted, because the page
+ * reads as having been understood.
+ *
+ * `values` is the vocabulary a property takes, or `null` where the value is the
+ * site's own text rather than one of a set. `sets` is what it does, in the
+ * words the finding for a property written without a value uses.
+ */
+export const COMMENT_PROPERTIES = {
+  heading: {
+    values: HEADING_SOURCES,
+    sets: "which source the page's heading is read from",
+  },
+  group: {
+    values: GROUPINGS,
+    sets: "whether the page joins its folder's cheatsheet or is one of its own",
+  },
+  name: {
+    values: null,
+    sets: "the file the cheatsheet is written as",
+  },
+};
+
+/**
+ * What a `name` property's value may be.
+ *
+ * A file name, which is stricter than a file name has to be on any filesystem
+ * involved. The value becomes a path under the generated folder, so a `/`, a
+ * `\` or a leading dot in it is either a folder this tool does not create or a
+ * way out of the one it resolved - and the site owner who wrote `name: ../..`
+ * meant something, so it is refused and said rather than sanitised into
+ * something else.
+ */
+export const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/**
+ * What a cheatsheet comment can be wrong about.
+ *
+ * Kinds rather than sentences, for the reason a block's `status` is a kind: the
+ * finding names the page the comment was written on and the comment does not
+ * know it, so {@link collectSite} composes the sentence where the page and the
+ * directive are both in hand.
+ */
+export const COMMENT_PROBLEMS = [
+  "malformed",
+  "unknown-property",
+  "unknown-value",
+  "no-value",
+  "repeated",
+  "bad-name",
+  "nothing-follows",
+  "nested",
+];
+
 /** The file extensions the walk reads as pages. */
 export const PAGE_EXTENSIONS = [".html", ".htm"];
 
@@ -354,6 +490,31 @@ function inside(at, ranges) {
 }
 
 /**
+ * The line an offset falls on, counting from 1.
+ *
+ * Every finding before the comment syntax named a page and none named a
+ * position, which was enough while a finding was about an element a reader
+ * could search the page for. A property inside a comment is not searchable that
+ * way - a page may carry several comments and the words of the wrong one are
+ * the same words - so the offset the scan already carries is turned into a line
+ * rather than thrown away.
+ *
+ * Counted per directive rather than by indexing the whole document, because
+ * there are a handful of these on a page and a line table would be a pass over
+ * every character of every page to answer a question most pages never ask.
+ *
+ * @param {string} text
+ * @param {number} at
+ * @returns {number}
+ */
+export function lineAt(text, at) {
+  let line = 1;
+  const upto = Math.min(at, text.length);
+  for (let i = 0; i < upto; i += 1) if (text[i] === "\n") line += 1;
+  return line;
+}
+
+/**
  * The name of the element whose start tag begins at `at`.
  *
  * @param {string} html
@@ -434,23 +595,220 @@ function startTagAround(html, at) {
 }
 
 /**
- * Every block of content a page has marked, in source order.
+ * The comments of a document, out of the spans that do not count.
  *
- * The collector. Each block is the **inner** markup of an element carrying
- * {@link MARKER}, so what a site owner wrapped is what comes back, with the
- * wrapper itself left out: the wrapper is how they said it, not part of what
- * they said.
- *
- * A marked element inside another marked element is reported once, as part of
- * the outer one. Reporting it twice would put the same material on a generated
- * page twice, and reporting only the inner would drop everything its parent
- * added around it.
+ * Filtered rather than scanned for, so there is one walk of the document and
+ * the two readings of it cannot disagree about where a comment ends. What a
+ * span was opened by is not in {@link opaqueRanges}' answer and does not need
+ * to be: a comment is the only one of the three that opens with `<!--`.
  *
  * @param {string} html
- * @returns {Array<{ tag: string, value: string | null, content: string, at: number, status?: string }>}
+ * @param {Array<[number, number]>} ranges
+ * @returns {Array<[number, number]>}
  */
-export function collectMarked(html) {
-  const ranges = opaqueRanges(html);
+function commentRanges(html, ranges) {
+  return ranges.filter(([start]) => html.startsWith("<!--", start));
+}
+
+/**
+ * A bracketed property list split into its pairs.
+ *
+ * Split on the commas that are not inside a quoted value, which is the whole of
+ * why this is a scan rather than `split(",")`. The three shapes it is written
+ * for are the three a hand written list has: a trailing comma, a value holding
+ * a colon, and a quoted value with a space in it. An empty part is dropped, so
+ * a trailing comma is a trailing comma rather than a property with no name.
+ *
+ * @param {string} text Between the brackets.
+ * @returns {string[]} Trimmed, with the empties left out.
+ */
+function splitPairs(text) {
+  /** @type {string[]} */
+  const parts = [];
+  /** The quote character of the value being scanned, or `""` outside one. */
+  let quote = "";
+  let from = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote !== "") {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char !== ",") continue;
+    parts.push(text.slice(from, i));
+    from = i + 1;
+  }
+  parts.push(text.slice(from));
+  return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+}
+
+/**
+ * A value with the quotes a site wrote around it taken off.
+ *
+ * Both quotes or neither: a value that opens with one and does not end with it
+ * is the site's own text, and stripping the opener alone would hand back half
+ * of what they wrote.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function unquote(value) {
+  const first = value[0];
+  const quoted = (first === '"' || first === "'") && value.length >= 2 && value.endsWith(first);
+  return quoted ? value.slice(1, -1) : value;
+}
+
+/**
+ * The cheatsheet directive a comment holds, or `null` where it holds none.
+ *
+ * **The directive is the whole comment**, which is the strict reading and the
+ * right one: a comment that explains the syntax in prose, or leaves a note
+ * beside it, is a comment about the tool rather than an instruction to it.
+ *
+ * A body that is not a bracketed list is reported and the comment still marks
+ * what follows it, which is the judgement {@link headingFor} makes about an
+ * unrecognised attribute value: the page is written, and what could not be read
+ * is the site's to fix.
+ *
+ * @param {string} html
+ * @param {number} start Offset of the `<!--`.
+ * @param {number} end Offset just past the comment.
+ * @returns {{ properties: Record<string, string>, problems: Array<Record<string, unknown>> } | null}
+ */
+function readDirective(html, start, end) {
+  // An unclosed comment reaches the end of the document and has no `-->` to
+  // leave off, per {@link opaqueRanges}.
+  const closed = html.slice(end - 3, end) === "-->";
+  const inner = html.slice(start + 4, closed ? end - 3 : end);
+  const opened = new RegExp(`^\\s*\\{%\\s*${COMMENT_KEYWORD}\\b\\s*:?([\\s\\S]*?)%\\}\\s*$`, "i").exec(inner);
+  if (opened === null) return null;
+  /** @type {Record<string, string>} */
+  const properties = {};
+  /** @type {Array<Record<string, unknown>>} */
+  const problems = [];
+  const body = opened[1].trim();
+  // A comment naming the tool and nothing else marks what follows it with the
+  // defaults, which is the comment form of a valueless attribute.
+  if (body.length === 0) return { properties, problems };
+  const bracketed = /^\[([\s\S]*)\]$/.exec(body);
+  if (bracketed === null) {
+    problems.push({ kind: "malformed", text: body });
+    return { properties, problems };
+  }
+  for (const pair of splitPairs(bracketed[1])) {
+    // The **first** colon, so a value is allowed to hold one. A property name
+    // never does, and `name: a:b` is a name with a colon in it rather than two
+    // properties badly written.
+    const at = pair.indexOf(":");
+    const property = (at === -1 ? pair : pair.slice(0, at)).trim().toLowerCase();
+    const written = at === -1 ? null : unquote(pair.slice(at + 1).trim());
+    if (!Object.hasOwn(COMMENT_PROPERTIES, property)) {
+      problems.push({ kind: "unknown-property", property });
+      continue;
+    }
+    const accepts = COMMENT_PROPERTIES[property];
+    if (written === null || written.length === 0) {
+      problems.push({ kind: "no-value", property });
+      continue;
+    }
+    // A property naming one of a set is read the way the attribute's value is,
+    // trimmed and without case, because both are written by hand. A value that
+    // is the site's own text keeps the case they wrote it in - it names a file.
+    const value = accepts.values === null ? written : written.toLowerCase();
+    if (accepts.values !== null && !accepts.values.includes(value)) {
+      problems.push({ kind: "unknown-value", property, value });
+      continue;
+    }
+    if (property === "name" && !NAME_PATTERN.test(value)) {
+      problems.push({ kind: "bad-name", property, value });
+      continue;
+    }
+    if (Object.hasOwn(properties, property)) {
+      // The same value twice is a repeat and says nothing; two values is a
+      // comment asking for two things, and the first in the list wins. Same
+      // rule, and the same silence about an exact repeat, as a page naming one
+      // heading source twice.
+      if (properties[property] !== value) problems.push({ kind: "repeated", property, value });
+      continue;
+    }
+    properties[property] = value;
+  }
+  return { properties, problems };
+}
+
+/**
+ * Every cheatsheet comment of a document, with what it says and where it is.
+ *
+ * The directives on their own, before anything has been decided about what each
+ * applies to. Exported because the parse is worth holding to without a site
+ * around it: what a property list means is a question about a string.
+ *
+ * @param {string} html
+ * @returns {Array<{ at: number, end: number, line: number, properties: Record<string, string>, problems: Array<Record<string, unknown>> }>}
+ */
+export function commentDirectives(html) {
+  const found = [];
+  for (const [start, end] of commentRanges(html, opaqueRanges(html))) {
+    const directive = readDirective(html, start, end);
+    if (directive === null) continue;
+    found.push({ at: start, end, line: lineAt(html, start), ...directive });
+  }
+  return found;
+}
+
+/**
+ * The element a cheatsheet comment applies to.
+ *
+ * The next start tag, with nothing but whitespace between it and the comment.
+ * A comment has no closing tag, so what it marks is what follows rather than
+ * what it encloses - and "what follows" has to be bounded or the directive
+ * walks. Prose, a second comment or a closing tag in between all answer `null`:
+ * the generous reading would carry a directive past the material it was written
+ * for and apply it to the next thing it could find, silently.
+ *
+ * @param {string} html
+ * @param {number} from Offset just past the comment.
+ * @returns {{ tag: string, end: number, text: string } | null}
+ */
+function elementAfter(html, from) {
+  let at = from;
+  while (at < html.length && /\s/.test(html[at])) at += 1;
+  if (html[at] !== "<") return null;
+  const tag = tagNameAt(html, at);
+  if (tag === "") return null;
+  const scanned = startTagAt(html, at);
+  if (scanned === null) return null;
+  return { tag, end: scanned.end, text: scanned.text };
+}
+
+/**
+ * What a candidate block is, before the merge has decided whether to keep it.
+ *
+ * @typedef {object} Candidate
+ * @property {number} at Where the marking is, which is what source order is read off.
+ * @property {number} reach Where the material it marks ends, so what is inside it is not a second block.
+ * @property {object} block What {@link collectMarked} hands back for it.
+ */
+
+/**
+ * Every element the attribute method marked, as candidates.
+ *
+ * Nested markers included, unlike the loop this replaced, which jumped past a
+ * collected element and so never produced one. The merge is what drops them
+ * now - and it has to be the merge, because a marker nested inside a
+ * **comment's** element is nested in material the attribute scan knows nothing
+ * about.
+ *
+ * @param {string} html
+ * @param {Array<[number, number]>} ranges
+ * @returns {Candidate[]}
+ */
+function attributeCandidates(html, ranges) {
+  /** @type {Candidate[]} */
   const found = [];
   const lower = html.toLowerCase();
   let search = 0;
@@ -475,24 +833,176 @@ export function collectMarked(html) {
     const tag = tagNameAt(html, start);
     if (tag === "") continue;
 
-    const value = attributeValue(startTag, MARKER);
+    const block = {
+      tag,
+      value: attributeValue(startTag, MARKER),
+      content: "",
+      at: start,
+      line: lineAt(html, start),
+      method: ATTRIBUTE_METHOD,
+      properties: {},
+      problems: [],
+    };
     if (VOID_ELEMENTS.includes(tag) || /\/>$/.test(startTag.trim())) {
       // Marked, and enclosing nothing. Recorded rather than dropped: a site
       // owner who marked an `<img>` meant something, and a silent skip is how
       // they would come to believe the tool had read their page.
-      found.push({ tag, value, content: "", at: start, status: "empty" });
+      found.push({ at: start, reach: tagEnd + 1, block: { ...block, status: "empty" } });
       continue;
     }
 
     const end = closingTagOf(html, tag, tagEnd + 1, ranges);
     if (end === null) {
-      found.push({ tag, value, content: html.slice(tagEnd + 1), at: start, status: UNCLOSED });
-      break;
+      found.push({
+        at: start,
+        reach: html.length,
+        block: { ...block, content: html.slice(tagEnd + 1), status: UNCLOSED },
+      });
+      continue;
     }
-    found.push({ tag, value, content: html.slice(tagEnd + 1, end.start), at: start });
-    // Past the whole element, which is what makes a nested marker part of its
-    // parent rather than a second block.
-    search = end.end;
+    found.push({ at: start, reach: end.end, block: { ...block, content: html.slice(tagEnd + 1, end.start) } });
+  }
+  return found;
+}
+
+/**
+ * Every element the comment method marked, as candidates.
+ *
+ * A directive's `at` is the comment's own offset rather than its element's,
+ * which is what puts the block where the site owner wrote the marking and what
+ * makes a comment inside collected material read as nested. Its `reach` is the
+ * end of the element it applies to, so the material belongs to it.
+ *
+ * **A comment with nothing after it sets nothing**, and is reported saying so.
+ * The properties belong to the material the comment marked, so a comment that
+ * marked none has nothing to set them on - the same answer a nested comment
+ * gets from {@link collectMarked}, and for the same reason.
+ *
+ * The element's own `data-cheatsheet`, where it has one, is carried over rather
+ * than dropped. The two methods on one element are not a conflict to resolve
+ * here: a comment that sets no heading and an attribute that names one is a
+ * page that said one thing twice, and {@link headingFor} is where either is
+ * read.
+ *
+ * @param {string} html
+ * @param {Array<[number, number]>} ranges
+ * @returns {Candidate[]}
+ */
+function commentCandidates(html, ranges) {
+  /** @type {Candidate[]} */
+  const found = [];
+  for (const [start, end] of commentRanges(html, ranges)) {
+    const directive = readDirective(html, start, end);
+    if (directive === null) continue;
+    const block = {
+      tag: "",
+      value: null,
+      content: "",
+      at: start,
+      line: lineAt(html, start),
+      method: COMMENT_METHOD,
+      properties: directive.properties,
+      problems: directive.problems,
+    };
+    const target = elementAfter(html, end);
+    if (target === null) {
+      // The properties are dropped with the marking, the way a nested comment's
+      // are. A comment that marked nothing setting the page's name, grouping and
+      // heading anyway is the one reading that contradicts its own finding - and
+      // because the first answer in source order wins, a stray comment would
+      // beat the one that did mark the material. They move to the problem, so
+      // what the page is told is what was ignored.
+      found.push({
+        at: start,
+        reach: end,
+        block: {
+          ...block,
+          properties: {},
+          problems: [
+            ...directive.problems,
+            { kind: "nothing-follows", properties: Object.keys(directive.properties) },
+          ],
+        },
+      });
+      continue;
+    }
+    const marked = { ...block, tag: target.tag, value: attributeValue(target.text, MARKER) };
+    if (VOID_ELEMENTS.includes(target.tag) || /\/>$/.test(target.text.trim())) {
+      found.push({ at: start, reach: target.end + 1, block: { ...marked, status: "empty" } });
+      continue;
+    }
+    const closing = closingTagOf(html, target.tag, target.end + 1, ranges);
+    if (closing === null) {
+      found.push({
+        at: start,
+        reach: html.length,
+        block: { ...marked, content: html.slice(target.end + 1), status: UNCLOSED },
+      });
+      continue;
+    }
+    found.push({
+      at: start,
+      reach: closing.end,
+      block: { ...marked, content: html.slice(target.end + 1, closing.start) },
+    });
+  }
+  return found;
+}
+
+/**
+ * Every block of content a page has marked, in source order.
+ *
+ * The collector, and the one place the two authoring methods meet. Each block
+ * is the **inner** markup of an element - the one carrying {@link MARKER}, or
+ * the one a cheatsheet comment stands in front of - so what a site owner
+ * wrapped is what comes back, with the wrapper itself left out: the wrapper is
+ * how they said it, not part of what they said.
+ *
+ * **Marked material is collected once**, whichever method marked it and
+ * whichever is nested in which. Both methods produce candidates and one merge
+ * decides, which is what makes that a rule about the material rather than a
+ * rule about the attribute: collecting a nested marking twice would put the
+ * same material on a generated page twice, and collecting only the inner one
+ * would drop everything its parent added around it.
+ *
+ * The two methods are not treated alike when one is dropped, and the asymmetry
+ * is the point. A nested attribute adds nothing to what its parent already
+ * said, so it goes in silence as it always has. A nested comment carries
+ * properties that are being ignored, which is the kind of silence this file
+ * spends its findings on, so the block is kept with nothing in it and reported.
+ *
+ * @param {string} html
+ * @returns {Array<{ tag: string, value: string | null, content: string, at: number, line: number, method: string, properties: Record<string, string>, problems: Array<Record<string, unknown>>, status?: string }>}
+ */
+export function collectMarked(html) {
+  const ranges = opaqueRanges(html);
+  const candidates = [...attributeCandidates(html, ranges), ...commentCandidates(html, ranges)].sort(
+    (a, b) => a.at - b.at
+  );
+  const found = [];
+  /** How far the last block collected reached, so what is inside it is not a second. */
+  let reach = 0;
+  for (const candidate of candidates) {
+    if (candidate.at < reach) {
+      if (candidate.block.method === COMMENT_METHOD) {
+        found.push({
+          ...candidate.block,
+          content: "",
+          status: "nested",
+          properties: {},
+          problems: [
+            ...candidate.block.problems,
+            { kind: "nested", properties: Object.keys(candidate.block.properties) },
+          ],
+        });
+      }
+      continue;
+    }
+    found.push(candidate.block);
+    // Markup that is never closed took the rest of the document as its content,
+    // so there is nothing after it left to collect.
+    if (candidate.block.status === UNCLOSED) break;
+    reach = candidate.reach;
   }
   return found;
 }
@@ -787,6 +1297,49 @@ function folderName(folder) {
 }
 
 /**
+ * What a page's cheatsheet comments set a property to, and where they said it.
+ *
+ * The first in source order wins, which is the rule every other "said twice"
+ * on a page follows. Only accepted values are here to be read:
+ * {@link readDirective} leaves a value the vocabulary does not know out of the
+ * properties and reports it, so a property found here is one this tool can act
+ * on.
+ *
+ * The line comes back with the value because the findings about an ask name the
+ * line it was written on, and by the time one is composed the block it came off
+ * is several functions away.
+ *
+ * @param {SitePage} page
+ * @param {string} property
+ * @returns {{ value: string, line: number } | null}
+ */
+export function commentOption(page, property) {
+  const block = (page.blocks ?? []).find((one) => one.properties?.[property] !== undefined);
+  return block === undefined ? null : { value: block.properties[property], line: block.line };
+}
+
+/**
+ * Whether a page joins its folder's cheatsheet or is one of its own.
+ *
+ * `folder` without being asked, which is what the parent tag method settled on
+ * 2026.11.06 and what this leaves alone. `group: page` is the one thing a page
+ * in a folder could not say before.
+ *
+ * A root page asked to join a folder has none to join, so it is its own
+ * cheatsheet - the answer it would have had anyway. {@link collectSite} reports
+ * the ask rather than this: a finding needs the page's name and this is read
+ * from places that have no business composing a sentence.
+ *
+ * @param {SitePage} page
+ * @returns {string} One of {@link GROUPINGS}.
+ */
+export function pageGrouping(page) {
+  const asked = commentOption(page, "group");
+  if (asked === null) return "folder";
+  return asked.value === "folder" && pageFolder(page) === "" ? "page" : asked.value;
+}
+
+/**
  * Which source a page takes its heading from, and what to say about the asking.
  *
  * {@link collectMarked} carries the marker's value over without judging it.
@@ -817,6 +1370,19 @@ function folderName(folder) {
  * asking for two. The first in source order wins and the disagreement is
  * reported, rather than the last write silently deciding it.
  *
+ * **Where both methods speak, the comment wins**, and this is the one place
+ * that is stated rather than wherever the two readings happen to meet. A
+ * comment is the more specific of the two: it was written about this material,
+ * while an attribute sits on an element and may have been there first. The
+ * disagreement is reported either way, which is the same judgement the two
+ * attribute values above get - a page asking for two headings is reported
+ * whether it asked in one voice or two.
+ *
+ * An unrecognised value inside a comment is **not** reported here. It is
+ * reported with its line by {@link collectSite}, which is what the comment
+ * syntax buys, and {@link readDirective} has already left it out of the
+ * page's properties - so what reaches this is a value the vocabulary knows.
+ *
  * @param {SitePage} page
  * @returns {{ source: string, heading: string, findings: string[] }}
  */
@@ -824,21 +1390,27 @@ export function headingFor(page) {
   /** @type {string[]} */
   const findings = [];
   /** @type {string[]} */
+  const asked = [];
+  /** @type {string[]} */
   const named = [];
   /** @type {string[]} */
   const unknown = [];
-  for (const block of page.blocks) {
+  for (const block of page.blocks ?? []) {
+    const property = block.properties?.heading;
+    // Distinct values only, here and below. The finding names the page, so a
+    // value repeated on one page would print the same sentence twice.
+    if (property !== undefined && !asked.includes(property)) asked.push(property);
     // Trimmed and lower cased before matching. An attribute value is written by
     // hand, so `data-cheatsheet=" Title "` is a site owner naming the title
     // source rather than a third thing to report.
     const value = (block.value ?? "").trim().toLowerCase();
     if (value.length === 0) continue;
     const into = HEADING_SOURCES.includes(value) ? named : unknown;
-    // Distinct values only. The finding names the page, so a value repeated on
-    // one page would print the same sentence twice.
     if (!into.includes(value)) into.push(value);
   }
-  const source = named[0] ?? "title";
+  const source = asked[0] ?? named[0] ?? "title";
+  /** Whether anything on the page named a source at all, in either method. */
+  const chosen = asked.length > 0 || named.length > 0;
   // What answered, which is not always the source that was named. The `title`
   // source has a fallback and the fallback is the file name, so on a page with
   // no `<title>` at all the heading came from neither the named source nor the
@@ -847,9 +1419,9 @@ export function headingFor(page) {
   const answered =
     source === "title" && page.title === null
       ? "its file name, because the page has no <title>"
-      : named.length === 0
-        ? `${source}, the default`
-        : source;
+      : chosen
+        ? source
+        : `${source}, the default`;
   for (const value of unknown) {
     // The source that answered, named, rather than "the default" - a page that
     // wrote an unknown value **and** a real one did not fall back to anything,
@@ -866,18 +1438,131 @@ export function headingFor(page) {
         `on one page, so the first in source order won. Mark one source per page.`
     );
   }
+  if (asked.length > 1) {
+    findings.push(
+      `${page.id}: ${asked.map((one) => `heading: ${one}`).join(" and ")} ask for two different headings on ` +
+        `one page, so the first in source order won. Set one heading per page.`
+    );
+  }
+  if (asked.length > 0 && named.length > 0 && asked[0] !== named[0]) {
+    findings.push(
+      `${page.id}: a cheatsheet comment asks for heading: ${asked[0]} and ${MARKER}="${named[0]}" asks for ` +
+        `the other on the same page, so the comment won - it was written about the material rather than ` +
+        `left on an element. Say it once, in whichever of the two the page is marked up with.`
+    );
+  }
   // Read as prose wherever the file name is the answer, per {@link prose}. A
   // `<title>` is not touched: it was written to be read, so whatever casing it
   // carries is the site's own.
   const stem = prose(pageStem(page));
   if (source === "page") return { source, heading: stem, findings };
-  if (page.title === null && named[0] === "title") {
+  if (page.title === null && chosen) {
+    // Named in whichever method the page asked in, so the advice points at
+    // markup the site owner actually wrote rather than at the other method.
+    const wrote = asked.length > 0 ? `heading: ${source}` : `${MARKER}="${source}"`;
+    const instead = asked.length > 0 ? "heading: page" : `${MARKER}="page"`;
     findings.push(
-      `${page.id}: ${MARKER}="title" asks for the page's <title> and the page has none, so its file name ` +
-        `was used instead. Give the page a <title>, or mark it ${MARKER}="page".`
+      `${page.id}: ${wrote} asks for the page's <title> and the page has none, so its file name ` +
+        `was used instead. Give the page a <title>, or mark it ${instead}.`
     );
   }
   return { source, heading: page.title ?? stem, findings };
+}
+
+/**
+ * The properties a comment accepts, in a sentence.
+ *
+ * Read off {@link COMMENT_PROPERTIES} rather than written out, so the finding
+ * for a property that is not in the vocabulary cannot name a vocabulary the
+ * parse does not have. That is the whole reason the properties are data.
+ *
+ * @returns {string}
+ */
+function propertyList() {
+  const names = Object.keys(COMMENT_PROPERTIES);
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * What a cheatsheet comment got wrong, as a sentence naming the page and line.
+ *
+ * **The line is the item**, not a detail of it. Every other finding in this
+ * tool names an element a reader can search their page for; a property inside a
+ * comment is not searchable that way, because a page may carry several comments
+ * and the words of the wrong one are the same words.
+ *
+ * Each sentence says what was ignored and what happened instead, which is the
+ * shape every finding here has: a site owner who wrote something meant it, and
+ * silence is how they come to believe the tool read their page.
+ *
+ * @param {string} id The page, site relative.
+ * @param {object} block The block the comment marked.
+ * @param {Record<string, unknown>} problem One of {@link COMMENT_PROBLEMS}.
+ * @returns {string}
+ */
+function commentFinding(id, block, problem) {
+  const where = `${id}:${block.line}`;
+  switch (problem.kind) {
+    case "malformed":
+      return (
+        `${where}: a cheatsheet comment reads "${problem.text}" where a bracketed property list was ` +
+        `expected, so no property was read and the content after it was collected with the defaults. ` +
+        `Write it as <!-- {% ${COMMENT_KEYWORD}: [heading: ${HEADING_SOURCES[0]}] %} -->.`
+      );
+    case "unknown-property":
+      return (
+        `${where}: ${problem.property} names no cheatsheet comment property, so it was ignored. ` +
+        `The properties it reads are ${propertyList()}.`
+      );
+    case "unknown-value":
+      return (
+        `${where}: ${problem.property}: ${problem.value} names no value the ${problem.property} property ` +
+        `takes, so it was ignored and the page kept the ${problem.property} it would have had. It reads ` +
+        `${COMMENT_PROPERTIES[problem.property].values.join(" and ")}.`
+      );
+    case "no-value":
+      return (
+        `${where}: ${problem.property} is written with no value, so it was ignored. It sets ` +
+        `${COMMENT_PROPERTIES[problem.property].sets}, and cannot say so without one.`
+      );
+    case "repeated":
+      return (
+        `${where}: ${problem.property} is written twice with two values, so the first in the list was used ` +
+        `and ${problem.value} was ignored. Write one ${problem.property} per comment.`
+      );
+    case "bad-name":
+      return (
+        `${where}: name: ${problem.value} is not a file name, so it was ignored and the cheatsheet kept the ` +
+        `name it had. A name is letters, digits, dots, dashes and underscores, starts with a letter or a ` +
+        `digit, and carries neither an extension nor a path.`
+      );
+    case "nothing-follows":
+      return (
+        `${where}: a cheatsheet comment has no element after it, so it marked nothing${
+          problem.properties.length === 0
+            ? ""
+            : ` and the ${problem.properties.join(" and ")} it sets ${
+                problem.properties.length === 1 ? "was" : "were"
+              } ignored`
+        }. A comment applies to the element that follows it, with nothing but whitespace in between.`
+      );
+    case "nested":
+      return (
+        `${where}: a cheatsheet comment sits inside material that is already collected, so ` +
+        `${
+          problem.properties.length === 0
+            ? "it marked nothing of its own"
+            : `the ${problem.properties.join(" and ")} it sets ${
+                problem.properties.length === 1 ? "was" : "were"
+              } ignored`
+        }. Put it in front of the outermost element of the material it describes.`
+      );
+    default:
+      // Unreachable while every kind in {@link COMMENT_PROBLEMS} has a case
+      // above, and said rather than dropped if one ever does not: a finding
+      // nobody can read still sends somebody to look at the page.
+      return `${where}: a cheatsheet comment is wrong in a way this tool has no sentence for: ${problem.kind}.`;
+  }
 }
 
 /**
@@ -899,24 +1584,47 @@ export async function collectSite(root) {
     /** @type {string[]} */
     const findings = [];
     for (const block of blocks) {
+      const comment = block.method === COMMENT_METHOD;
       if (block.status === UNCLOSED) {
         findings.push(
-          `${id}: a <${block.tag}> marked with ${MARKER} is never closed, so everything after it was ` +
-            `taken as its content. Close the element, or the generated page will carry the rest of the file.`
+          comment
+            ? `${id}:${block.line}: the <${block.tag}> a cheatsheet comment applies to is never closed, so ` +
+              `everything after it was taken as its content. Close the element, or the generated page will ` +
+              `carry the rest of the file.`
+            : `${id}: a <${block.tag}> marked with ${MARKER} is never closed, so everything after it was ` +
+              `taken as its content. Close the element, or the generated page will carry the rest of the file.`
         );
       }
       if (block.status === "empty") {
         findings.push(
-          `${id}: <${block.tag}> cannot enclose anything, so marking it with ${MARKER} collected nothing. ` +
-            `Mark the element that wraps the material instead.`
+          comment
+            ? `${id}:${block.line}: <${block.tag}> cannot enclose anything, so the cheatsheet comment in ` +
+              `front of it collected nothing. Put the comment before the element that wraps the material ` +
+              `instead.`
+            : `${id}: <${block.tag}> cannot enclose anything, so marking it with ${MARKER} collected nothing. ` +
+              `Mark the element that wraps the material instead.`
         );
       }
+      // The file and the line, which is what the comment syntax is reported
+      // with and nothing else in this tool is: a page may carry several
+      // comments and the words of the wrong one are the same words.
+      for (const problem of block.problems ?? []) findings.push(commentFinding(id, block, problem));
     }
     const page = { path, id, title: titleOf(html), blocks, findings };
     // After the markup findings and from the finished page, because the heading
     // is read off the page's own `<title>` as much as off the marker's value -
     // what the site asked for and what it has are both part of the answer.
     findings.push(...headingFor(page).findings);
+    // The one ask that cannot be judged from the comment alone: a page knows
+    // whether it has a folder and a directive does not.
+    const grouping = commentOption(page, "group");
+    if (grouping !== null && grouping.value === "folder" && pageFolder(page) === "") {
+      findings.push(
+        `${id}:${grouping.line}: group: folder asks this page to join its folder's cheatsheet and the page ` +
+          `is at the site root, so it has no folder to join and is a cheatsheet of its own. Move the page ` +
+          `into a folder, or drop the property.`
+      );
+    }
     pages.push(page);
   }
   return pages;
@@ -941,12 +1649,21 @@ export async function collectSite(root) {
  * {@link headingFor}, so a page marked `data-cheatsheet="title"` is written
  * into its folder's cheatsheet like any other.
  *
+ * **A cheatsheet comment can say otherwise, and that is the only thing that
+ * can.** `name` names the file outright and `group: page` takes a page back out
+ * of its folder's cheatsheet, which is the one option a page in a folder had no
+ * way to ask for. Both are the comment syntax's reason for existing: an
+ * attribute carries one value, and this is a second and a third thing to say
+ * about the same material.
+ *
  * @param {SitePage} page
  * @returns {string}
  */
 export function pageFilename(page) {
+  const named = commentOption(page, "name");
+  if (named !== null) return `${named.value}.html`;
   const folder = pageFolder(page);
-  return `${folder === "" ? pageStem(page) : folderName(folder)}.html`;
+  return `${folder === "" || pageGrouping(page) === "page" ? pageStem(page) : folderName(folder)}.html`;
 }
 
 /**
@@ -1090,62 +1807,115 @@ function carryingPages(pages) {
  * recoverable one: a site that really wants both names is told to rename one,
  * and nothing is lost in silence.
  *
+ * **It is two passes, because a name belongs to a cheatsheet and not to a
+ * page.** Every page of a folder can carry `name`, so which name a cheatsheet
+ * wants is not knowable until the folder's pages are all in hand - and the pass
+ * that claims names runs over the groups in the order they were first seen,
+ * which is page order, so the winner of a collision is the one it always was.
+ *
  * @param {SitePage[]} pages
- * @returns {{ sheets: Cheatsheet[], collisions: string[] }}
+ * @returns {{ sheets: Cheatsheet[], collisions: string[], naming: string[] }}
  */
 function groupCheatsheets(pages) {
-  /** Keyed so a folder is one cheatsheet and each root page is its own. */
-  /** @type {Map<string, { name: string, folder: string, pages: SitePage[] }>} */
+  /** Keyed so a folder is one cheatsheet and each standalone page is its own. */
+  /** @type {Map<string, { folder: string, pages: SitePage[] }>} */
   const groups = new Map();
-  /** Keyed by the name lower cased, and carrying it as written for the finding. */
-  /** @type {Map<string, { key: string, name: string }>} */
-  const claimed = new Map();
-  /** Keys whose name was taken, so a second page of one is not reported twice. */
-  const dropped = new Set();
-  /** @type {string[]} */
-  const collisions = [];
   for (const page of carryingPages(pages)) {
     const folder = pageFolder(page);
-    const key = folder === "" ? `page:${page.id}` : `folder:${folder}`;
-    if (dropped.has(key)) continue;
+    // A page at the root has no folder to be named for, and one that asked to
+    // stand alone is a cheatsheet of its own wherever it sits.
+    const alone = folder === "" || pageGrouping(page) === "page";
+    const key = alone ? `page:${page.id}` : `folder:${folder}`;
     const group = groups.get(key);
     if (group !== undefined) {
       group.pages.push(page);
       continue;
     }
-    const name = pageFilename(page);
-    const owner = claimed.get(name.toLowerCase());
+    groups.set(key, { folder: alone ? "" : folder, pages: [page] });
+  }
+  /** Keyed by the name lower cased, and carrying it as written for the finding. */
+  /** @type {Map<string, { key: string, name: string }>} */
+  const claimed = new Map();
+  /** @type {Cheatsheet[]} */
+  const sheets = [];
+  /** @type {string[]} */
+  const collisions = [];
+  /** @type {string[]} */
+  const naming = [];
+  for (const [key, group] of groups) {
+    const named = sheetName(group);
+    const owner = claimed.get(named.name.toLowerCase());
     if (owner !== undefined) {
-      dropped.add(key);
       // The name the owner claimed, where that is not the name this one wanted.
       // Two spellings of one name is the whole of what a case collision is, and
       // a finding that printed only one of them would read as a plain repeat.
-      const spelled = owner.name === name ? "" : ` as ${owner.name}`;
+      const spelled = owner.name === named.name ? "" : ` as ${owner.name}`;
       collisions.push(
-        `${label(key)}: would be written as ${name}, which ${label(owner.key)} already claimed${spelled}, ` +
-          `so it was not written. Two cheatsheets of a site cannot share a name while the output folder ` +
-          `is flat, and two names that differ only in case are one name on a filesystem that ignores ` +
-          `case - rename one of them, or pass --out and run them separately.`
+        `${label(key)}: would be written as ${named.name}, which ${label(owner.key)} already ` +
+          `claimed${spelled}, so it was not written. Two cheatsheets of a site cannot share a name while ` +
+          `the output folder is flat, and two names that differ only in case are one name on a filesystem ` +
+          `that ignores case - rename one of them, or pass --out and run them separately.`
       );
       continue;
     }
-    claimed.set(name.toLowerCase(), { key, name });
-    groups.set(key, { name, folder, pages: [page] });
-  }
-  const sheets = [...groups.values()].map((group) => {
+    // Only for a cheatsheet that is written. A dropped one was not named by
+    // anything in the end, so a finding saying which name was used would be
+    // describing a file that is not there.
+    naming.push(...named.findings);
+    claimed.set(named.name.toLowerCase(), { key, name: named.name });
     if (group.folder === "") {
       const { source, heading } = headingFor(group.pages[0]);
-      return { name: group.name, folder: "", heading, headingSource: source, pages: group.pages };
+      sheets.push({ name: named.name, folder: "", heading, headingSource: source, pages: group.pages });
+      continue;
     }
-    return {
-      name: group.name,
+    sheets.push({
+      name: named.name,
       folder: group.folder,
       heading: prose(folderName(group.folder)),
       headingSource: FOLDER_SOURCE,
       pages: group.pages,
-    };
-  });
-  return { sheets, collisions };
+    });
+  }
+  return { sheets, collisions, naming };
+}
+
+/**
+ * The file a cheatsheet is written as, and what the pages of it asked for.
+ *
+ * A `name` property names **the cheatsheet the page belongs to**, not the page,
+ * because a page is not what gets written: a folder of four pages is one file,
+ * and any of the four can say what it is called. The first in source order wins
+ * and a second, different name is reported - the alternative is the last page
+ * of a folder quietly renaming the file the other three were written into.
+ *
+ * The heading is not renamed with it. A folder's cheatsheet is headed for the
+ * folder because that is what it is, and `name` answers {@link pageFilename}:
+ * what the file is called and what the page is headed were already two answers
+ * before a comment could set either.
+ *
+ * @param {{ folder: string, pages: SitePage[] }} group
+ * @returns {{ name: string, findings: string[] }}
+ */
+function sheetName(group) {
+  /** @type {string[]} */
+  const findings = [];
+  /** @type {{ value: string, id: string } | null} */
+  let named = null;
+  for (const page of group.pages) {
+    const asked = commentOption(page, "name");
+    if (asked === null) continue;
+    if (named === null) {
+      named = { value: asked.value, id: page.id };
+      continue;
+    }
+    if (asked.value === named.value) continue;
+    findings.push(
+      `${page.id}:${asked.line}: name: ${asked.value} renames a cheatsheet ${named.id} has already named ` +
+        `${named.value}, so the first in source order was used. One name per cheatsheet, however many ` +
+        `pages of a folder carry it.`
+    );
+  }
+  return { name: named === null ? pageFilename(group.pages[0]) : `${named.value}.html`, findings };
 }
 
 /**
@@ -1179,6 +1949,21 @@ export function cheatsheets(pages) {
  */
 export function nameCollisions(pages) {
   return groupCheatsheets(pages).collisions;
+}
+
+/**
+ * Pages of one cheatsheet that asked it to be two different files.
+ *
+ * Separate from {@link nameCollisions} because they are opposite shapes of the
+ * same subject: a collision is two cheatsheets wanting one name, and this is
+ * one cheatsheet being given two. Both reach the report and the exit code, and
+ * neither reads as the other.
+ *
+ * @param {SitePage[]} pages
+ * @returns {string[]} A finding per name that lost, in page order.
+ */
+export function namingFindings(pages) {
+  return groupCheatsheets(pages).naming;
 }
 
 /**
@@ -1373,6 +2158,19 @@ export const USAGE = [
   "from its file name. Marked without a value, a page takes its title with its",
   "file name behind it. A heading read off a name is read as prose, so",
   "somePageName.html is headed Some Page Name.",
+  "",
+  "A page with more than one thing to say marks its material with a comment",
+  "instead, which applies to the element that follows it:",
+  "",
+  `  <!-- {% ${COMMENT_KEYWORD}: [heading: page, group: page, name: splice] %} -->`,
+  "",
+  `  heading: ${HEADING_SOURCES.join(" | ")}   the source the heading is read from`,
+  `  group: ${GROUPINGS.join(" | ")}    join the folder's cheatsheet, or be one`,
+  "  name: <file>           the file the cheatsheet is written as",
+  "",
+  "Where a comment and the attribute both speak, the comment wins and the",
+  "disagreement is reported. A property this does not know, or a value it does",
+  "not take, is reported with the page and the line it was written on.",
 ].join("\n");
 
 /**
@@ -1415,10 +2213,15 @@ export async function main(argv) {
         : { ...(await resolveOutput(root)), recorded: false };
 
   const pages = await collectSite(root);
-  // Markup a page could not be read from, then names two pages both wanted.
-  // The second is the site's own layout rather than its markup, so it is
-  // collected across the pages rather than on one of them.
-  const findings = [...pages.flatMap((page) => page.findings), ...nameCollisions(pages)];
+  // Markup a page could not be read from, then names two pages both wanted and
+  // one cheatsheet two pages named twice. The last two are the site's own
+  // layout rather than its markup, so they are collected across the pages
+  // rather than on one of them.
+  const findings = [
+    ...pages.flatMap((page) => page.findings),
+    ...nameCollisions(pages),
+    ...namingFindings(pages),
+  ];
   const planned = plannedPages(pages);
   // Measured off the resolved path rather than taken from `out.name`, because
   // the three routes name the folder in three different ways and the manifest

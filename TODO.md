@@ -15,21 +15,21 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
-- [ ] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
-  - First because nothing else in the method exists without it, and the scan is where the cost is. `opaqueRanges` already finds every comment in a document and `collectMarked` already drops markers inside one, so the range this has to read is a range the collector is currently throwing away - which makes the first decision whether a cheatsheet comment stops being opaque or stays opaque and is read separately. "The content that follows it" wants defining against the same depth walk `closingTagOf` uses: a comment has no closing tag, so what it applies to is the next element rather than something it encloses
+- [ ] Document both methods side by side, with the trade-off between them stated plainly
+  - Earliest remaining item and the one that closes **The Comment Syntax Method**. `README.md` describes both as of 2026.11.07, so what is left is the argument rather than the behaviour: an attribute is one value and nothing to learn, a comment is several values and a syntax to get right, and which one a page wants depends on how much it has to say. Side by side means a reader deciding between them can see both in one place, which the two paragraphs it has now do not quite do
   - From: Dedicated cheatsheet website `->` The Comment Syntax Method
-- [ ] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
-  - The parse above answers nothing without this, which is why the two are queued together: a syntax that reads properties into nothing is a syntax with no effect. The options to map onto are the ones that exist - the heading source `HEADING_SOURCES` already names, and the folder grouping and output name `pageFilename` answers - and the vocabulary is better short and extended later than wide and half honoured. Record it where `HEADING_SOURCES` is recorded, as data rather than as a chain of comparisons, because the unknown property finding below reads the same list
-  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
-- [ ] Accept more than one property per comment, as an array of property and value pairs
-  - A property of the parse rather than a second parse, and the reason the syntax carries brackets at all. Worth a case per separator a person actually writes - a trailing comma, a value holding a colon, a quoted value with a space in it - since this is hand written markup and the attribute reader already learned that lesson
-  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
-- [ ] Report an unknown property with the file and line it appeared on rather than ignoring it
-  - The same judgement `headingFor` makes about an unrecognised attribute value, and for the same reason: a site owner who wrote something meant it, and silence is how they come to believe the tool read their page. The line number is the new part - every finding so far names a page and none names a position, so the scan has to carry an offset far enough to be turned into one
-  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
-- [ ] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
-  - Last because it is the only one that cannot be decided from this method alone. The parent tag's defaults are now whole - the two heading values, the folder grouping, the prose naming - so what is left is stating which wins where both speak, and stating it in one place rather than wherever the two readings meet. A page naming two heading sources is already reported rather than silently resolved; this is the same question asked across methods instead of within one
-  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [ ] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
+  - Pulled ahead of the two fill items it is written after, because the artifact has to exist before anything can link to it. Built from the same cheatsheets `plannedPages` already carries and through `renderCheatsheet`'s own composition rather than a second renderer, which is the whole of what "cannot drift apart" asks for. Decide where it is written and what it is called deliberately: it goes in the resolved folder like every other generated page, so it is one more name that can collide
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [ ] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
+  - The simpler of the two modes, and it depends on the item above. The collector already passes this attribute over by name, so the marking exists and only the filling is missing. The new question is the link: it is relative to the page being written into rather than to the folder this tool resolved, and everything written so far went into that folder - so a site whose marked page sits two folders down is the case to answer rather than discover
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [ ] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
+  - The second mode, and the first part of this tool that reads the generated folder as data rather than writing it. Read `cheatsheet-site.json` rather than the disk: a mode listing what was generated should list what the manifest says was generated, and `readManifest` already finds the folder wherever on the ladder it sits
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [ ] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
+  - Refines the item above rather than standing beside it, which is why the two are queued together. `prose` already answers the text half, so a `base64Utils.html` entry reads `Base 64 Utils` - the same conversion the headings use, and one function rather than a second that could disagree with it. What is left is the link, which is the same relative question the page mode asks
+  - From: Dedicated cheatsheet website `->` The Menu Element
 
 ## GitHub Pages Deployment
 
@@ -1122,14 +1122,56 @@ feed one collector, so a page may use either and a site may use both - which is
 what makes the precedence between them an item of its own rather than an
 accident of the scan order.
 
-- [ ] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
-- [ ] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
-- [ ] Accept more than one property per comment, as an array of property and value pairs
-- [ ] Report an unknown property with the file and line it appeared on rather than ignoring it
-- [ ] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
+The method landed on 2026.11.07.
+`<!-- {% cheatsheet: [heading: page, group: page, name: splice] %} -->` applies
+to the element that follows it, with nothing but whitespace in between, and
+the element's extent is read with the same depth walk `closingTagOf` gives the
+attribute. **A cheatsheet comment stays opaque**, which is the decision the
+parse turned on: it is still a comment, so a `data-cheatsheet` written inside
+one is still not a marker, and making the comment transparent instead would
+have turned every marker a site owner had decided against back on.
+
+The vocabulary is three properties in `COMMENT_PROPERTIES` - the heading
+source, whether the page joins its folder's cheatsheet, and the file the
+cheatsheet is written as - which is every option the tool has to set rather
+than every property a syntax could carry. It is data for the reason
+`HEADING_SOURCES` is: the parse reads the list to decide what a property is
+and the finding reads it to say what the vocabulary is, so neither can
+describe a vocabulary the other has not got.
+
+Two things the comment can say that the attribute could not. `group: page`
+takes a page back out of its folder's cheatsheet, and `name` belongs to the
+cheatsheet rather than to the page - a folder of four pages is one file, so
+any of the four can name it, the first in source order wins, and a second
+name is reported. `namingFindings` is kept apart from `nameCollisions`
+because they are opposite shapes of one subject: a collision is two
+cheatsheets wanting one name, and this is one cheatsheet being given two.
+
+The last two items closed as the questions they were asked as. A comment is
+reported with the page **and the line**, which nothing else in this tool is,
+because the words of the wrong comment on a page of several are the same
+words - eight things a comment can be wrong about have a sentence each. And
+where both methods name a heading the comment wins, stated once in
+`headingFor` rather than wherever the two readings meet: it was written about
+the material, while an attribute sits on an element and may have been there
+first. The disagreement is reported either way, which is the judgement a page
+naming two sources in one method already got.
+
 - [ ] Document both methods side by side, with the trade-off between them stated plainly
+  - `README.md` states both as of 2026.11.07 - what a comment applies to, the three properties, that a comment is still a comment, and which method wins - so what is left is the side by side and the trade-off argued rather than the behaviour described: an attribute is one value and nothing to learn, a comment is several and a syntax to get right, and which a page wants depends on how much it has to say
 
 ### The Menu Element
+
+The third marking, and the only one that writes **into** a page the site owner
+keeps rather than into a page this tool owns. `data-cheatsheet-menu` is the
+attribute `collectMarked` already passes over by name - an attribute whose name
+merely starts the same way as the marker is a different attribute - so the site
+has been able to say where its menu goes since before there was anything to put
+in one. What it needs is the two modes filled: a link to one master page, and an
+entry per page in the resolved folder.
+
+It is the first part of the tool that reads the generated folder as data rather
+than writing it, which is what `cheatsheet-site.json` is for.
 
 - [ ] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
 - [ ] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
@@ -1998,5 +2040,20 @@ generate ideas about generating ideas.
 - [x] Skip a page carrying no marked element rather than emitting an empty section for it
   - Check before working it. Measured 2026.11.05: `carryingPages` in `tools/cheatsheet-site.mjs` is the one predicate deciding this, and it already decides it in all three places - which pages are written, whether the output folder is created at all, and which pages can collide over a name. If that still holds after the grouping above, close it by verification rather than by writing
   - From: Dedicated cheatsheet website `->` The Parent Tag Method
+- [x] Parse `<!-- {% cheatsheet: [<property>: <value>] %} -->` and apply it to the content that follows it
+  - First because nothing else in the method exists without it, and the scan is where the cost is. `opaqueRanges` already finds every comment in a document and `collectMarked` already drops markers inside one, so the range this has to read is a range the collector is currently throwing away - which makes the first decision whether a cheatsheet comment stops being opaque or stays opaque and is read separately. "The content that follows it" wants defining against the same depth walk `closingTagOf` uses: a comment has no closing tag, so what it applies to is the next element rather than something it encloses
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Define the property vocabulary the comment accepts and map each property onto the scripted tool's options
+  - The parse above answers nothing without this, which is why the two are queued together: a syntax that reads properties into nothing is a syntax with no effect. The options to map onto are the ones that exist - the heading source `HEADING_SOURCES` already names, and the folder grouping and output name `pageFilename` answers - and the vocabulary is better short and extended later than wide and half honoured. Record it where `HEADING_SOURCES` is recorded, as data rather than as a chain of comparisons, because the unknown property finding below reads the same list
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Accept more than one property per comment, as an array of property and value pairs
+  - A property of the parse rather than a second parse, and the reason the syntax carries brackets at all. Worth a case per separator a person actually writes - a trailing comma, a value holding a colon, a quoted value with a space in it - since this is hand written markup and the attribute reader already learned that lesson
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Report an unknown property with the file and line it appeared on rather than ignoring it
+  - The same judgement `headingFor` makes about an unrecognised attribute value, and for the same reason: a site owner who wrote something meant it, and silence is how they come to believe the tool read their page. The line number is the new part - every finding so far names a page and none names a position, so the scan has to carry an offset far enough to be turned into one
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
+  - Last because it is the only one that cannot be decided from this method alone. The parent tag's defaults are now whole - the two heading values, the folder grouping, the prose naming - so what is left is stating which wins where both speak, and stating it in one place rather than wherever the two readings meet. A page naming two heading sources is already reported rather than silently resolved; this is the same question asked across methods instead of within one
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
 
 </details>

@@ -30,6 +30,107 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.5.0-alpha]
+
+### Added
+
+- **A second way for a site to mark its material: a comment.**
+  `tools/cheatsheet-site.mjs` read one attribute, which carries one value, so a
+  page with several things to say about its material had nowhere to put them.
+  `<!-- {% cheatsheet: [heading: page, group: page, name: splice] %} -->` is
+  where: it applies to the element that follows it, with nothing but whitespace
+  in between, and it is a comment rather than a second attribute because it says
+  something about the content after it rather than about an element it sits on.
+  The element's extent is read with the same depth walk `closingTagOf` gives the
+  attribute, so nesting, an unclosed element and a void element all answer the
+  way they already did.
+- **A cheatsheet comment stays opaque**, which is the decision the parse turns
+  on. It is still a comment, so a `data-cheatsheet` written inside one is still
+  not a marker - that is the whole of what a commented-out section means, and
+  making the comment transparent instead would have turned every marker a site
+  owner had decided against back on. `commentDirectives` reads the directives
+  out of the comment ranges `opaqueRanges` already found, filtered by their
+  opener so there is one walk of the document rather than two readings of it that
+  could disagree about where a comment ends.
+- **Three properties, recorded as data in `COMMENT_PROPERTIES`.** `heading`
+  names the source the heading is read from, `group` says whether the page joins
+  its folder's cheatsheet or is one of its own, and `name` says what file the
+  cheatsheet is written as - every option the tool has to set rather than every
+  property a syntax could carry. It is data for the reason `HEADING_SOURCES` is:
+  the parse reads the list to decide what a property is and the finding reads it
+  to say what the vocabulary is, so the two cannot disagree about it. `group:
+  page` is the one thing a page inside a folder had no way to ask for, and
+  `name` belongs to the cheatsheet rather than to the page, because a folder of
+  four pages is one file and any of the four can say what it is called.
+- **More than one property per comment**, which is what the brackets are for.
+  The list is split on the commas that are not inside a quoted value and each
+  pair on its first colon, so the three shapes a hand written list has all read:
+  a trailing comma is a trailing comma rather than a property with no name, a
+  value may hold a colon, and a quoted value may hold a space or a comma. A
+  property written twice with two values keeps the first and says which it
+  dropped; written twice with one value it is a repeat and says nothing, which
+  is the silence a page naming one heading source twice already got.
+- **A comment is reported with the page and the line it was written on**, which
+  nothing else in this tool is. Every finding before this named an element a
+  reader could search their page for, and the words of the wrong comment on a
+  page of several are the same words - so the offset the scan already carried is
+  turned into a line by `lineAt` rather than thrown away. Eight things a comment
+  can be wrong about have a sentence each, in `COMMENT_PROBLEMS`: a body that is
+  not a bracketed list, a property the vocabulary does not hold, a value a
+  property does not take, a property with no value, a property written twice, a
+  name that is not a file name, a comment with no element after it, and a
+  comment sitting inside material already collected. Each says what was ignored
+  and what happened instead, and the content after the comment is still
+  collected with the defaults - a finding is the site's to fix and not a reason
+  to drop the page.
+- **A comment that marked nothing sets nothing.** The properties belong to the
+  material, so the last two of those eight reach neither the page's heading nor
+  its grouping nor the file its cheatsheet is written as, and the finding names
+  which of them was dropped. The alternative contradicts itself: a comment left
+  in front of prose would be reported as having marked nothing and then rename
+  the cheatsheet anyway, and because the first answer in source order wins it
+  would outrank the comment that did mark the material.
+- **A name is refused rather than sanitised.** `NAME_PATTERN` is stricter than
+  any filesystem involved, because the value becomes a path under the generated
+  folder: a `/`, a `\` or a leading dot in it is either a folder this tool does
+  not create or a way out of the one it resolved, and a site owner who wrote
+  `name: ../out` meant something. `namingFindings` is the opposite shape of
+  `nameCollisions` and is kept separate from it for that reason - a collision is
+  two cheatsheets wanting one name, and this is one cheatsheet being given two.
+
+### Changed
+
+- **The two methods are one collector, and marked material is collected once
+  whichever method marked it.** `collectMarked` gathers candidates from both and
+  one merge decides between them, which is what makes that a rule about the
+  material rather than a rule about the attribute: a comment whose element also
+  carries `data-cheatsheet` is one block carrying both answers, and either method
+  written inside the other's element is part of it. The two are not treated alike
+  when one is dropped, and the asymmetry is deliberate - a nested attribute adds
+  nothing to what its parent already said and goes in silence as it always has,
+  while a nested comment carries properties that are being ignored, which is the
+  kind of silence this tool spends its findings on. A block now carries the
+  `method` that marked it, the `line` it was marked on, and the `properties` and
+  `problems` a comment read.
+- **Where a comment and the attribute both speak, the comment wins**, and
+  `headingFor` is the one place that is stated rather than wherever the two
+  readings happen to meet. A comment is the more specific of the two: it was
+  written about this material, while an attribute sits on an element and may have
+  been there first. The disagreement is reported either way, which is the same
+  judgement a page naming two heading sources in one method already got, and the
+  finding names the markup the page actually wrote rather than the method it
+  could have used instead.
+- **`groupCheatsheets` is two passes**, because a name belongs to a cheatsheet
+  and not to a page: which name a folder's cheatsheet wants is not knowable until
+  its pages are all in hand. The pass that claims names runs over the groups in
+  the order they were first seen, which is page order, so the winner of a name
+  collision is the one it always was. A cheatsheet that was dropped for a
+  collision reports no naming disagreement - nothing named it in the end, so a
+  sentence saying which name was used would describe a file that is not there.
+- **`README.md` states the comment syntax beside the attribute**: what a comment
+  applies to, the three properties and what each sets, that a comment is still a
+  comment, and which of the two methods wins where both speak.
+
 ## [1.4.0-alpha]
 
 ### Added
