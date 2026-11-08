@@ -30,6 +30,67 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [Unreleased]
+
+The documentation site, and no version with it. The work is documentation, its
+one piece of code is the test that guards it, and the site's version is
+whatever the default branch holds - so `1.5.0-alpha` stays where it is and this
+section is what the next release folds in.
+
+### Added
+
+- **A documentation site at `docs/`, and a `README.md` that is a front door.**
+  The README crossed 300 lines on 2026.11.07 and was 310 by the time it was
+  measured, which is the point at which one file is carrying more than one file
+  should. Its eleven sections are now thirteen hand written pages - ten section
+  pages, since the two about viewing the examples share one, plus an overview
+  and the two short records below - and the README keeps a stand-in per section
+  whose level 2 heading links to the page carrying the rest. Nothing was summarized into existence on the way: the pages carry
+  the text the README had, word for word, and the README is 192 lines.
+- **`QUICKSTART.md` and `CHEATSHEET.md`.** The first is the essentials for a
+  reader who wants a sheet on screen now; the second is the commands, the
+  flags, the model shapes and the palette, dense and scannable, for someone who
+  has read the rest. Each is a file in the repository and a page on the site,
+  because a reader on github.com gets the file rendered and a reader on the
+  site gets the page.
+- **`tools/test-docs-site.mjs`, 31 cases over the site.** The menu is static
+  markup repeated on thirteen pages - which is what lets the whole site read
+  with JavaScript off, and exactly the shape that drifts - so it is compared
+  across the pages byte for byte, with `aria-current` normalised away and then
+  asserted to be the one entry naming the page that carries it. Every entry
+  names a file that exists and every file is named by an entry, every relative
+  link resolves, every fragment is an id its own page carries, and the README's
+  links back at the site are held the same way.
+- **A link to the documentation on the example page.** The pages link back at
+  it, and without this the pair was reachable from one end only: a reader who
+  arrived at the composed sheet had no route to the documentation that explains
+  how it got there.
+- **`docs/docs.css`, recorded in `DESIGN_LANGUAGE.md`.** The stylesheet opens on the same token block `index.html` carries,
+  token for token, and the test holds the shared ones equal across the two. The
+  three it adds are recorded with their measured ratios: an `h2` step the app
+  page never needed, a monospace stack for examples that are text rather than
+  artwork, and a code surface per theme - `#EEEEF1` and `#0A0C44` - carrying
+  body ink at 16.99:1 and 17.22:1, the accent link at 4.89:1 and 6.51:1, and a
+  boundary at 4.19:1 and 3.77:1. The one substitution holds there too: the
+  mark's green reaches 2.42:1 on the light code surface, so `#2E7534` carries
+  the link inside a listing as well as outside one.
+
+### Changed
+
+- **The menu wraps below 900px rather than stacking.** Thirteen entries in a
+  column is 820px measured at 390x844, which is most of a phone screen standing
+  between a reader and the page they opened. Below the breakpoint each group's
+  list is a wrapped inline row and the whole menu is 500px with the page's own
+  title on screen beneath it; above it the menu is a 280px fixed column that
+  scrolls in its own right. Either way the page being read is marked with
+  `aria-current="page"` and a border or an underline, never by colour alone.
+- **`tools/test-theme-rendering-browser.mjs` names the gaps it measures.** It
+  took the paragraph under the rule as `body > p`, which matched the
+  documentation link the moment that landed above it, and read one gap as
+  spanning two paragraphs - 74px, which the 8px step does not divide, with
+  every declaration on the page still on it. The three gaps are now named for
+  the elements they are between.
+
 ## [1.5.0-alpha]
 
 ### Added
