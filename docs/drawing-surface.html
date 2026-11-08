@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where the drawing surface came from - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a aria-current="page" href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>Where the drawing surface came from</h1>
+
+<p class="lead">It was not written here.</p>
+
+<p><code>api/napkin-sketch/</code> is a vendored copy of the published
+<a href="https://www.npmjs.com/package/@isocialpractice/napkin-sketch"><code>@isocialpractice/napkin-sketch</code></a>
+build, pinned at <code>1.1.0</code>, and the project's own documentation site is
+the reference for what it draws. The copy is written by the package's own
+command, and nothing in the folder is ever edited - a newer version is vendored
+into it instead:</p>
+
+<pre><code>npx @isocialpractice/napkin-sketch vendor --list       # the parts, and what each costs a page
+npx @isocialpractice/napkin-sketch vendor graphic-design graphic-design/files markdown main \
+  --out api/napkin-sketch                              # fetch, verify and write the copy
+node api/napkin-sketch/VENDOR-CHECK.mjs                # hash the folder against its record</code></pre>
+
+<p><code>vendor</code> verifies the tarball against the registry's own SHA-512
+before it unpacks a byte, copies each part's entry and every file it reaches,
+and records a digest per file in <code>api/napkin-sketch/VENDOR.json</code>.
+<code>VENDOR-CHECK.mjs</code> is written beside it and reads that record with
+plain <code>node</code>, no install and no network; the Pages workflow runs it
+before it publishes. <code>vendor</code> refuses to write into a folder holding
+files it has no record of, so the folder is removed first when the mechanism
+itself changes.</p>
+
+<h2>The hand port beside it</h2>
+
+<p><code>ai-helper/graphic-designer/</code> is still a hand port, of the design
+language helper that sits on top of that surface - it reads one finished graphic
+into a written design language and generates a skill that can draw more work in
+it. See
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/ai-helper/graphic-designer/README.md">ai-helper/graphic-designer/README.md</a>
+for what changed on the way in.</p>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

@@ -1,0 +1,300 @@
+/* The documentation site's stylesheet.
+
+   Every token below is the design language in `DESIGN_LANGUAGE.md`, applied -
+   the same block `index.html` carries, so the app page and the documentation
+   beside it draw from one record rather than from two readings of it. The
+   three tokens this file adds are recorded there too, under "The
+   documentation site": an `h2` step the app page never needed, a monospace
+   stack for the code the examples are written in, and a code surface measured
+   against the body ink on both themes.
+
+   There is no script. The menu is a fixed column where there is room for one
+   and a static block at the top of the page where there is not, with one
+   fixed anchor back to it - so the whole site reads with JavaScript off, which
+   is the one thing a documentation site should not need it for. */
+:root {
+ color-scheme: light dark;
+ --page: #F8F8F9;
+ --text: #020433;
+ --text-secondary: #414566;
+ --border: #6F6F8C;
+ --accent: #2E7534;
+ /* The code surface. #020433 reaches 16.99:1 on it and #2E7534 reaches
+    4.89:1, so a listing carries body ink and an inline link at full strength
+    rather than being a panel text has to be lightened for. */
+ --code: #EEEEF1;
+ /* The page's own face, as the app page declares it: a grotesque where one is
+    installed, the platform's interface face where it is not, the generic
+    last. Nothing ships. */
+ --font: "Helvetica Neue", Arial, system-ui, sans-serif;
+ /* The app page loads no monospace face because its examples are read off the
+    artwork. The documentation's examples are text on the page, so it does -
+    and as a stack for the same reason the body face is one. */
+ --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+ --space-1: 8px;
+ --space-2: 16px;
+ --space-3: 24px;
+ --space-4: 32px;
+ --radius: 4px;
+ /* 35 and 96 whole 8px steps. The menu holds the longest entry it carries on
+    two lines at most, and the measure is a reading column rather than the
+    app page's 1324px, which is the width of a row holding a 900px sheet. */
+ --menu: 280px;
+ --measure: 768px;
+}
+/* The mark's green reaches 2.65:1 on the off white ground, under both the
+   4.5:1 text floor and the 3:1 a border has to clear, so #2E7534 - the same
+   hue darkened to 5.33:1 - carries every role a reader has to see on light.
+   On the navy ground the figure green reaches 7.00:1 and is used as drawn. */
+@media (prefers-color-scheme: dark) {
+ :root {
+  --page: #020433;
+  --text: #F8F8F9;
+  --text-secondary: #9EBEA7;
+  --accent: #4CAE50;
+  --code: #0A0C44;
+ }
+}
+*, *::before, *::after {
+ box-sizing: border-box;
+}
+body {
+ margin: 0;
+ background: var(--page);
+ color: var(--text);
+ font: 1rem/1.6 var(--font);
+}
+/* The first thing in the tab order on every page, visible only once it is
+   reached. The menu is thirteen entries, and a reader arriving by keyboard
+   should not have to walk them to get to the text. */
+a.skip {
+ position: absolute;
+ left: -9999px;
+ top: var(--space-1);
+ padding: var(--space-1) var(--space-2);
+ background: var(--page);
+ border: 1px solid var(--accent);
+ border-radius: var(--radius);
+ color: var(--accent);
+ z-index: 2;
+}
+a.skip:focus {
+ left: var(--space-1);
+}
+a {
+ color: var(--accent);
+}
+:focus-visible {
+ outline: 2px solid var(--accent);
+ outline-offset: 2px;
+}
+
+/* The menu, written narrow first. Below the breakpoint it is the top of the
+   document and its entries wrap as an inline list, because thirteen entries
+   stacked is most of a phone screen standing between a reader and the text
+   they opened the page for. Above it the list becomes the column the entries
+   were grouped for. */
+nav.menu {
+ border-bottom: 1px solid var(--border);
+ padding: var(--space-2);
+}
+nav.menu a.menu-home {
+ display: inline-block;
+ margin-bottom: var(--space-1);
+ font-size: 0.875rem;
+ line-height: 1.5;
+}
+nav.menu p.menu-title {
+ margin: 0 0 var(--space-1);
+ font-size: 1.25rem;
+ line-height: 1.3;
+ font-weight: 700;
+}
+nav.menu p.menu-group {
+ margin: var(--space-2) 0 var(--space-1);
+ font-size: 0.875rem;
+ line-height: 1.5;
+ font-weight: 700;
+ color: var(--text-secondary);
+}
+nav.menu ul {
+ margin: 0;
+ padding: 0;
+ list-style: none;
+ display: flex;
+ flex-wrap: wrap;
+ gap: var(--space-1) var(--space-2);
+}
+nav.menu li {
+ margin: 0;
+}
+nav.menu li a {
+ display: inline-block;
+ text-decoration: none;
+}
+nav.menu li a:hover {
+ text-decoration: underline;
+}
+/* The page a reader is on, marked rather than merely coloured: weight and an
+   underline here, a left border in the column below, and either way a signal
+   that survives a reader who cannot tell the two greens apart. */
+nav.menu li a[aria-current="page"] {
+ font-weight: 700;
+ text-decoration: underline;
+}
+
+main {
+ /* The bottom is two steps rather than one, so the last line of a page clears
+    the fixed "Contents" anchor in the corner instead of sitting under it. */
+ padding: var(--space-3) var(--space-2) calc(var(--space-4) * 2);
+ max-width: var(--measure);
+ margin: 0 auto;
+}
+h1 {
+ margin: 0 0 var(--space-2);
+ font-size: 2rem;
+ line-height: 1.2;
+}
+h2 {
+ margin: var(--space-4) 0 var(--space-2);
+ font-size: 1.5rem;
+ line-height: 1.25;
+}
+h3 {
+ margin: var(--space-3) 0 var(--space-1);
+ font-size: 1.25rem;
+ line-height: 1.3;
+}
+p, ul.prose, ol.prose {
+ margin: 0 0 var(--space-2);
+}
+ul.prose, ol.prose {
+ padding-left: var(--space-3);
+}
+ul.prose li, ol.prose li {
+ margin-bottom: var(--space-1);
+}
+p.lead {
+ color: var(--text-secondary);
+}
+hr {
+ border: 0;
+ border-top: 1px solid var(--border);
+ margin: var(--space-4) 0;
+}
+code {
+ font-family: var(--font-mono);
+ font-size: 0.9375rem;
+ background: var(--code);
+ border-radius: var(--radius);
+ padding: 0 0.25em;
+}
+/* A listing scrolls rather than wrapping. The examples carry indentation that
+   means something, so a soft wrap would read as a line of the program. */
+pre {
+ margin: 0 0 var(--space-2);
+ padding: var(--space-2);
+ background: var(--code);
+ border: 1px solid var(--border);
+ border-radius: var(--radius);
+ overflow-x: auto;
+}
+pre code {
+ background: none;
+ padding: 0;
+ font-size: 0.9375rem;
+ line-height: 1.55;
+}
+table {
+ width: 100%;
+ margin: 0 0 var(--space-2);
+ border-collapse: collapse;
+ display: block;
+ overflow-x: auto;
+}
+th, td {
+ border: 1px solid var(--border);
+ padding: var(--space-1);
+ text-align: left;
+ vertical-align: top;
+}
+th {
+ font-weight: 700;
+}
+p.foot {
+ margin-top: var(--space-4);
+ padding-top: var(--space-2);
+ border-top: 1px solid var(--border);
+ font-size: 0.875rem;
+ line-height: 1.5;
+ color: var(--text-secondary);
+}
+
+/* The one fixed affordance below the breakpoint: the menu is a static block at
+   the top of the document there, and this is what puts a reader back at it
+   from anywhere in a long page. Above the breakpoint the menu is itself fixed
+   and this is not drawn. */
+a.contents {
+ position: fixed;
+ right: var(--space-2);
+ bottom: var(--space-2);
+ padding: var(--space-1) var(--space-2);
+ background: var(--page);
+ border: 1px solid var(--accent);
+ border-radius: var(--radius);
+ color: var(--accent);
+ font-size: 0.875rem;
+ line-height: 1.5;
+ text-decoration: none;
+}
+
+/* 900px is where a 280px menu and a reading column stop competing for the
+   same screen. Below it the menu reads as the top of the document; above it
+   it is a column of its own and stays put while the text scrolls. */
+@media (min-width: 900px) {
+ nav.menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--menu);
+  height: 100vh;
+  overflow-y: auto;
+  border-bottom: 0;
+  border-right: 1px solid var(--border);
+  padding: var(--space-3);
+ }
+ nav.menu a.menu-home {
+  margin-bottom: var(--space-2);
+ }
+ nav.menu p.menu-title {
+  margin-bottom: var(--space-2);
+ }
+ nav.menu p.menu-group {
+  margin-top: var(--space-3);
+ }
+ nav.menu ul {
+  display: block;
+ }
+ nav.menu li a {
+  display: block;
+  padding: var(--space-1) 0 var(--space-1) var(--space-1);
+  border-left: 2px solid transparent;
+ }
+ nav.menu li a[aria-current="page"] {
+  border-left-color: var(--accent);
+  text-decoration: none;
+ }
+ /* The menu's width is taken out of the body rather than off the content's
+    own margin, so the reading column centres in what is left instead of
+    hugging the menu's edge with the whole of a wide screen beside it. */
+ body {
+  padding-left: var(--menu);
+ }
+ main {
+  padding: var(--space-4);
+  max-width: calc(var(--measure) + var(--space-4) + var(--space-4));
+ }
+ a.contents {
+  display: none;
+ }
+}

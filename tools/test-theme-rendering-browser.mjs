@@ -279,7 +279,8 @@ for (const theme of THEMES) {
       const computed = {};
       for (const [name, selector] of Object.entries({
         "the title": "h1",
-        "the paragraph under it": "body > p",
+        "the console guidance": "#consoleIntro",
+        "the documentation link": "p.docs",
         "the instructions heading": "div.tools h3",
         "the first step": "div.tools ol li:nth-child(1)",
         "the last step": "div.tools ol li:last-child",
@@ -571,8 +572,14 @@ test("every vertical gap down the page is a multiple of the 8px step", { skip },
     const gap = (above, below) => Math.round(box(below).top - box(above).bottom);
     return {
       titleToRule: gap("h1", "hr"),
-      ruleToParagraph: gap("hr", "body > p"),
-      paragraphToRow: gap("body > p", "div.row"),
+      // Named rather than taken by position. "body > p" was the console
+      // guidance until the documentation link landed above it on 2026.11.08,
+      // at which point the same selector matched the link instead and this
+      // read as one gap spanning two paragraphs - 74px, which the step does
+      // not divide, with every declaration on the page still on it.
+      ruleToDocumentationLink: gap("hr", "p.docs"),
+      documentationLinkToGuidance: gap("p.docs", "#consoleIntro"),
+      guidanceToRow: gap("#consoleIntro", "div.row"),
       rowToFootnote: gap("div.row", "#showFootNote"),
       headingToList: gap("div.tools h3", "div.tools ol"),
       listToLabel: gap("div.tools ol", 'label[for="category"]'),

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cheatsheet - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a aria-current="page" href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>Cheatsheet</h1>
+
+<p class="lead">For someone who has already read the documentation and wants
+the shapes back. No teaching.</p>
+
+<h2>Commands</h2>
+
+<pre><code>php -S localhost:8000                       # serve the root; the page needs a server
+node --test                                 # the whole suite, no path and no glob
+node tools/build-manifest.mjs               # rewrite cheatsheets.json
+node tools/build-manifest.mjs --check       # the same walk as a gate
+node api/napkin-sketch/VENDOR-CHECK.mjs     # hash the vendored copy against its record
+node tools/cheatsheet.mjs --list            # what there is
+node tools/cheatsheet.mjs --generate &lt;slug&gt; # compose and render one
+node tools/cheatsheet-site.mjs &lt;site&gt;       # read a site, write cheatsheets out of it</code></pre>
+
+<h2>tools/cheatsheet.mjs</h2>
+
+<pre><code>--generate &lt;slug&gt;      compose by manifest slug or folder path
+--document &lt;path&gt;      compose a JSON document instead of a catalog slug
+--check [&lt;slug&gt;]       check without rendering
+--list                 name what there is
+--format &lt;fmt&gt;         svg (default), png, webp, jpg
+--renderer &lt;r&gt;         auto (default), browser, builtin
+--theme &lt;name|path&gt;    default, or a JSON theme, whole or partial
+--layout &lt;name|path&gt;   sheet, or a JSON layout
+--seed &lt;n&gt;             override the document's seed; identical seeds render identically
+--scale &lt;n&gt;            device pixels per composition pixel (default 0.3889)
+--quality &lt;n&gt;          encoder quality for png, webp, jpg (default 80)
+--background &lt;color&gt;   a CSS color, or none for transparent
+--max-bytes &lt;n&gt;        the weight a publishable render stays under (default 307200)
+--out &lt;path&gt;           a file, a directory, or - for standard output
+--data-only            emit the document and the composition's choices, render nothing
+--dry-run              report what would be written, touch nothing
+--json                 machine readable, naming which renderer answered</code></pre>
+
+<p>A publishable render goes beside its <code>sheet.json</code>; one that is
+not goes to <code>.tmp/</code>. A <code>--document</code> render has no catalog
+folder, so it goes to <code>.tmp/</code> either way.</p>
+
+<h2>tools/cheatsheet-site.mjs</h2>
+
+<pre><code>&lt;site&gt;        the site root to crawl (required)
+--out &lt;dir&gt;   write here instead of resolving cheatsheets/ under the site
+--dry-run     report the folder and the pages, touch nothing</code></pre>
+
+<p>Markers:</p>
+
+<pre><code>&lt;div data-cheatsheet&gt;              title, with the file name behind it
+&lt;div data-cheatsheet="title"&gt;      head from the page's own &lt;title&gt;
+&lt;div data-cheatsheet="page"&gt;       head from the file name, read as prose</code></pre>
+
+<pre><code>&lt;!-- {% cheatsheet: [heading: page, group: page, name: splice] %} --&gt;</code></pre>
+
+<table>
+ <tr><th>Property</th><th>Takes</th><th>Means</th></tr>
+ <tr><td><code>heading</code></td><td><code>title</code>, <code>page</code></td><td>where the heading is read from</td></tr>
+ <tr><td><code>group</code></td><td><code>folder</code>, <code>page</code></td><td>join the folder's cheatsheet, or be one</td></tr>
+ <tr><td><code>name</code></td><td>a file name</td><td>what the cheatsheet is written as</td></tr>
+</table>
+
+<p>The comment applies to the element that follows it, with nothing but
+whitespace between. Where a comment and an attribute both speak about one
+heading, the comment wins and the disagreement is reported.</p>
+
+<h2>The three models</h2>
+
+<table>
+ <tr><th>Model</th><th>Carries</th></tr>
+ <tr><td><strong>document</strong></td><td>a title and ordered sections</td></tr>
+ <tr><td><strong>theme</strong></td><td>palette roles, type stack and scale, spacing step, curve and shape tokens, stroke weights</td></tr>
+ <tr><td><strong>layout</strong></td><td>a named composition, its grid, and the slots a section may occupy</td></tr>
+</table>
+
+<p>A section asks for a <strong>kind</strong> of slot - <code>entries</code> or
+<code>listing</code> - never for one by name. A layout keeps one slot per kind;
+naming none or keeping two is refused by path.</p>
+
+<p>A section carries <strong>entries</strong> (term, signature, description) or
+<strong>lines</strong> (a worked listing, with a syntax role per line and
+meaningful indentation).</p>
+
+<p>The <strong>compact</strong> document shape is a title and one flat
+<code>code</code> array, which is exactly a formal document of one untitled
+listing:</p>
+
+<pre><code>{
+  "title": "Sample Sheet",
+  "subtitle": "What this sheet is for",
+  "kind": "read",
+  "language": "javascript",
+  "seed": "sample-sheet",
+  "code": [
+    { "text": "const items = [\"one\", \"two\", \"three\"];", "role": "identifier" },
+    { "text": "console.log(items.length); // 3" }
+  ]
+}</code></pre>
+
+<p>A theme may be <strong>partial</strong>: laid over the recorded theme, then
+validated, then held to being readable before anything is drawn.</p>
+
+<h2>Rendering</h2>
+
+<pre><code>const render = await renderSheet(doc, { format: "webp", route: "browser" });
+render.data        // the bytes, on every format
+render.route       // which renderer answered
+render.publishable // whether it draws the face the design language measured</code></pre>
+
+<p><code>renderSVG</code> is canonical and every other format derives from it;
+<code>renderFragment</code> is that markup made embeddable. Writing a render to
+disk is a second import, <code>api/cheatsheet/files.mjs</code>, the only module
+in the folder that reads <code>node:fs</code>.</p>
+
+<h2>The catalog</h2>
+
+<pre><code>&lt;category&gt;/&lt;sheet&gt;/sheet.json
+&lt;category&gt;/&lt;group&gt;/&lt;sheet&gt;/sheet.json
+&lt;category&gt;/meta.json                    the readable title, and an order</code></pre>
+
+<p><code>cheatsheets.json</code> is committed rather than built at deploy time,
+so a local <code>php -S localhost:8000</code> needs no Node. Regenerate and
+commit it whenever a cheatsheet is added, renamed or moved.</p>
+
+<h2>Palette</h2>
+
+<table>
+ <tr><th>Role</th><th>Light</th><th>Dark</th></tr>
+ <tr><td>Page</td><td><code>#F8F8F9</code></td><td><code>#020433</code></td></tr>
+ <tr><td>Body text</td><td><code>#020433</code></td><td><code>#F8F8F9</code></td></tr>
+ <tr><td>Secondary text</td><td><code>#414566</code></td><td><code>#9EBEA7</code></td></tr>
+ <tr><td>Borders</td><td><code>#6F6F8C</code></td><td><code>#6F6F8C</code></td></tr>
+ <tr><td>Link, accent</td><td><code>#2E7534</code></td><td><code>#4CAE50</code></td></tr>
+</table>
+
+<p>The mark's green <code>#4CAE50</code> reaches 2.65:1 on the off white
+ground, so on light it carries nothing a reader has to see an edge of;
+<code>#2E7534</code> is the same hue darkened to 5.33:1 and takes those roles
+instead. One 8px spacing step, a 4px radius. The full record, with every
+measured ratio, is in
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE.md">DESIGN_LANGUAGE.md</a>.</p>
+
+<h2>Rules worth not rediscovering</h2>
+
+<ul class="prose">
+ <li>Nothing under <code>api/napkin-sketch/</code> is ever edited. A newer
+  version is vendored into it.</li>
+ <li>A test file kept as a record is named <code>&lt;name&gt;.cases.mjs</code>,
+  which no default <code>node --test</code> pattern matches.</li>
+ <li>The eleven JPEGs in <code>javaScriptArrays/</code> are deleted from the
+  runner's checkout before the Pages artifact is uploaded. They stay tracked
+  and committed.</li>
+ <li>Commit <code>cheatsheets.json</code> with whatever changed it.</li>
+</ul>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

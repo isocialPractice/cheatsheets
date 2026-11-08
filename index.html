@@ -259,6 +259,17 @@
  p.full-size a {
   color: var(--accent);
  }
+ /* The link to the documentation, directly under the title. The page styles no
+    anchor globally, so a link that is not named here draws in the browser's own
+    blue and is the one element on the page outside the palette. */
+ p.docs {
+  margin: 0 0 var(--space-3);
+  font-size: 0.875rem;
+  line-height: 1.5;
+ }
+ p.docs a {
+  color: var(--accent);
+ }
  /* The composed graphic carries its own width and height in sheet pixels, which
     `fragmentFor` strips so the element scales off the viewBox instead. Without
     that the 3600px root would overflow the column at every width. The fragment
@@ -301,6 +312,11 @@
 
 <body>
  <h1>Example Outputs</h1><hr>
+ <!-- The other half of the site. The documentation moved out of README.md into
+      docs/ on 2026.11.08, and a reader who arrives here has no other way to
+      reach it: the pages link back to this one, so the pair is reachable from
+      either end rather than only from the repository. -->
+ <p class="docs"><a href="docs/index.html">Read the documentation</a></p>
  <p id="consoleIntro" style="display:none">Open the terminal by pressing "F12", or right click and select "Inspect"; then selecting the console tab.</p>
 
  <div class="row">

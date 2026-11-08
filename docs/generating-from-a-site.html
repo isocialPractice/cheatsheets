@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generating from another site - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a aria-current="page" href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>Generating cheatsheets from another site</h1>
+
+<p class="lead">A site that already publishes code examples and explanatory
+sections holds everything a cheatsheet needs;
+<code>node tools/cheatsheet-site.mjs &lt;site&gt;</code> is what reads it.</p>
+
+<p>It crawls the tree for elements carrying <code>data-cheatsheet</code>,
+collects what each one wraps, and writes a cheatsheet page per folder of the
+site that marked any. The output folder is resolved before anything is written -
+<code>cheatsheets/</code> under the site root, then
+<code>cheatsheets/cheatsheets/</code>, then
+<code>cheatsheets/cheatsheets_0/</code> and upward until a name is free - so a
+site that already has one of those keeps it. The script imports nothing but
+Node builtins, because it runs against somebody else's checkout.</p>
+
+<h2>A folder is a subject, so a folder is a cheatsheet</h2>
+
+<p><code>guide/install.html</code> and <code>guide/usage.html</code> are written
+as <code>guide.html</code>, headed for the folder, with a section per page in
+the order the site reads them - each keeping the heading it asked for. A page at
+the site root has no folder to be named for and is written under its own name.
+Neither the name nor the markup depends on how many pages a folder holds, so the
+day a second page arrives is not the day the first page's output changes its
+name. Two folders of one name under different parents, or a root page named for
+a folder beside it, still want one file in a flat folder: that is reported and
+the later one is not written, rather than one being overwritten in silence.</p>
+
+<h2>The attribute method</h2>
+
+<p>The marker's value chooses the page's heading.
+<code>data-cheatsheet="title"</code> takes it from the page's own
+<code>&lt;title&gt;</code> and <code>data-cheatsheet="page"</code> from its file
+name; marked without a value, a page takes its title with its file name behind
+it. A value naming neither is reported with the page it was written on rather
+than quietly handed the default, as is an explicit <code>title</code> on a page
+that has none - the default has a documented fallback and the ask does not.</p>
+
+<p>A heading read off a <strong>name</strong> is read as prose -
+<code>somePageName.html</code> is headed <code>Some Page Name</code>, and
+<code>parseHTMLString.html</code> is <code>Parse HTML String</code> - while a
+<code>&lt;title&gt;</code> is left exactly as it was written, because a file
+name is written for a filesystem and a title was written to be read.</p>
+
+<h2>The comment method</h2>
+
+<p>A page with more than one thing to say marks its material with a comment
+instead.</p>
+
+<pre><code>&lt;!-- {% cheatsheet: [heading: page, group: page, name: splice] %} --&gt;</code></pre>
+
+<p>It applies to the element that follows it, with nothing but whitespace in
+between, and carries as many properties as it needs: <code>heading</code> names
+the source the heading is read from, <code>group</code> says whether the page
+joins its folder's cheatsheet or is one of its own, and <code>name</code> says
+what file the cheatsheet is written as. A cheatsheet comment is still a comment,
+so a marker written inside one is still not a marker.</p>
+
+<h2>Which method, and what happens when they disagree</h2>
+
+<p>Both methods feed one collector, so a page may use either and a site may use
+both - and where the two speak about one heading the comment wins, because it
+was written about the material rather than left on an element. The disagreement
+is reported either way, as is a property the vocabulary does not hold or a value
+it does not take, with the page and the line it was written on.</p>
+
+<h2>Reading a run before trusting it</h2>
+
+<p>A run can be read before it is trusted and run twice without moving
+anything. <code>--dry-run</code> reports the folder it resolved and the pages it
+would write, and touches nothing. A real run records the name it resolved in
+<code>cheatsheets/.../cheatsheet-site.json</code>, and a later run reads that
+rather than resolving a second section beside the first - which is what it would
+otherwise do, because run one's output is what makes <code>cheatsheets/</code>
+taken for run two.</p>
+
+<p>The manifest carries no timestamp, so a second run over an unchanged site
+writes the same bytes and the generated pages can be committed and diffed. It
+records its own shape, and a run reads every shape the tool has written: the
+folder is read off where the file sits rather than out of the file, so an older
+manifest answers that as well as a current one and is rewritten on the way
+past.</p>
+
+<h2>Why the collector is a scanner</h2>
+
+<p>Having no parser available is what makes the collector a scanner, and the
+limits of scanning are listed in that file's own header rather than left to be
+discovered. A start tag is walked rather than searched, so a <code>&gt;</code>
+inside an attribute value is not read as the end of one:
+<code>&lt;div title="a&gt;b" data-cheatsheet&gt;</code> is legal HTML, is one
+element, and is collected as one.</p>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

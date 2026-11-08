@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viewing the examples - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a aria-current="page" href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>Viewing the examples</h1>
+
+<p class="lead">There are two routes, and they are for two different readers,
+so they are listed as two rather than as one with a caveat attached. The
+published site is for reading the examples; a local server is for working on
+the page that draws them. Nobody needs both.</p>
+
+<h2>1. The published site</h2>
+
+<p><a href="../index.html">Open the example page</a>. Pick a cheatsheet from
+the first dropdown and an example from the second, and the sheet is composed in
+the browser. Where an example is a script, the page says so and asks for the
+console; the script's output - the illustrated examples from the cheat sheet
+posts - goes there. A cheatsheet that runs nothing is drawn without any of that
+being mentioned. Nothing is downloaded and nothing is installed.</p>
+
+<p>The address bar follows the selection, so a cheatsheet can be linked to
+directly. The fragment is the cheatsheet's own path, as in
+<code>index.html#javascript/arrays/splicing-arrays</code>, and a link naming
+one that has since been renamed or removed opens the page as though it carried
+no fragment at all, with the dead slug cleared out of the address bar rather
+than left there for the reader to copy and pass on.</p>
+
+<h2>2. A local server</h2>
+
+<p>For anyone changing the page, the catalog or a sheet. Clone the repository,
+serve the root, and open the address it prints:</p>
+
+<pre><code>php -S localhost:8000</code></pre>
+
+<p>A server is required rather than convenient, and this is the part worth
+reading twice: the page reads its catalog with <code>fetch</code> and imports
+the drawing surface as a module, and a browser refuses both to a
+<code>file://</code> document. Opening <code>index.html</code> straight from
+disk does not give a degraded view of the page, it gives a blank one.</p>
+
+<h2>Source for examples</h2>
+
+<p>The examples used are based on examples from:</p>
+
+<ol class="prose">
+ <li>Javascript Arrays:
+  <ul class="prose">
+   <li>w3schools -
+    <a href="https://www.w3schools.com/js/js_array_methods.asp">JS Array Methods</a></li>
+   <li>MDN Web Docs -
+    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort">Sorting Arrays</a></li>
+  </ul>
+ </li>
+</ol>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

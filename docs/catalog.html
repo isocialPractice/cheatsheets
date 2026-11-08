@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The catalog - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a aria-current="page" href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>The catalog</h1>
+
+<p class="lead">Every cheatsheet is a folder holding a <code>sheet.json</code>,
+at <code>&lt;category&gt;/&lt;sheet&gt;/</code> or
+<code>&lt;category&gt;/&lt;group&gt;/&lt;sheet&gt;/</code>, with the human
+readable titles in a <code>meta.json</code> at each level.</p>
+
+<p><code>node tools/build-manifest.mjs</code> walks that tree and writes
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/cheatsheets.json">cheatsheets.json</a>,
+which is committed rather than built when the site deploys, so a local
+<code>php -S localhost:8000</code> needs no Node. Regenerate and commit it
+whenever a cheatsheet is added, renamed or moved.</p>
+
+<h2>The same walk, as a gate</h2>
+
+<pre><code>node tools/build-manifest.mjs --check</code></pre>
+
+<p>It fails a missing title, a path that is not lower case kebab, a
+<code>kind</code> that disagrees with what is in the folder, a sheet whose
+composition will not fit its own margins, and a <code>cheatsheets.json</code>
+that has gone stale. The Pages workflow runs it before it publishes, which is
+where a casing mismatch is caught - those resolve on Windows and 404 on the
+published site.</p>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

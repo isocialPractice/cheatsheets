@@ -210,6 +210,75 @@ rounded interface would read as belonging to something else.
   centre. Capping the page at its content puts the two edges back together at
   every width without moving anything else.
 
+## The documentation site
+
+The documentation moved out of `README.md` into `docs/` on 2026.11.08, and its
+stylesheet is this record applied rather than a second reading of it:
+`docs/docs.css` opens on the same token block `index.html` carries, token for
+token. Three tokens are its own, because a page of prose and listings needs
+what a page wrapped around a graphic did not.
+
+| Token | Light | Dark | Why it is here |
+| --- | --- | --- | --- |
+| The `h2` step | 1.5rem / 1.25 | - | The app page has a title and a panel heading and nothing between them. A page split into sections needs the level between |
+| `--font-mono` | `ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace` | - | The app page loads no monospace face because its examples are read off the artwork. The documentation's examples are text on the page |
+| `--code` | `#EEEEF1` | `#0A0C44` | A listing needs a ground of its own, and it has to carry body ink and a link at full strength rather than be a panel text is lightened for |
+
+A listing is set at 0.9375rem / 1.55 rather than at the body size, because a
+monospace face runs wider than the body face at the same size and the listings
+are the one thing on the page that must not wrap: the examples carry
+indentation that means something, so a soft wrap reads as a line of the
+program. `pre` scrolls instead.
+
+Every pairing the two new grounds imply, measured the way the rest of this
+record was:
+
+| Pairing | Ratio | Passes |
+| --- | --- | --- |
+| `#020433` on `#EEEEF1` | 16.99:1 | AA normal |
+| `#414566` on `#EEEEF1` | 7.99:1 | AA normal |
+| `#2E7534` on `#EEEEF1` | 4.89:1 | AA normal |
+| `#6F6F8C` on `#EEEEF1` | 4.19:1 | AA non-text |
+| `#F8F8F9` on `#0A0C44` | 17.22:1 | AA normal |
+| `#9EBEA7` on `#0A0C44` | 9.04:1 | AA normal |
+| `#4CAE50` on `#0A0C44` | 6.51:1 | AA normal |
+| `#6F6F8C` on `#0A0C44` | 3.77:1 | AA non-text |
+
+**The one substitution holds on the code surface too.** The mark's green
+reaches 2.42:1 on `#EEEEF1` - worse than the 2.65:1 it reaches on the page
+ground, because the surface is darker - so the darkened `#2E7534` carries the
+link inside a listing as well as outside one. `#6F6F8C` keeps its single value
+across all four grounds: it clears the 3:1 a boundary has to clear on every one
+of them and the 4.5:1 text floor on none of the dark two, which is the same
+division of labour it already has.
+
+**The menu is fixed where there is room for one and static where there is
+not.** Above 900px it is a 280px column - 35 whole 8px steps - pinned to the
+left edge and scrolling in its own right, with the reading column centred in
+what is left of the body and capped at 768px, which is 96 steps. Below 900px it
+is the top of the document, read once and scrolled past, with one fixed anchor
+in the corner that puts a reader back at it from anywhere in a long page. That
+breakpoint is higher than the app page's 768px because the app page has no menu
+to make room for: 900 is where a 280px column and a reading measure stop
+competing for the same screen.
+
+**The entries wrap below the breakpoint rather than stacking.** Thirteen of
+them in a column is 820px measured at 390x844, which is most of a phone screen
+standing between a reader and the page they opened - so below 900px each
+group's list is a wrapped inline row and the whole menu is 500px, with the
+page's own title on screen beneath it. The grouping survives the change,
+because the group labels are what make thirteen links readable at either width.
+
+**Nothing on the site is drawn by a script.** The menu wanted one only in order
+to collapse, and reading as the top of the document below the breakpoint is what
+removes the need to collapse - so a documentation site that cannot be read with
+JavaScript off is a cost nothing here is paying for.
+
+**The page a reader is on is marked rather than merely coloured**, carrying
+`aria-current="page"` and, with it, a 2px left border in the column and weight
+with an underline in the wrapped row. Either way there is a signal that
+survives a reader who cannot tell the two greens apart.
+
 ## The sheets
 
 The eleven images in `javaScriptArrays/` were composed by hand and share a look

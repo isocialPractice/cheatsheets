@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drawing a sheet - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a aria-current="page" href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>Drawing a sheet</h1>
+
+<p class="lead">A cheatsheet is composed rather than screenshotted.</p>
+
+<p><code>api/napkin-sketch/</code> is the drawing surface, and
+<code>api/cheatsheet/</code> is the layer that knows what a sheet is, drawn to
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE.md">DESIGN_LANGUAGE.md</a>.
+Nothing has to be installed: the browser imports both by relative path with no
+build step, and <code>php -S localhost:8000</code> is still the whole local
+workflow. Worked examples are in
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/examples/README.md">examples/</a>.</p>
+
+<h2>The code panel is coloured token by token</h2>
+
+<p>A sheet names the language its example is written in, the drawing surface
+reads it, and each token takes one of the six syntax roles the design language
+names. Reading the code is the heaviest thing the page loads, so it is fetched
+on demand beside the catalog rather than before the first paint - a sheet drawn
+before it arrives falls back to the one role per line every
+<code>sheet.json</code> still declares, and says which of the two it used.</p>
+
+<h2>A category gets a design language of its own</h2>
+
+<p>It is recorded at the root as <code>DESIGN_LANGUAGE-&lt;category&gt;.md</code>
+- the first is
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE-html-css.md">DESIGN_LANGUAGE-html-css.md</a>.
+It is derived from the global record rather than being a second opinion about
+it: a category with no artwork has nothing to measure, so
+<code>tools/compose-language-asset.mjs</code> composes the record into a
+temporary SVG and the helper under <code>ai-helper/graphic-designer/</code>
+measures that. <code>javascript</code> is the exception and needs no file,
+because <code>DESIGN_LANGUAGE.md</code> was measured off its own images.</p>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>

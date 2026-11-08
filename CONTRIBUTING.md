@@ -685,6 +685,55 @@ If the folder ever grows a file the site does need, the step is a literal
 `rm javaScriptArrays/*.jpg` and will not touch it - but say so there, because a
 workflow that drops tracked files reads as a fault to whoever meets it next.
 
+## Where the documentation lives
+
+The long documentation moved out of `README.md` into `docs/` on 2026.11.08,
+when the README crossed 300 lines. Four things follow for anyone writing
+documentation here.
+
+**`docs/` is hand written HTML, and there is no build step.** Thirteen pages,
+one stylesheet, and nothing else - no generator, no dependency, no script on
+any page. That is the same constraint that keeps `php -S localhost:8000` the
+whole local workflow, and it is the reason a `.md` file is not a page: the site
+publishes the repository root with a `.nojekyll` beside it, so Markdown is
+served as raw text rather than rendered.
+
+**The menu is repeated on every page, and a test holds it together.** The
+repetition is what lets the site read with JavaScript off, and it is exactly
+the shape that drifts, so `tools/test-docs-site.mjs` compares the menu across
+the pages byte for byte, checks that every entry names a file and every file is
+named by an entry, and resolves every relative link. Add a page and you add it
+to thirteen menus; the test tells you which one you missed.
+
+**`README.md` is a front door.** Each section keeps a short stand-in - a
+paragraph, a small table, one code block - and its level 2 heading is a link to
+the page carrying the rest. The test asserts that too: a level 2 heading that
+is not a link to a page on the site fails.
+
+**`QUICKSTART.md` and `CHEATSHEET.md` are each a file and a page.** The file is
+what a reader on github.com gets rendered; the page is what a reader on the
+site gets. Edit both, and the test compares their listings so one corrected
+command cannot leave the other behind.
+
+### Linking out of a documentation page
+
+| Linking to | Write |
+| --- | --- |
+| Another documentation page | A relative link - `three-models.html` |
+| The example page | `../index.html` |
+| A Markdown record in the repository | The GitHub blob URL |
+
+The last row is the one that is not obvious. `../DESIGN_LANGUAGE.md` resolves
+on the site and serves plain text, because nothing renders Markdown there. The
+blob URL renders, and it is the same document.
+
+### A colour goes in the record before it goes in the stylesheet
+
+`docs/docs.css` opens on the same token block `index.html` carries, and the
+test holds the shared tokens equal across the two and every colour in either
+against a table in `DESIGN_LANGUAGE.md`. A new ground is measured against the
+inks it carries and written into **The documentation site** there first.
+
 ## Before you commit
 
 ```bash

@@ -17,6 +17,7 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 - [ ] Document both methods side by side, with the trade-off between them stated plainly
   - Earliest remaining item and the one that closes **The Comment Syntax Method**. `README.md` describes both as of 2026.11.07, so what is left is the argument rather than the behaviour: an attribute is one value and nothing to learn, a comment is several values and a syntax to get right, and which one a page wants depends on how much it has to say. Side by side means a reader deciding between them can see both in one place, which the two paragraphs it has now do not quite do
+  - The target moved on 2026.11.08: the detail about both methods is now on `docs/generating-from-a-site.html`, and `README.md` keeps a stand-in whose heading links to it. The argument belongs on that page, beside the two descriptions it already carries
   - From: Dedicated cheatsheet website `->` The Comment Syntax Method
 - [ ] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
   - Pulled ahead of the two fill items it is written after, because the artifact has to exist before anything can link to it. Built from the same cheatsheets `plannedPages` already carries and through `renderCheatsheet`'s own composition rather than a second renderer, which is the whole of what "cannot drift apart" asks for. Decide where it is written and what it is called deliberately: it goes in the resolved folder like every other generated page, so it is one more name that can collide
@@ -30,6 +31,9 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 - [ ] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
   - Refines the item above rather than standing beside it, which is why the two are queued together. `prose` already answers the text half, so a `base64Utils.html` entry reads `Base 64 Utils` - the same conversion the headings use, and one function rather than a second that could disagree with it. What is left is the link, which is the same relative question the page mode asks
   - From: Dedicated cheatsheet website `->` The Menu Element
+- [ ] Verify the documentation site deployed
+  - The documentation site at `docs/` was written and pushed on 2026.11.08; the Pages workflow builds it on the server for minutes after the push, so this run could not know whether it arrived. `.claude/agent-note.md` carries the branch, the workflow and the URL to ask about
+  - From: Create and Deploy GitHub Pages Override
 
 ## GitHub Pages Deployment
 
@@ -2055,5 +2059,17 @@ generate ideas about generating ideas.
 - [x] Let a comment override the parent tag method's defaults on the same page, so the two methods can be mixed
   - Last because it is the only one that cannot be decided from this method alone. The parent tag's defaults are now whole - the two heading values, the folder grouping, the prose naming - so what is left is stating which wins where both speak, and stating it in one place rather than wherever the two readings meet. A page naming two heading sources is already reported rather than silently resolved; this is the same question asked across methods instead of within one
   - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Settle the documentation plan: which page each README section becomes, where it sits, and where the menu goes
+  - From: Create and Deploy GitHub Pages Override
+- [x] Write the site's stylesheet and its fixed side menu from `DESIGN_LANGUAGE.md`
+  - From: Create and Deploy GitHub Pages Override
+- [x] Write one page per README section into `docs/`, moving the full text across rather than summarizing it into existence
+  - From: Create and Deploy GitHub Pages Override
+- [x] Write `QUICKSTART.md` and `CHEATSHEET.md`, and give each a page on the site
+  - From: Create and Deploy GitHub Pages Override
+- [x] Trim `README.md` to a front door, each section keeping a stand-in whose heading links to its page
+  - From: Create and Deploy GitHub Pages Override
+- [x] Hold the menu, the pages and the README's links together with a test
+  - From: Create and Deploy GitHub Pages Override
 
 </details>

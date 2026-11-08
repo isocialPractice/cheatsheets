@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The three models - cheatsheets</title>
+<link rel="icon" href="../favicon.ico" type="image/vnd.microsoft.icon" sizes="16x16 32x32 48x48">
+<link rel="stylesheet" href="docs.css">
+</head>
+
+<body>
+<a class="skip" href="#content">Skip to the documentation</a>
+<nav id="docs-menu" class="menu" aria-label="Documentation">
+ <a class="menu-home" href="../index.html">&#8592; Example outputs</a>
+ <p class="menu-title">Cheatsheets</p>
+ <p class="menu-group">Start here</p>
+ <ul>
+  <li><a href="index.html">Overview</a></li>
+  <li><a href="quickstart.html">Quickstart</a></li>
+  <li><a href="viewing-the-examples.html">Viewing the examples</a></li>
+ </ul>
+ <p class="menu-group">The cheatsheet API</p>
+ <ul>
+  <li><a href="drawing-a-sheet.html">Drawing a sheet</a></li>
+  <li><a aria-current="page" href="three-models.html">The three models</a></li>
+  <li><a href="rendering-outside-the-page.html">Rendering outside the page</a></li>
+ </ul>
+ <p class="menu-group">The catalog</p>
+ <ul>
+  <li><a href="catalog.html">The catalog</a></li>
+  <li><a href="adding-to-the-catalog.html">Adding to the catalog</a></li>
+ </ul>
+ <p class="menu-group">Generating from a site</p>
+ <ul>
+  <li><a href="generating-from-a-site.html">Generating from another site</a></li>
+ </ul>
+ <p class="menu-group">Reference</p>
+ <ul>
+  <li><a href="cheatsheet.html">Cheatsheet</a></li>
+  <li><a href="tests.html">Tests</a></li>
+  <li><a href="drawing-surface.html">Where the surface came from</a></li>
+  <li><a href="licence.html">Licence</a></li>
+ </ul>
+</nav>
+<main id="content">
+<h1>The three models</h1>
+
+<p class="lead">A caller describes a cheatsheet in three objects, each with a
+schema of its own: a <strong>document</strong> of a title and ordered sections;
+a <strong>theme</strong> of palette roles, a type stack and scale, the spacing
+step, the curve and shape tokens and the stroke weights; and a
+<strong>layout</strong> of a named composition, the grid it sits on, and the
+slots a section may occupy. The document says nothing about how any of it is
+drawn, which is what lets one document be set to two layouts.</p>
+
+<h2>A section asks for a kind of slot, not for a slot</h2>
+
+<p>A section asks the layout for a <strong>kind</strong> of slot rather than for
+a slot by name - <code>entries</code> or <code>listing</code> - and the layout
+answers with the one it keeps for that content. A composition sets one stream of
+rows, so a layout keeps <strong>one</strong> such slot, and the rows are placed
+from that slot's own box: a layout file that names no slot for a section, or
+that keeps two of them, is refused by path on the way in rather than drawn in a
+panel nobody asked for.</p>
+
+<h2>Entries, lines, and the compact shape</h2>
+
+<p>A section carries <strong>entries or lines</strong>: entries are a term, a
+signature and a description each, and <code>lines</code> is a worked code
+listing, whose syntax role per line and whose indentation both carry meaning an
+entry has nowhere to put. A document may also be written in the
+<strong>compact</strong> shape - a title and one flat <code>code</code> array,
+which is what every <code>sheet.json</code> in this repository is in and what
+the page reads. Both shapes are permanent: the compact one is exactly a formal
+document of one untitled listing, so it is the shorthand for the common case
+rather than a draft of anything.</p>
+
+<h2>The whole public input surface</h2>
+
+<p>The three are the whole public input surface, alongside a seed and the two
+brand assets. Nothing the renderer reads for itself is accepted: the design
+language record and the two width tables used to be passable as
+<code>options.language</code>, <code>options.face</code> and
+<code>options.codeFace</code>, and each is now refused by name pointing at the
+model that replaced it. So a caller composes a sheet without naming anything a
+renderer owns.</p>
+
+<h2>Derived from the design language, not written out again</h2>
+
+<p>The theme and the layout are both derived from
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE.md">DESIGN_LANGUAGE.md</a>
+rather than written out again, so a figure corrected in the record is corrected
+in both. Pass neither and a sheet composes to what the eleven images were
+measured at; pass one and only what it carries moves - a theme changes every
+paint and not one coordinate.</p>
+
+<h2>A theme may be partial</h2>
+
+<p>It is laid over the recorded theme and then validated, so one colour moves
+without the palette being restated, and a misspelt field is still named back by
+path. It is also held to being readable before anything is drawn - every pairing
+of ink and ground the theme and the layout imply is measured against the text
+floor, after the one substitution the design language nominates, and a theme
+that fails is refused rather than composed and annotated.</p>
+
+<h2>The type stack, and which family drew it</h2>
+
+<p>The type stack is a list of families rather than a CSS string, and a render
+records which of them actually drew it: the SVG names a stack it cannot
+guarantee, so the browser route measures what the engine resolved and reports it
+beside the bytes.</p>
+
+<h2>The way out</h2>
+
+<p>The way out is the layer's too, as of 2026.10.31. <code>renderSVG</code> is
+the canonical output and every other format is derived from it,
+<code>renderFragment</code> is that markup made embeddable in a page, and
+<code>renderSheet</code> names any of the five formats and takes the raster
+route from the call:</p>
+
+<pre><code>const render = await renderSheet(doc, { format: "webp", route: "browser" });
+render.data        // the bytes, on every format
+render.route       // which renderer answered
+render.publishable // whether it draws the face the design language measured</code></pre>
+
+<p>Every render comes back as data, so a sheet is embedded without a path being
+named. Writing one is a second import,
+<code>api/cheatsheet/files.mjs</code>, which is the only module in the folder
+that reads <code>node:fs</code> - the page loads the surface with a bare
+<code>import</code>, so a Node builtin in its static graph would fail in a
+browser at load. That module reads a document as well as writing a render:
+<code>readDocumentFile</code> takes a path and holds the JSON to whichever of
+the two document shapes it is written in, while <code>readDocument</code>
+beside it is the plain-object form. Those two are the whole input model, and a
+path naming any other format is refused by name rather than handed to
+<code>JSON.parse</code>.</p>
+
+<p>Each of the five formats has a worked example of its own in
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/examples/render-formats.mjs">examples/render-formats.mjs</a>,
+which composes one document and renders it five times - and reports which route
+answered, which family drew, and whether the result may be shown to a
+reader.</p>
+
+<h2>When a model is wrong</h2>
+
+<p>A model that is wrong is refused with the path to the field, in the notation
+a caller would reach it by:</p>
+
+<pre><code>cheatsheet: there is one problem with the sheet document.
+  document.sections[2].entries[1].term: must be a string, and is absent</code></pre>
+
+<p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
+The repository is on
+<a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the
+example page it documents is <a href="../index.html">here</a>.</p>
+</main>
+<a class="contents" href="#docs-menu">Contents</a>
+</body>
+</html>
