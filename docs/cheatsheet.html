@@ -108,6 +108,17 @@ folder, so it goes to <code>.tmp/</code> either way.</p>
 whitespace between. Where a comment and an attribute both speak about one
 heading, the comment wins and the disagreement is reported.</p>
 
+<p>Menus, written into the page rather than read out of it:</p>
+
+<pre><code>&lt;div data-cheatsheet-menu="page"&gt;&lt;/div&gt;       link to all-cheatsheets.html
+&lt;div data-cheatsheet-menu="dropdown"&gt;&lt;/div&gt;   an entry per generated page</code></pre>
+
+<p>Every cheatsheet is also written as <code>all-cheatsheets.html</code> in the
+generated folder. A link is relative to the page the menu is in; an entry's
+text is the generated file name read as prose. Plain content in the element is
+written over, while content holding a marking of its own is refused, and a
+value naming neither menu is reported rather than defaulted.</p>
+
 <h2>The three models</h2>
 
 <table>

@@ -8,7 +8,7 @@
 // collected by any later run of the tool against this folder, and this
 // repository is not a site the tool is for.
 //
-// Nine questions are asked, one per item the file closes.
+// Ten questions are asked, one per item the file closes.
 //
 //   1. **Does the collector read the markup a site actually writes?** Not the
 //      markup a test would write to be easy - nested elements of the same name,
@@ -51,6 +51,15 @@
 //      one sets, the shapes a hand written list of them has, what is reported
 //      with the page and the line when it says something unreadable, and which
 //      of the two methods wins where both speak about one page.
+//  10. **Is a menu written into the site's own page, and is it right?** The
+//      only marking this tool writes rather than reads, so the cases are about
+//      what is written and what is left alone: both modes filled, a link
+//      relative to the page it lands in rather than to the folder this tool
+//      resolved, the page's own newline and indentation, two menus on one page
+//      spliced without moving each other, and a run that changes nothing the
+//      second time. With them, the master page they point at - every cheatsheet
+//      through the function that writes one, named ahead of the cheatsheets so
+//      it cannot be written over.
 //
 // Run with: node --test tools/test-cheatsheet-site.mjs
 import { test } from "node:test";
@@ -70,8 +79,10 @@ import {
   crawlSite,
   headingFor,
   lineAt,
+  linkFrom,
   main,
   manifestFor,
+  menuElements,
   nameCollisions,
   namingFindings,
   opaqueRanges,
@@ -83,6 +94,7 @@ import {
   prose,
   readManifest,
   renderCheatsheet,
+  renderMaster,
   resolveOutput,
   titleOf,
   writeManifest,
@@ -100,7 +112,11 @@ import {
   MANIFEST_READABLE,
   MANIFEST_VERSION,
   MARKER,
+  MASTER_NAME,
+  MASTER_SOURCE,
   MAX_OUTPUT_TRIES,
+  MENU_MARKER,
+  MENU_MODES,
   NAME_PATTERN,
   NOT_SITE,
   OUTPUT_NAME,
@@ -163,6 +179,21 @@ function commented(title, properties, inner) {
     "</body></html>",
     "",
   ].join("\n");
+}
+
+/**
+ * A write or a plan with the master page taken out of it.
+ *
+ * Every run that writes anything writes the master as well, per **The Menu
+ * Element**, so a case about which **cheatsheets** a site grouped into says so
+ * rather than counting whatever is in the folder. The master is held to its own
+ * cases, which are the ones that name it.
+ *
+ * @param {Array<{ name: string }>} written
+ * @returns {Array<{ name: string }>}
+ */
+function sheetsOf(written) {
+  return written.filter((one) => one.name !== MASTER_NAME);
 }
 
 /** One comment's properties, parsed out of a string rather than off a site. */
@@ -592,8 +623,8 @@ test("a page with no marked element contributes nothing and is written nowhere",
     assert.deepEqual(pages.filter((one) => one.blocks.length > 0).map((one) => one.id), ["marked.html"]);
     const out = join(root, "out");
     const written = await writePages(pages, out);
-    assert.deepEqual(written.flatMap((one) => one.sources), ["marked.html"]);
-    assert.deepEqual(await readdir(out), ["marked.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["marked.html"]);
+    assert.deepEqual(await readdir(out), [MASTER_NAME, "marked.html"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -633,8 +664,8 @@ test("two folders of one name is reported, and neither is overwritten", async ()
     // does not depend on the filesystem.
     const out = join(root, "out");
     const written = await writePages(pages, out);
-    assert.deepEqual(written.flatMap((one) => one.sources), ["a/docs/one.html"]);
-    assert.deepEqual(await readdir(out), ["docs.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["a/docs/one.html"]);
+    assert.deepEqual(await readdir(out), [MASTER_NAME, "docs.html"]);
     assert.ok(readFileSync(join(out, "docs.html"), "utf8").includes("guide material"));
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -658,7 +689,7 @@ test("a root page and a folder of its name collide too, and the trailing slash s
     // for folders, and the reason the finding has to name both.
     assert.match(findings[0], /^docs\.html: would be written as docs\.html, which docs\/ already claimed/);
     const written = await writePages(pages, join(root, "out"));
-    assert.deepEqual(written.flatMap((one) => one.sources), ["docs/one.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["docs/one.html"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -684,8 +715,8 @@ test("two names that differ only in case are one name, because the folder is wri
 
     const out = join(root, "out");
     const written = await writePages(pages, out);
-    assert.deepEqual(written.flatMap((one) => one.sources), ["a/Guide/x.html"]);
-    assert.deepEqual(await readdir(out), ["Guide.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["a/Guide/x.html"]);
+    assert.deepEqual(await readdir(out), [MASTER_NAME, "Guide.html"]);
     // The one that was kept, and all of it: the material that used to be lost
     // is the material of the cheatsheet that claimed the name first.
     assert.ok(readFileSync(join(out, "Guide.html"), "utf8").includes("upper material"));
@@ -748,7 +779,7 @@ test("a page that collected nothing cannot collide, because it is never written"
     const pages = await collectSite(root);
     assert.deepEqual(nameCollisions(pages), []);
     const written = await writePages(pages, join(root, "out"));
-    assert.deepEqual(written.flatMap((one) => one.sources), ["b/docs/two.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["b/docs/two.html"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -835,14 +866,20 @@ test("the command crawls, resolves, writes and reports, in that order", async ()
     const out = printed.join("");
     assert.match(out, /3 pages crawled, 2 marked/);
     assert.match(out, new RegExp(`output folder\\s+${OUTPUT_NAME}`));
-    assert.match(out, /pages written\s+2/);
+    // Three: the two cheatsheets and the master page carrying both, which is
+    // reported for the pages it concatenates rather than for its own sources.
+    assert.match(out, /pages written\s+3/);
+    assert.match(out, /guide\.html, index\.html -> all-cheatsheets\.html \(master\)/);
+    // Nothing marked a menu, and the line is printed anyway: a site expecting
+    // one has to be able to see that the attribute was looked for.
+    assert.match(out, /menus filled\s+0/);
     // And the folder really holds them, under the name the report gave, with
     // the manifest beside them: the folder records where it is so the next run
     // writes here rather than resolving a second one. `guide/two.html` is
     // `guide.html`, because a folder is a cheatsheet.
     assert.deepEqual(
       (await readdir(join(root, OUTPUT_NAME))).sort(),
-      [MANIFEST_NAME, "index.html", "guide.html"].sort()
+      [MANIFEST_NAME, MASTER_NAME, "index.html", "guide.html"].sort()
     );
   } finally {
     process.stdout.write = write;
@@ -858,7 +895,7 @@ test("--out writes where it says instead of resolving a name", async () => {
     const code = await main([root, "--out", join(root, "elsewhere")]);
     process.stdout.write = write;
     assert.equal(code, 0);
-    assert.deepEqual((await readdir(join(root, "elsewhere"))).sort(), [MANIFEST_NAME, "index.html"].sort());
+    assert.deepEqual((await readdir(join(root, "elsewhere"))).sort(), [MANIFEST_NAME, MASTER_NAME, "index.html"].sort());
     // And nothing was resolved, so the site has no `cheatsheets/` it did not ask for.
     assert.deepEqual((await readdir(root)).sort(), ["elsewhere", "index.html"]);
   } finally {
@@ -886,7 +923,7 @@ test("a site with unreadable markup exits non-zero and still writes what it coul
     process.stderr.write = err;
     assert.equal(code, 1);
     assert.match(printed.join(""), /cheatsheet-site: bad\.html: /);
-    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "good.html"].sort());
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, MASTER_NAME, "good.html"].sort());
   } finally {
     process.stdout.write = write;
     process.stderr.write = err;
@@ -914,9 +951,12 @@ test("a collision reaches the report and the exit code, like any other finding",
     process.stderr.write = err;
     assert.equal(code, 1);
     assert.match(out.join(""), /2 pages crawled, 2 marked/);
-    assert.match(out.join(""), /pages written\s+1/);
+    // The cheatsheet that claimed the name, and the master page holding it. The
+    // one that was dropped is in neither: a master built out of what was
+    // written is a master that cannot claim to carry what was not.
+    assert.match(out.join(""), /pages written\s+2/);
     assert.match(errs.join(""), /cheatsheet-site: b\/docs\/: would be written as docs\.html/);
-    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "docs.html"].sort());
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, MASTER_NAME, "docs.html"].sort());
   } finally {
     process.stdout.write = write;
     process.stderr.write = err;
@@ -1441,8 +1481,8 @@ test("a folder whose every page is unmarked is no cheatsheet at all", async () =
     const pages = await collectSite(root);
     assert.deepEqual(cheatsheets(pages).map((one) => one.name), ["real.html"]);
     const written = await writePages(pages, join(root, "out"));
-    assert.deepEqual(await readdir(join(root, "out")), ["real.html"]);
-    assert.deepEqual(written.flatMap((one) => one.sources), ["real.html"]);
+    assert.deepEqual(await readdir(join(root, "out")), [MASTER_NAME, "real.html"]);
+    assert.deepEqual(sheetsOf(written).flatMap((one) => one.sources), ["real.html"]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1459,6 +1499,15 @@ test("a grouped cheatsheet counts the blocks of every page of it", async () => {
   try {
     const planned = plannedPages(await collectSite(root));
     assert.deepEqual(planned, [
+      // The master page is first, and counts the blocks of every cheatsheet for
+      // the same reason: it carries all of them.
+      {
+        name: MASTER_NAME,
+        heading: "All Cheatsheets",
+        headingSource: MASTER_SOURCE,
+        sources: ["guide/one.html", "guide/two.html"],
+        blocks: 3,
+      },
       {
         name: "guide.html",
         heading: "Guide",
@@ -1503,6 +1552,16 @@ test("the manifest records the folder it is in and the pages that were written",
     assert.equal(manifest.marker, MARKER);
     assert.equal(manifest.output, OUTPUT_NAME);
     assert.deepEqual(manifest.pages, [
+      // The master page, first and named as a page of the folder rather than as
+      // a cheatsheet of the site. `headingSource` is what a reader tells them
+      // apart by, and the reason the manifest's version moved to 3.
+      {
+        sources: ["guide/two.html", "index.html"],
+        page: MASTER_NAME,
+        heading: "All Cheatsheets",
+        headingSource: MASTER_SOURCE,
+        blocks: 2,
+      },
       // A folder's cheatsheet is headed for the folder, so `page` on the page
       // inside it chose that page's section heading rather than this one.
       {
@@ -1603,7 +1662,7 @@ test("a second run reads the manifest and writes where the first one did", async
     assert.match(second.out, new RegExp(`read from ${MANIFEST_NAME.replace(".", "\\.")}`));
     // One section, not two.
     assert.deepEqual((await readdir(root)).sort(), [OUTPUT_NAME, "index.html"]);
-    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "index.html"].sort());
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, MASTER_NAME, "index.html"].sort());
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1624,7 +1683,7 @@ test("and without it the second run lands in a second folder, which is what it b
     assert.ok(!second.out.includes("read from"));
     assert.deepEqual(
       (await readdir(join(root, OUTPUT_NAME))).sort(),
-      [OUTPUT_NAME, "index.html"].sort()
+      [OUTPUT_NAME, MASTER_NAME, "index.html"].sort()
     );
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -1728,7 +1787,7 @@ test("readManifest stops before it starts where the site has no cheatsheets fold
     // And `--out` never looks for one: the site owner named the folder.
     const out = join(root, "elsewhere");
     assert.equal((await run([root, "--out", out])).code, 0);
-    assert.deepEqual((await readdir(out)).sort(), [MANIFEST_NAME, "index.html"].sort());
+    assert.deepEqual((await readdir(out)).sort(), [MANIFEST_NAME, MASTER_NAME, "index.html"].sort());
     // Recorded site relative, not as the argument was typed. `--out` took an
     // absolute path here and the manifest is a committed file.
     assert.equal(JSON.parse(readFileSync(join(out, MANIFEST_NAME), "utf8")).output, "elsewhere");
@@ -1765,7 +1824,7 @@ test("--dry-run reports the folder and the pages, and leaves the tree exactly as
     assert.equal(code, 0);
     assert.match(out, /3 pages crawled, 2 marked/);
     assert.match(out, new RegExp(`output folder\\s+${OUTPUT_NAME}`));
-    assert.match(out, /pages to write\s+2/);
+    assert.match(out, /pages to write\s+3/);
     assert.match(out, /index\.html -> index\.html/);
     assert.match(out, /guide\/two\.html -> guide\.html/);
     assert.match(out, /nothing was written, because --dry-run/);
@@ -1798,6 +1857,9 @@ test("what a dry run says it would write is what a real run writes", async () =>
     assert.equal(dry.code, 1);
     assert.equal(real.code, 1);
     assert.deepEqual(lines(dry.out), [
+      // The master first, named for the cheatsheets it concatenates - and the
+      // one that lost the collision is not among them.
+      `  docs.html, guide.html, index.html -> ${MASTER_NAME} (${MASTER_SOURCE})`,
       `  a/docs/one.html -> docs.html (${FOLDER_SOURCE})`,
       `  guide/two.html -> guide.html (${FOLDER_SOURCE})`,
       "  index.html -> index.html (title)",
@@ -1848,7 +1910,7 @@ test("a second run over an unchanged site produces byte identical output", async
   try {
     assert.equal((await run([root])).code, 0);
     const first = await folderBytes(join(root, OUTPUT_NAME));
-    assert.deepEqual(Object.keys(first).sort(), [MANIFEST_NAME, "index.html", "guide.html", "reference.html"].sort());
+    assert.deepEqual(Object.keys(first).sort(), [MANIFEST_NAME, MASTER_NAME, "index.html", "guide.html", "reference.html"].sort());
 
     assert.equal((await run([root])).code, 0);
     const second = await folderBytes(join(root, OUTPUT_NAME));
@@ -1899,7 +1961,7 @@ test("the output folder is not crawled on the second run, so the pages do not co
     const second = await run([root]);
     assert.match(second.out, /1 page crawled, 1 marked/);
     assert.ok(NOT_SITE.includes(OUTPUT_NAME));
-    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "index.html"].sort());
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, MASTER_NAME, "index.html"].sort());
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2089,7 +2151,7 @@ test("a comment that marked nothing sets nothing, so it cannot outrank the one t
     assert.equal(pageGrouping(pages[0]), "folder");
     assert.equal(headingFor(pages[0]).source, "title");
     assert.deepEqual(
-      plannedPages(pages).map((one) => one.name),
+      sheetsOf(plannedPages(pages)).map((one) => one.name),
       ["real.html"]
     );
     // One finding, naming all three of them, rather than a silent rename.
@@ -2534,7 +2596,7 @@ test("two pages of one folder naming it two files keeps the first, and says whic
     const { code, err } = await run([root]);
     assert.equal(code, 1);
     assert.match(err, /cheatsheet-site: guide\/two\.html:4: name: concat renames a cheatsheet/);
-    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, "splice.html"].sort());
+    assert.deepEqual((await readdir(join(root, OUTPUT_NAME))).sort(), [MANIFEST_NAME, MASTER_NAME, "splice.html"].sort());
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2597,6 +2659,428 @@ test("the usage names the comment syntax, its properties and which method wins",
   assert.match(out, /\{% cheatsheet: \[heading: page, group: page, name: splice\] %\}/);
   for (const property of Object.keys(COMMENT_PROPERTIES)) assert.match(USAGE, new RegExp(`${property}:`));
   assert.match(USAGE, /the comment wins/);
+});
+
+// ## The master page
+
+test("the master page is every cheatsheet, composed by the function that writes one", () => {
+  // The item's own wording: generated from the same collected data as the
+  // individual pages, so the two cannot drift apart. What holds it is the
+  // heading level - a cheatsheet page writes its sheet at level 1 and the
+  // master writes each at level 2, through one function - so a case comparing
+  // the two documents' material is comparing one composition against itself.
+  const pages = [
+    {
+      path: "/x/guide/one.html",
+      id: "guide/one.html",
+      title: "One",
+      blocks: [{ tag: "div", value: null, content: "<p>guide one</p>", at: 0, line: 1, method: "attribute", properties: {}, problems: [] }],
+      menus: [],
+      findings: [],
+    },
+    {
+      path: "/x/splice.html",
+      id: "splice.html",
+      title: "Splice",
+      blocks: [{ tag: "section", value: "title", content: "<p>splice</p>", at: 0, line: 1, method: "attribute", properties: {}, problems: [] }],
+      menus: [],
+      findings: [],
+    },
+  ];
+  const sheets = cheatsheets(pages);
+  assert.deepEqual(sheets.map((one) => one.name), ["guide.html", "splice.html"]);
+  const markup = renderMaster({ heading: "All Cheatsheets", pages, parts: sheets });
+
+  // Its own heading, then one section per cheatsheet naming the file that
+  // cheatsheet is also written as.
+  assert.match(markup, /<h1>All Cheatsheets<\/h1>/);
+  assert.match(markup, /<section data-cheatsheet-sheet="guide\.html">\n<h2>Guide<\/h2>/);
+  assert.match(markup, /<section data-cheatsheet-sheet="splice\.html">\n<h2>Splice<\/h2>/);
+  // A folder's cheatsheet is sectioned and its pages drop one level with it, so
+  // the master has an outline rather than four `<h1>`s.
+  assert.match(markup, /<section data-cheatsheet-page="guide\/one\.html">\n<h3>One<\/h3>/);
+  assert.ok(!markup.includes("<h1>Guide</h1>"), "a cheatsheet keeps its page heading level inside the master");
+
+  // Every page of the site in the head, and every page's material in the body -
+  // the same material the individual pages carry, which is what "cannot drift
+  // apart" is a claim about.
+  for (const page of pages) {
+    assert.ok(markup.includes(`<meta name="cheatsheet-source" content="${page.id}">`));
+    assert.ok(markup.includes(page.blocks[0].content));
+  }
+});
+
+test("the master page claims its name before any cheatsheet can", async () => {
+  // It is one more name in a flat folder, and it is the page every menu links
+  // to - so a cheatsheet written over it would leave the site pointing at the
+  // wrong document. Reported through the mechanism a collision already has.
+  const root = await site({ [MASTER_NAME]: page("Clash", "<p>wants the master's name</p>") });
+  try {
+    const pages = await collectSite(root);
+    const findings = nameCollisions(pages);
+    assert.equal(findings.length, 1);
+    assert.match(
+      findings[0],
+      new RegExp(`^${MASTER_NAME.replace(".", "\\.")}: would be written as ${MASTER_NAME.replace(".", "\\.")}, which the master page already claimed`)
+    );
+    // Nothing is written at all: the one cheatsheet lost its name, so there is
+    // nothing left for a master page to concatenate.
+    assert.deepEqual(plannedPages(pages), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a site that marked nothing gets no master page either", async () => {
+  const root = await site({ "plain.html": "<html><body><p>nothing</p></body></html>" });
+  try {
+    assert.deepEqual(await writePages(await collectSite(root), join(root, "out")), []);
+    assert.deepEqual(await readdir(root), ["plain.html"]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// ## The menu element
+
+test("a page menu is filled with a link to the master page", async () => {
+  const root = await site({
+    "index.html": `<html><head><title>Home</title></head>\n<body>\n<nav><div ${MENU_MARKER}="page"></div></nav>\n<div ${MARKER}><p>material</p></div>\n</body></html>\n`,
+  });
+  try {
+    const { code, out } = await run([root]);
+    assert.equal(code, 0);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    assert.ok(
+      html.includes(`<div ${MENU_MARKER}="page"><a href="${OUTPUT_NAME}/${MASTER_NAME}">All Cheatsheets</a></div>`),
+      html
+    );
+    // Reported with the line as well as the page, because a page can mark two.
+    assert.match(out, /menus filled\s+1/);
+    assert.match(out, /index\.html:3 -> page \(1 entry\)/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a dropdown is one entry per page of the generated folder, master first", async () => {
+  // The mode that reads the generated folder as data rather than writing it.
+  // The master leads, because the page carrying all of it stands ahead of the
+  // parts of it, and the manifest records them in that order.
+  const root = await site({
+    "index.html": `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="dropdown"></div>\n<div ${MARKER}><p>home</p></div>\n</body></html>\n`,
+    "guide/one.html": page("One", "<p>one</p>"),
+    "base64Utils.html": page("Base 64", "<p>utils</p>"),
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    // A working control with no script and no stylesheet, which is the whole
+    // reason it is a `<details>` rather than a `<select>`.
+    assert.match(html, /<details>\n\s+<summary>Cheatsheets<\/summary>/);
+    const entries = [...html.matchAll(/<li><a href="([^"]+)">([^<]+)<\/a><\/li>/g)].map((one) => [one[1], one[2]]);
+    assert.deepEqual(entries, [
+      [`${OUTPUT_NAME}/${MASTER_NAME}`, "All Cheatsheets"],
+      // The text is the prose form of the generated file's name, so the digit
+      // boundary a heading reads is the one an entry reads.
+      [`${OUTPUT_NAME}/base64Utils.html`, "Base 64 Utils"],
+      [`${OUTPUT_NAME}/guide.html`, "Guide"],
+      [`${OUTPUT_NAME}/index.html`, "Index"],
+    ]);
+    // Every entry names a file that is really there.
+    for (const [link] of entries) assert.ok(readFileSync(join(root, ...link.split("/")), "utf8").length > 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a link is relative to the page it is written into, not to the resolved folder", async () => {
+  // The question the menu raised and nothing else in this tool had to answer:
+  // everything else a run writes goes into the resolved folder, and a menu goes
+  // into a page of the site that may sit two folders down.
+  const root = await site({
+    "deep/down/nav.html": `<html><head><title>Nav</title></head>\n<body>\n<div ${MENU_MARKER}="dropdown"></div>\n</body></html>\n`,
+    "index.html": page("Home", "<p>home</p>"),
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const html = readFileSync(join(root, "deep", "down", "nav.html"), "utf8");
+    assert.ok(html.includes(`<a href="../../${OUTPUT_NAME}/${MASTER_NAME}">`), html);
+    assert.ok(html.includes(`<a href="../../${OUTPUT_NAME}/index.html">`), html);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("linkFrom walks the two paths apart, and never drops the file it points at", () => {
+  // Unit cases rather than a site, because the three shapes that matter are
+  // path arithmetic: a page beside the folder, a page under it, and a page in
+  // the folder's own parent chain.
+  assert.equal(linkFrom("nav.html", "cheatsheets/guide.html"), "cheatsheets/guide.html");
+  assert.equal(linkFrom("deep/down/nav.html", "cheatsheets/guide.html"), "../../cheatsheets/guide.html");
+  assert.equal(linkFrom("a/nav.html", "a/out/guide.html"), "out/guide.html");
+  // The target's last segment is its file name and is never shared away, so a
+  // page in the folder it is listing still gets a usable link.
+  assert.equal(linkFrom("out/nav.html", "out/guide.html"), "guide.html");
+  // `--out .` puts the pages at the site root, which the walk reads as no
+  // folder rather than as a `.` segment to climb out of.
+  assert.equal(linkFrom("deep/nav.html", "guide.html"), "../guide.html");
+});
+
+test("two menus on one page are both filled, and the rest of the page is untouched", async () => {
+  // One read and one write per page, with the splices applied from the end
+  // backwards: forwards, filling the first moves the offsets of the second by
+  // the difference between what was there and what was written.
+  const before = `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="page"></div>\n<p>between</p>\n<div ${MENU_MARKER}="dropdown"></div>\n<div ${MARKER}><p>material</p></div>\n</body></html>\n`;
+  const root = await site({ "index.html": before });
+  try {
+    const { code, out } = await run([root]);
+    assert.equal(code, 0);
+    assert.match(out, /menus filled\s+2/);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    assert.match(html, new RegExp(`<div ${MENU_MARKER}="page"><a href=`));
+    assert.match(html, new RegExp(`<div ${MENU_MARKER}="dropdown">\\n\\s+<details>`));
+    // Nothing outside the two marked spans moved, which is what makes this a
+    // splice rather than a rewrite.
+    for (const line of ["<html><head><title>Home</title></head>", "<p>between</p>", `<div ${MARKER}><p>material</p></div>`]) {
+      assert.ok(html.includes(line), line);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a filled page keeps its own line endings and indentation", async () => {
+  // The menu is written into a file somebody else maintains, so a run that
+  // handed it back with this platform's newline would report every line of it
+  // as changed. The indentation is the same argument: a generated block flush
+  // left in an indented file is a diff a site owner reverts.
+  const root = await site({
+    "index.html": `<html>\r\n<body>\r\n    <div ${MENU_MARKER}="dropdown"></div>\r\n    <div ${MARKER}><p>material</p></div>\r\n</body>\r\n</html>\r\n`,
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    assert.ok(!/[^\r]\n/.test(html), "a line of the page is no longer CRLF");
+    assert.ok(html.includes("\r\n      <details>\r\n"), html);
+    assert.ok(html.includes("\r\n    </div>\r\n"), html);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a second run leaves a filled page exactly as the first one left it", async () => {
+  // Filling a menu changes the site, so the byte identical promise is about
+  // what happens from the second run on: the fill is composed from the
+  // manifest, not from what is in the element, so it converges.
+  const root = await site({
+    "index.html": `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="dropdown"></div>\n<div ${MARKER}><p>material</p></div>\n</body></html>\n`,
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const first = readFileSync(join(root, "index.html"), "latin1");
+    const generated = await folderBytes(join(root, OUTPUT_NAME));
+    assert.equal((await run([root])).code, 0);
+    assert.equal(readFileSync(join(root, "index.html"), "latin1"), first);
+    assert.deepEqual(await folderBytes(join(root, OUTPUT_NAME)), generated);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("--dry-run reports the menus it would fill and fills none of them", async () => {
+  const before = `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="dropdown"></div>\n<div ${MARKER}><p>material</p></div>\n</body></html>\n`;
+  const root = await site({ "index.html": before });
+  try {
+    const dry = await run([root, "--dry-run"]);
+    assert.equal(dry.code, 0);
+    assert.match(dry.out, /menus to fill\s+1/);
+    assert.match(dry.out, /index\.html:3 -> dropdown \(2 entries\)/);
+    assert.equal(readFileSync(join(root, "index.html"), "utf8"), before);
+    // What the dry run promised is what the real run writes, which is the whole
+    // value of a dry run that is believed: one plan, read twice.
+    const real = await run([root]);
+    const menuLine = (text) => text.split("\n").filter((line) => line.includes(" -> ") && line.includes("dropdown"));
+    assert.deepEqual(menuLine(dry.out), menuLine(real.out));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("what a menu element cannot say is reported with the page and the line", async () => {
+  // Six sentences, because six things are wrong here and a report that said
+  // "some menus were not written" sends nobody to a line.
+  const root = await site({
+    "bad.html": [
+      "<html><head><title>Bad</title></head>",
+      "<body>",
+      `<section ${MARKER}="page">`,
+      "  <p>material</p>",
+      `  <div ${MENU_MARKER}="dropdown"></div>`,
+      "</section>",
+      `<div ${MARKER} ${MENU_MARKER}="page"><p>both</p></div>`,
+      `<div ${MENU_MARKER}="sidebar"></div>`,
+      `<div ${MENU_MARKER}></div>`,
+      `<img ${MENU_MARKER}="page">`,
+      `<div ${MENU_MARKER}="page">`,
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const { code, err } = await run([root]);
+    assert.equal(code, 1);
+    // Nested inside collected material: filling it would put the menu on the
+    // generated cheatsheet the next run writes, with its links relative to the
+    // page it was written into rather than to the page it ended up on.
+    assert.match(err, /bad\.html:5: <div> carrying data-cheatsheet-menu sits inside material marked/);
+    // Both markings on one element: the content was read out of it, so writing
+    // a menu in would replace what was just collected.
+    assert.match(err, /bad\.html:7: <div> carries data-cheatsheet and data-cheatsheet-menu/);
+    // A value naming no menu, and no value at all. Neither is given a default,
+    // unlike the marker's: the two menus are a link and a list, and guessing
+    // writes markup nobody asked for into somebody else's page.
+    assert.match(err, /bad\.html:8: data-cheatsheet-menu="sidebar" names no menu/);
+    assert.match(err, /bad\.html:9: data-cheatsheet-menu is written with no value/);
+    for (const mode of Object.keys(MENU_MODES)) assert.match(err, new RegExp(`${mode} \\(`));
+    // An element that can enclose nothing, and one that is never closed.
+    assert.match(err, /bad\.html:10: <img> cannot enclose anything/);
+    assert.match(err, /bad\.html:11: the <div> carrying data-cheatsheet-menu is never closed/);
+    // Not one of them was written, and the page is unchanged apart from that.
+    assert.ok(!readFileSync(join(root, "bad.html"), "utf8").includes("<details>"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a menu element holding marked material is refused, so the site keeps its copy", async () => {
+  // The costlier direction of the nesting, and the one that is not recoverable:
+  // the fill writes over whatever is between the tags, and the collector has
+  // already read that material out of this page. Replacing it leaves the site's
+  // own copy gone, and a second run finds nothing marked here to write again -
+  // so the only copy left would be the one in the generated folder.
+  const root = await site({
+    "index.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `  <div ${MENU_MARKER}="dropdown">`,
+      `    <div ${MARKER}="page">`,
+      "      <pre>material</pre>",
+      "    </div>",
+      "  </div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const { code, err } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /index\.html:3: the <div> carrying data-cheatsheet-menu holds material marked/);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    assert.ok(html.includes("<pre>material</pre>"), "the material was written over");
+    assert.ok(!html.includes("<details>"), "a menu was written into it anyway");
+    // The cheatsheet itself was still written: the refusal is the menu's alone.
+    assert.ok(readFileSync(join(root, OUTPUT_NAME, "index.html"), "utf8").includes("<pre>material</pre>"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a menu element holding another one is refused, and the inner one still fills", async () => {
+  // Two spans where one contains the other. The fills are applied back to front
+  // so that earlier offsets survive later cuts, which holds for menus side by
+  // side and cannot hold for nested ones: the inner splice has already moved
+  // the outer one's end offset by the time it is used, so filling both cuts
+  // through the markup that replaced the inner menu and hands back a page that
+  // does not parse. The inner is the one that can be written safely.
+  const root = await site({
+    "index.html": [
+      "<html><head><title>Guide</title></head>",
+      "<body>",
+      `  <div ${MARKER}="page"><pre>code</pre></div>`,
+      `  <div ${MENU_MARKER}="dropdown">`,
+      `    <span ${MENU_MARKER}="page"></span>`,
+      "  </div>",
+      "</body></html>",
+      "",
+    ].join("\n"),
+  });
+  try {
+    const { code, err } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /index\.html:4: the <div> carrying data-cheatsheet-menu holds another/);
+    const html = readFileSync(join(root, "index.html"), "utf8");
+    // The inner menu is filled, and every tag of the page is still whole.
+    assert.match(html, /<span data-cheatsheet-menu="page"><a href="[^"]+">All Cheatsheets<\/a><\/span>/);
+    assert.ok(!html.includes("<details>"), "the outer menu was filled as well");
+    assert.equal(html.match(/<a /g).length, 1);
+    // What the corruption looked like: the outer cut mid-attribute, so the tail
+    // of one was left behind as text opening a line of its own.
+    assert.ok(!/^\s*heatsheets\//m.test(html), "a cut attribute was left in the page");
+    assert.ok(html.endsWith("  </div>\n</body></html>\n"), "the outer element lost its close");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a menu with nothing to list is reported rather than filled with an empty list", async () => {
+  const root = await site({ "a.html": `<html><body><div ${MENU_MARKER}="page"></div></body></html>\n` });
+  try {
+    const { code, err, out } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /a\.html:1: data-cheatsheet-menu="page" asks for a menu and the site marked no material/);
+    assert.match(out, /menus filled\s+0/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an output folder outside the site has no link from a page, and says so", async () => {
+  // `--out` takes whatever was typed, so the folder can be beside the site or
+  // on another drive. An absolute path written into the site's markup is this
+  // machine's answer in a file read on another.
+  const root = await site({
+    "index.html": `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="page"></div>\n<div ${MARKER}><p>material</p></div>\n</body></html>\n`,
+  });
+  const out = await mkdtemp(join(tmpdir(), "cheatsheet-site-out-"));
+  try {
+    const { code, err } = await run([root, "--out", out]);
+    assert.equal(code, 1);
+    assert.match(err, /index\.html:3: the output folder .* is not inside the site/);
+    assert.ok(!readFileSync(join(root, "index.html"), "utf8").includes("<a href="));
+    // The pages themselves were still written, the way any other finding leaves
+    // what it could read written.
+    assert.ok((await readdir(out)).includes(MASTER_NAME));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(out, { recursive: true, force: true });
+  }
+});
+
+test("the menu attribute is still not the marker, and the marker is still not it", () => {
+  // The distinction the collector has turned on since before there was a menu
+  // to fill, held from both sides now that both scans exist.
+  assert.deepEqual(collectMarked(`<div ${MENU_MARKER}="page"></div>`), []);
+  const menus = menuElements(`<div ${MARKER}><p>x</p></div>`);
+  assert.deepEqual(menus, []);
+  // And an attribute whose name merely starts the same way as the menu's is a
+  // third attribute, belonging to neither.
+  assert.deepEqual(menuElements(`<div ${MENU_MARKER}-extra="page"></div>`), []);
+  // A marker inside a comment is not a marker, which holds for this one too: a
+  // commented out block is where a site owner leaves markup they decided
+  // against.
+  assert.deepEqual(menuElements(`<!-- <div ${MENU_MARKER}="page"></div> -->`), []);
+});
+
+test("the usage names the menu element, both modes and the master page", async () => {
+  const { code, out } = await run(["--help"]);
+  assert.equal(code, 0);
+  assert.match(out, new RegExp(MENU_MARKER));
+  for (const [mode, what] of Object.entries(MENU_MODES)) {
+    assert.match(USAGE, new RegExp(`${MENU_MARKER}="${mode}"`));
+    assert.match(USAGE, new RegExp(what.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(USAGE, new RegExp(MASTER_NAME.replace(".", "\\.")));
 });
 
 // ## What the tool may depend on

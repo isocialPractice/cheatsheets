@@ -110,20 +110,76 @@
 // ## What belongs to later items, and is deliberately absent
 //
 // **The Scripted Tool** is finished here as of 2026.11.05, **The Parent Tag
-// Method** as of 2026.11.06 and **The Comment Syntax Method** as of 2026.11.07;
-// the sections below them in `TODO.md` are whole methods of their own. Reading
-// those as scaffolding to leave hooks for would be the wrong shape; what is here
-// is whole, and what is missing is missing on purpose:
+// Method** as of 2026.11.06, **The Comment Syntax Method** as of 2026.11.07 and
+// the two modes of **The Menu Element** as of 2026.11.09; the sections below
+// them in `TODO.md` are whole methods of their own. Reading those as scaffolding
+// to leave hooks for would be the wrong shape; what is here is whole, and what
+// is missing is missing on purpose:
 //
 // | Absent | Owned by |
 // | --- | --- |
-// | A menu element filled from the resolved folder | **The Menu Element** |
+// | Leaving a menu element alone when its content is plain | **The Menu Element** |
 // | The page composed through `api/cheatsheet/` | **Building on the API** |
+//
+// The first is the one to know about before running this against a site that
+// has anything in its menu element: plain content between the tags is written
+// over, so a hand written menu left there as a fallback is replaced. The item
+// that guards it is queued; until it lands, a menu element whose content is
+// plain is an element this tool owns.
+//
+// What is **not** absent is the case where that content is not plain. Content
+// carrying a marking of its own - material, or a second menu - is refused with
+// a finding rather than written over, because neither is a fallback somebody
+// loses the look of: filling over collected material deletes the site's only
+// copy of it, since the next run finds nothing marked there to write again, and
+// filling two nested menus cuts the page's markup apart on the second splice.
+// Those two are errors whatever the queued item decides about plain content,
+// which is why they are answered here rather than with it.
 //
 // The last of those is why the emitted page is string concatenation and says
 // so. A generated page and a generated media file should be two renders of one
 // composition, and making that true is an item with the whole output surface
 // behind it; writing a half-composition here would be something to undo.
+//
+// ## The menu element, and the master page it points at
+//
+// `data-cheatsheet-menu` is the third marking and the only one that writes
+// **into** a page the site owner keeps. Two modes, per {@link MENU_MODES}: a
+// `page` menu is a link to the one page carrying every cheatsheet, and a
+// `dropdown` is an entry per page of the generated folder. Four decisions are
+// worth stating.
+//
+// - **The master page is composed by the same function as the individual
+//   pages.** {@link sheetLines} writes one cheatsheet at whatever heading level
+//   it is given, so a cheatsheet page is that at level 1 and the master is every
+//   cheatsheet at level 2 under a heading of its own. A second renderer would
+//   have been the obvious shape and is exactly what the item ruled out: the two
+//   pages would have drifted the first time either was changed.
+// - **It is a page of the folder, so it is in the plan, the manifest and the
+//   name check.** {@link plannedPages} carries it first and
+//   {@link groupCheatsheets} claims its name before any cheatsheet can, so a
+//   cheatsheet that wants {@link MASTER_NAME} is reported like any other
+//   collision rather than overwriting the page the menu links to.
+// - **The menu is filled from the manifest, and from the manifest a run holds
+//   rather than one it reads back.** The object is built whether or not it is
+//   written, so `--dry-run` reports the menu a real run writes - the same
+//   argument {@link plannedPages} is one function for. What that buys is a
+//   dropdown listing what the manifest says was generated rather than whatever
+//   is in the folder, which is the only reading that survives a folder somebody
+//   has since added a file to.
+// - **A link is relative to the page being written into, not to the folder this
+//   tool resolved.** Everything else this tool writes goes into the resolved
+//   folder, so a page two folders down is the case that had to be answered
+//   rather than discovered: {@link linkFrom} walks the two site relative paths
+//   apart. An output folder outside the site has no such link, and that is
+//   reported rather than written as a path that works on one machine.
+//
+// An entry's text is the prose form of the generated file's name rather than the
+// cheatsheet's own heading, and the two can differ: a heading read off a
+// `<title>` is a sentence a site wrote to be read, which is the wrong length for
+// a menu. The name is the one thing every entry has, and {@link prose} is
+// already how this tool reads a name - so `base64Utils.html` is `Base 64 Utils`
+// in a menu entry and in a heading by one conversion rather than two.
 //
 // ## Naming, and a folder as a subject
 //
@@ -236,14 +292,57 @@
 // modes report from is one function, {@link plannedPages}, so what a dry run
 // says and what a real run does cannot drift.
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { basename, extname, join, relative, resolve, sep } from "node:path";
+import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** The attribute a site marks cheatsheet material with. */
 export const MARKER = "data-cheatsheet";
 
+/**
+ * The attribute a site marks the place its cheatsheet menu goes with.
+ *
+ * A longer name than {@link MARKER} and a different attribute, which is why
+ * the marker scan tests the character after the name it found: a site has been
+ * able to write this since before there was anything to put in one, and
+ * collecting it as material would have put a menu's own markup on a cheatsheet.
+ */
+export const MENU_MARKER = "data-cheatsheet-menu";
+
+/**
+ * The menus a site can ask for, and what each one is.
+ *
+ * Data for the reason {@link COMMENT_PROPERTIES} is: the finding for a value
+ * naming no menu reads this list, so what the tool accepts and what it says it
+ * accepts cannot disagree. Two entries because there are two things a site
+ * wants in a page it keeps - a way in to all of it, and a way to each part of
+ * it - and not because a wider surface was trimmed.
+ */
+export const MENU_MODES = {
+  page: "a link to the one page carrying every cheatsheet",
+  dropdown: "an entry per page in the generated folder",
+};
+
 /** The folder name a generated cheatsheet section is written into. */
 export const OUTPUT_NAME = "cheatsheets";
+
+/**
+ * The file every cheatsheet is concatenated into.
+ *
+ * It sits in the resolved folder like every other generated page, so it is one
+ * more name that can collide - and it claims its name before any cheatsheet
+ * does, per {@link groupCheatsheets}. That is the whole reason the name is not
+ * `index.html`: a site's own root `index.html` is the commonest marked page
+ * there is, its cheatsheet is written under that name, and a master page called
+ * the same thing would collide on nearly every site it ran against. This name
+ * can only be wanted by a root page literally called `all-cheatsheets.html` or
+ * by a comment that asks for it, and either is reported rather than overwritten.
+ *
+ * Its heading is read off this name through {@link prose}, rather than being a
+ * second constant that could disagree with it - the same conversion a page
+ * headed from its own file name gets, so the dropdown entry, the `<title>` and
+ * the `<h1>` are one answer: `All Cheatsheets`.
+ */
+export const MASTER_NAME = "all-cheatsheets.html";
 
 /** What this tool calls itself, in the manifest and in a generated page. */
 export const GENERATOR = "cheatsheet-site";
@@ -263,8 +362,15 @@ export const MANIFEST_NAME = "cheatsheet-site.json";
  * `source` left pointing at the first is the field whose meaning changed
  * without saying so - a reader that had one page per entry would carry on
  * believing it.
+ *
+ * `3` because `pages` gained the master page, which is a page of the folder and
+ * not a cheatsheet of the site. No field was added and none was renamed, so a
+ * reader looking a page up by name is unaffected - but one that counted the
+ * entries to count the site's cheatsheets is now off by one, and
+ * {@link MASTER_SOURCE} in `headingSource` is what tells the two apart. That is
+ * a meaning changed in silence, which is what this number is raised for.
  */
-export const MANIFEST_VERSION = 2;
+export const MANIFEST_VERSION = 3;
 
 /**
  * The manifest versions {@link readManifest} will read a folder's location out
@@ -282,7 +388,7 @@ export const MANIFEST_VERSION = 2;
  * manifest from a later version of the tool from being read with this one's
  * meaning.
  */
-export const MANIFEST_READABLE = [1, 2];
+export const MANIFEST_READABLE = [1, 2, 3];
 
 /**
  * The values `data-cheatsheet` names a heading source with.
@@ -302,6 +408,18 @@ export const HEADING_SOURCES = ["title", "page"];
  * they asked for as their own sections.
  */
 export const FOLDER_SOURCE = "folder";
+
+/**
+ * The heading source of the master page, and what identifies it in a manifest.
+ *
+ * Not in {@link HEADING_SOURCES} for the reason {@link FOLDER_SOURCE} is not:
+ * no site writes it. It does one more job than the other two, which is why it
+ * is worth a constant rather than a string - a reader of the manifest tells the
+ * master page from the site's cheatsheets by this value, since the master is an
+ * entry in `pages` like any other and is a page of the folder rather than a
+ * cheatsheet of the site.
+ */
+export const MASTER_SOURCE = "master";
 
 /**
  * How a block was marked, as data, so a finding can name the method a site used.
@@ -971,8 +1089,14 @@ function commentCandidates(html, ranges) {
  * properties that are being ignored, which is the kind of silence this file
  * spends its findings on, so the block is kept with nothing in it and reported.
  *
+ * A collected block carries `reach`, the offset its material ends at, which is
+ * the one thing a caller cannot work out from the content: a block that is
+ * dropped as nested has none, because it collected nothing to reach the end of.
+ * {@link collectSite} reads it to tell whether a menu marking sits inside
+ * material already collected.
+ *
  * @param {string} html
- * @returns {Array<{ tag: string, value: string | null, content: string, at: number, line: number, method: string, properties: Record<string, string>, problems: Array<Record<string, unknown>>, status?: string }>}
+ * @returns {Array<{ tag: string, value: string | null, content: string, at: number, reach?: number, line: number, method: string, properties: Record<string, string>, problems: Array<Record<string, unknown>>, status?: string }>}
  */
 export function collectMarked(html) {
   const ranges = opaqueRanges(html);
@@ -998,13 +1122,128 @@ export function collectMarked(html) {
       }
       continue;
     }
-    found.push(candidate.block);
+    found.push({ ...candidate.block, reach: candidate.reach });
     // Markup that is never closed took the rest of the document as its content,
     // so there is nothing after it left to collect.
     if (candidate.block.status === UNCLOSED) break;
     reach = candidate.reach;
   }
   return found;
+}
+
+/**
+ * Whether a start tag carries an attribute of exactly this name.
+ *
+ * {@link attributeValue} cannot answer it: an attribute written without a value
+ * and an attribute that is not there both come back `null`, and the difference
+ * is the whole of what is being asked. Scanned rather than matched with a
+ * pattern so that a longer name starting the same way is not read as this one -
+ * `data-cheatsheet-menu` is not `data-cheatsheet`, which is the distinction the
+ * collector turns on.
+ *
+ * @param {string} startTag
+ * @param {string} name Lower cased.
+ * @returns {boolean}
+ */
+function carriesAttribute(startTag, name) {
+  const lower = startTag.toLowerCase();
+  let at = 0;
+  while (at < startTag.length) {
+    const found = lower.indexOf(name, at);
+    if (found === -1) return false;
+    at = found + name.length;
+    const before = startTag[found - 1];
+    const after = startTag[at];
+    // The tag's own name is not an attribute, so a `<` before this is not a
+    // separator; whitespace is the only thing that starts one.
+    if (before !== undefined && !/\s/.test(before)) continue;
+    if (after !== undefined && !/[\s=>/]/.test(after)) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Every place a page has marked for a cheatsheet menu, in source order.
+ *
+ * The scan {@link attributeCandidates} is for {@link MARKER}, with the same
+ * three answers to markup it cannot use - a void element encloses nothing, an
+ * element never closed has no end to write up to, and a marker inside a comment
+ * or a script is not a marker. What it adds is the one case only this attribute
+ * has: an element carrying **both** markings is a page asking for its material
+ * to be collected out of the element and a menu to be written into it, which
+ * are the same bytes read and then replaced. That is reported and nothing is
+ * written, per {@link menuProblem}.
+ *
+ * `inner` is the span the element's content occupies, which is what a fill
+ * replaces. It is `null` wherever there is no usable span, so a caller that
+ * honours {@link menuProblem} never reaches for one that is not there.
+ *
+ * @param {string} html
+ * @returns {Array<{ tag: string, mode: string | null, at: number, line: number, indent: string, inner: [number, number] | null, status?: string }>}
+ */
+export function menuElements(html) {
+  const ranges = opaqueRanges(html);
+  const found = [];
+  const lower = html.toLowerCase();
+  let search = 0;
+  while (search < html.length) {
+    const marker = lower.indexOf(MENU_MARKER, search);
+    if (marker === -1) break;
+    search = marker + MENU_MARKER.length;
+    if (inside(marker, ranges)) continue;
+    const after = html[marker + MENU_MARKER.length];
+    if (after !== undefined && !/[\s=>/]/.test(after)) continue;
+    const scanned = startTagAround(html, marker);
+    if (scanned === null) continue;
+    const { start, end: tagEnd, text: startTag } = scanned;
+    const tag = tagNameAt(html, start);
+    if (tag === "") continue;
+    const element = {
+      tag,
+      mode: attributeValue(startTag, MENU_MARKER),
+      at: start,
+      line: lineAt(html, start),
+      indent: indentAt(html, start),
+      inner: null,
+    };
+    if (carriesAttribute(startTag, MARKER)) {
+      found.push({ ...element, status: "material" });
+      continue;
+    }
+    if (VOID_ELEMENTS.includes(tag) || /\/>$/.test(startTag.trim())) {
+      found.push({ ...element, status: "empty" });
+      continue;
+    }
+    const end = closingTagOf(html, tag, tagEnd + 1, ranges);
+    if (end === null) {
+      found.push({ ...element, status: UNCLOSED });
+      continue;
+    }
+    found.push({ ...element, inner: [tagEnd + 1, end.start] });
+  }
+  return found;
+}
+
+/**
+ * The whitespace a line carries before the offset handed in, or `""`.
+ *
+ * Read so that markup written into somebody else's page lands at the
+ * indentation that page already uses. A generated block flush against the left
+ * margin of an indented file is a diff a site owner reverts, which is the same
+ * reason the newline is taken from the file rather than from this platform.
+ *
+ * Anything other than whitespace between the line's start and the offset means
+ * the element does not open the line, and there is no indentation to match.
+ *
+ * @param {string} html
+ * @param {number} at
+ * @returns {string}
+ */
+function indentAt(html, at) {
+  const opens = html.lastIndexOf("\n", at - 1) + 1;
+  const before = html.slice(opens, at);
+  return /^\s*$/.test(before) ? before.replace(/\r/g, "") : "";
 }
 
 /**
@@ -1208,6 +1447,8 @@ export async function resolveOutput(root, options = {}) {
  * @property {string} id Site relative path, with `/` separators.
  * @property {string | null} title The page's `<title>`, where it has one.
  * @property {Array<object>} blocks What {@link collectMarked} found.
+ * @property {Array<object>} menus What {@link menuElements} found.
+ * @property {string} newline The line ending the page is written with.
  * @property {string[]} findings What was wrong with the markup, if anything.
  */
 
@@ -1223,7 +1464,37 @@ export async function resolveOutput(root, options = {}) {
  * @returns {string}
  */
 function pageStem(page) {
-  return basename(page.id, extname(page.id));
+  return stemOf(page.id);
+}
+
+/**
+ * The line ending a page is written with.
+ *
+ * Read off the file rather than taken from this platform, because filling a
+ * menu writes into a page the site owner keeps and a run that handed it back
+ * with mixed endings would report every line of it as changed. A single `\r\n`
+ * is enough to answer it: a file with one is a file somebody's editor is
+ * writing that way.
+ *
+ * @param {string} html
+ * @returns {string}
+ */
+function newlineOf(html) {
+  return html.includes("\r\n") ? "\r\n" : "\n";
+}
+
+/**
+ * A file name with its extension taken off.
+ *
+ * The same reading {@link pageStem} does, on a name rather than on a page,
+ * because a menu entry is read off a **generated** file name and there is no
+ * page behind it - the master page is not a page of the site at all.
+ *
+ * @param {string} name
+ * @returns {string}
+ */
+function stemOf(name) {
+  return basename(name, extname(name));
 }
 
 /**
@@ -1566,6 +1837,114 @@ function commentFinding(id, block, problem) {
 }
 
 /**
+ * Why a menu element cannot be filled, or `null` where it can.
+ *
+ * One predicate rather than a chain that reports and a condition that fills,
+ * which is the same argument {@link carryingPages} is one function for: the
+ * sentence a site owner is handed and the decision not to write are the same
+ * judgement, and two copies of it would eventually disagree about which
+ * elements were skipped in silence.
+ *
+ * A menu is **not** given a default mode, unlike the marker, and the asymmetry
+ * is deliberate. A bare `data-cheatsheet` has a documented fallback and costs a
+ * heading; the two menus are a link and a list, written into a file the site
+ * owner keeps, so guessing which one they meant writes markup nobody asked for
+ * into somebody else's page.
+ *
+ * @param {{ mode: string | null, status?: string }} menu
+ * @returns {string | null}
+ */
+function menuProblem(menu) {
+  if (menu.status === UNCLOSED) return UNCLOSED;
+  if (
+    menu.status === "empty" ||
+    menu.status === "material" ||
+    menu.status === "nested" ||
+    menu.status === "holds-material" ||
+    menu.status === "holds-menu"
+  ) {
+    return menu.status;
+  }
+  if (menu.mode === null) return "no-mode";
+  if (!Object.hasOwn(MENU_MODES, menu.mode)) return "unknown-mode";
+  return null;
+}
+
+/** The menus named in a finding, as a reader would say them. */
+function menuList() {
+  return Object.entries(MENU_MODES)
+    .map(([mode, what]) => `${mode} (${what})`)
+    .join(" and ");
+}
+
+/**
+ * What a menu element got wrong, as a sentence naming the page and the line.
+ *
+ * The line for the reason {@link commentFinding} carries one: a page may mark
+ * two menus, and `data-cheatsheet-menu` written twice is the same words twice.
+ *
+ * @param {string} id The page, site relative.
+ * @param {{ tag: string, mode: string | null, line: number }} menu
+ * @param {string} problem What {@link menuProblem} answered.
+ * @returns {string}
+ */
+function menuFinding(id, menu, problem) {
+  const where = `${id}:${menu.line}`;
+  switch (problem) {
+    case UNCLOSED:
+      return (
+        `${where}: the <${menu.tag}> carrying ${MENU_MARKER} is never closed, so there is nowhere a menu ` +
+        `could end and none was written. Close the element.`
+      );
+    case "empty":
+      return (
+        `${where}: <${menu.tag}> cannot enclose anything, so there is nowhere to write a menu into. Mark ` +
+        `an element that can hold one instead.`
+      );
+    case "material":
+      return (
+        `${where}: <${menu.tag}> carries ${MARKER} and ${MENU_MARKER}, so it is marked both as cheatsheet ` +
+        `material and as the place a menu goes. The material was collected and no menu was written: ` +
+        `filling the element would replace the content that was just read out of it. Put the menu in an ` +
+        `element of its own.`
+      );
+    case "nested":
+      return (
+        `${where}: <${menu.tag}> carrying ${MENU_MARKER} sits inside material marked with ${MARKER}, so no ` +
+        `menu was written into it. A menu written there is collected onto the generated cheatsheet by the ` +
+        `next run, where its links are relative to the wrong page. Move it outside the marked element.`
+      );
+    case "holds-material":
+      return (
+        `${where}: the <${menu.tag}> carrying ${MENU_MARKER} holds material marked with ${MARKER}, so no ` +
+        `menu was written into it. A menu is written over whatever is between the tags, and that material ` +
+        `was just collected out of this page: replacing it would leave the site's own copy gone and the ` +
+        `next run with nothing marked here to write again. Put the menu in an element of its own.`
+      );
+    case "holds-menu":
+      return (
+        `${where}: the <${menu.tag}> carrying ${MENU_MARKER} holds another ${MENU_MARKER}, so no menu was ` +
+        `written into this one. The inner menu is filled first and moves everything after it, so filling ` +
+        `this one as well would cut through the markup that replaced it. Put the two side by side.`
+      );
+    case "no-mode":
+      return (
+        `${where}: ${MENU_MARKER} is written with no value, so no menu was written into it. Name the one ` +
+        `the page wants: ${menuList()}.`
+      );
+    case "unknown-mode":
+      return (
+        `${where}: ${MENU_MARKER}="${menu.mode}" names no menu, so none was written. It reads ` +
+        `${menuList()}.`
+      );
+    default:
+      // Unreachable while every answer {@link menuProblem} gives has a case
+      // above, and said rather than dropped if one ever does not.
+      return `${where}: a ${MENU_MARKER} is wrong in a way this tool has no sentence for: ${problem}.`;
+  }
+}
+
+/**
  * Reads and collects every page of a site.
  *
  * A page that carries no marked element comes back with no blocks and is not
@@ -1610,7 +1989,39 @@ export async function collectSite(root) {
       // comments and the words of the wrong one are the same words.
       for (const problem of block.problems ?? []) findings.push(commentFinding(id, block, problem));
     }
-    const page = { path, id, title: titleOf(html), blocks, findings };
+    // The menu markings, which are read off the same one reading of the file as
+    // the material. What a menu is filled with needs the whole site and belongs
+    // to {@link plannedMenus}; what is wrong with the markup of one is this
+    // page's own business and is said here.
+    const menus = menuElements(html);
+    for (const menu of menus) {
+      // The one thing neither scan can see on its own: a menu element inside
+      // material the collector has already taken. Filling it would put a menu
+      // on the generated cheatsheet the next run writes, carrying links
+      // relative to the source page rather than to the page they ended up on -
+      // and it is the one marking that would make a second run over an
+      // unchanged site write a different cheatsheet than the first.
+      if (blocks.some((block) => block.at < menu.at && menu.at < (block.reach ?? block.at))) {
+        menu.status = "nested";
+      }
+      // The same mistake read the other way round: a marking inside the span
+      // this menu would fill. Both are refusals because the fill is a splice of
+      // somebody else's page, and in either case it writes over bytes that
+      // belong to something else. Material is the costlier of the two - the
+      // collector has already read it, so replacing it leaves the site's own
+      // copy gone and the next run finds nothing marked there to write again.
+      // A second menu inside this one is the offsets: the inner splice has
+      // already moved everything after it by the time the outer one is applied,
+      // so the outer cuts mid-markup and hands back a page that does not parse.
+      if (menu.status === undefined && menu.inner !== null) {
+        const [from, to] = menu.inner;
+        if (blocks.some((block) => from <= block.at && block.at < to)) menu.status = "holds-material";
+        else if (menus.some((one) => one !== menu && from <= one.at && one.at < to)) menu.status = "holds-menu";
+      }
+      const problem = menuProblem(menu);
+      if (problem !== null) findings.push(menuFinding(id, menu, problem));
+    }
+    const page = { path, id, title: titleOf(html), blocks, menus, newline: newlineOf(html), findings };
     // After the markup findings and from the finished page, because the heading
     // is read off the page's own `<title>` as much as off the marker's value -
     // what the site asked for and what it has are both part of the answer.
@@ -1693,28 +2104,93 @@ export function pageFilename(page) {
  * @returns {string}
  */
 export function renderCheatsheet(sheet) {
-  const grouped = sheet.folder !== "";
-  const lines = [
+  return cheatsheetDocument(sheet.heading, sheet.pages, sheetLines(sheet, 1));
+}
+
+/**
+ * The markup of the master page, carrying every cheatsheet of a site.
+ *
+ * **Composed by the same function as the pages it concatenates**, which is the
+ * whole of what the item asked for: {@link sheetLines} writes one cheatsheet at
+ * the heading level it is handed, so a cheatsheet page is that at level 1 and
+ * this is every cheatsheet at level 2 under a heading of its own. A second
+ * renderer is the shape to avoid - the two pages would show the same material
+ * differently the first time either was changed, and nothing would say which
+ * was right.
+ *
+ * Each cheatsheet is wrapped in a `<section data-cheatsheet-sheet>` naming the
+ * file it is also written as, for the reason a page inside a folder's
+ * cheatsheet is wrapped in one naming its source: a reader who has found
+ * something here should be able to tell where it came from and where it lives
+ * on its own.
+ *
+ * @param {{ heading: string, pages: SitePage[], parts: Cheatsheet[] }} master
+ * @returns {string}
+ */
+export function renderMaster(master) {
+  const lines = [`<h1>${escapeHtml(master.heading)}</h1>`];
+  for (const sheet of master.parts) {
+    lines.push(`<section data-cheatsheet-sheet="${escapeHtml(sheet.name)}">`);
+    lines.push(...sheetLines(sheet, 2));
+    lines.push("</section>");
+  }
+  return cheatsheetDocument(master.heading, master.pages, lines);
+}
+
+/**
+ * The document every page this tool writes is wrapped in.
+ *
+ * One head for both, so the master page and a cheatsheet page cannot come to
+ * carry different metadata about the same material.
+ *
+ * @param {string} heading What the page is titled.
+ * @param {SitePage[]} sources The pages of the site it was read from, in order.
+ * @param {string[]} body
+ * @returns {string}
+ */
+function cheatsheetDocument(heading, sources, body) {
+  return [
     "<!DOCTYPE html>",
     '<html lang="en">',
     "<head>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    `<title>${escapeHtml(sheet.heading)}</title>`,
+    `<title>${escapeHtml(heading)}</title>`,
     `<meta name="generator" content="${GENERATOR}">`,
     // One per source, in source order. A reader looking for where a cheatsheet
     // came from should find every page of it rather than the first.
-    ...sheet.pages.map((page) => `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`),
+    ...sources.map((page) => `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`),
     "</head>",
     "<body>",
-    `<h1>${escapeHtml(sheet.heading)}</h1>`,
-  ];
+    ...body,
+    "</body>",
+    "</html>",
+    "",
+  ].join("\n");
+}
+
+/**
+ * One cheatsheet's heading and material, at the heading level handed in.
+ *
+ * The level is a parameter rather than a constant because the master page holds
+ * every cheatsheet under a heading of its own, and a page whose headings all
+ * start at `<h1>` is a page no outline can be read out of. A cheatsheet page
+ * passes 1 and the master passes 2, and the pages inside a folder's cheatsheet
+ * follow one below whichever it was.
+ *
+ * @param {Cheatsheet} sheet
+ * @param {number} level The level the cheatsheet's own heading is written at.
+ * @returns {string[]}
+ */
+function sheetLines(sheet, level) {
+  const grouped = sheet.folder !== "";
+  const lines = [`<h${level}>${escapeHtml(sheet.heading)}</h${level}>`];
   for (const page of sheet.pages) {
     if (grouped) {
       lines.push(`<section data-cheatsheet-page="${escapeHtml(page.id)}">`);
       // The findings are {@link collectSite}'s to report; what is wanted here
       // is the heading the page asked for.
-      lines.push(`<h2>${escapeHtml(headingFor(page).heading)}</h2>`);
+      lines.push(`<h${level + 1}>${escapeHtml(headingFor(page).heading)}</h${level + 1}>`);
     }
     for (const block of page.blocks) {
       if (block.content.trim().length === 0) continue;
@@ -1726,8 +2202,7 @@ export function renderCheatsheet(sheet) {
     }
     if (grouped) lines.push("</section>");
   }
-  lines.push("</body>", "</html>", "");
-  return lines.join("\n");
+  return lines;
 }
 
 /**
@@ -1835,7 +2310,16 @@ function groupCheatsheets(pages) {
   }
   /** Keyed by the name lower cased, and carrying it as written for the finding. */
   /** @type {Map<string, { key: string, name: string }>} */
-  const claimed = new Map();
+  // The master page claims its name before any cheatsheet is offered one, so a
+  // cheatsheet that wants {@link MASTER_NAME} is reported and dropped like any
+  // other collision. The order is what makes that safe rather than arbitrary:
+  // the master is what a menu's page mode links to, so a cheatsheet written
+  // over it would leave every marked page of the site pointing at the wrong
+  // document - while a cheatsheet dropped for wanting a name is a case this
+  // tool already has a sentence for and a site owner can already fix.
+  const claimed = new Map([
+    [MASTER_NAME.toLowerCase(), { key: `master:${MASTER_NAME}`, name: MASTER_NAME }],
+  ]);
   /** @type {Cheatsheet[]} */
   const sheets = [];
   /** @type {string[]} */
@@ -1922,13 +2406,18 @@ function sheetName(group) {
  * What a cheatsheet is called in a finding.
  *
  * A folder carries a trailing `/` and a root page does not, which is the whole
- * of what tells `docs/` from `docs.html` in a sentence that names both.
+ * of what tells `docs/` from `docs.html` in a sentence that names both. The
+ * master page is named for what it is rather than for a path, because it is not
+ * one of the site's pages and a site owner looking for it in their tree would
+ * not find it.
  *
  * @param {string} key
  * @returns {string}
  */
 function label(key) {
-  return key.startsWith("folder:") ? `${key.slice("folder:".length)}/` : key.slice("page:".length);
+  if (key.startsWith("folder:")) return `${key.slice("folder:".length)}/`;
+  if (key.startsWith("master:")) return "the master page";
+  return key.slice("page:".length);
 }
 
 /**
@@ -1992,7 +2481,7 @@ function sheetBlocks(sheet) {
  * @returns {Array<{ name: string, heading: string, headingSource: string, sources: string[], blocks: number }>}
  */
 export function plannedPages(pages) {
-  return cheatsheets(pages).map((sheet) => ({
+  return pagesToWrite(pages).map((sheet) => ({
     name: sheet.name,
     heading: sheet.heading,
     headingSource: sheet.headingSource,
@@ -2002,7 +2491,72 @@ export function plannedPages(pages) {
 }
 
 /**
- * Writes a page per cheatsheet the site's marked pages group into.
+ * Every page a run writes into the folder: the master, then the cheatsheets.
+ *
+ * One list rather than a cheatsheet list and a master written beside it, so the
+ * plan, the manifest, the report and the write are four readings of one answer.
+ * A caller cannot write the cheatsheets and forget the page the menus link to.
+ *
+ * **The master comes first**, which is the order a menu reads in and therefore
+ * the order the manifest records: the page carrying all of it stands ahead of
+ * the parts of it. Nothing is written at all for a site that marked nothing -
+ * there would be no cheatsheet to concatenate, and an empty master page in
+ * somebody else's tree is worse than no folder.
+ *
+ * @param {SitePage[]} pages
+ * @returns {Cheatsheet[]}
+ */
+function pagesToWrite(pages) {
+  const sheets = cheatsheets(pages);
+  return sheets.length === 0 ? [] : [masterSheet(sheets), ...sheets];
+}
+
+/**
+ * The master page, as one more cheatsheet to write.
+ *
+ * Shaped as a {@link Cheatsheet} so that everything downstream of the grouping
+ * treats it as a page of the folder, because that is what it is. `parts` is
+ * what tells it apart - the cheatsheets it concatenates, which
+ * {@link renderMaster} needs and a cheatsheet has no equivalent of - and
+ * `pages` is every source page behind it, so the head of the document names
+ * them the way a cheatsheet's head names its own.
+ *
+ * Its heading is {@link prose} of its own file name, like any other page headed
+ * from a name, rather than a constant beside the name that could disagree with
+ * it.
+ *
+ * @param {Cheatsheet[]} sheets
+ * @returns {Cheatsheet & { parts: Cheatsheet[] }}
+ */
+function masterSheet(sheets) {
+  return {
+    name: MASTER_NAME,
+    // Not named for a folder of the site, so it is not sectioned as one.
+    folder: "",
+    heading: prose(stemOf(MASTER_NAME)),
+    headingSource: MASTER_SOURCE,
+    pages: sheets.flatMap((sheet) => sheet.pages),
+    parts: sheets,
+  };
+}
+
+/**
+ * The markup of any page this tool writes.
+ *
+ * `parts` is the discriminator, and it is a field rather than a flag because
+ * {@link renderMaster} reads it: a master page is the cheatsheets it
+ * concatenates, and a cheatsheet is its own pages.
+ *
+ * @param {Cheatsheet} sheet
+ * @returns {string}
+ */
+function renderSheet(sheet) {
+  return sheet.parts === undefined ? renderCheatsheet(sheet) : renderMaster(sheet);
+}
+
+/**
+ * Writes a page per cheatsheet the site's marked pages group into, and the
+ * master page carrying all of them.
  *
  * The folder is created only where there is something to put in it, so a run
  * over a site that marked nothing leaves no empty folder behind on somebody
@@ -2014,12 +2568,12 @@ export function plannedPages(pages) {
  */
 export async function writePages(pages, out) {
   const written = [];
-  const sheets = cheatsheets(pages);
+  const sheets = pagesToWrite(pages);
   if (sheets.length === 0) return written;
   await mkdir(out, { recursive: true });
   for (const sheet of sheets) {
     const path = join(out, sheet.name);
-    await writeFile(path, renderCheatsheet(sheet), "utf8");
+    await writeFile(path, renderSheet(sheet), "utf8");
     written.push({
       name: sheet.name,
       path,
@@ -2041,9 +2595,17 @@ export async function writePages(pages, out) {
  *
  * `sources` is an array because a cheatsheet named for a folder is made of
  * every marked page in it, which is the field change {@link MANIFEST_VERSION}
- * was raised for. It carries one entry for a root page, rather than being left
- * off there: a reader that had to branch on the field's presence is a reader
- * that would get the branch wrong.
+ * was raised to `2` for. It carries one entry for a root page, rather than
+ * being left off there: a reader that had to branch on the field's presence is
+ * a reader that would get the branch wrong.
+ *
+ * `pages` carries the **master page** first and the site's cheatsheets after
+ * it, which is what `3` was raised for. It is a page of the folder and not a
+ * cheatsheet of the site, told apart by {@link MASTER_SOURCE} in
+ * `headingSource` - and in `pages` rather than in a field of its own because
+ * every reader of this file so far wants the folder's pages, menus included.
+ * Its own `sources` are every marked page of the site, since that is what it
+ * concatenates.
  *
  * @param {string} name The output folder, site relative.
  * @param {Array<{ name: string, heading: string, headingSource: string, sources: string[], blocks: number }>} planned
@@ -2133,6 +2695,231 @@ export async function readManifest(root, options = {}) {
   return null;
 }
 
+/**
+ * A link from one page of a site to a file in the generated folder.
+ *
+ * **Relative to the page being written into**, which is the question the menu
+ * raised and nothing else in this tool had to answer: every other thing a run
+ * writes goes into the resolved folder, so a path site relative throughout was
+ * enough. A menu goes into a page the site owner keeps, and that page may sit
+ * two folders down - so `guide/api/nav.html` links the generated
+ * `cheatsheets/arrays.html` as `../../cheatsheets/arrays.html`.
+ *
+ * Walked over the two paths' own segments rather than through `relative()` from
+ * `node:path`, for two reasons. It answers in this platform's separators, and
+ * the answer goes into markup, where `/` is the only separator there is. And it
+ * resolves a relative path against the process's working folder, which is a
+ * third place this could be run from and has nothing to do with either path.
+ *
+ * @param {string} pageId The site page the menu is written into, site relative.
+ * @param {string} target The generated file, site relative.
+ * @returns {string} With `/` separators, as markup needs.
+ */
+export function linkFrom(pageId, target) {
+  const segments = (path) => path.split("/").filter((part) => part !== "" && part !== ".");
+  const from = segments(pageId).slice(0, -1);
+  const to = segments(target);
+  let shared = 0;
+  // The target's last segment is its file name and is never shared away: a link
+  // has to end in the file it points at, even from the folder holding it.
+  while (shared < from.length && shared < to.length - 1 && from[shared] === to[shared]) shared += 1;
+  return [...from.slice(shared).map(() => ".."), ...to.slice(shared)].join("/");
+}
+
+/**
+ * Whether the output folder is somewhere a page of the site can link to.
+ *
+ * `--out` takes whatever a site owner typed, so the folder can be outside the
+ * site altogether - beside it, or on another Windows drive, where
+ * {@link main} already records that the name comes back absolute. No link
+ * relative to a page of the site reaches either, and writing an absolute path
+ * into their markup would be this machine's answer in a file read on another.
+ *
+ * @param {string} where The output folder, as {@link main} measured it.
+ * @returns {boolean}
+ */
+function insideSite(where) {
+  return !(isAbsolute(where) || where === ".." || where.startsWith("../"));
+}
+
+/**
+ * The entries a menu offers, in the order a reader meets them.
+ *
+ * Read from the manifest, which is what makes a menu a reading of the generated
+ * folder rather than a second guess at what is in it. The master page is first
+ * because {@link pagesToWrite} wrote it first, so the page carrying all of it
+ * stands ahead of the parts - and `master` is carried per entry rather than
+ * assumed of the first, because the page mode asks for that one entry by name.
+ *
+ * **An entry's text is the prose form of the generated file's name**, not the
+ * cheatsheet's heading. The two differ where a heading was read off a
+ * `<title>`, which is a sentence a site wrote to be read and the wrong length
+ * for a menu; the file name is the one thing every entry has, and
+ * {@link prose} is already how this tool reads a name.
+ *
+ * @param {object} manifest What {@link manifestFor} built.
+ * @param {string} where The output folder, site relative.
+ * @returns {Array<{ target: string, text: string, master: boolean }>}
+ */
+export function menuEntries(manifest, where) {
+  const folder = where === "." ? "" : `${where}/`;
+  return (manifest.pages ?? []).map((one) => ({
+    target: `${folder}${one.page}`,
+    text: prose(stemOf(one.page)),
+    master: one.headingSource === MASTER_SOURCE,
+  }));
+}
+
+/**
+ * The markup one menu element is filled with.
+ *
+ * Two modes and one entry list, so what a dropdown lists and what a page menu
+ * links to cannot come apart.
+ *
+ * **A `<details>` rather than a `<select>`**, because this tool writes no
+ * script and a `<select>` without one does nothing. A site that wants its own
+ * control has the markup to replace; a site that wanted a menu has a working
+ * one with JavaScript off. No class and no style either: the site owner already
+ * has {@link MENU_MARKER} to select on, and it is the attribute they wrote.
+ *
+ * The page mode is one line and the dropdown is several, laid out at the marked
+ * element's own indentation and joined with the page's own newline. A generated
+ * block flush left in an indented file, or `\n` written into a file somebody's
+ * editor keeps as `\r\n`, is a diff a site owner reverts.
+ *
+ * @param {string} mode One of {@link MENU_MODES}.
+ * @param {Array<{ target: string, text: string, master: boolean }>} entries
+ * @param {string} pageId The page it is written into, site relative.
+ * @param {string} [indent] The whitespace the marked element opens its line at.
+ * @param {string} [newline]
+ * @returns {string}
+ */
+export function renderMenu(mode, entries, pageId, indent = "", newline = "\n") {
+  const link = (entry) =>
+    `<a href="${escapeHtml(linkFrom(pageId, entry.target))}">${escapeHtml(entry.text)}</a>`;
+  if (mode === "page") return link(entries.find((entry) => entry.master) ?? entries[0]);
+  return [
+    "",
+    `${indent}  <details>`,
+    `${indent}    <summary>${escapeHtml(prose(OUTPUT_NAME))}</summary>`,
+    `${indent}    <ul>`,
+    ...entries.map((entry) => `${indent}      <li>${link(entry)}</li>`),
+    `${indent}    </ul>`,
+    `${indent}  </details>`,
+    indent,
+  ].join(newline);
+}
+
+/**
+ * What a run fills into the site's own pages, as data, without touching a disk.
+ *
+ * The plan both modes read from, for the reason {@link plannedPages} is one
+ * function: `--dry-run` reports it and a real run writes it, so a dry run that
+ * is believed is a dry run that cannot promise a menu the write would compose
+ * differently.
+ *
+ * The manifest is handed in rather than read back out of the folder, which is
+ * the only way a dry run can report a menu at all - there is nothing on disk to
+ * read. It is the same object a real run writes, so what the menu lists is what
+ * the manifest says was generated either way.
+ *
+ * Two run level refusals live here rather than in {@link collectSite}, because
+ * neither can be judged from one page: a site that marked a menu and no
+ * material has nothing to put in one, and an output folder outside the site has
+ * no link from a page to it.
+ *
+ * @param {SitePage[]} pages
+ * @param {object | null} manifest What {@link manifestFor} built, or `null` where a run wrote nothing.
+ * @param {string} where The output folder, site relative.
+ * @returns {{ menus: Array<{ page: string, path: string, mode: string, line: number, entries: number, inner: [number, number], markup: string }>, findings: string[] }}
+ */
+export function plannedMenus(pages, manifest, where) {
+  /** @type {string[]} */
+  const findings = [];
+  const marked = pages.flatMap((page) =>
+    (page.menus ?? [])
+      .filter((menu) => menuProblem(menu) === null)
+      .map((menu) => ({ page, menu }))
+  );
+  if (marked.length === 0) return { menus: [], findings };
+  if (manifest === null) {
+    for (const { page, menu } of marked) {
+      findings.push(
+        `${page.id}:${menu.line}: ${MENU_MARKER}="${menu.mode}" asks for a menu and the site marked no ` +
+          `material, so there is nothing to put in one and the element was left alone. Mark something ` +
+          `with ${MARKER} first.`
+      );
+    }
+    return { menus: [], findings };
+  }
+  if (!insideSite(where)) {
+    for (const { page, menu } of marked) {
+      findings.push(
+        `${page.id}:${menu.line}: the output folder ${where} is not inside the site, so no link from this ` +
+          `page to it can be written and the menu was left alone. Pass --out a folder inside the site, or ` +
+          `let the tool resolve one.`
+      );
+    }
+    return { menus: [], findings };
+  }
+  const entries = menuEntries(manifest, where);
+  return {
+    menus: marked.map(({ page, menu }) => ({
+      page: page.id,
+      path: page.path,
+      mode: menu.mode,
+      line: menu.line,
+      entries: menu.mode === "page" ? 1 : entries.length,
+      inner: menu.inner,
+      markup: renderMenu(menu.mode, entries, page.id, menu.indent, page.newline ?? "\n"),
+    })),
+    findings,
+  };
+}
+
+/**
+ * Writes each planned menu into the page that marked it.
+ *
+ * The one place this tool writes to a file it did not create, which is what
+ * makes the two rules below rules rather than details.
+ *
+ * **A page is read, spliced and written once**, however many menus it marked,
+ * and the splices are applied from the end of the file backwards so that the
+ * offsets of the earlier ones are still true when the later ones have been
+ * cut. Applying them forwards moves every offset after the first menu by the
+ * difference between what was there and what was written.
+ *
+ * **Nothing outside the marked spans is touched.** The page is spliced rather
+ * than rebuilt, so its indentation, its line endings and anything this tool
+ * does not understand come back exactly as they went in - which is the whole
+ * reason the collector never needed a parser and the same reason this cannot
+ * grow one.
+ *
+ * @param {Array<{ page: string, path: string, mode: string, line: number, entries: number, inner: [number, number], markup: string }>} menus
+ * @returns {Promise<Array<{ page: string, mode: string, line: number, entries: number }>>}
+ */
+export async function writeMenus(menus) {
+  /** @type {Map<string, typeof menus>} */
+  const byPage = new Map();
+  for (const menu of menus) {
+    const held = byPage.get(menu.path);
+    if (held === undefined) byPage.set(menu.path, [menu]);
+    else held.push(menu);
+  }
+  const filled = [];
+  for (const [path, held] of byPage) {
+    let html = await readFile(path, "utf8");
+    for (const menu of [...held].sort((one, two) => two.inner[0] - one.inner[0])) {
+      html = html.slice(0, menu.inner[0]) + menu.markup + html.slice(menu.inner[1]);
+    }
+    await writeFile(path, html, "utf8");
+    for (const menu of held) {
+      filled.push({ page: menu.page, mode: menu.mode, line: menu.line, entries: menu.entries });
+    }
+  }
+  return filled;
+}
+
 /** What `--help` prints. */
 export const USAGE = [
   "Usage: node tools/cheatsheet-site.mjs <site> [--out <dir>] [--dry-run]",
@@ -2171,6 +2958,22 @@ export const USAGE = [
   "Where a comment and the attribute both speak, the comment wins and the",
   "disagreement is reported. A property this does not know, or a value it does",
   "not take, is reported with the page and the line it was written on.",
+  "",
+  `A page says where its menu goes with ${MENU_MARKER}, which is written`,
+  "into the page rather than read out of it:",
+  "",
+  // Padded to the widest of them, so the descriptions read as a column the way
+  // the comment's properties above do.
+  ...Object.entries(MENU_MODES).map(([mode, what]) => {
+    const written = `  <div ${MENU_MARKER}="${mode}"></div>`;
+    const widest = Math.max(...Object.keys(MENU_MODES).map((one) => one.length));
+    return `${written.padEnd(written.length + widest - mode.length + 3)}${what}`;
+  }),
+  "",
+  `Every cheatsheet is also concatenated into ${MASTER_NAME} in the`,
+  "generated folder, which is what the page menu links to and the first entry",
+  "of the dropdown. A link is relative to the page it is written into, and an",
+  "entry reads the generated file's name as prose.",
 ].join("\n");
 
 /**
@@ -2234,10 +3037,22 @@ export async function main(argv) {
   // `--out` on another Windows drive has no site relative form at all and comes
   // back absolute; nothing can be done about that one, and it is not silent.
   const where = relative(root, out.path).split(sep).join("/") || ".";
+  // Built whether or not it is written, because the menus are filled from it
+  // and a dry run has to report the menu a real run would write. `null` is a
+  // run with nothing to record, which is also a run with nothing to put in a
+  // menu - see {@link plannedMenus}.
+  const manifest = planned.length > 0 ? manifestFor(where, planned) : null;
+  const menus = plannedMenus(pages, manifest, where);
+  findings.push(...menus.findings);
   // Nothing before this point has touched the disk, which is what makes
-  // `--dry-run` the absence of two calls rather than a mode of its own.
+  // `--dry-run` the absence of three calls rather than a mode of its own.
   const written = dry ? [] : await writePages(pages, out.path);
-  if (!dry && planned.length > 0) await writeManifest(out.path, manifestFor(where, planned));
+  if (!dry && manifest !== null) await writeManifest(out.path, manifest);
+  // Last, and into the site's own pages rather than the generated folder. After
+  // the manifest because a menu names what the manifest records, and a run that
+  // filled a menu and then failed to record the folder would leave a site
+  // pointing at a section the next run resolves somewhere else.
+  const filled = dry ? [] : await writeMenus(menus.menus);
 
   const marked = pages.filter((page) => page.blocks.length > 0).length;
   process.stdout.write(
@@ -2248,8 +3063,22 @@ export async function main(argv) {
       ...(out.tried.length > 1 ? [`names tried      ${out.tried.join(", ")}`] : []),
       `pages ${dry ? "to write   " : "written    "}${dry ? planned.length : written.length}`,
       // Every source of a cheatsheet, because a grouped page naming only the
-      // first would read as the others having been dropped.
-      ...planned.map((one) => `  ${one.sources.join(", ")} -> ${one.name} (${one.headingSource})`),
+      // first would read as the others having been dropped. The master page is
+      // named for the pages it concatenates rather than for its own sources,
+      // which are every marked page of the site and are already on the lines
+      // under it.
+      ...planned.map((one, at) =>
+        one.headingSource === MASTER_SOURCE
+          ? `  ${planned
+              .slice(at + 1)
+              .map((part) => part.name)
+              .join(", ")} -> ${one.name} (${MASTER_SOURCE})`
+          : `  ${one.sources.join(", ")} -> ${one.name} (${one.headingSource})`
+      ),
+      `menus ${dry ? "to fill    " : "filled     "}${dry ? menus.menus.length : filled.length}`,
+      // The line as well as the page: a page may mark two menus, and the
+      // attribute of the one that was filled is the same attribute.
+      ...menus.menus.map((one) => `  ${one.page}:${one.line} -> ${one.mode} (${one.entries} ${one.entries === 1 ? "entry" : "entries"})`),
       ...(dry ? ["nothing was written, because --dry-run"] : []),
       "",
     ].join("\n")

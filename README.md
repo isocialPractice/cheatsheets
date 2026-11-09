@@ -137,9 +137,19 @@ properties as it needs:
 ```
 
 Both methods feed one collector, so a page may use either and a site may use
-both. `--dry-run` reports the folder it resolved and the pages it would write,
-and touches nothing. The script imports nothing but Node builtins, because it
-runs against somebody else's checkout.
+both: an attribute carries one value and nothing to learn, a comment carries as
+much as the page has to say and a syntax to get right, and which one a page
+wants depends on how much it has to say. A page says where its menu goes with a
+third marking, which is the one this tool writes into the page rather than
+reading out of it:
+
+```html
+<div data-cheatsheet-menu="dropdown"></div>
+```
+
+`--dry-run` reports the folder it resolved, the pages it would write and the
+menus it would fill, and touches nothing. The script imports nothing but Node
+builtins, because it runs against somebody else's checkout.
 
 ## [Adding to the Catalog](https://isocialpractice.github.io/cheatsheets/docs/adding-to-the-catalog.html)
 

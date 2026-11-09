@@ -73,6 +73,19 @@ The comment applies to the element that follows it, with nothing but
 whitespace between. Where a comment and an attribute both speak about one
 heading, the comment wins and the disagreement is reported.
 
+Menus, written into the page rather than read out of it:
+
+```html
+<div data-cheatsheet-menu="page"></div>       link to all-cheatsheets.html
+<div data-cheatsheet-menu="dropdown"></div>   an entry per generated page
+```
+
+Every cheatsheet is also written as `all-cheatsheets.html` in the generated
+folder. A link is relative to the page the menu is in; an entry's text is the
+generated file name read as prose. Plain content in the element is written
+over, while content holding a marking of its own is refused, and a value
+naming neither menu is reported rather than defaulted.
+
 ## The three models
 
 | Model | Carries |

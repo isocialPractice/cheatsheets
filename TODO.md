@@ -15,25 +15,26 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
-- [ ] Document both methods side by side, with the trade-off between them stated plainly
-  - Earliest remaining item and the one that closes **The Comment Syntax Method**. `README.md` describes both as of 2026.11.07, so what is left is the argument rather than the behaviour: an attribute is one value and nothing to learn, a comment is several values and a syntax to get right, and which one a page wants depends on how much it has to say. Side by side means a reader deciding between them can see both in one place, which the two paragraphs it has now do not quite do
-  - The target moved on 2026.11.08: the detail about both methods is now on `docs/generating-from-a-site.html`, and `README.md` keeps a stand-in whose heading links to it. The argument belongs on that page, beside the two descriptions it already carries
-  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
-- [ ] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
-  - Pulled ahead of the two fill items it is written after, because the artifact has to exist before anything can link to it. Built from the same cheatsheets `plannedPages` already carries and through `renderCheatsheet`'s own composition rather than a second renderer, which is the whole of what "cannot drift apart" asks for. Decide where it is written and what it is called deliberately: it goes in the resolved folder like every other generated page, so it is one more name that can collide
+- [ ] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
+  - The last item of **The Menu Element**, and the one the two fills made urgent rather than optional: as of 2026.11.09 the content between the tags is written over, so a hand written menu left there as a fallback goes. `menuElements` already records the span it would fill, so this is a refusal and a ninth finding beside the eight the element has, not a new reading of the markup
+  - Narrowed by the code review of 2026.11.09 to plain content: content holding a marking of its own already refuses, because filling over collected material deleted it from the site's own page and filling two nested menus cut the page's markup apart. What is left is the harder half - telling a hand written menu from the one this tool wrote on the last run, since the element is not empty either way
   - From: Dedicated cheatsheet website `->` The Menu Element
-- [ ] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
-  - The simpler of the two modes, and it depends on the item above. The collector already passes this attribute over by name, so the marking exists and only the filling is missing. The new question is the link: it is relative to the page being written into rather than to the folder this tool resolved, and everything written so far went into that folder - so a site whose marked page sits two folders down is the case to answer rather than discover
-  - From: Dedicated cheatsheet website `->` The Menu Element
-- [ ] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
-  - The second mode, and the first part of this tool that reads the generated folder as data rather than writing it. Read `cheatsheet-site.json` rather than the disk: a mode listing what was generated should list what the manifest says was generated, and `readManifest` already finds the folder wherever on the ladder it sits
-  - From: Dedicated cheatsheet website `->` The Menu Element
-- [ ] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
-  - Refines the item above rather than standing beside it, which is why the two are queued together. `prose` already answers the text half, so a `base64Utils.html` entry reads `Base 64 Utils` - the same conversion the headings use, and one function rather than a second that could disagree with it. What is left is the link, which is the same relative question the page mode asks
-  - From: Dedicated cheatsheet website `->` The Menu Element
-- [ ] Verify the documentation site deployed
-  - The documentation site at `docs/` was written and pushed on 2026.11.08; the Pages workflow builds it on the server for minutes after the push, so this run could not know whether it arrived. `.claude/agent-note.md` carries the branch, the workflow and the URL to ask about
-  - From: Create and Deploy GitHub Pages Override
+- [ ] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
+  - The mechanism is now concrete: one document composes to `toSVG()`, and the page and the media file are two renders of it rather than two code paths
+  - Queued now rather than later because it is the last thing that changes the **shape** of a generated page, and the fixture site's committed expected output is what it would invalidate. `sheetLines` and `cheatsheetDocument` are where the concatenation lives as of 2026.11.09, and the master page composes through the same two - so one replacement covers every page this tool writes
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [ ] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
+  - The package's root entry imports nothing from Node, measured on the five files the page loads, so this is satisfied by the dependency rather than needing a second build of the API. It was speculative before the port settled it
+  - Sits beside the item above because both answer "what composes a page", and the browser route is the one the scan cannot serve: a marker written by a script at run time is invisible to a file read, which the tool's own header states as its first limit
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [ ] Build the fixture site under `fixtures/site/`, half tutorial and half tool documentation, using placeholder content only
+  - Worth more now than when it was written: there are three markings to exercise rather than two, and the menu is the one that writes into the site's own pages, which no test outside a temporary folder has yet watched happen
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [ ] Give it the page shapes the scripted tool must handle: code examples, prose sections, tables and a chart
+  - Refines the item above rather than standing beside it. The shapes are what make the fixture a test rather than a sample: a table and a chart are the markup the collector carries through untouched, and a chart is the one that brings a script tag with it - which the scan treats as an opaque range, so a `</div>` inside it is not a close
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+
+### Create and Deploy GitHub Pages Override
 
 ## GitHub Pages Deployment
 
@@ -276,6 +277,7 @@ any discovered file that is a working artifact and naming the remedy.
   - **Goal**: rebuild that package, then confirm from here that `doctor` reports `availableDrives` and that `recipes --from .claude/constants.md --heading "Recipe: cheatsheet-post" --json` reports `drift.differs`. If the toolbox is not going to be rebuilt, turn the constant off instead - a standing rule no run can follow is worse than no rule, because each run spends a step discovering it again
   - Filed here rather than as a found issue under `## Current` on purpose. The fix is outside this repository, so an override header carrying it would suppress the regular queue every run until someone rebuilt a tool this repository does not own
   - No draft was lost to it on 2026.10.15: the only image that run touched was `assets/footer.png`, which is a brand asset rather than a cheatsheet, and the recipe watches `jpg` and `webp` only
+  - Measured again on 2026.11.09 and unchanged: every command still exits with the stale build sentence, so `doctor` reports no `availableDrives` and the drift check cannot run. The watch pattern matched the eleven original JPEGs and nothing else, all of them already in the ledger, which is the quiet day the recipe describes rather than a pattern gone stale. The run created no cheatsheet image, so no draft was due. One thing worth recording for whoever takes this: the shim prints that sentence and exits **0**, so a run reading the exit code alone would report a healthy tool
   - From: version.control = null
 
 ## New Cheatsheets
@@ -1161,8 +1163,17 @@ the material, while an attribute sits on an element and may have been there
 first. The disagreement is reported either way, which is the judgement a page
 naming two sources in one method already got.
 
-- [ ] Document both methods side by side, with the trade-off between them stated plainly
-  - `README.md` states both as of 2026.11.07 - what a comment applies to, the three properties, that a comment is still a comment, and which method wins - so what is left is the side by side and the trade-off argued rather than the behaviour described: an attribute is one value and nothing to learn, a comment is several and a syntax to get right, and which a page wants depends on how much it has to say
+The section closed on 2026.11.09 with the side by side, which is the one thing
+a reader deciding between the two methods could not get from two paragraphs
+describing each. `docs/generating-from-a-site.html` carries a table of five
+rows - where each is written, what it can say, what there is to learn, what
+there is to get wrong, and what a finding names - and then the argument the
+table is for: an attribute carries one value and nothing beyond spelling it, a
+comment carries as much as the page has to say and a syntax with five more ways
+to write it wrong, so the question is not which is better but how much the page
+has to say. With a note that nothing is lost by starting with the attribute,
+since a page changes method by having a comment written in front of the element
+it already marked.
 
 ### The Menu Element
 
@@ -1177,11 +1188,33 @@ entry per page in the resolved folder.
 It is the first part of the tool that reads the generated folder as data rather
 than writing it, which is what `cheatsheet-site.json` is for.
 
-- [ ] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
-- [ ] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
-- [ ] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
+Both modes landed on 2026.11.09, with the master page they point at.
+`all-cheatsheets.html` is written in the resolved folder by `sheetLines`, the
+function that writes an individual cheatsheet, at one heading level down - which
+is what "cannot drift apart" asked for, since a second renderer would have shown
+the same material differently the first time either changed. It is a page of the
+folder like any other, so it is in the plan, in the manifest and in the name
+check, and it claims its name before any cheatsheet is offered one: the page
+every menu links to cannot be written over. The name is not `index.html` for
+that reason - a site's own root `index.html` is the commonest marked page there
+is, and a master of that name would collide on nearly every site it ran against.
+
+The link was the open question and it is answered: relative to the page being
+written into rather than to the folder the tool resolved, walked over the two
+site relative paths' own segments, so a marked page two folders down gets
+`../../cheatsheets/arrays.html` and an output folder outside the site is
+reported rather than written as an absolute path. An entry's text is the prose
+form of the generated file's name rather than the cheatsheet's heading, which
+may have been read off a `<title>` and be a sentence; the dropdown is a
+`<details>` with no class, no style and no script, so it works with JavaScript
+off. The eight things a menu element can get wrong are reported with the page
+and the line, including the three neither scan sees alone: a menu inside marked
+material, which a later run would collect onto the cheatsheet with its links
+relative to the wrong page, and the two the code review added on 2026.11.09 -
+a menu holding marked material, and a menu holding a second menu.
+
 - [ ] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
-- [ ] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
+  - The one piece of the section still open, and it matters more now that both modes write: the content between the tags is replaced, so a hand written menu left there as a fallback goes. The element already carries everything needed to decide - `menuElements` records the span it would fill - so this is a refusal and a finding beside the eight the element already has, not a new reading. What is left is plain content only: content holding a marking of its own is already refused, since the code review of 2026.11.09 found that case deleting collected material from the site's own page
 
 ### Building on the API
 
@@ -2070,6 +2103,26 @@ generate ideas about generating ideas.
 - [x] Trim `README.md` to a front door, each section keeping a stand-in whose heading links to its page
   - From: Create and Deploy GitHub Pages Override
 - [x] Hold the menu, the pages and the README's links together with a test
+  - From: Create and Deploy GitHub Pages Override
+- [x] Document both methods side by side, with the trade-off between them stated plainly
+  - Earliest remaining item and the one that closes **The Comment Syntax Method**. `README.md` describes both as of 2026.11.07, so what is left is the argument rather than the behaviour: an attribute is one value and nothing to learn, a comment is several values and a syntax to get right, and which one a page wants depends on how much it has to say. Side by side means a reader deciding between them can see both in one place, which the two paragraphs it has now do not quite do
+  - The target moved on 2026.11.08: the detail about both methods is now on `docs/generating-from-a-site.html`, and `README.md` keeps a stand-in whose heading links to it. The argument belongs on that page, beside the two descriptions it already carries
+  - From: Dedicated cheatsheet website `->` The Comment Syntax Method
+- [x] Generate the master page from the same collected data as the individual pages, so the two cannot drift apart
+  - Pulled ahead of the two fill items it is written after, because the artifact has to exist before anything can link to it. Built from the same cheatsheets `plannedPages` already carries and through `renderCheatsheet`'s own composition rather than a second renderer, which is the whole of what "cannot drift apart" asks for. Decide where it is written and what it is called deliberately: it goes in the resolved folder like every other generated page, so it is one more name that can collide
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [x] Fill `<div data-cheatsheet-menu="page"></div>` with a link to one master page concatenating every cheatsheet's data
+  - The simpler of the two modes, and it depends on the item above. The collector already passes this attribute over by name, so the marking exists and only the filling is missing. The new question is the link: it is relative to the page being written into rather than to the folder this tool resolved, and everything written so far went into that folder - so a site whose marked page sits two folders down is the case to answer rather than discover
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [x] Fill `<div data-cheatsheet-menu="dropdown"></div>` with one entry per page in the resolved cheatsheets folder
+  - The second mode, and the first part of this tool that reads the generated folder as data rather than writing it. Read `cheatsheet-site.json` rather than the disk: a mode listing what was generated should list what the manifest says was generated, and `readManifest` already finds the folder wherever on the ladder it sits
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [x] Derive each dropdown entry's link from the page path and its text from the prose form of the page name
+  - Refines the item above rather than standing beside it, which is why the two are queued together. `prose` already answers the text half, so a `base64Utils.html` entry reads `Base 64 Utils` - the same conversion the headings use, and one function rather than a second that could disagree with it. What is left is the link, which is the same relative question the page mode asks
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [x] Verify the documentation site deployed
+  - The documentation site at `docs/` was written and pushed on 2026.11.08; the Pages workflow builds it on the server for minutes after the push, so this run could not know whether it arrived. `.claude/agent-note.md` carries the branch, the workflow and the URL to ask about
+  - Answered 2026.11.09: the `Deploy GitHub Pages` run for commit `f600d45` concluded `success`, and the three paths worth telling apart from a stale site all answered 200 - `docs/index.html`, `docs/generating-from-a-site.html` and `docs/docs.css`. The second of those is the point: a failed build leaves the previous site up, so a 200 at the root proves nothing while a 200 at a page only this deploy added proves the deploy
   - From: Create and Deploy GitHub Pages Override
 
 </details>

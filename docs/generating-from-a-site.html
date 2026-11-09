@@ -100,13 +100,99 @@ joins its folder's cheatsheet or is one of its own, and <code>name</code> says
 what file the cheatsheet is written as. A cheatsheet comment is still a comment,
 so a marker written inside one is still not a marker.</p>
 
-<h2>Which method, and what happens when they disagree</h2>
+<h2>The two methods side by side</h2>
 
-<p>Both methods feed one collector, so a page may use either and a site may use
-both - and where the two speak about one heading the comment wins, because it
-was written about the material rather than left on an element. The disagreement
-is reported either way, as is a property the vocabulary does not hold or a value
+<table>
+ <tr><th></th><th>The attribute</th><th>The comment</th></tr>
+ <tr>
+  <td>Written</td>
+  <td>on the element wrapping the material</td>
+  <td>on the line in front of that element</td>
+ </tr>
+ <tr>
+  <td>Says</td>
+  <td>one thing: where the heading is read from</td>
+  <td>three: the heading source, whether the page joins its folder's
+   cheatsheet, and the file the cheatsheet is written as</td>
+ </tr>
+ <tr>
+  <td>To learn</td>
+  <td>nothing - an attribute and one of two values</td>
+  <td>a bracketed list, three property names, and the values each takes</td>
+ </tr>
+ <tr>
+  <td>To get wrong</td>
+  <td>a value naming no heading source</td>
+  <td>that, a property the vocabulary does not hold, a property written with
+   no value, one written twice, and a list that is not a list</td>
+ </tr>
+ <tr>
+  <td>Reported with</td>
+  <td>the page</td>
+  <td>the page and the line</td>
+ </tr>
+</table>
+
+<p>The trade-off is the first two rows against the next two. An attribute
+carries one value and there is nothing to get right beyond spelling it, which
+is why it is the method to reach for first: a page that only wants its material
+collected says so and is done. A comment carries as much as the page has to
+say, and the price is a syntax - a list, a vocabulary and a value per
+property - with five more ways to write it wrong. So the question is not which
+method is better but how much the page has to say: one thing, and the attribute
+is the whole answer; a second or a third, and the comment is the only place to
+put it, because an attribute has nowhere to put a second value.</p>
+
+<p>Nothing is lost by starting with the attribute and moving later. The two
+feed one collector, a page may use either, a site may use both, and a page
+changes method by having a comment written in front of the element it already
+marked.</p>
+
+<h2>What happens when they disagree</h2>
+
+<p>Where the two speak about one heading the comment wins, because it was
+written about the material rather than left on an element. The disagreement is
+reported either way, as is a property the vocabulary does not hold or a value
 it does not take, with the page and the line it was written on.</p>
+
+<h2>The menu, and the page it points at</h2>
+
+<p>The third marking is the only one written <strong>into</strong> a page the
+site owner keeps rather than read out of it. <code>data-cheatsheet-menu</code>
+says where the menu goes, and its value says which of the two:</p>
+
+<pre><code>&lt;div data-cheatsheet-menu="page"&gt;&lt;/div&gt;       a link to the page carrying every cheatsheet
+&lt;div data-cheatsheet-menu="dropdown"&gt;&lt;/div&gt;   an entry per page in the generated folder</code></pre>
+
+<p>Every cheatsheet is also concatenated into
+<code>all-cheatsheets.html</code> in the generated folder, composed by the same
+function that writes the individual pages - each cheatsheet is a section of it,
+with the pages inside a folder's cheatsheet one heading level below, so the two
+cannot show the same material differently. It is a page of that folder like any
+other, so it claims its name before any cheatsheet does: a site whose own page
+wants that name is told rather than written over.</p>
+
+<p>A link is relative to the page it is written into, not to the folder the
+tool resolved, so a marked page two folders down gets
+<code>../../cheatsheets/arrays.html</code>. An entry's text is the prose form of
+the generated file's name - <code>base64Utils.html</code> reads
+<code>Base 64 Utils</code> - rather than the cheatsheet's heading, which may
+have been read off a <code>&lt;title&gt;</code> and be a sentence. The dropdown
+is a <code>&lt;details&gt;</code> with no class, no style and no script, so it
+works with JavaScript off and a site that wants its own control has markup to
+replace.</p>
+
+<p>Plain content between the tags is written over, so a hand written menu left
+there as a fallback is replaced; leaving a menu element alone when its content
+is plain is still to come. Four things are refused rather than written: a value
+naming neither menu or no value at all, since an attribute carries no default
+here and guessing writes markup into somebody else's page; an element also
+carrying <code>data-cheatsheet</code>, or one inside material that is, because
+filling it would replace the content just read out of it; an element
+<em>holding</em> such material, or holding a second menu element, since the
+first would leave the site with no copy of that material at all and the second
+cut the page's markup apart; and a menu on a site that marked no material,
+which has nothing to list. Each is reported with the page and the line.</p>
 
 <h2>Reading a run before trusting it</h2>
 

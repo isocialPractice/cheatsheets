@@ -30,14 +30,85 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
-## [Unreleased]
+## [1.6.0-alpha]
 
-The documentation site, and no version with it. The work is documentation, its
-one piece of code is the test that guards it, and the site's version is
-whatever the default branch holds - so `1.5.0-alpha` stays where it is and this
-section is what the next release folds in.
+The menu element, and the documentation site folded in with it. The site landed
+on 2026.11.08 and carried no version of its own - the work was documentation,
+its one piece of code was the test that guards it, and the site's version is
+whatever the default branch holds - so it waited here for the next release to
+fold it in, which this is.
 
 ### Added
+
+- **A site can say where its cheatsheet menu goes, and both menus are now
+  filled.** `data-cheatsheet-menu="page"` is a link to the page carrying every
+  cheatsheet and `data-cheatsheet-menu="dropdown"` is an entry per page of the
+  generated folder. The attribute is the one `collectMarked` has passed over by
+  name since it was written - an attribute whose name merely starts the same way
+  as the marker is a different attribute - so a site has been able to write this
+  since before there was anything to put in one. It is also the only marking
+  this tool writes **into** a page the site owner keeps rather than reading out
+  of it, which is why the page is spliced rather than rebuilt: its indentation,
+  its line endings and everything the scan does not understand come back exactly
+  as they went in, and a page marking two menus is read and written once with
+  the splices applied from the end backwards.
+- **A master page, `all-cheatsheets.html`, composed by the same function that
+  writes the individual pages.** `sheetLines` writes one cheatsheet at the
+  heading level it is handed, so a cheatsheet page is that at level 1 and the
+  master is every cheatsheet at level 2 under a heading of its own, each in a
+  `<section data-cheatsheet-sheet>` naming the file it is also written as. A
+  second renderer was the obvious shape and is what the item ruled out: the two
+  pages would have shown the same material differently the first time either was
+  changed, with nothing to say which was right. It is a page of the generated
+  folder like any other - in the plan, in the manifest and in the name check -
+  and it claims its name **before** any cheatsheet is offered one, so the page
+  every menu links to cannot be written over. That is also why it is not called
+  `index.html`: a site's own root `index.html` is the commonest marked page
+  there is, and a master page of that name would collide on nearly every site.
+- **A link is relative to the page it is written into, not to the folder the
+  tool resolved.** Everything else a run writes goes into that folder, so a
+  marked page two folders down is the case the menu had to answer rather than
+  discover: `linkFrom` walks the two site relative paths apart, over their own
+  segments rather than through `relative()` from `node:path`, which answers in
+  this platform's separators and resolves a relative path against a working
+  folder that has nothing to do with either path. An output folder outside the
+  site has no such link and is reported rather than written as an absolute path
+  that works on one machine.
+- **An entry's text is the prose form of the generated file's name**, so
+  `base64Utils.html` reads `Base 64 Utils` in a menu by the same conversion that
+  heads a page from its own name. Not the cheatsheet's heading, which may have
+  been read off a `<title>` and be a sentence a site wrote to be read - the
+  wrong length for a menu, and the one thing not every entry's source has in
+  common.
+- **Six things a menu element can get wrong, each reported with the page and the
+  line.** A value naming neither menu, and no value at all - neither is given a
+  default, unlike the marker's, because the two menus are a link and a list and
+  guessing writes markup nobody asked for into somebody else's page. An element
+  that can enclose nothing and one that is never closed, which are the answers
+  the marker already had. An element carrying both markings, where the material
+  was read out of it and a menu written in would replace what was just
+  collected. And a menu element **inside** marked material, which is the one
+  case neither scan sees alone: filling it would put the menu on the generated
+  cheatsheet the next run writes, where its links are relative to the wrong
+  page, and it is the only marking that would make a second run write a
+  different cheatsheet than the first.
+- **The two authoring methods documented side by side, with the trade-off
+  argued rather than described.** `docs/generating-from-a-site.html` had a
+  paragraph each; it now has a table of five rows and the argument the table is
+  for - an attribute carries one value and nothing to learn, a comment carries
+  as much as the page has to say and a syntax to get right with five more ways
+  to write it wrong, so the question is not which is better but how much the
+  page has to say. With a note that nothing is lost by starting with the
+  attribute, since a page changes method by having a comment written in front of
+  the element it already marked.
+- **16 cases over the menu and the master page**, taking
+  `tools/test-cheatsheet-site.mjs` to 145. The ones worth naming are the ones
+  about what is **not** written: a page keeping its CRLF and its indentation, a
+  page whose material and whose prose outside the two marked spans are untouched,
+  a dry run that reports the menus and fills none of them, and a second run that
+  leaves a filled page byte for byte as the first one left it - the fill is
+  composed from the manifest rather than from what is in the element, so it
+  converges after one run instead of growing.
 
 - **A documentation site at `docs/`, and a `README.md` that is a front door.**
   The README crossed 300 lines on 2026.11.07 and was 310 by the time it was
@@ -77,6 +148,27 @@ section is what the next release folds in.
 
 ### Changed
 
+- **The manifest's shape moved to `3`.** `pages` now carries the master page
+  first and the site's cheatsheets after it, told apart by `master` in
+  `headingSource`. No field was added and none was renamed, so a reader looking
+  a page up by name is unaffected - but one that counted the entries to count
+  the site's cheatsheets is off by one, which is a meaning changed in silence
+  and what the number is raised for. `readManifest` reads every shape the tool
+  has written, as before, because the folder is taken from where the file is.
+- **The menu element's plain content is written over.** A hand written menu
+  left in the element as a fallback is replaced; leaving such an element alone
+  is the item queued behind this one, and until it lands a menu element whose
+  content is plain is an element this tool owns. It is stated in the file's own
+  header and on the documentation page rather than left to be discovered.
+- **Content that is not plain is refused instead.** A menu element holding
+  material marked with `data-cheatsheet`, or holding a second menu element, is
+  reported with the page and the line and left alone. Neither is a fallback
+  somebody loses the look of: the first would delete the site's only copy of
+  material the collector had just read out of that page, since the next run
+  finds nothing marked there to write again, and the second cut the page's
+  markup apart, because the fills are applied back to front and the inner one
+  had already moved the offset the outer one was measured with. A menu element
+  can now get eight things wrong rather than six.
 - **The menu wraps below 900px rather than stacking.** Thirteen entries in a
   column is 820px measured at 390x844, which is most of a phone screen standing
   between a reader and the page they opened. Below the breakpoint each group's
