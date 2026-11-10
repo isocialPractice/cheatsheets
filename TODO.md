@@ -15,24 +15,34 @@ written `YYYY.MM.DD`, and stays exactly as it is.
 
 ## Current
 
-- [ ] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
-  - The last item of **The Menu Element**, and the one the two fills made urgent rather than optional: as of 2026.11.09 the content between the tags is written over, so a hand written menu left there as a fallback goes. `menuElements` already records the span it would fill, so this is a refusal and a ninth finding beside the eight the element has, not a new reading of the markup
-  - Narrowed by the code review of 2026.11.09 to plain content: content holding a marking of its own already refuses, because filling over collected material deleted it from the site's own page and filling two nested menus cut the page's markup apart. What is left is the harder half - telling a hand written menu from the one this tool wrote on the last run, since the element is not empty either way
-  - From: Dedicated cheatsheet website `->` The Menu Element
-- [ ] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
-  - The mechanism is now concrete: one document composes to `toSVG()`, and the page and the media file are two renders of it rather than two code paths
-  - Queued now rather than later because it is the last thing that changes the **shape** of a generated page, and the fixture site's committed expected output is what it would invalidate. `sheetLines` and `cheatsheetDocument` are where the concatenation lives as of 2026.11.09, and the master page composes through the same two - so one replacement covers every page this tool writes
-  - From: Dedicated cheatsheet website `->` Building on the API
-- [ ] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
-  - The package's root entry imports nothing from Node, measured on the five files the page loads, so this is satisfied by the dependency rather than needing a second build of the API. It was speculative before the port settled it
-  - Sits beside the item above because both answer "what composes a page", and the browser route is the one the scan cannot serve: a marker written by a script at run time is invisible to a file read, which the tool's own header states as its first limit
-  - From: Dedicated cheatsheet website `->` Building on the API
-- [ ] Build the fixture site under `fixtures/site/`, half tutorial and half tool documentation, using placeholder content only
-  - Worth more now than when it was written: there are three markings to exercise rather than two, and the menu is the one that writes into the site's own pages, which no test outside a temporary folder has yet watched happen
+- [ ] Mark one section with the parent tag method and another with the comment syntax, so both paths have a fixture
+  - The fixture landed on 2026.11.10 marked with the parent tag throughout, which is the simple case and the one that needs no syntax learned. This is the other half: the comment syntax has nine unit cases and no page in the repository a reader can look at, and it is the method whose five extra ways to go wrong are the reason the side by side table exists
+  - `docs/commands.html` is the page to convert - it already carries prose outside its marked element, so a comment in front of that element exercises the "applies to what follows it, with nothing but whitespace between" rule against real markup
   - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
-- [ ] Give it the page shapes the scripted tool must handle: code examples, prose sections, tables and a chart
-  - Refines the item above rather than standing beside it. The shapes are what make the fixture a test rather than a sample: a table and a chart are the markup the collector carries through untouched, and a chart is the one that brings a script tag with it - which the scan treats as an opaque range, so a `</div>` inside it is not a close
+- [ ] Include a nested folder of sibling pages, so the folder-to-one-page rule has something to exercise
+  - The fixture has two folders at the root and nothing inside either, which is deliberate: `pageFolder` reads the **immediate** parent, so a folder inside a folder is the case that says which name a cheatsheet takes. `docs/` and `tutorial/` are not that case
+  - Worth taking with the item above rather than after it, since both edit the same five pages and a run that moves a page is a run that rewrites its links
   - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [ ] Add a page carrying `data-cheatsheet-menu` in each of its two modes
+  - The marking that writes **into** a page the site owner keeps, and the only one with nothing in the repository to watch it happen. Now worth more than when it was written: as of 2026.11.10 a fill carries a signature and anything else between the tags is refused, so a committed page with a hand written menu beside a filled one is the fixture that holds both halves of that
+  - The fixture is read from a copy by `tools/test-fixture-site.mjs`, which is what makes a destructive marking safe to commit here
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [ ] Include a variant that already has a `cheatsheets/` folder, so the folder resolution fallback is exercised rather than assumed
+  - The ladder is unit tested without touching a disk, and the case this adds is the one a site owner actually meets: a folder that is already theirs. The variant is a second fixture root rather than a change to the first, since the first has to keep resolving `cheatsheets/` cleanly
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [ ] Run the scripted tool and the API against the fixture in CI, comparing generated pages against committed expected output
+  - The item that was held back, and what it was waiting for is done: the page shape changed on 2026.11.10 when it stopped being string concatenation, and committing output from the old shape would have meant committing it twice with a diff nobody could read in between
+  - Last of the five on purpose - the four above change what the fixture carries, so expected output committed before them would be regenerated by every one of them
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+
+### UI/UX Override - a generated page scrolls sideways
+
+#### Found Issues
+
+- [ ] A generated page scrolls sideways on a phone when a carried listing holds one long line
+  - **Issue**: At a 390px viewport `tutorial.html` and `all-cheatsheets.html` report a `documentElement.scrollWidth` of 494 against a `clientWidth` of 390, so the whole page scrolls horizontally. The element reaching 494px is a carried `<code>` from `tutorial/getting-started.html` at `white-space: pre` and `overflow-x: visible`, because a generated page carries no stylesheet - no `<link>` and no `<style>`. `index.html` and `docs.html` hold at 390/390 only because their longest carried line is shorter, so any site with one long line anywhere gets a page that scrolls sideways. The composed sheet is **not** what does it: on the same pages at the same width every sheet is drawn 374x374, square to within a pixel, which is the half the 2026.11.10 items changed and the half that works. `git show HEAD:tools/cheatsheet-site.mjs` over the same fixture writes the same empty `<head>` and measures the same 494px, so this is inherited rather than a regression - which is why it is here rather than under Resolve Issues
+  - **Goal**: Resolve to [generated-page-wide-listing.prompt.md](.claude/prompts/generated-page-wide-listing.prompt.md)
+  - From: UI/UX Override - a generated page scrolls sideways
 
 ### Create and Deploy GitHub Pages Override
 
@@ -1213,15 +1223,51 @@ material, which a later run would collect onto the cheatsheet with its links
 relative to the wrong page, and the two the code review added on 2026.11.09 -
 a menu holding marked material, and a menu holding a second menu.
 
-- [ ] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
-  - The one piece of the section still open, and it matters more now that both modes write: the content between the tags is replaced, so a hand written menu left there as a fallback goes. The element already carries everything needed to decide - `menuElements` records the span it would fill - so this is a refusal and a finding beside the eight the element already has, not a new reading. What is left is plain content only: content holding a marking of its own is already refused, since the code review of 2026.11.09 found that case deleting collected material from the site's own page
+The section closed on 2026.11.10 with the refusal, and the question it turned on
+was the one an empty check cannot answer: a menu element is **not empty on the
+second run either**, so a refusal reading emptiness would fill once and never
+again, while filling everything non-empty deletes a hand written menu the first
+time it runs. What decides instead is ownership. A fill is wrapped in
+`<!-- cheatsheet-site:menu -->` and its closing pair, so a run recognises its own
+work and writes over that and nothing else.
+
+A comment rather than an attribute or a class, for two reasons worth recording:
+the site owner's own start tag is left exactly as they wrote it, and a comment is
+already an opaque span, so a marking written inside generated markup is not a
+second marking for the next run to trip over. It is read as a pair wrapping the
+whole span, because the one thing worse than refusing to fill is filling over
+markup on the strength of a word. Nine things a menu element can get wrong now,
+and the new one names both ways out - empty the element, or keep the markup and
+drop the attribute.
 
 ### Building on the API
 
-- [ ] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
-  - The mechanism is now concrete: one document composes to `toSVG()`, and the page and the media file are two renders of it rather than two code paths
-- [ ] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
-  - The package's root entry imports nothing from Node, measured on the five files the page loads, so this is satisfied by the dependency rather than needing a second build of the API. It was speculative before the port settled it
+The first two items landed together on 2026.11.10, and taking them together is
+what settled the vocabulary question underneath them.
+
+**A generated page is a render of a composition.** `siteDocument` builds a
+document of the three models out of what the collector found, `renderFragment`
+composes it, and `sheetLines` splices the result in above the material - so a
+media file of the same cheatsheet is `renderSheet` of the same object. The
+figure is spliced in by the function that writes one cheatsheet rather than by
+its two callers, which is what made this one replacement covering every page the
+tool writes. The material stays underneath, untouched, because the reading above
+it is lossy: a sheet is a picture of text, so a table becomes rows and a `<pre>`
+listing loses its indentation, and a reader who wants the table rather than a
+picture of it has nowhere else to get it. The one thing the API gained for it is
+an `id` on a fragment, since a page holding several sheets would otherwise carry
+one id several times.
+
+**The browser entry point is `api/cheatsheet/site.mjs`.** It reads the same two
+markings off a loaded document with `querySelectorAll`, so it finds a marker a
+script wrote at run time - the first limit the scanner's own header states, and
+the half no scan can cover. The section it builds is the shape the scripted tool
+writes, handed back rather than inserted, with the material cloned rather than
+moved. And because there are two readers of one vocabulary now, the attribute
+names, the heading sources, the element lists and `prose` moved into that module
+and the scripted tool re-exports them: a copy in each is two vocabularies that
+agree until one of them is edited.
+
 - [ ] Generate a whole site - a menu and one page per entry - from a single JSON data file
 - [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
 - [ ] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
@@ -1266,8 +1312,25 @@ Its content is placeholder throughout - Acme Corp, `demo-app`,
 `jane.doe@example.com` - so nothing real can leak into a fixture that is read
 as an example of how to mark a site up.
 
-- [ ] Build the fixture site under `fixtures/site/`, half tutorial and half tool documentation, using placeholder content only
-- [ ] Give it the page shapes the scripted tool must handle: code examples, prose sections, tables and a chart
+The site was built on 2026.11.10, with the shapes in the same run because the
+shapes are what make it a test rather than a sample. Five pages - a handbook
+index, two tutorial pages and two documentation pages, so a folder is a subject
+twice over - carrying prose sections, a definition list, code examples, a table
+with a caption and header cells, and a chart. The chart is the one worth
+naming: it brings a `<script>` with it and that script holds a `</div>` in a
+string, so a reader that counted it would end the marked element early and carry
+half a page onto the generated cheatsheet with nothing said about it.
+
+Everything in it is placeholder content, and that is held rather than intended -
+`tools/test-fixture-site.mjs` requires every address in it to be at a reserved
+domain, holds the one phone number to the reserved exchange, and measures the
+folder against a byte budget. It is also the only marked up folder in this
+repository, so the suite runs the tool against a copy in the temporary folder
+and `CONTRIBUTING.md` says never to run it against the repository root. Each
+page is marked with the parent tag method; the comment syntax fixture and the
+menu fixture are the items below, and the README in the folder lists what is
+deliberately absent so a later run cannot read an absence as done.
+
 - [ ] Mark one section with the parent tag method and another with the comment syntax, so both paths have a fixture
 - [ ] Include a nested folder of sibling pages, so the folder-to-one-page rule has something to exercise
 - [ ] Add a page carrying `data-cheatsheet-menu` in each of its two modes
@@ -2124,5 +2187,23 @@ generate ideas about generating ideas.
   - The documentation site at `docs/` was written and pushed on 2026.11.08; the Pages workflow builds it on the server for minutes after the push, so this run could not know whether it arrived. `.claude/agent-note.md` carries the branch, the workflow and the URL to ask about
   - Answered 2026.11.09: the `Deploy GitHub Pages` run for commit `f600d45` concluded `success`, and the three paths worth telling apart from a stale site all answered 200 - `docs/index.html`, `docs/generating-from-a-site.html` and `docs/docs.css`. The second of those is the point: a failed build leaves the previous site up, so a 200 at the root proves nothing while a 200 at a page only this deploy added proves the deploy
   - From: Create and Deploy GitHub Pages Override
+- [x] Leave the menu element's content untouched when it is not empty, so a hand written menu is never overwritten
+  - The last item of **The Menu Element**, and the one the two fills made urgent rather than optional: as of 2026.11.09 the content between the tags is written over, so a hand written menu left there as a fallback goes. `menuElements` already records the span it would fill, so this is a refusal and a ninth finding beside the eight the element has, not a new reading of the markup
+  - Narrowed by the code review of 2026.11.09 to plain content: content holding a marking of its own already refuses, because filling over collected material deleted it from the site's own page and filling two nested menus cut the page's markup apart. What is left is the harder half - telling a hand written menu from the one this tool wrote on the last run, since the element is not empty either way
+  - From: Dedicated cheatsheet website `->` The Menu Element
+- [x] Render each generated page through the cheatsheet API rather than by string concatenation, so the site and the media files share one composition
+  - The mechanism is now concrete: one document composes to `toSVG()`, and the page and the media file are two renders of it rather than two code paths
+  - Queued now rather than later because it is the last thing that changes the **shape** of a generated page, and the fixture site's committed expected output is what it would invalidate. `sheetLines` and `cheatsheetDocument` are where the concatenation lives as of 2026.11.09, and the master page composes through the same two - so one replacement covers every page this tool writes
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Expose a browser entry point that builds a cheatsheet section from elements found with ordinary DOM methods, for a site that will not run a build step
+  - The package's root entry imports nothing from Node, measured on the five files the page loads, so this is satisfied by the dependency rather than needing a second build of the API. It was speculative before the port settled it
+  - Sits beside the item above because both answer "what composes a page", and the browser route is the one the scan cannot serve: a marker written by a script at run time is invisible to a file read, which the tool's own header states as its first limit
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Build the fixture site under `fixtures/site/`, half tutorial and half tool documentation, using placeholder content only
+  - Worth more now than when it was written: there are three markings to exercise rather than two, and the menu is the one that writes into the site's own pages, which no test outside a temporary folder has yet watched happen
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [x] Give it the page shapes the scripted tool must handle: code examples, prose sections, tables and a chart
+  - Refines the item above rather than standing beside it. The shapes are what make the fixture a test rather than a sample: a table and a chart are the markup the collector carries through untouched, and a chart is the one that brings a script tag with it - which the scan treats as an opaque range, so a `</div>` inside it is not a close
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
 
 </details>
