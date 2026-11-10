@@ -55,8 +55,9 @@ site that marked any. The output folder is resolved before anything is written -
 <code>cheatsheets/</code> under the site root, then
 <code>cheatsheets/cheatsheets/</code>, then
 <code>cheatsheets/cheatsheets_0/</code> and upward until a name is free - so a
-site that already has one of those keeps it. The script imports nothing but
-Node builtins, because it runs against somebody else's checkout.</p>
+site that already has one of those keeps it. The script installs nothing,
+because it runs against somebody else's checkout: every import is a Node
+builtin or a path inside this repository.</p>
 
 <h2>A folder is a subject, so a folder is a cheatsheet</h2>
 
@@ -182,17 +183,90 @@ is a <code>&lt;details&gt;</code> with no class, no style and no script, so it
 works with JavaScript off and a site that wants its own control has markup to
 replace.</p>
 
-<p>Plain content between the tags is written over, so a hand written menu left
-there as a fallback is replaced; leaving a menu element alone when its content
-is plain is still to come. Four things are refused rather than written: a value
-naming neither menu or no value at all, since an attribute carries no default
-here and guessing writes markup into somebody else's page; an element also
-carrying <code>data-cheatsheet</code>, or one inside material that is, because
-filling it would replace the content just read out of it; an element
-<em>holding</em> such material, or holding a second menu element, since the
-first would leave the site with no copy of that material at all and the second
-cut the page's markup apart; and a menu on a site that marked no material,
-which has nothing to list. Each is reported with the page and the line.</p>
+<p><strong>A menu element is never written over.</strong> A fill is wrapped in
+<code>&lt;!-- cheatsheet-site:menu --&gt;</code> and its closing pair, which is
+how a run tells its own work from a site owner's: an element carrying that
+signature is filled again, and one carrying anything else is left exactly as it
+was. The signature is what makes the refusal possible at all - a menu element
+is not empty on the second run either, so a refusal that read emptiness would
+fill once and never again.</p>
+
+<p>Five things are refused rather than written: a value naming neither menu or
+no value at all, since an attribute carries no default here and guessing writes
+markup into somebody else's page; an element also carrying
+<code>data-cheatsheet</code>, or one inside material that is, because filling it
+would replace the content just read out of it; an element <em>holding</em> such
+material, or holding a second menu element, since the first would leave the site
+with no copy of that material at all and the second cut the page's markup apart;
+an element holding plain content, which is a hand written menu nobody could get
+back; and a menu on a site that marked no material, which has nothing to list.
+Each is reported with the page and the line, and the plain content case names
+both ways out - empty the element, or keep the markup and drop the
+attribute.</p>
+
+<h2>What a generated page carries</h2>
+
+<p>A render of a cheatsheet document, and the material it was read from. The
+collected blocks become a document of the <a href="three-models.html">three
+models</a>, that document is composed through
+<a href="rendering-outside-the-page.html">the output surface</a>, and the
+composed sheet is embedded at the top of the page - so a media file of the same
+cheatsheet is another render of the same object rather than a second code path
+that happens to agree today.</p>
+
+<pre><code>&lt;h1&gt;Acme Reference&lt;/h1&gt;
+&lt;div class="cheatsheet" role="img" aria-label="Acme Reference cheat sheet"&gt;
+  &lt;svg id="cheatsheet-site-index" viewBox="0 0 3600 3600"&gt;...&lt;/svg&gt;
+&lt;/div&gt;
+&lt;main data-cheatsheet-block="section"&gt;...the site's own markup...&lt;/main&gt;</code></pre>
+
+<p>The markup stays because the reading is lossy and a sheet is a picture of
+text: a table becomes rows, a chart's <code>&lt;script&gt;</code> contributes
+nothing, and a <code>&lt;pre&gt;</code> listing loses its indentation. A reader
+who wants the table rather than a picture of it has nowhere else to get it, so
+the figure is the reading and the markup underneath is the record. A heading, a
+caption and a table's header cell keep their role as the comment rows a label is
+set in; material that reads as no text at all - a page of nothing but an
+<code>&lt;img&gt;</code> - gets no figure rather than a sheet with an invented
+row on it.</p>
+
+<p>Every fragment is named, because the master page holds one per cheatsheet and
+a composition carries <code>id="cheatsheet"</code> on its root. The name is the
+generated file's stem, which the flat output folder has already made unique,
+slugged the way the surface slugs a render's file name - a stem is a site
+owner's own file or folder name, and an <code>id</code> may hold no
+whitespace.</p>
+
+<h2>The browser route, for a site with no build step</h2>
+
+<p>The scanner reads files, so a marker a script wrote at run time is invisible
+to it. <code>api/cheatsheet/site.mjs</code> is the other half, and it needs no
+checkout, no Node and nothing installed - a page that can run a module can
+build its own cheatsheet section from the elements it already has:</p>
+
+<pre><code>&lt;script type="module"&gt;
+  import { cheatsheetSection } from "./api/cheatsheet/index.mjs";
+
+  const { element, findings } = cheatsheetSection(document);
+  if (element) document.querySelector("#cheatsheet").append(element);
+  for (const finding of findings) console.warn(finding);
+&lt;/script&gt;</code></pre>
+
+<p>It reads the same two markings, because the attribute names, the heading
+sources and the element lists are declared there and the scripted tool imports
+them: one vocabulary with two readers rather than two that agree until one is
+edited. The section it builds is the shape the scripted tool writes - a heading,
+the composed figure, and a <code>&lt;main&gt;</code> per block - so a site can
+move between the routes without its stylesheet changing. The material is cloned
+rather than moved, and the section is handed back rather than inserted, since
+where it goes is the page's decision.</p>
+
+<p>Two things it does not do. There is no generated folder, so a
+<code>data-cheatsheet-menu</code> on the page is reported rather than filled: a
+menu pointing at pages nobody wrote is worse than no menu. And nothing is
+written to a file and nothing is fetched - it reaches the document it was handed
+and the modules beside it, which is what lets it load from a page with no
+bundler.</p>
 
 <h2>Reading a run before trusting it</h2>
 
@@ -210,6 +284,16 @@ records its own shape, and a run reads every shape the tool has written: the
 folder is read off where the file sits rather than out of the file, so an older
 manifest answers that as well as a current one and is rewritten on the way
 past.</p>
+
+<p>There is a site to run it against, committed. <code>fixtures/site/</code> is
+a small placeholder site - half tutorial, half tool documentation - carrying
+every page shape the tooling has to handle: prose sections, code examples, a
+table, and a chart whose script holds a <code>&lt;/div&gt;</code> in a string,
+which is the case that proves a script is an opaque span rather than markup.
+Read its <a href="../fixtures/site/README.md">README</a> for what is in it and
+what is deliberately not yet.</p>
+
+<pre><code>node tools/cheatsheet-site.mjs fixtures/site --dry-run</code></pre>
 
 <h2>Why the collector is a scanner</h2>
 

@@ -20,7 +20,7 @@
 // catalog or its conventions, and nothing may be installed: a site owner runs
 // this against a checkout of their own pages with whatever Node they have.
 //
-// ## Dependency free, and why that rules out a parser
+// ## Installs nothing, and why that rules out a parser
 //
 // The obvious way to find an element carrying an attribute is to parse the
 // document. There is no HTML parser in the standard library and this script may
@@ -29,8 +29,15 @@
 //
 // - It reads the markup as written, so a marker produced by a script at run
 //   time is invisible to it. That is the right half to cover: a build step
-//   reads files, and **Expose a browser entry point** under **Building on the
-//   API** in `TODO.md` is what covers the other.
+//   reads files, and the other half is `collectFromDocument` in
+//   `api/cheatsheet/site.mjs`, which reads the same two markings off a live
+//   document with ordinary DOM methods and sees exactly what a scan cannot.
+//
+// Nothing installed is not the same as nothing imported, and the difference
+// landed on 2026.11.10: the page is composed through `api/cheatsheet/`, which
+// is this repository's own code, published with this file and loaded by a
+// relative path. A bare specifier is still an install and there is still not
+// one.
 // - A start tag is walked rather than searched, so a `>` inside an attribute
 //   value is not read as the end of it - `<div title="a>b" data-cheatsheet>` is
 //   one element and is collected as one. That was not true until 2026.11.03 and
@@ -118,28 +125,56 @@
 //
 // | Absent | Owned by |
 // | --- | --- |
-// | Leaving a menu element alone when its content is plain | **The Menu Element** |
-// | The page composed through `api/cheatsheet/` | **Building on the API** |
+// | A whole site generated from one data file | **Building on the API** |
+// | The data file formats, and the preset mapping onto tags | **Building on the API** |
 //
-// The first is the one to know about before running this against a site that
-// has anything in its menu element: plain content between the tags is written
-// over, so a hand written menu left there as a fallback is replaced. The item
-// that guards it is queued; until it lands, a menu element whose content is
-// plain is an element this tool owns.
+// **A menu element is never written over**, which was the last absence here and
+// closed on 2026.11.10. Anything between the tags that this tool did not write
+// itself is a refusal with a finding, in three sentences rather than one,
+// because what filling over it would cost is different in each case: material
+// the collector has already read is the site's only copy of it, a second menu
+// has already moved the offsets the outer splice was measured at, and plain
+// content is a hand written menu somebody left as a fallback. The first two
+// were answered when the modes landed; the third is what {@link MENU_OPEN} is
+// for, since a menu element is not empty on the second run either and a
+// refusal that read emptiness would fill once and never again.
 //
-// What is **not** absent is the case where that content is not plain. Content
-// carrying a marking of its own - material, or a second menu - is refused with
-// a finding rather than written over, because neither is a fallback somebody
-// loses the look of: filling over collected material deletes the site's only
-// copy of it, since the next run finds nothing marked there to write again, and
-// filling two nested menus cuts the page's markup apart on the second splice.
-// Those two are errors whatever the queued item decides about plain content,
-// which is why they are answered here rather than with it.
+// ## The composed page, and the one thing it gives up
 //
-// The last of those is why the emitted page is string concatenation and says
-// so. A generated page and a generated media file should be two renders of one
-// composition, and making that true is an item with the whole output surface
-// behind it; writing a half-composition here would be something to undo.
+// A generated page carries a **render of a cheatsheet document** and the
+// material it was read from, in that order. {@link siteDocument} builds the
+// document out of what the collector found, {@link renderFragment} on the
+// published surface composes it, and {@link sheetLines} splices the result in -
+// so a media file of the same sheet is another render of the same object. Until
+// 2026.11.10 the page was string concatenation beside an image written by the
+// API, which could not promise the two showed the same material the same way.
+//
+// Three decisions, and the third is the cost:
+//
+// - **One figure per cheatsheet, written where the cheatsheet is written.** The
+//   master page concatenates {@link sheetLines} like any other page, so it
+//   carries a figure per cheatsheet rather than a composition of its own. A
+//   second renderer is what the master page was built to avoid, and this is the
+//   same argument one step up.
+// - **Every fragment is named.** A composition carries `id="cheatsheet"` on its
+//   root, which is right for a standalone SVG and is the same id twice on a page
+//   holding two. The name is the generated file's stem, which the flat folder
+//   has already made unique, and `id` is an option of the surface's fragment
+//   rather than a rewrite here - a page embedding several sheets is the API's
+//   question as much as this tool's.
+// - **The text a sheet is set from is read out of the markup, and that reading
+//   is lossy.** A sheet is a picture of text, so a table becomes rows and a
+//   chart's `<script>` contributes nothing. {@link textLines} states what it
+//   keeps and what it drops. The markup itself is written onto the page
+//   underneath, untouched, because a reader who wants the table rather than a
+//   picture of it has nowhere else to get it - and because carrying a site's
+//   markup through is the promise the collector is built on.
+//
+// What is **not** here is a media file written beside the page. The composition
+// is reachable - `renderSheet(siteDocument(sheet), { format: "webp" })` is the
+// whole of it - and which formats a generated folder should carry, and whether
+// a site owner wants binaries committed into their tree, is a question for the
+// items under **Building on the API** rather than a default this tool picks.
 //
 // ## The menu element, and the master page it points at
 //
@@ -295,8 +330,28 @@ import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
-/** The attribute a site marks cheatsheet material with. */
-export const MARKER = "data-cheatsheet";
+import {
+  prose,
+  renderFragment,
+  slugFor,
+  BREAKING_ELEMENTS,
+  CHEATSHEET_BLOCK,
+  CHEATSHEET_MARKER,
+  CHEATSHEET_MENU_MARKER,
+  HEADING_ELEMENTS,
+  HEADING_SOURCES,
+  OPAQUE_ELEMENTS,
+} from "../api/cheatsheet/index.mjs";
+
+/**
+ * The attribute a site marks cheatsheet material with.
+ *
+ * Declared in `api/cheatsheet/site.mjs` and re-exported here, since
+ * 2026.11.10. The browser entry point reads the same marking off a live
+ * document, so the name belongs to one of them and not to both - and the one it
+ * belongs to is the published surface, which is the half a page can load.
+ */
+export const MARKER = CHEATSHEET_MARKER;
 
 /**
  * The attribute a site marks the place its cheatsheet menu goes with.
@@ -306,7 +361,7 @@ export const MARKER = "data-cheatsheet";
  * able to write this since before there was anything to put in one, and
  * collecting it as material would have put a menu's own markup on a cheatsheet.
  */
-export const MENU_MARKER = "data-cheatsheet-menu";
+export const MENU_MARKER = CHEATSHEET_MENU_MARKER;
 
 /**
  * The menus a site can ask for, and what each one is.
@@ -346,6 +401,31 @@ export const MASTER_NAME = "all-cheatsheets.html";
 
 /** What this tool calls itself, in the manifest and in a generated page. */
 export const GENERATOR = "cheatsheet-site";
+
+/**
+ * The comments this tool writes around a menu it filled.
+ *
+ * **The signature is how a run tells its own fill from a site owner's
+ * markup**, which is the whole of what the refusal below needed and the one
+ * question an empty check cannot answer: a menu element is not empty on the
+ * second run either, so a tool that refused everything non-empty would fill
+ * once and never again, while one that filled everything non-empty would
+ * delete a hand written menu the first time it ran.
+ *
+ * A comment rather than an attribute or a class, for two reasons. The site
+ * owner's own element is left exactly as they wrote it - nothing is added to
+ * their start tag - and a comment is already an {@link opaqueRanges} span, so
+ * a `data-cheatsheet` or a `data-cheatsheet-menu` written inside the markup
+ * this tool generates is not a second marking for the next run to trip over.
+ *
+ * Recognised as a pair wrapping the whole span, per {@link heldBy}. Half a
+ * pair is somebody's content, because the one thing worse than refusing to
+ * fill is filling over markup on the strength of a word.
+ */
+export const MENU_OPEN = `<!-- ${GENERATOR}:menu -->`;
+
+/** The close of the pair {@link MENU_OPEN} opens. */
+export const MENU_CLOSE = `<!-- /${GENERATOR}:menu -->`;
 
 /** The file a generated folder records its own location and contents in. */
 export const MANIFEST_NAME = "cheatsheet-site.json";
@@ -390,14 +470,7 @@ export const MANIFEST_VERSION = 3;
  */
 export const MANIFEST_READABLE = [1, 2, 3];
 
-/**
- * The values `data-cheatsheet` names a heading source with.
- *
- * `title` takes the heading from the page's own `<title>`, `page` from its file
- * name. Order matters only in what the findings print; which one a page gets is
- * what it asked for.
- */
-export const HEADING_SOURCES = ["title", "page"];
+export { HEADING_SOURCES, prose };
 
 /**
  * The heading source of a cheatsheet named for the folder its pages sit in.
@@ -1179,8 +1252,14 @@ function carriesAttribute(startTag, name) {
  * replaces. It is `null` wherever there is no usable span, so a caller that
  * honours {@link menuProblem} never reaches for one that is not there.
  *
+ * `holds` is whose that content is, per {@link heldBy}, and it is read here
+ * rather than where the fill happens because this is the one reading of the
+ * file: an element that already carries somebody's markup is refused, and an
+ * element carrying this tool's own previous fill is filled again. `null`
+ * wherever `inner` is.
+ *
  * @param {string} html
- * @returns {Array<{ tag: string, mode: string | null, at: number, line: number, indent: string, inner: [number, number] | null, status?: string }>}
+ * @returns {Array<{ tag: string, mode: string | null, at: number, line: number, indent: string, inner: [number, number] | null, holds: 'nothing' | 'generated' | 'content' | null, status?: string }>}
  */
 export function menuElements(html) {
   const ranges = opaqueRanges(html);
@@ -1206,6 +1285,7 @@ export function menuElements(html) {
       line: lineAt(html, start),
       indent: indentAt(html, start),
       inner: null,
+      holds: null,
     };
     if (carriesAttribute(startTag, MARKER)) {
       found.push({ ...element, status: "material" });
@@ -1220,9 +1300,41 @@ export function menuElements(html) {
       found.push({ ...element, status: UNCLOSED });
       continue;
     }
-    found.push({ ...element, inner: [tagEnd + 1, end.start] });
+    const inner = [tagEnd + 1, end.start];
+    found.push({ ...element, inner, holds: heldBy(html.slice(inner[0], inner[1])) });
   }
   return found;
+}
+
+/**
+ * What a menu element already has between its tags.
+ *
+ * Three answers, and the middle one is the reason this function exists. A menu
+ * element is **not empty** on the second run over a site - it holds the menu
+ * the first run wrote - so "is there anything in there" cannot be the question
+ * a refusal turns on. What can be asked is whose the content is, and
+ * {@link MENU_OPEN} is how a run says so for the benefit of the next one.
+ *
+ * | Answer | What is between the tags |
+ * | --- | --- |
+ * | `nothing` | Whitespace, or an element written `<nav></nav>` |
+ * | `generated` | A fill this tool wrote, wrapped in the signature |
+ * | `content` | Markup somebody wrote, which is never written over |
+ *
+ * **The signature has to wrap the whole span**, not merely appear in it. A
+ * page holding a hand written menu beside a generated one has content this
+ * tool did not write, and the trailing half of a pair proves only that
+ * something was once filled here. Reading it loosely is how a fallback menu
+ * disappears on the strength of a comment somebody pasted.
+ *
+ * @param {string} inner The markup between the start and closing tags.
+ * @returns {'nothing' | 'generated' | 'content'}
+ */
+function heldBy(inner) {
+  const held = inner.trim();
+  if (held === "") return "nothing";
+  if (held.startsWith(MENU_OPEN) && held.endsWith(MENU_CLOSE)) return "generated";
+  return "content";
 }
 
 /**
@@ -1498,49 +1610,16 @@ function stemOf(name) {
 }
 
 /**
- * A file or folder name read as prose.
+ * `prose` and the two markings are the published surface's, and are
+ * re-exported from the top of this file.
  *
- * `somePageName` is `Some Page Name`. A file name is written for a filesystem
- * and a heading is read by a person, and the gap between the two is the whole
- * of this: a generated page headed `somePageName` is a page that looks
- * generated.
- *
- * One function rather than one per caller, because there are two and they have
- * to agree - a page headed from its own file name and a folder's cheatsheet
- * headed from the folder's name are one answer read off two names.
- *
- * Four breaks, and each is a shape a real name has:
- *
- * - **A separator a name is already written with**: a space, a dot, an
- *   underscore or a hyphen. `my-page_name` was already three words.
- * - **A case change**: `somePageName`. The commonest shape, and the one the
- *   item is named for.
- * - **An acronym run before a capitalised word**: `parseHTMLString` is
- *   `Parse HTML String` rather than `Parse H T M L String` or `Parse HTMLString`.
- *   The last capital of the run belongs to the word after it.
- * - **Either side of a digit run**: `base64Encode` is `Base 64 Encode`.
- *
- * Only the first letter of each word is touched. Lower casing the rest would
- * read `HTML` as `Html`, and a site that wrote an acronym meant it - so a word
- * already capitalised comes back as it was written.
- *
- * @param {string} name
- * @returns {string} Prose, or `""` for a name with nothing readable in it.
+ * {@link prose} moved into `api/cheatsheet/site.mjs` on 2026.11.10, with the
+ * marker names and the heading sources, for the reason it was one function to
+ * begin with: a page headed from its own file name, a folder's cheatsheet
+ * headed from the folder's name and the browser entry point's heading read off
+ * `location.pathname` are one answer read off three names, and the third of
+ * those readers cannot import this file.
  */
-export function prose(name) {
-  const words = String(name)
-    .split(/[\s._-]+/)
-    .flatMap((part) =>
-      part
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
-        .replace(/([A-Za-z])([0-9])/g, "$1 $2")
-        .replace(/([0-9])([A-Za-z])/g, "$1 $2")
-        .split(" ")
-    )
-    .filter((word) => word.length > 0);
-  return words.map((word) => word[0].toUpperCase() + word.slice(1)).join(" ");
-}
 
 /**
  * The folder a page sits in, site relative, or `""` at the site root.
@@ -1861,7 +1940,8 @@ function menuProblem(menu) {
     menu.status === "material" ||
     menu.status === "nested" ||
     menu.status === "holds-material" ||
-    menu.status === "holds-menu"
+    menu.status === "holds-menu" ||
+    menu.status === "holds-content"
   ) {
     return menu.status;
   }
@@ -1926,6 +2006,14 @@ function menuFinding(id, menu, problem) {
         `${where}: the <${menu.tag}> carrying ${MENU_MARKER} holds another ${MENU_MARKER}, so no menu was ` +
         `written into this one. The inner menu is filled first and moves everything after it, so filling ` +
         `this one as well would cut through the markup that replaced it. Put the two side by side.`
+      );
+    case "holds-content":
+      return (
+        `${where}: the <${menu.tag}> carrying ${MENU_MARKER} already holds content, so no menu was ` +
+        `written into it. A menu is written over whatever is between the tags and this tool recognises ` +
+        `only its own fill, so a hand written menu left there as a fallback is markup nobody could get ` +
+        `back. Empty the element to have a menu written into it, or keep the markup and drop the ` +
+        `attribute.`
       );
     case "no-mode":
       return (
@@ -2017,6 +2105,13 @@ export async function collectSite(root) {
         const [from, to] = menu.inner;
         if (blocks.some((block) => from <= block.at && block.at < to)) menu.status = "holds-material";
         else if (menus.some((one) => one !== menu && from <= one.at && one.at < to)) menu.status = "holds-menu";
+        // Last of the three, because it is the least specific: anything the two
+        // above catch is content as well, and the sentences they carry say what
+        // kind of content it is and what filling over it would cost. What is
+        // left here is plain markup - a hand written menu left as a fallback,
+        // most of the time - and the only thing a run can say about it is that
+        // it is not this tool's to replace.
+        else if (menu.holds === "content") menu.status = "holds-content";
       }
       const problem = menuProblem(menu);
       if (problem !== null) findings.push(menuFinding(id, menu, problem));
@@ -2080,13 +2175,20 @@ export function pageFilename(page) {
 /**
  * The markup of one generated cheatsheet.
  *
- * **String concatenation, and temporarily so.** `Render each generated page
- * through the cheatsheet API` under **Building on the API** is the item that
- * replaces this, so that a generated page and a generated media file are two
- * renders of one composition rather than two code paths. What is here is the
- * least page that carries the collected material without pretending to be that
- * composition: no styling, no script, and a `<main>` per block in source
- * order.
+ * **Composed through `api/cheatsheet/`, as of 2026.11.10.** The page carries a
+ * render of the cheatsheet's own document, per {@link siteDocument}, and the
+ * material it was read from under it - so a media file of the same sheet is
+ * another render of the same object rather than a second code path that happens
+ * to agree today. That is the whole of what `Render each generated page through
+ * the cheatsheet API` asked for, and the string concatenation that was here
+ * until then said so in this comment.
+ *
+ * **The material stays**, which is the one decision inside that worth stating.
+ * A composed sheet is a picture of text: a reader who wants the table rather
+ * than a picture of the table has nowhere else to get it, and the collector's
+ * promise is that a site's markup is carried through untouched. So the figure
+ * is the reading and the markup is the record, in that order, and a `<main>` per
+ * block in source order is still what the markup is written as.
  *
  * **A folder's cheatsheet is sectioned and a root page's is not**, and that is
  * one rule rather than a count. A folder cheatsheet is headed for the folder,
@@ -2143,6 +2245,14 @@ export function renderMaster(master) {
  * One head for both, so the master page and a cheatsheet page cannot come to
  * carry different metadata about the same material.
  *
+ * **It is a shell and not a composition**, which is why it stayed written out
+ * when the body stopped being. What a cheatsheet page shows is the figure
+ * {@link sheetLines} composes; what this adds is the five lines of head that
+ * make the figure a document a browser will open - a charset, a viewport, a
+ * title, what generated it and where it came from. There is nothing in that for
+ * a sheet document to say, and a page shell derived from one would be the
+ * composition answering a question nobody asked it.
+ *
  * @param {string} heading What the page is titled.
  * @param {SitePage[]} sources The pages of the site it was read from, in order.
  * @param {string[]} body
@@ -2170,7 +2280,8 @@ function cheatsheetDocument(heading, sources, body) {
 }
 
 /**
- * One cheatsheet's heading and material, at the heading level handed in.
+ * One cheatsheet's heading, its composed figure and its material, at the
+ * heading level handed in.
  *
  * The level is a parameter rather than a constant because the master page holds
  * every cheatsheet under a heading of its own, and a page whose headings all
@@ -2178,13 +2289,19 @@ function cheatsheetDocument(heading, sources, body) {
  * passes 1 and the master passes 2, and the pages inside a folder's cheatsheet
  * follow one below whichever it was.
  *
+ * **The figure is spliced in here rather than by the two callers**, which is
+ * what makes composing through the API one replacement rather than two. The
+ * master page concatenates whatever this writes, so a cheatsheet page and the
+ * same cheatsheet inside the master carry the same render of the same document
+ * - the argument this function was already one function for.
+ *
  * @param {Cheatsheet} sheet
  * @param {number} level The level the cheatsheet's own heading is written at.
  * @returns {string[]}
  */
 function sheetLines(sheet, level) {
   const grouped = sheet.folder !== "";
-  const lines = [`<h${level}>${escapeHtml(sheet.heading)}</h${level}>`];
+  const lines = [`<h${level}>${escapeHtml(sheet.heading)}</h${level}>`, ...sheetFigure(sheet)];
   for (const page of sheet.pages) {
     if (grouped) {
       lines.push(`<section data-cheatsheet-page="${escapeHtml(page.id)}">`);
@@ -2194,7 +2311,7 @@ function sheetLines(sheet, level) {
     }
     for (const block of page.blocks) {
       if (block.content.trim().length === 0) continue;
-      lines.push(`<main data-cheatsheet-block="${block.tag}">`);
+      lines.push(`<main ${CHEATSHEET_BLOCK}="${escapeHtml(block.tag)}">`);
       // The site's own markup, carried through rather than re-escaped: it is
       // markup, and the whole premise is that the site already published it.
       lines.push(block.content.trim());
@@ -2203,6 +2320,227 @@ function sheetLines(sheet, level) {
     if (grouped) lines.push("</section>");
   }
   return lines;
+}
+
+/**
+ * The roles a line of a generated sheet is set in, by where its text came from.
+ *
+ * Two of the six roles the document model names, and the pair is deliberate
+ * rather than a start on all six. A site's markup says what a run of text **is
+ * structurally** - a heading, a cell, a paragraph - and says nothing about what
+ * it is lexically, which is what the other four are for: a `keyword` or a
+ * `string` is a judgement about a programming language, and making one from a
+ * `<code>` element would be this tool guessing at a language nobody told it.
+ * A heading is the one distinction the markup really carries, and `comment` is
+ * how the design language sets a label above the thing it labels.
+ */
+const SHEET_ROLES = { heading: "comment", text: "plain" };
+
+/**
+ * Where a heading's text is marked while the tags are coming off, so the role
+ * survives the strip.
+ *
+ * A control character, because it has to be something no page can contain: the
+ * text between the tags is a site owner's prose, and a sentinel they could
+ * write themselves is a sentinel that mislabels their line.
+ */
+const HEADING_MARK = "\u0001";
+
+/**
+ * The element names this reads, as the alternation a pattern needs.
+ *
+ * Built from the lists the published surface declares rather than written out
+ * here, which is what keeps the two readings of a site's markup one reading.
+ * `api/cheatsheet/site.mjs` walks a live document and knows which element a run
+ * of text sits in; this has a pattern and the same names, so a `<td>` ends a
+ * line and a `<strong>` does not on both routes or on neither.
+ */
+const HEADING_TAGS = HEADING_ELEMENTS.join("|");
+
+/** The same, for the elements whose boundaries end a line of text. */
+const BREAKING_TAGS = BREAKING_ELEMENTS.join("|");
+
+/** The named entities a page carries where this tool reads text. */
+const ENTITIES = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&apos;": "'",
+  "&nbsp;": " ",
+};
+
+/**
+ * The lines a block of a site's markup reads as, for the document that composes
+ * it.
+ *
+ * **The one lossy step in this tool, and it is lossy on purpose.** Everything
+ * else here carries a site's markup through untouched; a composed sheet is a
+ * picture of text, so the markup has to become text before it can be set. The
+ * markup itself is still written onto the generated page beside the figure, per
+ * {@link sheetLines}, which is what keeps the reading recoverable - a reader
+ * who wants the table rather than a picture of it has the table.
+ *
+ * Four decisions, each with a tempting other reading:
+ *
+ * - **An opaque span contributes nothing.** A `<script>` that draws a chart is
+ *   not text a reader of the sheet wants, and a `<style>` block set as rows of
+ *   a cheatsheet is the one outcome nobody could have meant. They are dropped
+ *   whole, by the same {@link opaqueRanges} the collector reads, so a `</div>`
+ *   inside a script string is as little a tag here as it is there. The other
+ *   two {@link OPAQUE_ELEMENTS} names - a `<template>` and a `<noscript>` -
+ *   are read as ordinary markup by this route and dropped by the DOM one,
+ *   which is the one place the two readings differ: a scan cannot tell inert
+ *   markup from markup, and a document can.
+ * - **A heading keeps its role.** `<h2>`, a table's `<th>`, a `<caption>`, a
+ *   `<figcaption>` and a `<summary>` are labels for what follows them, and the
+ *   design language sets a label as a comment row. The mark is laid down before
+ *   the tags come off, because the text alone cannot say what it was.
+ * - **Element boundaries are line breaks and the rest of the tags are
+ *   nothing.** A `<td>` ends a line and a `<strong>` does not, which is the
+ *   difference between a table read as rows and a table read as one run of
+ *   words. The lists are named rather than guessed because getting it wrong is
+ *   silent: the sheet composes either way.
+ * - **Whitespace collapses per line and empty lines go.** Markup is indented
+ *   and a sheet's rows are not, so a line that is nothing but the indentation
+ *   between two tags is not a row of anything.
+ *
+ * One stated limit falls out of the last of those, and it is the collapse read
+ * at its worst: **a `<pre>` listing loses its indentation**, and an indent is a
+ * level per **An indent is a level, and a column is not addressable** in
+ * `DESIGN_LANGUAGE.md`. Keeping it would mean dedenting each listing against its
+ * own shallowest line rather than trimming every line, since the markup's own
+ * indentation is on the same characters as the code's - which is a reading of
+ * where a listing starts and ends, and this has none. The markup on the page
+ * below the figure is unaffected, indentation and all.
+ *
+ * @param {string} markup One collected block's content.
+ * @returns {Array<{ text: string, role: string }>}
+ */
+export function textLines(markup) {
+  let text = "";
+  let at = 0;
+  for (const [start, end] of opaqueRanges(markup)) {
+    text += markup.slice(at, start);
+    at = Math.max(at, end);
+  }
+  text += markup.slice(at);
+  const stripped = text
+    .replace(new RegExp(`</?(?:${HEADING_TAGS})\\b[^>]*>`, "gi"), (tag) =>
+      tag.startsWith("</") ? `${HEADING_MARK}\n` : `\n${HEADING_MARK}`
+    )
+    .replace(new RegExp(`</?(?:${BREAKING_TAGS})\\b[^>]*>`, "gi"), "\n")
+    .replace(/<[^>]*>/g, "");
+  /** @type {Array<{ text: string, role: string }>} */
+  const lines = [];
+  for (const raw of stripped.split("\n")) {
+    const heading = raw.includes(HEADING_MARK);
+    const body = decodeEntities(raw.split(HEADING_MARK).join("")).replace(/\s+/g, " ").trim();
+    if (body === "") continue;
+    lines.push({ text: body, role: heading ? SHEET_ROLES.heading : SHEET_ROLES.text });
+  }
+  return lines;
+}
+
+/**
+ * The text an escaped run of markup was written from.
+ *
+ * The six {@link ENTITIES} and the numeric forms, which is what a page carries
+ * where this reads rather than every entity HTML names: the five
+ * {@link escapeHtml} writes come back the way they went in, and `&nbsp;` is
+ * the one a hand written page has most of. An entity this does not know is
+ * left exactly as it was found, which reads as itself on the sheet rather than
+ * as a replacement character.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function decodeEntities(text) {
+  return text
+    .replace(/&(?:amp|lt|gt|quot|apos|nbsp);/gi, (entity) => ENTITIES[entity.toLowerCase()])
+    .replace(/&#(x[0-9a-f]+|[0-9]+);/gi, (whole, digits) => {
+      const code = digits[0].toLowerCase() === "x" ? parseInt(digits.slice(1), 16) : Number(digits);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    });
+}
+
+/**
+ * One cheatsheet as a document of the cheatsheet API, or `null` where there is
+ * nothing to compose.
+ *
+ * **This is the one composition the item asked for.** The generated page embeds
+ * a render of it, and a media file of the same sheet is `renderSheet` of the
+ * same object - so the two cannot show the same material differently, which is
+ * what a page written by string concatenation beside an image written by the
+ * API could not promise.
+ *
+ * Three fields, each read off the cheatsheet rather than invented:
+ *
+ * - **The title is the cheatsheet's heading**, whichever of the three sources
+ *   {@link headingFor} and {@link groupCheatsheets} read it off, so the figure
+ *   and the heading above it say the same thing.
+ * - **A section per source page, titled only where the page is one of
+ *   several.** The same rule {@link sheetLines} writes its `<section>` by: a
+ *   folder's cheatsheet is sectioned because each page kept its own heading,
+ *   and a root page is already headed by the sheet.
+ * - **The seed is the file name**, so the variation is stable and a second run
+ *   over an unchanged site composes the same bytes. The name rather than the
+ *   heading, because a heading read off a `<title>` is a sentence a site can
+ *   reword without meaning to redraw anything, while the name is what the
+ *   generated folder commits.
+ *
+ * `null` where no page's material read as a single line of text - a cheatsheet
+ * of nothing but an `<img>` or a `<canvas>`. A document has to carry a section
+ * and a section has to carry something, so the honest answer is that there is
+ * nothing to compose rather than a sheet with an invented row on it.
+ *
+ * @param {Cheatsheet} sheet
+ * @returns {{ title: string, seed: string, sections: Array<{ title?: string, lines: Array<{ text: string, role: string }> }> } | null}
+ */
+export function siteDocument(sheet) {
+  const grouped = sheet.folder !== "";
+  const sections = [];
+  for (const page of sheet.pages) {
+    const lines = page.blocks.flatMap((block) => textLines(block.content));
+    if (lines.length === 0) continue;
+    sections.push(grouped ? { title: headingFor(page).heading, lines } : { lines });
+  }
+  if (sections.length === 0) return null;
+  return { title: sheet.heading, seed: sheet.name, sections };
+}
+
+/**
+ * The composed sheet a generated page carries, as the one line or no line it
+ * is.
+ *
+ * An array rather than a string or `null` so {@link sheetLines} splices it in
+ * without a branch of its own, which is the shape that keeps the master page
+ * and a cheatsheet page composing through one function.
+ *
+ * **The fragment is named**, because the master page holds one per cheatsheet
+ * and every composition carries the same `id` on its root. The name is the
+ * generated file's stem, which is unique in a flat folder by the time
+ * {@link groupCheatsheets} has claimed it - so a stylesheet or a script on
+ * somebody's site can reach one sheet of the master page without reaching all
+ * of them.
+ *
+ * **Slugged, and that is what makes the reaching true.** The stem is a site
+ * owner's file or folder name, so `getting started.html` is an ordinary one -
+ * and an `id` may hold no ASCII whitespace, which makes `cheatsheet-site-getting
+ * started` invalid markup that `querySelector` refuses to parse. `slugFor` is
+ * the surface's own derivation for this, the same one `filenameFor` uses for a
+ * render's file name. It collapses a run of anything else to a hyphen, so the
+ * one site that gets two figures under one id is the site holding both
+ * `a b.html` and `a-b.html` - the rarer failure, and the one a site owner can
+ * see in the name.
+ *
+ * @param {Cheatsheet} sheet
+ * @returns {string[]}
+ */
+function sheetFigure(sheet) {
+  const doc = siteDocument(sheet);
+  if (doc === null) return [];
+  return [renderFragment(doc, { seed: doc.seed, id: `${GENERATOR}-${slugFor(stemOf(sheet.name))}` })];
 }
 
 /**
@@ -2787,6 +3125,12 @@ export function menuEntries(manifest, where) {
  * block flush left in an indented file, or `\n` written into a file somebody's
  * editor keeps as `\r\n`, is a diff a site owner reverts.
  *
+ * **Both modes are wrapped in {@link MENU_OPEN} and {@link MENU_CLOSE}**, which
+ * is what makes the fill repeatable without being destructive: the next run
+ * reads the signature, knows the content between the tags is its own, and
+ * writes over it. Without it the only two behaviours available are filling
+ * once and never again, or writing over whatever a site owner left there.
+ *
  * @param {string} mode One of {@link MENU_MODES}.
  * @param {Array<{ target: string, text: string, master: boolean }>} entries
  * @param {string} pageId The page it is written into, site relative.
@@ -2797,15 +3141,19 @@ export function menuEntries(manifest, where) {
 export function renderMenu(mode, entries, pageId, indent = "", newline = "\n") {
   const link = (entry) =>
     `<a href="${escapeHtml(linkFrom(pageId, entry.target))}">${escapeHtml(entry.text)}</a>`;
-  if (mode === "page") return link(entries.find((entry) => entry.master) ?? entries[0]);
+  if (mode === "page") {
+    return `${MENU_OPEN}${link(entries.find((entry) => entry.master) ?? entries[0])}${MENU_CLOSE}`;
+  }
   return [
     "",
+    `${indent}  ${MENU_OPEN}`,
     `${indent}  <details>`,
     `${indent}    <summary>${escapeHtml(prose(OUTPUT_NAME))}</summary>`,
     `${indent}    <ul>`,
     ...entries.map((entry) => `${indent}      <li>${link(entry)}</li>`),
     `${indent}    </ul>`,
     `${indent}  </details>`,
+    `${indent}  ${MENU_CLOSE}`,
     indent,
   ].join(newline);
 }

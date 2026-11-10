@@ -30,6 +30,133 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.7.0-alpha]
+
+The generated page stopped being string concatenation, and the half of the site
+tooling a build step cannot reach arrived beside it. Both are items of
+**Building on the API**, and taking them together is what settled the vocabulary
+question underneath them: there are two readers of `data-cheatsheet` now, so the
+attribute names belong to one of them rather than to both.
+
+### Added
+
+- **A generated page is a render of a composition.** `siteDocument` builds a
+  document of the three models out of what the collector found, `renderFragment`
+  composes it, and `sheetLines` splices the result in above the material - so a
+  media file of the same cheatsheet is `renderSheet` of the same object rather
+  than a second code path that happens to agree today. The figure is spliced in
+  by the function that writes one cheatsheet rather than by its two callers,
+  which is what makes this one replacement covering every page the tool writes:
+  the master page concatenates that function, so a cheatsheet page and the same
+  cheatsheet inside the master carry the same render.
+- **The material stays, and the reading above it is lossy on purpose.** A sheet
+  is a picture of text, so a table becomes rows, a chart's `<script>`
+  contributes nothing and a `<pre>` listing loses its indentation - which is
+  stated in `textLines` rather than discovered, along with the one it cannot
+  keep: an indent is a level, and dedenting a listing against its own shallowest
+  line needs a reading of where a listing starts that a scan has not got. The
+  markup is written onto the page underneath, untouched, because a reader who
+  wants the table rather than a picture of it has nowhere else to get it.
+- **A heading keeps its role on the composed sheet.** `<h2>`, a table's `<th>`,
+  a `<caption>`, a `<figcaption>` and a `<summary>` are labels for what follows
+  them, and the design language sets a label as a comment row. Two roles of the
+  six, deliberately: markup says what a run of text is **structurally** and
+  nothing about what it is lexically, so a `keyword` read off a `<code>` element
+  would be this tool guessing at a language nobody told it.
+- **`api/cheatsheet/site.mjs`, the browser entry point.** A page that can run a
+  `<script type="module">` builds its own cheatsheet section from the elements
+  it already has - no checkout, no Node and nothing installed.
+  `cheatsheetSection(document)` hands back a `<section>` in the shape the
+  scripted tool writes: a heading, the composed figure, and a `<main>` per block.
+  It is handed back rather than inserted, because where it goes is the page's
+  decision, and the material is **cloned rather than moved** - moving the nodes
+  would take the material out of the page it was published on, which is the
+  failure that looks like working, since the section would be right.
+- **Which is the half a scan cannot do.** The first limit
+  `tools/cheatsheet-site.mjs` states in its own header is that it reads the
+  markup as written, so a marker a script wrote at run time is invisible to it.
+  A site built from a template at load time, or one whose content arrives from a
+  fetch, has markings the file on disk does not carry. `collectFromDocument` is
+  the same five answers as data for a caller that wants the document and not the
+  markup, and `linesOf` is the DOM's own answer to what `textLines` does with a
+  pattern - the better half of the pair, since the walk knows which element a
+  run of text sits in rather than keeping a list of exceptions standing in for a
+  tree.
+- **`renderFragment` takes an `id`.** A composition carries `id="cheatsheet"` on
+  its root, which is right for the one sheet a standalone SVG is and is the same
+  id twice on a page holding two - invalid markup, and whichever came first for
+  a stylesheet or a script reaching for it. The master page is the case that
+  raised it, so it is an option of the surface rather than a rewrite in the
+  tool: a page embedding several sheets is the API's question as much as the
+  site tool's. `format: "svg"` says it has no effect there rather than ignoring
+  it, the markup being the composition itself, id and all. Both callers name
+  their fragment through `slugFor`, the derivation the surface already uses for
+  a render's file name: the names they read are a site owner's file or folder
+  name and a page's own `<title>`, and an `id` may hold no ASCII whitespace, so
+  `getting started.html` would otherwise write an id no selector can reach.
+- **`fixtures/site/`, a placeholder site the tooling can be run against.** Five
+  pages, half tutorial and half documentation for a tool, carrying every page
+  shape the item names: prose sections, a definition list, code examples, a
+  table with a caption and header cells, and a chart. The chart is the one worth
+  naming, because it is not only content - it brings a `<script>` with it, and
+  that script holds a `</div>` in a string. Both readers treat a script as an
+  opaque span, so that closing tag is not a close; a reader that counted it
+  would end the marked element early and carry half a page onto the generated
+  cheatsheet with nothing said about it.
+- **Everything in the fixture is placeholder content**, and that is held rather
+  than intended: `tools/test-fixture-site.mjs` reads every address in it and
+  requires a reserved domain, checks the one phone number is the reserved
+  exchange, and measures the whole folder against a byte budget so the day
+  somebody pastes a real page in is the day a case says so. It is also the only
+  marked up folder in this repository, which is why the suite runs the tool
+  against a **copy** in the temporary folder and why `CONTRIBUTING.md` now says
+  never to run it against the repository root.
+- **29 cases over the three, and two new files.**
+  `tools/test-cheatsheet-site.mjs` is at 157 with the composition, the refusal
+  and the slugged name; `tools/test-browser-entry.mjs` is 11 against a hand
+  written stub of the DOM, which doubles as the statement of how small a surface
+  the module needs; and `tools/test-fixture-site.mjs` is 8 over the fixture
+  itself, including the five things its README says are deliberately absent, so
+  a fixture that quietly grew one would not make the item that adds it read as
+  already done. The suite is 1019 cases.
+
+### Changed
+
+- **A menu element is never written over.** A fill is wrapped in
+  `<!-- cheatsheet-site:menu -->` and its closing pair, so a run can tell its own
+  work from a site owner's: an element carrying that signature is filled again,
+  and one carrying anything else is left exactly as it was. The signature is
+  what made the refusal possible at all, and it is the thing an empty check
+  cannot answer - a menu element is not empty on the second run either, so a
+  refusal reading emptiness would fill once and never again, while filling
+  everything non-empty deletes a hand written menu the first time it runs. It is
+  read as a pair wrapping the **whole** span, because the one thing worse than
+  refusing to fill is filling over markup on the strength of a word. A menu
+  element can now get nine things wrong rather than eight, and the new one names
+  both ways out: empty the element, or keep the markup and drop the attribute.
+  This reverses what `1.6.0-alpha` recorded as a hazard in this file, in the
+  tool's own header and on the documentation page.
+- **The two markings, the heading sources, the element lists and `prose` moved
+  to the published surface.** They are declared in `api/cheatsheet/site.mjs` and
+  re-exported by `tools/cheatsheet-site.mjs` under the names they already had,
+  so nothing that imported them changed. The reason is the browser entry point:
+  with two readers of one vocabulary, a copy in each is two vocabularies that
+  agree until one of them is edited - and `prose` was already one function for
+  exactly that argument, a page headed from its own file name and a folder
+  headed from its own name being one answer read off two names. There are three
+  names now.
+- **"Dependency free" is now "installs nothing".** The site tool imports
+  `api/cheatsheet/index.mjs`, which is this repository's own code, published
+  with it and loaded by a relative path. A bare specifier is still an install
+  and there is still not one, and the case that held the old spelling was
+  written so that the day the surface was imported would be a deliberate edit to
+  it rather than a drift - which is what happened. It now allows a builtin or a
+  path inside the repository, names the one non-builtin import exactly, and
+  reads a multi-line import, the previous pattern having been able to find none.
+- **`docs/generating-from-a-site.html` gained the two routes and what a page
+  carries**, with `CHEATSHEET.md` and `docs/cheatsheet.html` kept in step down
+  to their listings, which is what the parity case holds them to.
+
 ## [1.6.0-alpha]
 
 The menu element, and the documentation site folded in with it. The site landed

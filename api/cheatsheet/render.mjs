@@ -126,6 +126,7 @@ const RENDER_OPTIONS = new Set([
   "wrap",
   "className",
   "label",
+  "id",
 ]);
 
 /** The options `composeSheet` owns, named here so a mistake can be reported. */
@@ -138,7 +139,7 @@ const COMPOSE_OPTIONS = new Set(["seed", "theme", "layout", "brand"]);
  * fragment refuses them the way {@link renderSVG} does rather than accepting
  * them and dropping them.
  */
-const FRAGMENT_OPTIONS = new Set(["wrap", "className", "label"]);
+const FRAGMENT_OPTIONS = new Set(["wrap", "className", "label", "id"]);
 
 /**
  * What a render produced, and what it may be used for.
@@ -310,8 +311,17 @@ function composedFrom(composed) {
  *    expected to read their way through. The name is the sheet's own title,
  *    which the markup carries in its `<title>`.
  *
+ * `id` is the one attribute of the composition itself a fragment may set, and
+ * it is here because a document may hold more than one. Every composition
+ * carries `id="cheatsheet"` on its root, which is the right name for the one
+ * sheet a standalone SVG is; a page embedding two fragments has that id twice
+ * and is invalid markup, and a stylesheet or a script reaching for it gets
+ * whichever came first. The caller naming each one is the only answer that
+ * survives a page not knowing how many sheets it will hold - which is the shape
+ * `tools/cheatsheet-site.mjs` writes its master page in.
+ *
  * @param {string} markup What `composition.toSVG()` returned.
- * @param {{ wrap?: boolean, className?: string, label?: string }} [options]
+ * @param {{ wrap?: boolean, className?: string, label?: string, id?: string }} [options]
  * @returns {string}
  */
 export function fragmentFor(markup, options = {}) {
@@ -326,7 +336,7 @@ export function fragmentFor(markup, options = {}) {
   if (closes < 0) {
     throw new Error("cheatsheet: the `<svg>` element in this markup has no closing bracket");
   }
-  const scaled = scaledTag(body.slice(0, closes + 1)) + body.slice(closes + 1);
+  const scaled = identified(scaledTag(body.slice(0, closes + 1)), options.id) + body.slice(closes + 1);
 
   if (options.wrap === false) return scaled;
   const className = options.className ?? FRAGMENT_CLASS;
@@ -334,6 +344,26 @@ export function fragmentFor(markup, options = {}) {
   // because this function is handed markup and nothing else.
   const label = options.label ?? `${titleOf(scaled) || "Cheatsheet"} cheat sheet`;
   return `<div class="${attribute(className)}" role="img" aria-label="${attribute(label)}">\n${scaled}\n</div>`;
+}
+
+/**
+ * An `<svg>` opening tag carrying the id the caller named, or the one the
+ * composition wrote.
+ *
+ * Replaced rather than added to, because the composition always writes one: a
+ * second `id` on the tag is markup no parser agrees about. An `id` of `null` or
+ * an empty string takes the attribute off altogether, which is what a page
+ * holding several sheets and reaching for none of them by name wants.
+ *
+ * @param {string} tag
+ * @param {string | null | undefined} id
+ * @returns {string}
+ */
+function identified(tag, id) {
+  if (id === undefined) return tag;
+  const stripped = tag.replace(/\s+id="[^"]*"/, "");
+  if (id === null || String(id) === "") return stripped;
+  return stripped.replace(/^<svg/, `<svg id="${attribute(id)}"`);
 }
 
 /**
@@ -478,6 +508,13 @@ export async function renderOf(composed, options = {}) {
       if (render[name] !== undefined) {
         notes.push(`${name} has no effect on ${named}: the markup carries no pixels to apply it to.`);
       }
+    }
+    // `id` belongs to the fragment's wrapper rather than to the markup, so it
+    // is the one render option the two markup formats disagree about: HTML
+    // honours it and SVG has nowhere to put it, the standalone document being
+    // the composition's own.
+    if (format === "svg" && render.id !== undefined) {
+      notes.push(`id has no effect on ${named}: the markup is the composition itself, id and all.`);
     }
     if (requestedRoute !== null && requestedRoute !== "auto") {
       // A note rather than an error, because `format: "svg", route: "browser"`

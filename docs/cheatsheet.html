@@ -115,9 +115,37 @@ heading, the comment wins and the disagreement is reported.</p>
 
 <p>Every cheatsheet is also written as <code>all-cheatsheets.html</code> in the
 generated folder. A link is relative to the page the menu is in; an entry's
-text is the generated file name read as prose. Plain content in the element is
-written over, while content holding a marking of its own is refused, and a
-value naming neither menu is reported rather than defaulted.</p>
+text is the generated file name read as prose. Anything already between the tags
+that this tool did not write itself is refused rather than written over - a fill
+is wrapped in <code>&lt;!-- cheatsheet-site:menu --&gt;</code>, which is how a
+run recognises its own work - and a value naming neither menu is reported rather
+than defaulted.</p>
+
+<p>A generated page carries a render of the cheatsheet's own document and the
+material it was read from, so the page and a media file of the same sheet are
+two renders of one composition.</p>
+
+<h2>api/cheatsheet/site.mjs</h2>
+
+<p>The browser entry point: the same two markings read off a loaded document
+with ordinary DOM methods, for a site that will not run a build step.</p>
+
+<pre><code>import { cheatsheetSection } from "./api/cheatsheet/index.mjs";
+
+const { element, heading, findings } = cheatsheetSection(document);
+if (element) document.body.append(element);</code></pre>
+
+<table>
+ <tr><th>Export</th><th>Answers</th></tr>
+ <tr><td><code>markedElements</code></td><td>the outermost marked elements, in document order</td></tr>
+ <tr><td><code>linesOf</code></td><td>the rows one element reads as, with a role each</td></tr>
+ <tr><td><code>headingOf</code></td><td>the heading a page asked for, and what to say about the asking</td></tr>
+ <tr><td><code>collectFromDocument</code></td><td>all of it as data, with the sheet document</td></tr>
+ <tr><td><code>cheatsheetSection</code></td><td>the section element, built and handed back</td></tr>
+</table>
+
+<p>It finds a marker a script wrote at run time, which a file scan cannot. It
+fills no menu, because nothing here writes a folder for one to list.</p>
 
 <h2>The three models</h2>
 
@@ -163,9 +191,12 @@ render.route       // which renderer answered
 render.publishable // whether it draws the face the design language measured</code></pre>
 
 <p><code>renderSVG</code> is canonical and every other format derives from it;
-<code>renderFragment</code> is that markup made embeddable. Writing a render to
-disk is a second import, <code>api/cheatsheet/files.mjs</code>, the only module
-in the folder that reads <code>node:fs</code>.</p>
+<code>renderFragment</code> is that markup made embeddable, and takes
+<code>className</code>, <code>label</code> and <code>id</code> - the last
+because a page may embed more than one sheet and a composition always writes
+<code>id="cheatsheet"</code> on its root. Writing a render to disk is a second
+import, <code>api/cheatsheet/files.mjs</code>, the only module in the folder
+that reads <code>node:fs</code>.</p>
 
 <h2>The catalog</h2>
 

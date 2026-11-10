@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading a report</title>
+</head>
+<body>
+<p><a href="../index.html">Acme Corp Handbook</a></p>
+
+<!--
+  The two shapes that are not prose and not code: a table, and a chart with a
+  script behind it.
+
+  The script is the one worth knowing about. It holds a `</div>` inside a
+  string, and both readers of this page treat a script as an opaque span - so
+  that closing tag is not a close. A reader that counted it would end this
+  marked element here and carry the rest of the file onto the generated
+  cheatsheet, with nothing said about it.
+-->
+<section data-cheatsheet="page">
+  <h2>What a report says</h2>
+  <table>
+    <caption>Fields of a report</caption>
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>What it holds</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>checked</td><td>number</td><td>How many records were read</td></tr>
+      <tr><td>passed</td><td>number</td><td>How many carried every field the schema declares</td></tr>
+      <tr><td>failures</td><td>array</td><td>One entry per record that did not, naming the field</td></tr>
+      <tr><td>started</td><td>date</td><td>When the run began, in UTC</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Failures over a week</h2>
+  <figure>
+    <figcaption>Failures per day, last seven days</figcaption>
+    <svg id="failures" viewBox="0 0 280 120" role="img" aria-label="Failures per day, last seven days">
+      <rect x="0" y="0" width="280" height="120" fill="#f4f4f4"></rect>
+    </svg>
+    <script>
+      // Drawn rather than written out, so the chart is a chart rather than a
+      // picture of one. The closing tag in the string below is deliberate: it
+      // is what makes this page a test of the opaque span rather than a page
+      // that merely has a script on it.
+      (function drawFailures() {
+        const counts = [4, 2, 7, 1, 0, 3, 5];
+        const chart = document.getElementById("failures");
+        const widest = Math.max(...counts, 1);
+        counts.forEach(function (count, at) {
+          const height = (count / widest) * 96;
+          const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          bar.setAttribute("x", String(8 + at * 38));
+          bar.setAttribute("y", String(108 - height));
+          bar.setAttribute("width", "28");
+          bar.setAttribute("height", String(height));
+          bar.setAttribute("fill", "#4dae51");
+          chart.appendChild(bar);
+        });
+        const legend = '<div class="legend">failures</div>';
+        if (legend.length === 0) chart.innerHTML = legend;
+      })();
+    </script>
+  </figure>
+
+  <h2>Reading it without a browser</h2>
+  <p>
+    The same numbers are in the JSON report. A chart is for a person looking at
+    a week; the report is for anything that has to decide something.
+  </p>
+</section>
+
+<footer>
+  <p>Acme Corp, 123 Main Street, Suite 100, Springfield.</p>
+</footer>
+</body>
+</html>

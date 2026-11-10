@@ -82,9 +82,37 @@ Menus, written into the page rather than read out of it:
 
 Every cheatsheet is also written as `all-cheatsheets.html` in the generated
 folder. A link is relative to the page the menu is in; an entry's text is the
-generated file name read as prose. Plain content in the element is written
-over, while content holding a marking of its own is refused, and a value
-naming neither menu is reported rather than defaulted.
+generated file name read as prose. Anything already between the tags that this
+tool did not write itself is refused rather than written over - a fill is
+wrapped in `<!-- cheatsheet-site:menu -->`, which is how a run recognises its
+own work - and a value naming neither menu is reported rather than defaulted.
+
+A generated page carries a render of the cheatsheet's own document and the
+material it was read from, so the page and a media file of the same sheet are
+two renders of one composition.
+
+## `api/cheatsheet/site.mjs`
+
+The browser entry point: the same two markings read off a loaded document with
+ordinary DOM methods, for a site that will not run a build step.
+
+```js
+import { cheatsheetSection } from "./api/cheatsheet/index.mjs";
+
+const { element, heading, findings } = cheatsheetSection(document);
+if (element) document.body.append(element);
+```
+
+| Export | Answers |
+| --- | --- |
+| `markedElements` | the outermost marked elements, in document order |
+| `linesOf` | the rows one element reads as, with a role each |
+| `headingOf` | the heading a page asked for, and what to say about the asking |
+| `collectFromDocument` | all of it as data, with the sheet document |
+| `cheatsheetSection` | the section element, built and handed back |
+
+It finds a marker a script wrote at run time, which a file scan cannot. It
+fills no menu, because nothing here writes a folder for one to list.
 
 ## The three models
 
@@ -131,9 +159,11 @@ render.publishable // whether it draws the face the design language measured
 ```
 
 `renderSVG` is canonical and every other format derives from it;
-`renderFragment` is that markup made embeddable. Writing a render to disk is a
-second import, `api/cheatsheet/files.mjs`, the only module in the folder that
-reads `node:fs`.
+`renderFragment` is that markup made embeddable, and takes `className`, `label`
+and `id` - the last because a page may embed more than one sheet and a
+composition always writes `id="cheatsheet"` on its root. Writing a render to
+disk is a second import, `api/cheatsheet/files.mjs`, the only module in the
+folder that reads `node:fs`.
 
 ## The catalog
 

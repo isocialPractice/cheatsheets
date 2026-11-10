@@ -59,7 +59,18 @@
 //      spliced without moving each other, and a run that changes nothing the
 //      second time. With them, the master page they point at - every cheatsheet
 //      through the function that writes one, named ahead of the cheatsheets so
-//      it cannot be written over.
+//      it cannot be written over. And what is never written over: an element
+//      holding anything this tool did not write itself is refused, which is a
+//      question about ownership rather than about emptiness, since a filled
+//      element is not empty on the second run either.
+//  11. **Is a generated page a render of a composition?** The item that stopped
+//      the page being string concatenation, so the cases are about the document
+//      the page and a media file share: what a cheatsheet reads as, what the
+//      markup contributes and what it does not, and the proof that the figure on
+//      the page is the same composition a `renderSheet` of the same document
+//      makes. With the two things embedding a composition in somebody's page
+//      raised: a page holding several needs several ids, and a cheatsheet with
+//      nothing a sheet can set gets no figure rather than an empty one.
 //
 // Run with: node --test tools/test-cheatsheet-site.mjs
 import { test } from "node:test";
@@ -68,6 +79,8 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+import { renderSVG } from "../api/cheatsheet/index.mjs";
 
 import {
   attributeValue,
@@ -96,6 +109,8 @@ import {
   renderCheatsheet,
   renderMaster,
   resolveOutput,
+  siteDocument,
+  textLines,
   titleOf,
   writeManifest,
   writePages,
@@ -115,8 +130,10 @@ import {
   MASTER_NAME,
   MASTER_SOURCE,
   MAX_OUTPUT_TRIES,
+  MENU_CLOSE,
   MENU_MARKER,
   MENU_MODES,
+  MENU_OPEN,
   NAME_PATTERN,
   NOT_SITE,
   OUTPUT_NAME,
@@ -2751,8 +2768,13 @@ test("a page menu is filled with a link to the master page", async () => {
     const { code, out } = await run([root]);
     assert.equal(code, 0);
     const html = readFileSync(join(root, "index.html"), "utf8");
+    // The signature is part of the fill, which is what lets the next run know
+    // the content between these tags is its own and write over it.
     assert.ok(
-      html.includes(`<div ${MENU_MARKER}="page"><a href="${OUTPUT_NAME}/${MASTER_NAME}">All Cheatsheets</a></div>`),
+      html.includes(
+        `<div ${MENU_MARKER}="page">${MENU_OPEN}<a href="${OUTPUT_NAME}/${MASTER_NAME}">` +
+          `All Cheatsheets</a>${MENU_CLOSE}</div>`
+      ),
       html
     );
     // Reported with the line as well as the page, because a page can mark two.
@@ -2838,8 +2860,11 @@ test("two menus on one page are both filled, and the rest of the page is untouch
     assert.equal(code, 0);
     assert.match(out, /menus filled\s+2/);
     const html = readFileSync(join(root, "index.html"), "utf8");
-    assert.match(html, new RegExp(`<div ${MENU_MARKER}="page"><a href=`));
-    assert.match(html, new RegExp(`<div ${MENU_MARKER}="dropdown">\\n\\s+<details>`));
+    assert.match(html, new RegExp(`<div ${MENU_MARKER}="page">${MENU_OPEN}<a href=`));
+    assert.match(
+      html,
+      new RegExp(`<div ${MENU_MARKER}="dropdown">\\n\\s+${MENU_OPEN}\\n\\s+<details>`)
+    );
     // Nothing outside the two marked spans moved, which is what makes this a
     // splice rather than a rewrite.
     for (const line of ["<html><head><title>Home</title></head>", "<p>between</p>", `<div ${MARKER}><p>material</p></div>`]) {
@@ -3011,7 +3036,12 @@ test("a menu element holding another one is refused, and the inner one still fil
     assert.match(err, /index\.html:4: the <div> carrying data-cheatsheet-menu holds another/);
     const html = readFileSync(join(root, "index.html"), "utf8");
     // The inner menu is filled, and every tag of the page is still whole.
-    assert.match(html, /<span data-cheatsheet-menu="page"><a href="[^"]+">All Cheatsheets<\/a><\/span>/);
+    assert.match(
+      html,
+      new RegExp(
+        `<span data-cheatsheet-menu="page">${MENU_OPEN}<a href="[^"]+">All Cheatsheets</a>${MENU_CLOSE}</span>`
+      )
+    );
     assert.ok(!html.includes("<details>"), "the outer menu was filled as well");
     assert.equal(html.match(/<a /g).length, 1);
     // What the corruption looked like: the outer cut mid-attribute, so the tail
@@ -3021,6 +3051,92 @@ test("a menu element holding another one is refused, and the inner one still fil
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("a menu element holding a hand written menu is left exactly as it was", async () => {
+  // The last of the three refusals, and the one that is about nothing but
+  // ownership: the content between the tags carries no marking at all, so
+  // neither scan has anything to say about it. What it is, nearly always, is a
+  // menu somebody wrote by hand as a fallback - and a tool that wrote over it
+  // would be taking markup nobody could get back.
+  const fallback = [
+    "<html><head><title>Guide</title></head>",
+    "<body>",
+    `  <nav ${MENU_MARKER}="dropdown">`,
+    '    <ul><li><a href="/handwritten.html">Written by hand</a></li></ul>',
+    "  </nav>",
+    `  <div ${MARKER}="page"><pre>material</pre></div>`,
+    "</body></html>",
+    "",
+  ].join("\n");
+  const root = await site({ "index.html": fallback });
+  try {
+    const { code, err, out } = await run([root]);
+    assert.equal(code, 1);
+    assert.match(err, /index\.html:3: the <nav> carrying data-cheatsheet-menu already holds content/);
+    // Both ways out of it are named, because which one a site owner wants is
+    // not this tool's to guess: the element can be emptied, or the attribute
+    // can come off and the markup stay.
+    assert.match(err, /Empty the element to have a menu written into it, or keep the markup and drop the/);
+    // Byte for byte what it was. Not "the links are still there" - the whole
+    // page, because the refusal is the absence of a splice.
+    assert.equal(readFileSync(join(root, "index.html"), "utf8"), fallback);
+    assert.match(out, /menus filled\s+0/);
+    // The cheatsheet is still written, the way every other finding leaves what
+    // it could read written.
+    assert.ok(readFileSync(join(root, OUTPUT_NAME, "index.html"), "utf8").includes("<pre>material</pre>"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a menu this tool wrote is written over, and the signature is what says so", async () => {
+  // The question the refusal could not have been built without: a menu element
+  // is not empty on the second run either, so emptiness cannot be what decides.
+  // The signature is, and this is the case that holds both halves of it - the
+  // fill is replaced rather than refused, and a site owner's markup beside it
+  // is not.
+  const root = await site({
+    "index.html": `<html><head><title>Home</title></head>\n<body>\n<div ${MENU_MARKER}="dropdown"></div>\n<div ${MARKER}><p>one</p></div>\n</body></html>\n`,
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const filled = readFileSync(join(root, "index.html"), "utf8");
+    assert.ok(filled.includes(MENU_OPEN) && filled.includes(MENU_CLOSE), filled);
+    // A page arrives in the folder, so the menu this run writes is not the menu
+    // the last one wrote - and the element is written over without a word.
+    await writeFile(join(root, "guide.html"), page("Guide", "<p>two</p>"), "utf8");
+    const second = await run([root]);
+    assert.equal(second.code, 0);
+    assert.match(second.out, /menus filled\s+1/);
+    const again = readFileSync(join(root, "index.html"), "utf8");
+    assert.ok(again.includes('>Guide</a>'), again);
+    // One fill, not a fill inside a fill: the signature appears once.
+    assert.equal(again.split(MENU_OPEN).length - 1, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("half a signature is somebody's content, and the whole span has to carry it", () => {
+  // Read strictly on purpose. The one thing worse than refusing to fill is
+  // filling over markup on the strength of a word, so a span that merely
+  // contains the opening comment is content: what it looks like is a hand
+  // written menu written after a generated one, which is the case where the
+  // loose reading deletes something.
+  const held = (inner) =>
+    menuElements(`<html><body><nav ${MENU_MARKER}="dropdown">${inner}</nav></body></html>`)[0].holds;
+  assert.equal(held(""), "nothing");
+  assert.equal(held("\n   \n  "), "nothing");
+  assert.equal(held(`${MENU_OPEN}<a href="a.html">A</a>${MENU_CLOSE}`), "generated");
+  // Whitespace around the pair is the shape the dropdown mode actually writes.
+  assert.equal(held(`\n  ${MENU_OPEN}\n  <details></details>\n  ${MENU_CLOSE}\n`), "generated");
+  assert.equal(held(`${MENU_OPEN}<a href="a.html">A</a>`), "content");
+  assert.equal(held(`${MENU_OPEN}<a href="a.html">A</a>${MENU_CLOSE}<ul><li>mine</li></ul>`), "content");
+  assert.equal(held("<ul><li>mine</li></ul>"), "content");
+  // An element with no usable span has no content to own, and says `null`
+  // rather than guessing at one.
+  assert.equal(menuElements(`<img ${MENU_MARKER}="page">`)[0].holds, null);
 });
 
 test("a menu with nothing to list is reported rather than filled with an empty list", async () => {
@@ -3085,19 +3201,226 @@ test("the usage names the menu element, both modes and the master page", async (
 
 // ## What the tool may depend on
 
-test("it is dependency free, which is the constraint it runs under", () => {
+// ## The composed page
+
+test("textLines reads a site's markup as rows, and says which of them are labels", () => {
+  // The reading the sheet is set from, and the only lossy step in this tool.
+  // Four shapes, because four things in real markup decide what a row is.
+  const lines = textLines(
+    [
+      "<h2>Splicing</h2>",
+      "<p>Remove and insert in <strong>one</strong> call.</p>",
+      "<table><caption>Arguments</caption>",
+      "<tr><th>start</th><td>where it begins</td></tr></table>",
+      "<pre><code>items.splice(1, 2, &quot;demo&quot;);</code></pre>",
+    ].join("\n")
+  );
+  assert.deepEqual(lines, [
+    // A heading is a label for what follows it, and the design language sets a
+    // label as a comment row. So is a `<caption>` and so is a `<th>`.
+    { text: "Splicing", role: "comment" },
+    // An inline element is not a line break: the sentence stays a sentence.
+    { text: "Remove and insert in one call.", role: "plain" },
+    { text: "Arguments", role: "comment" },
+    { text: "start", role: "comment" },
+    { text: "where it begins", role: "plain" },
+    // Escaped as the page wrote it, read back as the author typed it.
+    { text: 'items.splice(1, 2, "demo");', role: "plain" },
+  ]);
+  // Indentation between tags is the markup's own layout rather than a row.
+  assert.deepEqual(textLines("  <div>\n    <p>  spaced   out  </p>\n  </div>"), [
+    { text: "spaced out", role: "plain" },
+  ]);
+});
+
+test("an opaque span contributes nothing to the sheet, tags and all", () => {
+  // The chart case, which is the one the fixture site is for: a chart brings a
+  // script with it, and a `</div>` inside a script string is not a tag here for
+  // the same reason it is not one to the collector.
+  const lines = textLines(
+    [
+      "<figure><figcaption>Monthly totals</figcaption>",
+      '<canvas id="chart"></canvas>',
+      "<script>const row = '<div>12</div>'; draw(row);</script>",
+      "<style>.chart { color: red; }</style>",
+      "</figure>",
+    ].join("\n")
+  );
+  assert.deepEqual(lines, [{ text: "Monthly totals", role: "comment" }]);
+});
+
+test("a generated page carries a render of the cheatsheet's own document", async () => {
+  const root = await site({
+    "index.html": page("Acme Reference", "<h2>Splice</h2><p>Remove and insert.</p>"),
+  });
+  try {
+    const pages = await collectSite(root);
+    const [sheet] = cheatsheets(pages);
+    const doc = siteDocument(sheet);
+    // The document is read off the cheatsheet: its title is the sheet's heading,
+    // and a root page is one unsectioned listing because the sheet is already
+    // headed for it.
+    assert.equal(doc.title, "Acme Reference");
+    assert.equal(doc.seed, "index.html");
+    assert.deepEqual(doc.sections, [
+      {
+        lines: [
+          { text: "Splice", role: "comment" },
+          { text: "Remove and insert.", role: "plain" },
+        ],
+      },
+    ]);
+    const markup = renderCheatsheet(sheet);
+    // The figure, wrapped as the surface wraps an embeddable sheet.
+    assert.match(markup, /<div class="cheatsheet" role="img" aria-label="Acme Reference cheat sheet">/);
+    assert.match(markup, /<svg id="cheatsheet-site-index"[^>]*viewBox="0 0 3600 3600"/);
+    // And the material under it, exactly as the site wrote it. The figure is the
+    // reading; the markup is the record.
+    assert.ok(markup.includes("<h2>Splice</h2><p>Remove and insert.</p>"), markup);
+    // Nothing of the standalone SVG document leaked into the page.
+    assert.ok(!markup.includes("<?xml"), "the XML declaration was written into an HTML page");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the page and a media file of the same sheet are two renders of one composition", async () => {
+  // The claim the item was written for, and the only way to hold it is to make
+  // the other render and compare: a page that composed its own document would
+  // agree today and drift the first time either side changed.
+  const root = await site({
+    "guide/one.html": page("One", "<p>first</p>"),
+    "guide/two.html": page("Two", "<p>second</p>"),
+  });
+  try {
+    const [sheet] = cheatsheets(await collectSite(root));
+    const doc = siteDocument(sheet);
+    // A folder is one cheatsheet of two sections, each titled for the page it
+    // came from - the same rule the `<section>` on the page is written by.
+    assert.deepEqual(
+      doc.sections.map((one) => one.title),
+      ["One", "Two"]
+    );
+    const standalone = renderSVG(doc, { seed: doc.seed });
+    const embedded = /<svg[\s\S]*?<\/svg>/.exec(renderCheatsheet(sheet))[0];
+    // Everything past the root's own opening tag, which is the whole of what a
+    // fragment is allowed to differ by: the id, the size attributes and the
+    // inline scaling rules all live on that tag. Below it the two renders are
+    // one composition, byte for byte, or they are not the same sheet.
+    const under = (markup) => markup.slice(markup.indexOf(">", markup.indexOf("<svg")) + 1).trim();
+    assert.ok(under(standalone).includes("<tspan"), "the standalone render set no type");
+    assert.ok(under(standalone).includes(">first<") && under(standalone).includes(">second<"), under(standalone));
+    assert.equal(under(embedded), under(standalone));
+    // And the two root tags differ in exactly the ways a fragment names.
+    assert.match(embedded, /^<svg id="cheatsheet-site-guide"/);
+    assert.ok(!/^<svg[^>]*\swidth="/.test(embedded), "the fragment kept the composition's size attributes");
+    assert.match(embedded, /style="display:block;width:100%;height:auto"/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a page holding several figures names each one, so no id is written twice", async () => {
+  // The master page is the case: it concatenates every cheatsheet of a site, so
+  // it carries a figure per cheatsheet - and every composition writes the same
+  // id on its root, which is right for a standalone SVG and invalid markup here.
+  const root = await site({
+    "index.html": page("Home", "<p>home</p>"),
+    "guide/one.html": page("One", "<p>one</p>"),
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const master = readFileSync(join(root, OUTPUT_NAME, MASTER_NAME), "utf8");
+    const ids = [...master.matchAll(/<svg id="([^"]+)"/g)].map((one) => one[1]);
+    assert.deepEqual(ids, [`${GENERATOR}-guide`, `${GENERATOR}-index`]);
+    assert.equal(new Set(ids).size, ids.length, "the master page wrote one id twice");
+    // The name is the generated file's stem, so a sheet's figure is reachable by
+    // the same word the menu entry and the manifest name it by.
+    for (const id of ids) assert.ok(master.includes(`<svg id="${id}"`), id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a stem a site owner can write is still an id, which rules out the whitespace in it", async () => {
+  // The stem is the site's own file or folder name, and `getting started` is an
+  // ordinary one. An `id` may hold no ASCII whitespace, so writing that stem
+  // through would be invalid markup, and the selector a stylesheet or a script
+  // would reach it with would not parse - which is the whole use the id was
+  // added for.
+  const root = await site({
+    "getting started/intro.html": page("Intro", "<p>Install the thing.</p>"),
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const written = readFileSync(join(root, OUTPUT_NAME, "getting started.html"), "utf8");
+    const ids = [...written.matchAll(/<svg id="([^"]+)"/g)].map((one) => one[1]);
+    assert.deepEqual(ids, [`${GENERATOR}-getting-started`]);
+    for (const id of ids) assert.doesNotMatch(id, /\s/, `${id} is an id holding whitespace`);
+    // The file is still named for the folder, untouched: the slug is the id's
+    // and nothing above it. A site owner's folder name is theirs.
+    assert.match(written, /<h1>Getting Started<\/h1>/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("material a sheet cannot be set from gets no figure, and keeps its markup", async () => {
+  // A document has to carry a section and a section has to carry something, so
+  // a cheatsheet whose material reads as no text at all has nothing to compose.
+  // The honest answer is no figure rather than a sheet with an invented row.
+  const root = await site({
+    "index.html": page("Pictures", '<img src="chart.png" alt="">'),
+  });
+  try {
+    const [sheet] = cheatsheets(await collectSite(root));
+    assert.equal(siteDocument(sheet), null);
+    const markup = renderCheatsheet(sheet);
+    assert.ok(!markup.includes("<svg"), markup);
+    // The page is still written and still carries what the site marked.
+    assert.ok(markup.includes('<img src="chart.png" alt="">'), markup);
+    assert.equal((await run([root])).code, 0);
+    assert.ok(readFileSync(join(root, OUTPUT_NAME, "index.html"), "utf8").includes("chart.png"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("it installs nothing, which is the constraint it runs under", () => {
   // It runs against somebody else's checkout with whatever Node they have, so
-  // every import is a builtin or a relative path. Nothing from
-  // `api/cheatsheet/` yet either, which is **Building on the API**'s item - the
-  // check is written now so that the day it imports the surface is a deliberate
-  // edit to this case rather than a drift.
+  // nothing here may be fetched. Until 2026.11.10 that was spelt "every import
+  // is a Node builtin", and the day the page composed through `api/cheatsheet/`
+  // was the day that spelling had to change - which is why the case was written
+  // in the first place, rather than discovering the drift later.
+  //
+  // What replaces it is the same constraint read properly: a builtin, or a
+  // relative path inside this repository. The cheatsheet API is this
+  // repository's own code and is published with it, so importing it is not an
+  // install; a bare specifier is, whatever it names.
   const source = readFileSync(new URL("./cheatsheet-site.mjs", import.meta.url), "utf8");
-  const imports = [...source.matchAll(/^import .* from "([^"]+)";$/gm)].map((match) => match[1]);
-  assert.ok(imports.length > 0, "the import walk read no imports, so it is checking nothing");
+  // Both forms, because the day the surface was imported was also the day an
+  // import first spanned several lines. A pattern that read only the one line
+  // form would have passed this case by not finding the import at all, which is
+  // the failure a check like this has to be written against.
+  const imports = [...source.matchAll(/^import [\s\S]*?from "([^"]+)";$/gm)].map((match) => match[1]);
+  assert.ok(imports.length > 1, "the import walk read fewer imports than this file has");
   for (const specifier of imports) {
     assert.ok(
-      specifier.startsWith("node:"),
-      `${specifier} is not a Node builtin, and this script may not install anything`
+      specifier.startsWith("node:") || specifier.startsWith("./") || specifier.startsWith("../"),
+      `${specifier} is neither a Node builtin nor a path in this repository, and this script may ` +
+        `not install anything`
     );
   }
+  // And the one it does reach for is the published surface rather than a module
+  // behind it, so the tool is held to the same entry point a page loads.
+  assert.deepEqual(
+    imports.filter((one) => !one.startsWith("node:")),
+    ["../api/cheatsheet/index.mjs"]
+  );
+  // The surface is browser safe, which `tools/test-sheet-render.mjs` holds by
+  // walking its import graph. That matters here because it is the reason this
+  // import costs nothing: nothing in it reads a file or resolves a browser
+  // until a raster is asked for, and this tool asks for markup.
+  const api = readFileSync(new URL("../api/cheatsheet/index.mjs", import.meta.url), "utf8");
+  assert.ok(!/from "node:/.test(api), "the surface this tool imports now reads a Node builtin");
 });

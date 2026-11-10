@@ -147,9 +147,31 @@ reading out of it:
 <div data-cheatsheet-menu="dropdown"></div>
 ```
 
+A generated page carries a render of the cheatsheet's own document and the
+material it was read from, so the page and a media file of the same sheet are
+two renders of one composition. A menu element is never written over: a fill
+carries a signature, which is how a run tells its own work from a hand written
+menu left there as a fallback.
+
+A site that will not run a build step has the other route, which needs no
+checkout and nothing installed:
+
+```html
+<script type="module">
+  import { cheatsheetSection } from "./api/cheatsheet/index.mjs";
+
+  const { element } = cheatsheetSection(document);
+  if (element) document.body.append(element);
+</script>
+```
+
+It reads the same two markings off a loaded document with ordinary DOM methods,
+so it finds a marker a script wrote at run time - which a file scan cannot.
+
 `--dry-run` reports the folder it resolved, the pages it would write and the
-menus it would fill, and touches nothing. The script imports nothing but Node
-builtins, because it runs against somebody else's checkout.
+menus it would fill, and touches nothing. The script installs nothing, because
+it runs against somebody else's checkout, and
+[fixtures/site/](fixtures/site/README.md) is a placeholder site to try it on.
 
 ## [Adding to the Catalog](https://isocialpractice.github.io/cheatsheets/docs/adding-to-the-catalog.html)
 

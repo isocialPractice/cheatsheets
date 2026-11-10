@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acme Corp Handbook</title>
+</head>
+<body>
+<header>
+  <h1>Acme Corp Handbook</h1>
+  <p>A tutorial for <code>demo-app</code>, and the documentation for the tool that ships it.</p>
+</header>
+
+<nav>
+  <ul>
+    <li><a href="tutorial/getting-started.html">Getting started</a></li>
+    <li><a href="tutorial/reading-data.html">Reading data</a></li>
+    <li><a href="docs/configuration.html">Configuration</a></li>
+    <li><a href="docs/commands.html">Commands</a></li>
+  </ul>
+</nav>
+
+<!--
+  The marked element below is the whole of what this page contributes. The
+  heading source is `title`, so the generated cheatsheet is headed with this
+  page's own <title> rather than with its file name.
+-->
+<main data-cheatsheet="title">
+  <h2>What demo-app does</h2>
+  <p>
+    <code>demo-app</code> reads a folder of records, checks each against the
+    schema it declares, and writes a report. It installs nothing and reads
+    nothing but the folder it is pointed at.
+  </p>
+
+  <h3>The three words worth knowing</h3>
+  <dl>
+    <dt>Record</dt>
+    <dd>One file in the folder, holding one subject.</dd>
+    <dt>Schema</dt>
+    <dd>The fields a record must carry, and what each one may hold.</dd>
+    <dt>Report</dt>
+    <dd>What came back: the records that passed, and the field that failed on each that did not.</dd>
+  </dl>
+
+  <h3>Where to go next</h3>
+  <p>
+    Start with the tutorial if you have a folder of records already. Read the
+    configuration pages first if you are deciding whether the schema can say
+    what your records need.
+  </p>
+</main>
+
+<footer>
+  <p>Questions to <a href="mailto:jane.doe@example.com">jane.doe@example.com</a>.</p>
+  <p>Acme Corp, 123 Main Street, Suite 100, Springfield. (555) 123-4567.</p>
+</footer>
+</body>
+</html>

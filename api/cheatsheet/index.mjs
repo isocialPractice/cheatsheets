@@ -91,8 +91,40 @@
 // Everything exported here is browser-safe and reaches no further than this
 // folder and the drawing surface beside it, so the page loads it with a bare `import` and
 // no build step.
+//
+// ## The browser entry point
+//
+// Since 2026.11.10 that last sentence has something to be true *for*.
+// `site.mjs` is the entry a page uses rather than a build step does: it finds
+// the elements a site marked with `data-cheatsheet` using
+// `querySelectorAll`, reads them into a document of this folder's own model,
+// and hands back a cheatsheet section the page appends where it likes.
+//
+// It is the other half of `tools/cheatsheet-site.mjs`, which reads a site's
+// files and therefore cannot see a marker a script wrote at run time - the
+// first limit that file's own header states. The two read the same markings
+// because the attribute names, the heading sources and the element lists are
+// **here**, and the scripted tool imports them: one vocabulary with two
+// readers, rather than two that agree until one of them is edited.
 
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
+
+export {
+  cheatsheetSection,
+  collectFromDocument,
+  headingOf,
+  linesOf,
+  markedElements,
+  prose,
+  BREAKING_ELEMENTS,
+  CHEATSHEET_BLOCK,
+  CHEATSHEET_MARKER,
+  CHEATSHEET_MENU_MARKER,
+  HEADING_ELEMENTS,
+  HEADING_SOURCES,
+  OPAQUE_ELEMENTS,
+  SECTION_CLASS,
+} from "./site.mjs";
 
 export {
   filenameFor,

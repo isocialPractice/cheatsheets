@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration</title>
+</head>
+<body>
+<p><a href="../index.html">Acme Corp Handbook</a></p>
+
+<!--
+  Tool documentation, which is a table of options and nothing else. The heading
+  source is `title`, so this section is headed `Configuration` - which is what
+  the file name would have said too, and that is the point: a page whose title
+  and name agree is the ordinary case, and it should read the same either way.
+-->
+<section data-cheatsheet="title">
+  <h2>Where the options are read from</h2>
+  <p>
+    <code>config/reports.json</code> beside the records folder, where there is
+    one. Every option has a default, so a folder with no configuration file is
+    a folder that reads with the defaults rather than one that refuses.
+  </p>
+
+  <table>
+    <caption>Options</caption>
+    <thead>
+      <tr><th>Option</th><th>Default</th><th>What it decides</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>folder</td><td><code>./records</code></td><td>Which folder is read</td></tr>
+      <tr><td>schema</td><td><code>./schema.json</code></td><td>Which fields a record must carry</td></tr>
+      <tr><td>outputDir</td><td><code>./reports</code></td><td>Where a written report lands</td></tr>
+      <tr><td>strict</td><td><code>false</code></td><td>Whether a field the schema does not name is a failure</td></tr>
+      <tr><td>locale</td><td><code>en</code></td><td>How a date in a record is read</td></tr>
+    </tbody>
+  </table>
+
+  <h2>The one option worth setting deliberately</h2>
+  <p>
+    <code>strict</code> decides what an unknown field means. Left off, a record
+    may carry anything the schema does not name; turned on, it may not - which
+    is what a folder that several tools write into wants, and what a folder a
+    person maintains by hand almost never does.
+  </p>
+</section>
+
+<footer>
+  <p>Questions to <a href="mailto:admin@example.org">admin@example.org</a>.</p>
+</footer>
+</body>
+</html>

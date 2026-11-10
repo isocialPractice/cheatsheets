@@ -350,6 +350,10 @@ test("the public surface reaches no Node builtin, which is what the page's bare 
   // And the two that do reach a builtin are genuinely outside that graph rather
   // than merely unreached by this walk.
   assert.ok(seen.includes("api/cheatsheet/render.mjs"), "the walk never reached the output surface");
+  // And the browser entry point, which is the half of the surface this
+  // invariant was always *for*: a module a page imports to build its own
+  // cheatsheet section is the module a Node builtin would break loudest.
+  assert.ok(seen.includes("api/cheatsheet/site.mjs"), "the walk never reached the browser entry point");
   assert.ok(!seen.includes("api/cheatsheet/files.mjs"), "files.mjs is in the static graph of index.mjs");
   assert.ok(!seen.includes("api/cheatsheet/raster.mjs"), "raster.mjs is in the static graph of index.mjs");
   // Which is only interesting because they are reachable at all.

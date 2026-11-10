@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started with demo-app</title>
+</head>
+<body>
+<p><a href="../index.html">Acme Corp Handbook</a></p>
+
+<!--
+  Code examples, which is the shape a tutorial page has most of. The heading
+  source is `page`, so the section inside the tutorial folder's cheatsheet is
+  headed `Getting Started` - the file name read as prose - rather than with the
+  sentence this page wrote as its <title>.
+-->
+<article data-cheatsheet="page">
+  <h2>Check one folder</h2>
+  <p>One argument, and the folder is read in place. Nothing is written.</p>
+  <pre><code>demo-app check ./records</code></pre>
+
+  <h2>Declare what a record must carry</h2>
+  <p>
+    A schema is a plain object. Every field names a type, and a field left out
+    of the schema is a field the check ignores.
+  </p>
+  <pre><code>const schema = {
+  id: "string",
+  opened: "date",
+  owner: "email",
+  total: "number",
+};</code></pre>
+
+  <h2>Read the report rather than the exit code</h2>
+  <p>
+    The exit code says whether anything failed. The report says what, which is
+    the half worth reading in a terminal.
+  </p>
+  <pre><code>const report = await check("./records", schema);
+for (const failure of report.failures) {
+  console.log(`${failure.record}: ${failure.field} ${failure.why}`);
+}</code></pre>
+
+  <h2>Two flags, and when each is worth it</h2>
+  <p>
+    <code>--quiet</code> prints the failures and nothing else, which is what a
+    scheduled run wants. <code>--json</code> prints the report as data, for
+    anything that reads it rather than looks at it.
+  </p>
+  <pre><code>demo-app check ./records --quiet
+demo-app check ./records --json &gt; report.json</code></pre>
+</article>
+
+<footer>
+  <p>Questions to <a href="mailto:jane.doe@example.com">jane.doe@example.com</a>.</p>
+</footer>
+</body>
+</html>

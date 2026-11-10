@@ -685,6 +685,43 @@ If the folder ever grows a file the site does need, the step is a literal
 `rm javaScriptArrays/*.jpg` and will not touch it - but say so there, because a
 workflow that drops tracked files reads as a fault to whoever meets it next.
 
+## What is in `fixtures/site/`
+
+A small placeholder site, committed, existing only so the cheatsheet tooling has
+something to run against. Half of it is a tutorial and half of it is
+documentation for a tool, which is the shape a real site that wants a cheatsheet
+section has. See
+[fixtures/site/README.md](fixtures/site/README.md).
+
+Three things about it are rules rather than details.
+
+**Everything in it is placeholder content.** Acme Corp, `demo-app`,
+`jane.doe@example.com`, 123 Main Street, (555) 123-4567. A fixture is read as an
+example of how to mark a site up, so a real name or a real address written into
+one is published twice over - and `tools/test-fixture-site.mjs` holds every
+address in it to a reserved domain rather than leaving that to a reader's
+judgement.
+
+**It is marked up on purpose, and it is the only folder here that is.** Every
+other case about `tools/cheatsheet-site.mjs` builds its site tree in the system
+temporary folder, because a page in this repository carrying `data-cheatsheet`
+would be collected by a run against this folder. So **never run the tool against
+the repository root** - name the fixture:
+
+```batch
+node tools/cheatsheet-site.mjs fixtures/site --dry-run
+```
+
+**The suite reads it from a copy.** `tools/test-fixture-site.mjs` copies the
+folder into the temporary folder before any real run, so a suite run writes
+nothing into the repository. Committing the generated pages and comparing
+against them is its own item in `TODO.md`, and it waits for the page composition
+to settle.
+
+It ships with the site, like everything else outside the one exception above.
+That is deliberate and costs 12 KB: a marked up site a reader can view is the
+clearest statement of what the markings are for.
+
 ## Where the documentation lives
 
 The long documentation moved out of `README.md` into `docs/` on 2026.11.08,

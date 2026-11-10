@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commands</title>
+</head>
+<body>
+<p><a href="../index.html">Acme Corp Handbook</a></p>
+
+<!--
+  Code examples with prose around them, which is the other half of what tool
+  documentation is. This page is the second section of the docs folder's one
+  cheatsheet - a folder is a subject, so `configuration.html` and this are two
+  pages about the same thing.
+
+  The paragraph outside the marked element below is deliberate: it is a page
+  carrying material the collector does not take, which is what makes the
+  marking a marking rather than a formality.
+-->
+<p>
+  Every command reads the configuration first, so a flag on the command line is
+  the exception rather than the way the tool is driven.
+</p>
+
+<section data-cheatsheet="title">
+  <h2>check</h2>
+  <p>Reads the folder and reports. Writes nothing.</p>
+  <pre><code>demo-app check [folder] [--quiet] [--json]</code></pre>
+
+  <h2>write</h2>
+  <p>
+    The same read, with the report written to <code>outputDir</code>. The file
+    is named for the day it was written, so a second run on one day replaces
+    that day's report rather than growing a folder of them.
+  </p>
+  <pre><code>demo-app write ./records --out ./reports</code></pre>
+
+  <h2>explain</h2>
+  <p>
+    Takes one record and says what the check made of it, field by field. It is
+    the command for the failure nobody can reproduce from the report alone.
+  </p>
+  <pre><code>demo-app explain ./records/0042.json</code></pre>
+
+  <h2>What every command refuses</h2>
+  <p>
+    A folder that is not there, and a schema that names a type the tool has no
+    reader for. Both are reported with the path rather than the sentence, so
+    there is somewhere to go and look.
+  </p>
+  <pre><code>demo-app check ./missing
+# demo-app: ./missing is not there.</code></pre>
+</section>
+
+<footer>
+  <p>Acme Corp, 123 Main Street, Suite 100, Springfield. (555) 123-4567.</p>
+</footer>
+</body>
+</html>
