@@ -30,6 +30,42 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [Unreleased]
+
+Two plans, written and not yet carried out. Nothing that runs has changed, so
+neither carries a version: the work they describe earns its own when it lands.
+Both are under `.claude/prompts/`, which is ignored like the rest of `.claude/`,
+so a clone has the record of them here and not the files.
+
+### Added
+
+- **`.claude/prompts/links.prompt.md` plans links on the footer, with Mastodon's
+  logo in place of the GitHub mark and the X mark in place of the Twitter
+  bird.** The mark square goes to practicing.xyz and the three icons to
+  Mastodon, Instagram and X, so the footer stops naming GitHub. The areas are
+  measured on `assets/footer.png` in its own 799 x 81 pixel space and mapped through the
+  `footer-lockup` placement, because the vendored drawing surface has no anchor
+  element and nothing under `api/napkin-sketch/` is edited here. One seam in
+  `api/cheatsheet/render.mjs` writes them after `toSVG()`, and a fragment lifts
+  them out of its `role="img"` wrapper into a named `<nav>`, since links inside
+  an image have no name for a screen reader. Both icons are replaced in the strip
+  alone: the eleven reference JPEGs stay as they are, because the design
+  language is re-measured against their bytes. At a 390 px width the icons are
+  about 15 x 20 CSS px against WCAG 2.2's 24 px minimum, so the plan stops for a
+  decision on a text row of the same links before it writes any markup. Its
+  last phase adds a Cheatsheet API page to the practicing.xyz site the way the
+  site's other Markdown pages were made: a page shell from the site's page
+  builder, then this repository's documentation site converted to one Markdown
+  file.
+- **`.claude/prompts/update-extract-html.prompt.md` plans teaching a local HTML
+  extraction tool to recognize a GitHub Pages documentation site.** It is
+  written to be moved to the workspace that tool lives in and run there with
+  `/handle-big-tasks`. The extractor and the page builder never call each other
+  today, so the one call is built rather than reused: a check that verifies a
+  layout profile before anything is written, a Markdown writer beside the XML
+  one, and a switch on the page builder that runs both around the page it
+  makes. Its acceptance case is reproducing the page the first plan makes.
+
 ## [1.7.0-alpha]
 
 The generated page stopped being string concatenation, and the half of the site
