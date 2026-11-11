@@ -19,6 +19,11 @@
 //   written, with no bare specifier and no chunk the page cannot fetch. That is
 //   the claim the whole browser route rests on and an engine is the only thing
 //   that can make it.
+// - **"The page fits a phone" is a measurement and not a rule.** A generated
+//   page carries three rules about its own layout and the material it carries
+//   is somebody else's, so whether the two add up to a page that does not
+//   scroll sideways is a question only a layout engine answers. It was a
+//   defect for as long as nothing here asked.
 //
 // The Playwright arrangement is the one tools/test-page-structure-browser.mjs
 // settled: `tools/` stays dependency free, there is no package.json, and a
@@ -363,6 +368,65 @@ test("a generated page carries the site's markup, including a script that draws"
   assert.equal(carried.bars, 7, `the carried script drew ${carried.bars} bars, not 7`);
   assert.deepEqual(errors, [], `the generated page logged ${JSON.stringify(errors)}`);
   await context.close();
+});
+
+// Added 2026.11.11 with the `<style>` block that closes the found issue, and
+// promoted from the UI/UX verification of 2026.11.10, which is where it was
+// first measured: before the block, `tutorial.html` and
+// `all-cheatsheets.html` reported a `scrollWidth` of 494 in a 390px viewport,
+// pushed by one carried `<code>` at `white-space: pre` on a page with no
+// stylesheet at all. It runs on all four pages rather than the two that failed,
+// because the two that passed did so only because their longest carried line
+// was shorter - they are the guard for anyone who later widens the fixture.
+test("a generated page does not scroll sideways at 390px, and scrolls its listing instead", async (t) => {
+  if (skip) return t.skip(skip);
+  const scrolling = [];
+  const listings = [];
+  for (const name of PAGES) {
+    const { context, page } = await open(generated(name), { width: 390, height: 844 });
+    const fit = await page.evaluate(() => {
+      const client = document.documentElement.clientWidth;
+      // What is reported on a failure, rather than what is asserted: the tag,
+      // the two computed properties that decide whether a wide box pushes the
+      // page, and enough of its text to find it in the fixture.
+      const widest = [...document.querySelectorAll("*")]
+        .filter((el) => el.getBoundingClientRect().right > client + 1)
+        .map((el) => {
+          const style = getComputedStyle(el);
+          return (
+            `<${el.tagName.toLowerCase()}> reaching ` +
+            `${Math.round(el.getBoundingClientRect().right)}px ` +
+            `(white-space:${style.whiteSpace}, overflow-x:${style.overflowX}) ` +
+            `"${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60)}"`
+          );
+        });
+      return {
+        scroll: document.documentElement.scrollWidth,
+        client,
+        widest,
+        // A listing wider than the page is the case the rule is for, so the
+        // rule is only proven where there is one to prove it on.
+        overflowing: [...document.querySelectorAll("[data-cheatsheet-block] pre")]
+          .filter((pre) => pre.scrollWidth > pre.clientWidth + 1)
+          .map((pre) => getComputedStyle(pre).overflowX),
+      };
+    });
+    await context.close();
+    if (fit.scroll > fit.client + 1) {
+      scrolling.push(`${name}: scrollWidth ${fit.scroll} in a ${fit.client}px page, pushed by ${fit.widest.join("; ")}`);
+    }
+    listings.push(...fit.overflowing);
+  }
+  assert.deepEqual(scrolling, [], `pages that scroll sideways at 390px:\n  ${scrolling.join("\n  ")}`);
+  // The page fitting is the finding; the listing scrolling itself is how. A
+  // page that fitted because the material had been wrapped instead would pass
+  // the assertion above and change what the listing says.
+  assert.ok(listings.length > 0, "no carried listing was wider than the page, so nothing exercised the rule");
+  assert.deepEqual(
+    [...new Set(listings)],
+    ["auto"],
+    `a listing wider than the page computed overflow-x ${[...new Set(listings)].join(", ")}`
+  );
 });
 
 // ## 2. The section a loaded page builds

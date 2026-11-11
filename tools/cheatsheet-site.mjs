@@ -403,6 +403,57 @@ export const MASTER_NAME = "all-cheatsheets.html";
 export const GENERATOR = "cheatsheet-site";
 
 /**
+ * The comment and the rules a generated page carries about its own layout.
+ *
+ * A generated page is written whole, into a folder belonging to the site owner,
+ * and until 2026.11.11 it carried no stylesheet at all - no `<link>`, no
+ * `<style>` - which is what made it a page that scrolls sideways on a phone. A
+ * `<pre>` carried off a site is `white-space: pre` and `overflow-x: visible` by
+ * the browser's own default, so one long line anywhere in the material sets the
+ * width of the whole document: measured at a 390px viewport, `tutorial.html`
+ * and `all-cheatsheets.html` reported a `scrollWidth` of 494 against a
+ * `clientWidth` of 390, pushed by a single carried template literal.
+ *
+ * **It is three rules and not a stylesheet.** The page has to keep looking like
+ * the site it was generated from, so this says nothing about type, colour or
+ * spacing, and nothing at all about the figure - which carries its own inline
+ * style and measures square already, and would only come to disagree with a
+ * second opinion written here. Every selector is scoped to
+ * {@link CHEATSHEET_BLOCK}, so it reaches the blocks this tool wrote and
+ * nothing the owner's markup carries outside them, and it is written ahead of
+ * the body so anything the owner adds afterwards wins on cascade order.
+ *
+ * - **`pre { overflow-x: auto }`** is the rule that closes the issue, and it is
+ *   the one `docs/docs.css` already proves on this repository's own pages: a
+ *   wide listing scrolls itself rather than scrolling the document.
+ * - **`img` and `table` at `max-width: 100%`** are the same defect from the two
+ *   other elements that carry an intrinsic width. Neither was exercised by the
+ *   fixture, and waiting for a second report of a page that scrolls sideways is
+ *   waiting to be told something already known.
+ *
+ * **Not `white-space: pre-wrap`**, which would be the smaller change and the
+ * wrong one. A line break inserted into a carried listing changes what the
+ * listing says, and `docs/generating-from-a-site.html` describes that material
+ * to a site owner as the record their figure was read from. Scrolling a listing
+ * is what this repository's own documentation chose for itself.
+ *
+ * **Not a rule on the block itself.** `max-width: 100%` on the `<main>` reads
+ * as the belt to these braces and does nothing: the block is a child of
+ * `<body>` at `width: auto` and is already exactly the page's width, so the
+ * element that has to be contained is always the carried one inside it.
+ */
+export const BLOCK_STYLE = [
+  `<!-- Written by ${GENERATOR}. These rules keep the carried material below`,
+  "     inside the page width, and nothing else - they are scoped to the blocks",
+  "     this tool wrote, and anything the site adds after them overrides them. -->",
+  "<style>",
+  `[${CHEATSHEET_BLOCK}] pre { overflow-x: auto; }`,
+  `[${CHEATSHEET_BLOCK}] img,`,
+  `[${CHEATSHEET_BLOCK}] table { max-width: 100%; }`,
+  "</style>",
+];
+
+/**
  * The comments this tool writes around a menu it filled.
  *
  * **The signature is how a run tells its own fill from a site owner's
@@ -2247,11 +2298,12 @@ export function renderMaster(master) {
  *
  * **It is a shell and not a composition**, which is why it stayed written out
  * when the body stopped being. What a cheatsheet page shows is the figure
- * {@link sheetLines} composes; what this adds is the five lines of head that
- * make the figure a document a browser will open - a charset, a viewport, a
- * title, what generated it and where it came from. There is nothing in that for
- * a sheet document to say, and a page shell derived from one would be the
- * composition answering a question nobody asked it.
+ * {@link sheetLines} composes; what this adds is the head that makes the figure
+ * a document a browser will open - a charset, a viewport, a title, what
+ * generated it, where it came from, and the three rules of {@link BLOCK_STYLE}
+ * that keep the carried material inside the page. There is nothing in any of
+ * that for a sheet document to say, and a page shell derived from one would be
+ * the composition answering a question nobody asked it.
  *
  * @param {string} heading What the page is titled.
  * @param {SitePage[]} sources The pages of the site it was read from, in order.
@@ -2270,6 +2322,8 @@ function cheatsheetDocument(heading, sources, body) {
     // One per source, in source order. A reader looking for where a cheatsheet
     // came from should find every page of it rather than the first.
     ...sources.map((page) => `<meta name="cheatsheet-source" content="${escapeHtml(page.id)}">`),
+    // The one thing in the head that is not metadata, per {@link BLOCK_STYLE}.
+    ...BLOCK_STYLE,
     "</head>",
     "<body>",
     ...body,

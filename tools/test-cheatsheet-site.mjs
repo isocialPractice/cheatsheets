@@ -822,6 +822,64 @@ test("the generated page carries the site's own markup and says where it came fr
   }
 });
 
+test("a generated page carries the one style block it needs, scoped to its own blocks", async () => {
+  // The text half of the found issue closed on 2026.11.11. The behaviour is
+  // pinned in `tools/test-site-pages-browser.mjs`, which opens the four
+  // generated pages at 390px and measures them; what is pinned here is the rule
+  // as written, because what makes it safe to put a `<style>` block in somebody
+  // else's folder is its scope, and a scope is text.
+  const root = await site({ "splice.html": page("Splicing Arrays", "<pre>items.splice(1, 2)</pre>") });
+  try {
+    const pages = await collectSite(root);
+    const parts = cheatsheets(pages);
+    for (const [where, markup] of [
+      ["a cheatsheet page", renderCheatsheet(only(pages))],
+      ["the master page", renderMaster({ heading: "All Cheatsheets", pages, parts })],
+    ]) {
+      // In the head, which is where a rule the body depends on belongs - and
+      // the only cascade it has to lose to is something added after it, since a
+      // site owner's own stylesheet is loaded by their pages and not by this one.
+      const head = markup.slice(markup.indexOf("<head>"), markup.indexOf("</head>"));
+      assert.ok(head.includes("<style>"), `${where}: the head carries no style block`);
+      assert.ok(head.includes("</style>"), `${where}: the style block is left open`);
+      const rules = head.slice(head.indexOf("<style>") + "<style>".length, head.indexOf("</style>"));
+      // The rule that closes the issue, and the two that are the same defect
+      // arriving from the other elements that carry an intrinsic width.
+      assert.match(rules, /\[data-cheatsheet-block\] pre \{ overflow-x: auto; \}/, `${where}: no rule scrolls a wide listing`);
+      assert.match(rules, /\[data-cheatsheet-block\] img,\n\[data-cheatsheet-block\] table \{ max-width: 100%; \}/, `${where}: no rule contains a wide image or table`);
+      // **Every selector is scoped**, which is asserted as a count rather than
+      // as the presence of the three that are known: an unscoped selector added
+      // later would reach the owner's own markup on a page they keep, and that
+      // is the one thing generated CSS in their folder may not do.
+      const selectors = rules
+        .split("}")
+        .flatMap((rule) => rule.split("{")[0].split(","))
+        .map((one) => one.trim())
+        .filter((one) => one !== "");
+      assert.ok(selectors.length > 0, `${where}: the style block holds no rules`);
+      for (const selector of selectors) {
+        assert.ok(
+          selector.startsWith("[data-cheatsheet-block]"),
+          `${where}: "${selector}" reaches outside the blocks this tool wrote`
+        );
+      }
+      // Nothing about the figure, which carries its own inline style and
+      // measures square already. Two opinions about one element is how the two
+      // come to disagree.
+      assert.ok(!rules.includes("svg"), `${where}: the style block has an opinion about the figure`);
+      assert.ok(!rules.includes(".cheatsheet"), `${where}: the style block styles the figure's wrapper`);
+      // And it says what it is for, because an unexplained style block in
+      // generated output is a style block a site owner deletes.
+      assert.match(
+        head,
+        new RegExp(`<!--[^>]*${GENERATOR}`),
+        `${where}: nothing in the head says what the style block is for`
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 test("a heading out of a title is escaped, because a title is text and not markup", async () => {
   const root = await site({ "x.html": page("Arrays &amp; <b>Objects</b>", "<p>a</p>") });
   try {

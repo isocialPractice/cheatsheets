@@ -37,6 +37,76 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.8.1]
+
+A generated page stopped scrolling sideways on a phone. It is a patch, and the
+whole of it is three CSS rules and the two cases that hold them: the found issue
+the UI/UX verification of 2026.11.10 raised, resolved from the plan it left
+behind. The composed sheet was never what did it - every sheet on those pages
+measured 374x374 inside a 390px viewport, which is the half that run changed and
+the half that worked.
+
+### Fixed
+
+- **A generated page carries three rules about its own layout, as
+  `BLOCK_STYLE`.** It was written whole with an empty `<head>` - no `<link>`,
+  no `<style>` - so a `<pre>` carried off a site was `white-space: pre` and
+  `overflow-x: visible` by the browser's own default, and one long line anywhere
+  in the material set the width of the whole document. Measured at a 390px
+  viewport over `fixtures/site/`, `tutorial.html` and `all-cheatsheets.html`
+  reported a `scrollWidth` of 494 against a `clientWidth` of 390, pushed by a
+  single carried template literal; `index.html` and `docs.html` held at 390 only
+  because their longest line was shorter, so it was a property of the material
+  rather than of the page. `[data-cheatsheet-block] pre { overflow-x: auto; }`
+  is the rule that closes it, and it is the one `docs/docs.css` already proved
+  on this repository's own pages. It was inherited rather than introduced: the
+  same fixture through the previous release writes the same empty head and
+  measures the same 494px.
+- **A carried image or table is contained in the same breath.** Both set a page
+  width the way a `<pre>` does and neither was exercised by the fixture, so
+  `img` and `table` are held to `max-width: 100%` with the same scope rather
+  than waiting to be told the same thing twice.
+- **Not `white-space: pre-wrap`**, which would have been the smaller change and
+  the wrong one. A line break inserted into a carried listing changes what the
+  listing says, and the material under the figure is described to a site owner
+  as the record the lossy reading came from. Scrolling a listing is what this
+  repository's own documentation chose for itself.
+
+### Changed
+
+- **Every selector is scoped to `data-cheatsheet-block`, and nothing styles the
+  figure.** The constraint the tool runs under is that the folder it writes into
+  belongs to somebody else, so the rules reach the blocks it wrote and nothing
+  the owner's markup carries outside them, they sit in the head where anything
+  added afterwards wins on cascade order, and they say nothing about type, colour
+  or spacing. The figure keeps its own inline style and gets no second opinion,
+  which is how the two would come to disagree. An HTML comment above the block
+  names what it is for, because an unexplained `<style>` block in generated
+  output is one a site owner deletes.
+- **The browser route carries no style block**, and now says so. A section built
+  by `api/cheatsheet/site.mjs` is appended to a page that already has a
+  stylesheet, so a site wanting the listing rule on that route writes it into
+  their own CSS. `docs/generating-from-a-site.html` records the block, the
+  reasoning and that asymmetry.
+
+### Tested
+
+- **A generated page does not scroll sideways at 390px, and scrolls its listing
+  instead.** Promoted into `tools/test-site-pages-browser.mjs` from the
+  verification that found it, and asserted on all four generated pages rather
+  than the two that failed - the two that passed are the guard for anyone who
+  later widens the fixture's material. It asserts the document fits and that a
+  listing wider than the page computes `overflow-x: auto`, because a page that
+  fitted because the material had been wrapped would pass the first assertion
+  and change what the listing says.
+- **The rule is pinned as text as well as behaviour.**
+  `tools/test-cheatsheet-site.mjs` reads the written head of both a cheatsheet
+  page and the master page for the block, the three rules, and the comment above
+  them, and asserts that *every* selector in it starts with
+  `[data-cheatsheet-block]` rather than that the three known ones are there -
+  what makes generated CSS safe in somebody else's folder is its scope, and a
+  scope is text.
+
 ## [1.0.0-alpha.1.8.0]
 
 A sheet's footer links out. The strip's mark goes to practicing.xyz and its

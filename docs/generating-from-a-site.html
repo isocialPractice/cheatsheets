@@ -230,6 +230,29 @@ set in; material that reads as no text at all - a page of nothing but an
 <code>&lt;img&gt;</code> - gets no figure rather than a sheet with an invented
 row on it.</p>
 
+<p>And three rules about its own layout, written into the head as a
+<code>&lt;style&gt;</code> block with a comment above it saying what it is
+for:</p>
+
+<pre><code>&lt;style&gt;
+[data-cheatsheet-block] pre { overflow-x: auto; }
+[data-cheatsheet-block] img,
+[data-cheatsheet-block] table { max-width: 100%; }
+&lt;/style&gt;</code></pre>
+
+<p>A generated page is written whole and carries no stylesheet, so a
+<code>&lt;pre&gt;</code> on it is <code>white-space: pre</code> and
+<code>overflow-x: visible</code> by the browser's own default - and one long
+line anywhere in the carried material then sets the width of the whole
+document, which is a page that scrolls sideways on a phone. The listing scrolls
+itself instead, which is what <code>docs.css</code> chose for these pages;
+wrapping it was the alternative and it would change what a listing says, and
+the material underneath the figure is the record. Every selector is scoped to
+<code>data-cheatsheet-block</code>, so the rules reach the blocks the tool wrote
+and nothing else in the folder, and anything added after them wins on cascade
+order. There is nothing here about type, colour or spacing, and nothing about
+the figure, which carries its own inline style and needs no second opinion.</p>
+
 <p>Every fragment is named, because the master page holds one per cheatsheet and
 a composition carries <code>id="cheatsheet"</code> on its root. The name is the
 generated file's stem, which the flat output folder has already made unique,
@@ -257,7 +280,10 @@ sources and the element lists are declared there and the scripted tool imports
 them: one vocabulary with two readers rather than two that agree until one is
 edited. The section it builds is the shape the scripted tool writes - a heading,
 the composed figure, and a <code>&lt;main&gt;</code> per block - so a site can
-move between the routes without its stylesheet changing. The material is cloned
+move between the routes without its stylesheet changing. It carries no
+<code>&lt;style&gt;</code> block of its own, because the section is appended to
+a page that already has a stylesheet: a site that wants the listing rule on that
+route writes the one above into its own CSS, where it can be read and changed. The material is cloned
 rather than moved, and the section is handed back rather than inserted, since
 where it goes is the page's decision.</p>
 
