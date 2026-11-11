@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## The versioning changed on 2026.11.02
 
-**Every version below `1.0.0-alpha` is a date, and every version from it is
+**Every version below `1.0.0-alpha.1.0.0` is a date, and every version from it is
 semantic.** The repository recorded its changes by the date they were applied,
 written `YYYY.MM.DD`, for as long as there was nothing to version: the
 deliverable was a page and a folder of images, and a semantic version of those
@@ -24,13 +24,20 @@ only honest way to say what moved under them.
 and its shape is settled, and `alpha` is the statement that it has not yet been
 depended on from outside this repository.
 
+**Every semantic version is written `1.0.0-alpha.X.Y.Z`, since 2026.11.10.**
+The core `1.0.0` is the release being worked towards and holds while the stage
+is `alpha`; the work moves the triple after it. The versions before that day
+were written `X.Y.Z-alpha` and were relabelled to the same triple - `1.8.0-alpha`
+is `1.0.0-alpha.1.8.0`, and `1.0.0-alpha`, the first, is `1.0.0-alpha.1.0.0` -
+with their tags and their GitHub releases renamed to match.
+
 **The dated sections stay exactly as they are.** They are the record of how the
 design language was measured, how the catalog was built and how the API was
 written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
-## [1.8.0-alpha]
+## [1.0.0-alpha.1.8.0]
 
 A sheet's footer links out. The strip's mark goes to practicing.xyz and its
 three icons to Mastodon, Instagram and X, and the footer stopped naming GitHub to
@@ -140,7 +147,7 @@ here and not the files.
   generated page links its drawn footer to the site once, in markup and in a
   real engine, and links no account.
 
-## [1.7.0-alpha]
+## [1.0.0-alpha.1.7.0]
 
 The generated page stopped being string concatenation, and the half of the site
 tooling a build step cannot reach arrived beside it. Both are items of
@@ -244,7 +251,7 @@ attribute names belong to one of them rather than to both.
   refusing to fill is filling over markup on the strength of a word. A menu
   element can now get nine things wrong rather than eight, and the new one names
   both ways out: empty the element, or keep the markup and drop the attribute.
-  This reverses what `1.6.0-alpha` recorded as a hazard in this file, in the
+  This reverses what `1.0.0-alpha.1.6.0` recorded as a hazard in this file, in the
   tool's own header and on the documentation page.
 - **The two markings, the heading sources, the element lists and `prose` moved
   to the published surface.** They are declared in `api/cheatsheet/site.mjs` and
@@ -267,7 +274,7 @@ attribute names belong to one of them rather than to both.
   carries**, with `CHEATSHEET.md` and `docs/cheatsheet.html` kept in step down
   to their listings, which is what the parity case holds them to.
 
-## [1.6.0-alpha]
+## [1.0.0-alpha.1.6.0]
 
 The menu element, and the documentation site folded in with it. The site landed
 on 2026.11.08 and carried no version of its own - the work was documentation,
@@ -420,7 +427,7 @@ fold it in, which this is.
   every declaration on the page still on it. The three gaps are now named for
   the elements they are between.
 
-## [1.5.0-alpha]
+## [1.0.0-alpha.1.5.0]
 
 ### Added
 
@@ -521,7 +528,7 @@ fold it in, which this is.
   applies to, the three properties and what each sets, that a comment is still a
   comment, and which of the two methods wins where both speak.
 
-## [1.4.0-alpha]
+## [1.0.0-alpha.1.4.0]
 
 ### Added
 
@@ -611,7 +618,7 @@ fold it in, which this is.
   root page under its own name, the prose conversion, and the two collisions that
   are left.
 
-## [1.3.0-alpha]
+## [1.0.0-alpha.1.3.0]
 
 ### Added
 
@@ -674,7 +681,7 @@ fold it in, which this is.
   beside the pages, and four cases in `tools/test-cheatsheet-site.mjs` that
   asserted the folder's contents were updated to expect it.
 
-## [1.2.0-alpha]
+## [1.0.0-alpha.1.2.0]
 
 ### Added
 
@@ -689,7 +696,7 @@ fold it in, which this is.
 ### Fixed
 
 - **The resolved slot is what the rows are placed from**, which closes the
-  limitation the `1.1.0-alpha` note below records in its own words: *"what
+  limitation the `1.0.0-alpha.1.1.0` note below records in its own words: *"what
   resolution buys, for now, is the refusal and not the placement"*. `rowsFor`
   called `slotForSection` for its refusal and threw the answer away, and
   `composeSheet` took every figure of the code block - the padding ceiling, the
@@ -732,7 +739,7 @@ fold it in, which this is.
   many slots a layout keeps for a section, and the answer had been "one" since
   the field was added and enforced nowhere.
 
-## [1.1.0-alpha]
+## [1.0.0-alpha.1.1.0]
 
 ### Added
 
@@ -793,14 +800,14 @@ fold it in, which this is.
 ### Changed
 
 - **`.claude/constants.md` records semantic versioning**, which the
-  `1.0.0-alpha` note below listed as deliberately outstanding. The standing note
+  `1.0.0-alpha.1.0.0` note below listed as deliberately outstanding. The standing note
   put that rewrite after the **release** of the first semantic version rather
   than after the switch, and `v1.0.0-alpha` was tagged and published on
   2026.11.02, so it fired. The **Versioning and releases** rule is replaced and
   carries the stage suffix; the other five rules in the file are untouched.
 - **`TODO.md` opens by saying the project is in released mode**, where it had
   said dated. A roadmap section still states its intent rather than naming a
-  size, and every changelog entry below `1.0.0-alpha` is still keyed by the date
+  size, and every changelog entry below `1.0.0-alpha.1.0.0` is still keyed by the date
   it was applied.
 - **`CONTRIBUTING.md` documents `slot`**, which it had not: what a kind is, why
   a document names a kind rather than a slot, and the refusal a section gets for
@@ -825,7 +832,7 @@ fold it in, which this is.
   watch pattern matched the eleven original JPEGs, all already in the ledger,
   and no image was created.
 
-## [1.0.0-alpha]
+## [1.0.0-alpha.1.0.0]
 
 ### Added
 

@@ -4,14 +4,16 @@ Planned work for this cheatsheet example repository. `## Current` holds the
 next items to complete, in order; the level 2 sections below it are the
 roadmap those items are drawn from.
 
-This project is in **released mode** as of 2026.11.02, when `1.0.0-alpha` was
-tagged and published. It was dated for as long as the deliverable was a page
+This project is in **released mode** as of 2026.11.02, when its first version
+was tagged and published - `1.0.0-alpha` then, `1.0.0-alpha.1.0.0` now. It was dated for as long as the deliverable was a page
 and a folder of images; what changed is that there is an API a caller writes
 against, so a version is the only honest way to say what moved under them. A
 roadmap section still states its intent rather than naming a major, minor or
 patch update, and **Version Priority** resolves the size from that. Every entry
-in `CHANGELOG.md` below `1.0.0-alpha` is keyed by the date it was applied,
-written `YYYY.MM.DD`, and stays exactly as it is.
+in `CHANGELOG.md` below `1.0.0-alpha.1.0.0` is keyed by the date it was
+applied, written `YYYY.MM.DD`, and stays exactly as it is. Every version from
+it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
+`alpha`, and the work moves the triple after it.
 
 ## Current
 
