@@ -108,6 +108,7 @@
 import { createComposition, placeBrand } from "../napkin-sketch/graphic-design/index.js";
 
 import { accentRoles } from "./accents.mjs";
+import { footerLinkAreas, FOOTER_LINKS, PRACTICING_HREF } from "./brand.mjs";
 import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
 import { isFormalDocument, readDocument } from "./document.mjs";
 import {
@@ -289,6 +290,7 @@ function widestLine(lines, cap, face) {
  * @property {string} face
  * @property {StackReport} stack What face the sheet asked for, and what it got.
  * @property {Record<string, string>} brand How each brand slot was filled: `vector`, `image` or `drawn`.
+ * @property {import('./brand.mjs').LinkArea[]} links Where the sheet links out, in sheet pixels. The composition holds no link itself.
  * @property {string} accents How the code panel was coloured: `token`, `line`, or `missing:<language>`.
  * @property {boolean} codeFits Whether every line of the example fits the panel.
  * @property {boolean} runsFit Whether every display run fits its region above its floor.
@@ -454,6 +456,14 @@ export function composeSheet(doc, options = {}) {
    * @type {Record<string, string>}
    */
   const brandModes = { logo: "drawn", footer: "drawn" };
+  /**
+   * The places on the sheet that link out, in sheet pixels. The composition
+   * cannot hold a link - the drawing surface has no anchor element - so they
+   * are reported here and a writer adds them to the markup after `toSVG()`.
+   *
+   * @type {import('./brand.mjs').LinkArea[]}
+   */
+  const links = [];
   // A caller may pass a replacement language, and one written before the floors
   // existed carries none. Falling back to the recorded floors rather than to no
   // floors at all keeps the guarantee: a language can move a floor, but it
@@ -1052,6 +1062,19 @@ export function composeSheet(doc, options = {}) {
     for (const note of placed.notes) notes.push(`The footer lockup: ${note}`);
     if (!placed.placed) {
       notes.push("The footer lockup held nothing drawable, so the mark square and follow line are drawn.");
+    } else {
+      // The strip's mark and icons link out, at the places `brand.mjs` measured
+      // on the strip and carried through the same `meet` placement it was
+      // given. A different strip has its icons somewhere else, so it gets none.
+      const areas = footerLinkAreas(footerAsset, boxOf(layout, footerSlot));
+      if (areas) {
+        links.push(...areas);
+      } else {
+        notes.push(
+          `The footer lockup is not the ${FOOTER_LINKS.width} x ${FOOTER_LINKS.height} strip its link areas ` +
+            "were measured on, so it carries no links."
+        );
+      }
     }
   }
 
@@ -1064,6 +1087,7 @@ export function composeSheet(doc, options = {}) {
     const followLine = doc.followLine ?? DEFAULT_RUNS.followLine;
     const followSlot = runSlot("follow-line");
     const followCap = displayCap("follow line", followLine, followSlot.size.cap, followSlot.measure);
+    const followSize = sizeForCap(followCap, face);
     drawText(
       {
         name: followSlot.name,
@@ -1072,12 +1096,36 @@ export function composeSheet(doc, options = {}) {
         text: followLine,
         align: "left",
         fontFamily,
-        fontSize: sizeForCap(followCap, face),
+        fontSize: followSize,
         fontWeight: followSlot.size.weight,
         fill: followSlot.fill,
       },
       followSlot.on
     );
+
+    // The drawn footer links its mark square to the site, and its follow line
+    // too, **but only while the line is the default one**, which names that
+    // site. A document's own follow line is its own words, and a link it did
+    // not ask for would be this layer putting one in its mouth. Both areas take
+    // the footer band's full height, as the strip's mark does, so the target is
+    // the band rather than the cap height of the type.
+    const markSquare = layout.slots.find((slot) => slot.name === "mark-square");
+    if (markSquare) {
+      links.push({ name: "practicing", href: PRACTICING_HREF, label: "practicing.xyz", ...boxOf(layout, markSquare) });
+    }
+    const band = layout.slots.find((slot) => slot.name === "footer-lockup");
+    if (followLine === DEFAULT_RUNS.followLine && band) {
+      const { y, height } = boxOf(layout, band);
+      links.push({
+        name: "follow-line",
+        href: PRACTICING_HREF,
+        label: followLine,
+        x: followSlot.left,
+        y,
+        width: drawnWidth(followLine, { fontSize: followSize, face }),
+        height,
+      });
+    }
   }
 
   // --- The paints the sheet was actually drawn in --------------------------
@@ -1123,6 +1171,7 @@ export function composeSheet(doc, options = {}) {
       face: face.name,
       stack: { family: [...theme.stack.family], css: fontFamily, resolved: null },
       brand: brandModes,
+      links,
       accents: accentMode,
       codeFits,
       runsFit,

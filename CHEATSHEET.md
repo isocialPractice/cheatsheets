@@ -165,6 +165,12 @@ composition always writes `id="cheatsheet"` on its root. Writing a render to
 disk is a second import, `api/cheatsheet/files.mjs`, the only module in the
 folder that reads `node:fs`.
 
+A sheet's footer links out, and `variation.links` says where, in sheet pixels.
+`renderSVG` writes them as a final `<g data-name="links">`, `withoutLinks` takes
+it off again, and a fragment lifts them into a `<nav>` beside its `role="img"`
+picture; `linkLayerFor(markup)` is that `<nav>` for a page with a box of its
+own. A raster carries no link.
+
 ## The catalog
 
 ```text

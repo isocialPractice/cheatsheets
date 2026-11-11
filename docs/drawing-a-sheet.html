@@ -76,6 +76,35 @@ temporary SVG and the helper under <code>ai-helper/graphic-designer/</code>
 measures that. <code>javascript</code> is the exception and needs no file,
 because <code>DESIGN_LANGUAGE.md</code> was measured off its own images.</p>
 
+<h2>The footer links out</h2>
+
+<p>A sheet's footer is drawn one of two ways, and each links what it draws.</p>
+
+<table>
+ <tr><th>Footer</th><th>When</th><th>What links, and where</th></tr>
+ <tr>
+  <td>The strip</td>
+  <td><code>assets/footer.png</code> was given to the composition, and the
+   document names no follow line of its own</td>
+  <td>The mark, to practicing.xyz, and the three icons after "Follow Me", to
+   Mastodon, Instagram and X</td>
+ </tr>
+ <tr>
+  <td>Drawn</td>
+  <td>No strip, or a document with a follow line of its own</td>
+  <td>The navy mark square, to practicing.xyz, and the follow line to the same
+   place while it is the default one. A follow line the document wrote is its
+   own words and links nowhere</td>
+ </tr>
+</table>
+
+<p>The composition cannot hold a link, because the drawing surface has no
+anchor element, so <code>composeSheet</code> reports the areas as
+<code>variation.links</code> and the render writes them in afterwards. Where the
+strip's icons are is a fact about the strip's pixels, so the areas are recorded
+in <code>api/cheatsheet/brand.mjs</code> in the strip's own 799 x 81, and a
+strip of any other size is placed with no links and a note saying so.</p>
+
 <p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
 The repository is on
 <a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the

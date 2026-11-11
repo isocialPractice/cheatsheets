@@ -24,6 +24,26 @@
     "logo": "drawn",
     "footer": "drawn"
   },
+  "links": [
+    {
+      "name": "practicing",
+      "href": "https://practicing.xyz",
+      "label": "practicing.xyz",
+      "x": 0,
+      "y": 3264,
+      "width": 288,
+      "height": 336
+    },
+    {
+      "name": "follow-line",
+      "href": "https://practicing.xyz",
+      "label": "Follow along at practicing.xyz",
+      "x": 576,
+      "y": 3264,
+      "width": 2724.6175243393604,
+      "height": 336
+    }
+  ],
   "accents": "line",
   "codeFits": true,
   "runsFit": true,

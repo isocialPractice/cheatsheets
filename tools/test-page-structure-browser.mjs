@@ -641,3 +641,80 @@ test("an asset that does not answer leaves the sheet it drew before", { skip }, 
   assert.equal(slots.wordmark, "practicing.xyz");
   assert.ok(slots.codeRuns > 10, "the sheet stopped composing when an asset was missing");
 });
+
+// --- The sheet's links, and the row that repeats them -------------------------
+
+/** Where the footer's links go, in the order the strip draws them. */
+const FOLLOW_TARGETS = [
+  "https://practicing.xyz",
+  "https://mastodon.social/@isocialPractice",
+  "https://www.instagram.com/isocialpractice/",
+  "https://x.com/isocialpractice",
+];
+
+test("the sheet's links are four named tab stops in the footer's order, and the row repeats them", { skip }, async () => {
+  const page = await openPage(390, 844);
+  await page.waitForSelector("#sheetFrame > nav a");
+  await page.focus("#example");
+  // Walk forward from the example control until the row's last link, which is
+  // the end of what this case is about. A cap stops a page that never reaches
+  // it from walking round the document and back into the sheet again.
+  const stops = [];
+  for (let i = 0; i < 24 && stops.filter((stop) => stop.where === "row").length < 4; i++) {
+    await page.keyboard.press("Tab");
+    stops.push(
+      await page.evaluate(() => {
+        const at = document.activeElement;
+        return {
+          href: at.getAttribute("href"),
+          name: at.getAttribute("aria-label") ?? at.textContent.trim(),
+          where: at.closest("#sheetFrame > nav") ? "sheet" : at.closest("#sheetFollow") ? "row" : at.tagName,
+          inImage: Boolean(at.closest('[role="img"]')),
+        };
+      })
+    );
+  }
+  await page.close();
+
+  const sheet = stops.filter((stop) => stop.where === "sheet");
+  const row = stops.filter((stop) => stop.where === "row");
+  // The links over the sheet come first and in the strip's own order, which is
+  // the order a sighted reader meets the marks in.
+  assert.deepEqual(sheet.map((stop) => stop.href), FOLLOW_TARGETS);
+  for (const stop of sheet) {
+    assert.ok(stop.name, `the link to ${stop.href} has no accessible name`);
+    assert.ok(!stop.inImage, `the link to ${stop.href} sits inside the image, where it has no name`);
+  }
+  assert.ok(
+    stops.indexOf(sheet.at(-1)) < stops.indexOf(row[0]),
+    "the text row is reached before the links over the sheet it repeats"
+  );
+  assert.deepEqual(row.map((stop) => stop.href), FOLLOW_TARGETS, "the text row does not repeat the sheet's links");
+});
+
+test("on a phone the text row's links reach 24 x 24, and Mastodon's carries rel=me", { skip }, async () => {
+  // The icons over the sheet are about 15 x 20 CSS px here, under the 24 px
+  // WCAG 2.2 asks of a target (2.5.8). The row is the equivalent that lets them
+  // be, so the row is what has to reach the size.
+  const page = await openPage(390, 844);
+  const row = await page.evaluate(() =>
+    [...document.querySelectorAll("#sheetFollow a")].map((link) => {
+      const box = link.getBoundingClientRect();
+      return { href: link.getAttribute("href"), rel: link.rel, width: box.width, height: box.height };
+    })
+  );
+  // And the row goes when the sheet does, with the links laid over it.
+  await page.selectOption("#example", "");
+  const cleared = await page.evaluate(() => ({
+    row: getComputedStyle(document.getElementById("sheetFollow")).display,
+    nav: Boolean(document.querySelector("#sheetFrame > nav")),
+  }));
+  await page.close();
+
+  for (const link of row) {
+    assert.ok(link.width >= 24 && link.height >= 24, `${link.href} is ${link.width} x ${link.height}`);
+  }
+  const mastodon = row.find((link) => link.href === FOLLOW_TARGETS[1]);
+  assert.match(mastodon.rel, /\bme\b/, "the Mastodon link cannot verify the page without rel=me");
+  assert.deepEqual(cleared, { row: "none", nav: false });
+});

@@ -259,6 +259,34 @@
  p.full-size a {
   color: var(--accent);
  }
+ /* The frame the sheet and its links share. The links are laid over the sheet
+    in percentages of the composition, and an absolutely positioned layer is
+    placed against its nearest positioned ancestor - which cannot be the sheet
+    box itself, because that box is role="img" and everything inside an image is
+    presentational, links included. So the two sit side by side in this, and the
+    cap moves out to it so the frame is exactly as wide as the sheet. */
+ div.col div.sheet-frame {
+  position: relative;
+  max-width: min(100%, 900px);
+ }
+ /* The same four links as text, the equivalent the drawn icons need on a
+    phone. Set like the full size link above it, in the page's accent, and
+    each held to the 24 x 24 the icons cannot reach: as running text "X" is a
+    9 x 16 target, and an equivalent that only passes by an exception of its
+    own is not much of one. */
+ p.follow {
+  margin: var(--space-1) 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+ }
+ p.follow a {
+  display: inline-block;
+  min-width: 24px;
+  min-height: 24px;
+  line-height: 24px;
+  text-align: center;
+  color: var(--accent);
+ }
  /* The link to the documentation, directly under the title. The page styles no
     anchor globally, so a link that is not named here draws in the browser's own
     blue and is the one element on the page outside the palette. */
@@ -359,8 +387,17 @@
   </div>
   </div>
   <div class="col">
-   <div class="sheet" id="curCheatSheet" role="img" aria-label="" style="display: none"></div>
+   <div class="sheet-frame" id="sheetFrame">
+    <div class="sheet" id="curCheatSheet" role="img" aria-label="" style="display: none"></div>
+   </div>
    <p class="full-size" id="sheetFullSize" style="display:none"><a id="sheetFullSizeLink" href="" target="_blank" rel="noopener">Open this sheet at full size</a></p>
+   <!-- The sheet's footer links again, as text. On a phone the icons drawn in
+        the footer are about 15 x 20 CSS px, under the 24 px WCAG 2.2 asks a
+        target to reach (2.5.8), and too close together for its spacing
+        exception; the same four links at a size that passes, on the same page,
+        are its equivalent exception. Markup rather than script, so the
+        Mastodon link's rel="me" is in the page a verifier fetches. -->
+   <p class="follow" id="sheetFollow" style="display:none">Follow: <a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer">practicing.xyz</a>, <a href="https://mastodon.social/@isocialPractice" target="_blank" rel="me noopener noreferrer">Mastodon</a>, <a href="https://www.instagram.com/isocialpractice/" target="_blank" rel="noopener noreferrer">Instagram</a>, <a href="https://x.com/isocialpractice" target="_blank" rel="noopener noreferrer">X</a></p>
   </div>
 </div>
 <!-- Where an `embed` cheatsheet's demo is framed. The frame itself is created
@@ -396,7 +433,15 @@
 // That is the reason this script is a module and the reason the page now has
 // to be served: `import` and `fetch` are both refused a `file://` document
 // under the same CORS rule, so `php -S localhost:8000` stops being optional.
-import { composeSheet, fetchSheetBrand, fragmentFor, prepareAccents } from "./api/cheatsheet/index.mjs";
+import {
+ composeSheet,
+ fetchSheetBrand,
+ fragmentFor,
+ linkLayerFor,
+ prepareAccents,
+ withLinks,
+ withoutLinks,
+} from "./api/cheatsheet/index.mjs";
 
 // The catalog, by relative path so it resolves under the `/cheatsheets/`
 // project base path on Pages as well as at the root of a local server.
@@ -412,6 +457,8 @@ const categorySelect = document.getElementById("category");
 const exampleSelect = document.getElementById("example");
 const exampleStep = document.getElementById("selectExample");
 const sheetBox = document.getElementById("curCheatSheet");
+const sheetFrame = document.getElementById("sheetFrame");
+const sheetFollow = document.getElementById("sheetFollow");
 const fullSize = document.getElementById("sheetFullSize");
 const fullSizeLink = document.getElementById("sheetFullSizeLink");
 const showFootNote = document.getElementById("showFootNote");
@@ -725,6 +772,8 @@ function clearSheet() {
  sheetBox.style.display = "none";
  sheetBox.replaceChildren();
  sheetBox.setAttribute("aria-label", "");
+ clearSheetLinks();
+ sheetFollow.style.display = "none";
  showConsoleGuidance(false);
  clearDemo();
  fullSize.style.display = "none";
@@ -751,6 +800,7 @@ async function showSheet(entry, token) {
  sheetBox.style.aspectRatio = `${entry.width} / ${entry.height}`;
  sheetBox.setAttribute("aria-label", `${entry.title} cheat sheet`);
  sheetBox.style.display = "block";
+ sheetFollow.style.display = "block";
  reserveFullSize(entry.title);
 
  const response = await fetch(`${entry.path}/sheet.json`);
@@ -768,9 +818,12 @@ async function showSheet(entry, token) {
  * no round trip, and nothing above it has to be hidden and reshown.
  */
 function drawSheet(entry, doc) {
- const { composition } = composeSheet(doc, { seed: doc.seed ?? entry.seed, brand });
+ const { composition, variation } = composeSheet(doc, { seed: doc.seed ?? entry.seed, brand });
 
- const markup = composition.toSVG();
+ // The composition holds no link, so the places the sheet links out come back
+ // beside it and `withLinks` writes them in: the footer's mark and its icons, or
+ // the drawn footer's square and follow line.
+ const markup = withLinks(composition.toSVG(), variation.links);
  // What an embedded sheet needs doing to it is `fragmentFor`'s since
  // 2026.10.31, rather than this page's: the composition is 3600 square in sheet
  // pixels and carries that on the element, the viewBox carries it too, so the
@@ -781,12 +834,37 @@ function drawSheet(entry, doc) {
  // `wrap: false` asks for the element alone. The wrapper the published form adds
  // is a box with `role="img"` and the sheet's title as its name, and this page
  // already has one: `sheetBox` is that div, and `showSheet` has already named it.
- const parsed = new DOMParser().parseFromString(fragmentFor(markup, { wrap: false }), "image/svg+xml");
+ // The picture goes in without its links, because nothing inside an image is
+ // reachable; `showSheetLinks` lays them beside it instead, as the wrapper would.
+ const picture = withoutLinks(markup);
+ const parsed = new DOMParser().parseFromString(fragmentFor(picture, { wrap: false }), "image/svg+xml");
  sheetBox.replaceChildren(document.importNode(parsed.documentElement, true));
- // The link gets the markup as it was composed, width and height intact, so the
- // tab it opens shows the sheet at its own 3600px rather than at the column's.
+ showSheetLinks(markup);
+ // The full size link gets the markup as it was composed, width and height
+ // intact and its links in, so the tab it opens shows the sheet at its own
+ // 3600px and its footer links work there too.
  offerFullSize(markup);
  onScreen = { entry, doc };
+}
+
+/**
+ * Lays the sheet's links over it, replacing any the last sheet left.
+ *
+ * The layer fills the frame's padding box, which is the sheet box's border box,
+ * and the picture sits inside that box's 1px border; the inset moves the layer
+ * in by the border so each link lands on its own pixels rather than one off.
+ */
+function showSheetLinks(markup) {
+ clearSheetLinks();
+ const layer = linkLayerFor(markup);
+ if (!layer) return;
+ sheetFrame.insertAdjacentHTML("beforeend", layer);
+ sheetFrame.lastElementChild.style.inset = "1px";
+}
+
+/** Takes the sheet's links down with it. */
+function clearSheetLinks() {
+ sheetFrame.querySelector("nav")?.remove();
 }
 
 /** Runs the chosen example, and draws its sheet. */
@@ -848,6 +926,8 @@ async function selectExample() {
   onScreen = null;
   sheetBox.style.display = "none";
   sheetBox.replaceChildren();
+  clearSheetLinks();
+  sheetFollow.style.display = "none";
   fullSize.style.display = "none";
  }
 }

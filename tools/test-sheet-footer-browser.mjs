@@ -204,6 +204,10 @@ function decodePng(buffer) {
       const i = y * stride + x * channels;
       return [out[i], out[i + 1], out[i + 2]];
     },
+    /** Coverage at a pixel, 255 where the image has no alpha channel. */
+    alpha(x, y) {
+      return channels === 4 ? out[y * stride + x * channels + 3] : 255;
+    },
   };
 }
 
@@ -547,3 +551,98 @@ test("the composed footer reads like the artwork's at the left end", { skip }, a
     `the artwork's green bar starts at x ${artGreen}, so ${MARK_X} is not the figure to hold to`
   );
 });
+
+// --- The footer's links, over the marks they name ----------------------------
+
+/** Where each of the footer's links goes, in the order the strip draws them. */
+const TARGETS = [
+  "https://practicing.xyz",
+  "https://mastodon.social/@isocialPractice",
+  "https://www.instagram.com/isocialpractice/",
+  "https://x.com/isocialpractice",
+];
+
+/**
+ * Where the strip draws its mark, its three icons and the comma after the
+ * first, in sheet pixels, found in the strip's own pixels.
+ *
+ * Found rather than read from `FOOTER_LINKS`, so a link area that drifted off
+ * its icon fails here instead of agreeing with itself. A column is inked when
+ * any pixel in it is at least a quarter covered, and a run of inked columns is
+ * a mark: the first starts at the left edge and is the navy block holding the
+ * mark, the two that are narrow and nearly the strip's height are the
+ * parentheses, and between them the wide runs are the icons and the narrow
+ * ones the commas.
+ */
+async function drawnMarks() {
+  const strip = decodePng(await readFile(join(root, "assets", "footer.png")));
+  const runs = [];
+  let open = null;
+  for (let x = 0; x <= strip.width; x++) {
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; x < strip.width && y < strip.height; y++) {
+      if (strip.alpha(x, y) < 64) continue;
+      if (top < 0) top = y;
+      bottom = y;
+    }
+    if (top >= 0) {
+      if (open) {
+        open.x1 = x;
+        open.y0 = Math.min(open.y0, top);
+        open.y1 = Math.max(open.y1, bottom);
+      } else {
+        open = { x0: x, x1: x, y0: top, y1: bottom };
+      }
+    } else if (open) {
+      runs.push(open);
+      open = null;
+    }
+  }
+  const parens = runs.filter((run) => run.x1 - run.x0 <= 10 && run.y1 - run.y0 >= 45);
+  assert.equal(parens.length, 2, `found ${parens.length} parentheses in the strip, not 2`);
+  const inside = runs.filter((run) => run.x0 > parens[0].x1 && run.x1 < parens[1].x0);
+  const icons = inside.filter((run) => run.x1 - run.x0 >= 15);
+  const commas = inside.filter((run) => run.x1 - run.x0 < 15);
+  assert.equal(icons.length, 3, `found ${icons.length} icons between the parentheses, not 3`);
+  assert.equal(runs[0].x0, 0, "the strip's first run does not start at its left edge");
+
+  const scale = Math.min(BAND.width / strip.width, BAND.height / strip.height);
+  const left = BAND.x + (BAND.width - strip.width * scale) / 2;
+  const top = BAND.y + (BAND.height - strip.height * scale) / 2;
+  const centre = (run) => ({
+    x: left + ((run.x0 + run.x1 + 1) / 2) * scale,
+    y: top + ((run.y0 + run.y1 + 1) / 2) * scale,
+  });
+  return { marks: [runs[0], ...icons].map(centre), comma: centre(commas[0]) };
+}
+
+/** The href of the footer link under a sheet pixel, or null for none. */
+async function linkAt(page, point) {
+  return page.evaluate(({ x, y }) => {
+    const svg = document.querySelector("#curCheatSheet > svg").getBoundingClientRect();
+    const scale = svg.width / 3600;
+    const pageY = window.scrollY + svg.top + y * scale;
+    window.scrollTo(0, Math.max(0, pageY - window.innerHeight / 2));
+    const box = document.querySelector("#curCheatSheet > svg").getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + x * scale, box.top + y * scale)?.closest("a");
+    return hit && hit.closest("#sheetFrame > nav") ? hit.getAttribute("href") : null;
+  }, point);
+}
+
+for (const [width, height] of [
+  [1400, 1000],
+  [390, 844],
+]) {
+  test(`at ${width}px a pointer on each mark in the footer lands on that mark's link`, { skip }, async () => {
+    const { marks, comma } = await drawnMarks();
+    const { page } = await openSheet(width, height);
+    await page.waitForSelector("#sheetFrame > nav a");
+    const hits = [];
+    for (const point of marks) hits.push(await linkAt(page, point));
+    const between = await linkAt(page, comma);
+    await page.close();
+    assert.deepEqual(hits, TARGETS, "a footer mark is under the wrong link, or none");
+    assert.equal(between, null, "the comma between two icons is under a link, so the areas run together");
+  });
+}

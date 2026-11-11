@@ -233,12 +233,12 @@ composition itself, in the face the markup names, and every other format is
 derived from it - which is why it is the default and why it needs neither a
 renderer nor an encoder behind it.
 
-| Format | What it is |
-| --- | --- |
-| `svg` | The canonical output. `renderSVG` is the whole of it, and it is synchronous |
-| `html` | That markup made embeddable. A wrapper, not a second renderer |
-| `png` | Pixels, by the browser route or the dependency free one |
-| `jpeg`, `webp` | The same, through a codec the engine carries. Browser route only |
+| Format | What it is | Links |
+| --- | --- | --- |
+| `svg` | The canonical output. `renderSVG` is the whole of it, and it is synchronous | Yes, as an SVG group |
+| `html` | That markup made embeddable. A wrapper, not a second renderer | Yes, as a `<nav>` beside the picture |
+| `png` | Pixels, by the browser route or the dependency free one | No |
+| `jpeg`, `webp` | The same, through a codec the engine carries. Browser route only | No |
 
 **Every render returns its bytes**, as `data`, with `text` beside it where the
 format has a string form. So a caller embedding a sheet in a response, a data
@@ -262,6 +262,36 @@ this repository's to write; and the wrapper is `role="img"` named by the sheet's
 own title, since a cheatsheet is a picture of text. `{ wrap: false }` asks for
 the element alone, which is what the page uses - its box already carries the
 role and the name.
+
+**A sheet's footer links out, and only markup carries the links.** Since
+2026.11.10 the strip's mark goes to practicing.xyz, and its three icons to
+Mastodon, Instagram and X. A sheet drawn without the strip links its mark square
+to the site, and its follow line too, but only while that line is the default
+one. The drawing surface has no anchor element, so `composeSheet` reports the
+areas as `variation.links`, and `withLinks` writes them into the markup after
+`toSVG()` as a final `<g data-name="links">`. Take that group off with
+`withoutLinks` and what is left is the composition's markup byte for byte.
+
+- **Rasters cannot carry a link.** A PNG, JPEG or WebP is drawn from the
+  composition and not from the markup, so its bytes are the same whatever the
+  links say. A page that shows a raster puts its links beside the image itself.
+- **The fragment lifts the links out of the picture.** Everything inside
+  `role="img"` is presentational, so a link left in the SVG would be focusable
+  with no name a screen reader can give. A fragment of a sheet that links out
+  is an outer box holding the named picture and a `<nav>` of anchors laid over
+  it in percentages. Two areas going to the same place are one tab stop, the
+  second there for a pointer only. `linkLayerFor` writes that `<nav>` for a
+  page with its own box, which is what `index.html` uses.
+- **The areas belong to the strip.** They are recorded in
+  `api/cheatsheet/brand.mjs` in the strip's own 799 x 81 pixels, as
+  `FOOTER_LINKS`, and a strip of any other size places with no links and a note
+  saying so. Replace `assets/footer.png` and those figures move with it.
+
+On a phone the icons are about 15 x 20 CSS px, under the 24 px WCAG 2.2 asks a
+target to reach (2.5.8). `index.html` repeats the four links as a row of text
+under the sheet, each at least 24 x 24, which is the criterion's own equivalent.
+The row's Mastodon link carries `rel="me"`, so the profile can verify the page.
+A generated page does neither: it is somebody else's site.
 
 **Writing is a separate import, and that is deliberate.**
 `api/cheatsheet/files.mjs` is the one module in the folder that reads

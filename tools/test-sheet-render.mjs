@@ -54,6 +54,10 @@ import {
   renderSVG,
   renderSheet,
   slugFor,
+  linkLayerFor,
+  linksIn,
+  withLinks,
+  withoutLinks,
   FRAGMENT_CLASS,
   RASTER_RENDERS,
   RENDER_EXTENSIONS,
@@ -68,6 +72,7 @@ import {
   writeRender,
 } from "../api/cheatsheet/files.mjs";
 import { resolveChromium } from "../api/cheatsheet/raster.mjs";
+import { readBrandAssets } from "./build-manifest.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = join(root, ".tmp", "sheet-render-cases");
@@ -103,12 +108,18 @@ const rootTag = (markup) => markup.slice(markup.indexOf("<svg"), markup.indexOf(
 
 // --- The canonical output ---------------------------------------------------
 
-test("renderSVG is the composition's own markup, which is what canonical means", () => {
+test("renderSVG is the composition's own markup with its links, which is what canonical means", () => {
   // Byte for byte rather than equivalent. An SVG that went through this surface
   // and one taken off the composition by hand have to be the same file, or the
-  // published route is a second renderer wearing the name of the first.
-  const byHand = composeSheet(DOC, { seed: SEED }).composition.toSVG();
-  assert.equal(renderSVG(DOC, { seed: SEED }), byHand);
+  // published route is a second renderer wearing the name of the first. Since
+  // 2026.11.10 the one thing added is the link group, which the composition
+  // cannot hold; take it off and what is left is `toSVG()` exactly.
+  const { composition, variation } = composeSheet(DOC, { seed: SEED });
+  const byHand = composition.toSVG();
+  const rendered = renderSVG(DOC, { seed: SEED });
+  assert.equal(rendered, withLinks(byHand, variation.links));
+  assert.equal(withoutLinks(rendered), byHand);
+  assert.match(rendered, /<g data-name="links">/);
 });
 
 test("and renderSheet with no format named is that same SVG, as bytes and as text", async () => {
@@ -189,16 +200,25 @@ test("a style already on the root is kept, with the scaling rules in front of it
 
 test("the wrapper names the image rather than asking a reader to read the picture", () => {
   // A cheatsheet is a picture of text. The page already does this to its own
-  // box; the fragment carries it so an embedder does not have to know to.
+  // box; the fragment carries it so an embedder does not have to know to. A
+  // sheet that links out holds the picture and its links side by side, because
+  // a link inside an image has no name a screen reader can give it.
   const fragment = renderFragment(DOC, { seed: SEED });
-  assert.match(fragment, new RegExp(`^<div class="${FRAGMENT_CLASS}" role="img" aria-label="`));
-  assert.match(fragment, /aria-label="Splicing Array Elements cheat sheet"/);
+  assert.match(fragment, new RegExp(`^<div class="${FRAGMENT_CLASS}" style="position:relative">\\n<div role="img" aria-label="`));
+  assert.match(fragment, /<div role="img" aria-label="Splicing Array Elements cheat sheet">/);
   assert.ok(fragment.trimEnd().endsWith("</div>"));
+});
+
+test("and a sheet with no links is the one box it always was", () => {
+  const fragment = fragmentFor('<svg viewBox="0 0 10 10"><title>Plain</title></svg>');
+  assert.match(fragment, new RegExp(`^<div class="${FRAGMENT_CLASS}" role="img" aria-label="Plain cheat sheet">`));
+  assert.ok(!fragment.includes("<nav"));
 });
 
 test("and the class and the label are the caller's to change", () => {
   const fragment = renderFragment(DOC, { seed: SEED, className: "demo-sheet", label: "A demo" });
-  assert.match(fragment, /^<div class="demo-sheet" role="img" aria-label="A demo">/);
+  assert.match(fragment, /^<div class="demo-sheet" style="position:relative">/);
+  assert.match(fragment, /<div role="img" aria-label="A demo">/);
 });
 
 test("a label with markup in it is escaped, because it lands in an attribute", () => {
@@ -243,11 +263,134 @@ test("the page reads the fragment from this surface rather than stripping attrib
   // the page, which is what made it worth publishing; a page that kept its own
   // copy would drift from the published one invisibly, both working.
   const page = readFileSync(join(root, "index.html"), "utf8");
-  assert.match(page, /fragmentFor\(markup, \{ wrap: false \}\)/);
+  // The picture without its links, which the page lays beside it through the
+  // same surface rather than writing a layer of its own.
+  assert.match(page, /fragmentFor\(picture, \{ wrap: false \}\)/);
+  assert.match(page, /const picture = withoutLinks\(markup\)/);
+  assert.match(page, /linkLayerFor\(markup\)/);
   assert.ok(
     !page.includes('removeAttribute("width")'),
     "the page still takes the size attributes off by hand"
   );
+});
+
+// --- Where a sheet links out -------------------------------------------------
+
+const brand = await readBrandAssets(root);
+
+/** The `<a>` elements of a markup's link group, read back the way a writer reads them. */
+const anchorsIn = (markup) =>
+  [.../<g data-name="links">([\s\S]*?)<\/g>/.exec(markup)?.[1].matchAll(/<a\s([^>]*)>([\s\S]*?)<\/a>/g) ?? []].map(
+    ([, attributes, inner]) => ({
+      href: /href="([^"]*)"/.exec(attributes)[1],
+      title: /<title>([^<]*)<\/title>/.exec(inner)?.[1],
+      rects: (inner.match(/<rect /g) ?? []).length,
+      attributes,
+    })
+  );
+
+const TARGETS = {
+  practicing: "https://practicing.xyz",
+  mastodon: "https://mastodon.social/@isocialPractice",
+  instagram: "https://www.instagram.com/isocialpractice/",
+  x: "https://x.com/isocialpractice",
+};
+
+test("a sheet with the footer strip links its mark and its three icons", () => {
+  const markup = renderSVG(DOC, { seed: SEED, brand });
+  const anchors = anchorsIn(markup);
+  assert.deepEqual(
+    anchors.map((one) => one.href),
+    [TARGETS.practicing, TARGETS.mastodon, TARGETS.instagram, TARGETS.x]
+  );
+  for (const one of anchors) {
+    assert.equal(one.rects, 1, `${one.href} has ${one.rects} areas`);
+    assert.ok(one.title, `${one.href} has no name`);
+    // A new tab, and nothing of the page it was opened from handed over.
+    assert.match(one.attributes, /target="_blank"/);
+    assert.match(one.attributes, /rel="noopener noreferrer"/);
+  }
+  assert.doesNotMatch(markup, /github\.com/, "the footer stopped naming GitHub and the markup still links it");
+  // The group is the last thing drawn, so nothing composed sits over a link.
+  assert.match(markup, /<\/g>\n<\/svg>\n$/);
+});
+
+test("the drawn footer is one link to the site, over the mark square and the follow line", () => {
+  // Two areas that go to the same place are one link, so a keyboard meets the
+  // site once rather than twice in a row.
+  const anchors = anchorsIn(renderSVG(DOC, { seed: SEED }));
+  assert.equal(anchors.length, 1);
+  assert.equal(anchors[0].href, TARGETS.practicing);
+  assert.equal(anchors[0].rects, 2);
+  // A document's own follow line is its own words, and gets no link.
+  const own = anchorsIn(renderSVG({ ...DOC, followLine: "Read the rest elsewhere" }, { seed: SEED }));
+  assert.equal(own.length, 1);
+  assert.equal(own[0].rects, 1, "a follow line the document wrote was linked to the site");
+});
+
+test("the links paint nothing, so a linked sheet looks the one composed", () => {
+  const markup = renderSVG(DOC, { seed: SEED, brand });
+  const group = /<g data-name="links">[\s\S]*?<\/g>/.exec(markup)[0];
+  for (const rect of group.match(/<rect [^>]*\/>/g)) {
+    assert.match(rect, /fill="none"/);
+    assert.match(rect, /pointer-events="all"/);
+    assert.doesNotMatch(rect, /stroke=/);
+  }
+});
+
+test("a fragment lifts the links out of the picture into a named layer beside it", () => {
+  const fragment = renderFragment(DOC, { seed: SEED, brand });
+  const picture = /<div role="img"[^>]*>([\s\S]*?)<\/div>/.exec(fragment)[1];
+  assert.doesNotMatch(picture, /<a\s/, "a link was left inside the image, where it has no name");
+  assert.doesNotMatch(picture, /data-name="links"/);
+  const nav = /<nav class="cheatsheet-links" aria-label="Follow practicing\.xyz"[^>]*>([\s\S]*?)<\/nav>/.exec(fragment);
+  assert.ok(nav, "the fragment has no link layer");
+  const anchors = [...nav[1].matchAll(/<a\s([^>]*)><\/a>/g)].map(([, attributes]) => attributes);
+  assert.deepEqual(
+    anchors.map((one) => /href="([^"]*)"/.exec(one)[1]),
+    [TARGETS.practicing, TARGETS.mastodon, TARGETS.instagram, TARGETS.x]
+  );
+  for (const one of anchors) {
+    assert.match(one, /aria-label="[^"]+"/);
+    assert.match(one, /style="position:absolute;display:block;pointer-events:auto;left:[\d.]+%;top:[\d.]+%;width:[\d.]+%;height:[\d.]+%"/);
+  }
+});
+
+test("and a destination with two areas is one stop for a keyboard and a reader", () => {
+  const fragment = renderFragment(DOC, { seed: SEED });
+  const anchors = [...fragment.matchAll(/<nav[^>]*>([\s\S]*?)<\/nav>/g)][0][1].match(/<a\s[^>]*><\/a>/g);
+  assert.equal(anchors.length, 2);
+  assert.match(anchors[0], /aria-label="practicing\.xyz"/);
+  assert.doesNotMatch(anchors[0], /tabindex|aria-hidden/);
+  assert.match(anchors[1], /aria-hidden="true" tabindex="-1"/);
+  assert.doesNotMatch(anchors[1], /aria-label/);
+});
+
+test("writing the links twice is writing them once, and none is no group", () => {
+  const { composition, variation } = composeSheet(DOC, { seed: SEED, brand });
+  const raw = composition.toSVG();
+  const once = withLinks(raw, variation.links);
+  assert.equal(withLinks(once, variation.links), once);
+  assert.equal(withoutLinks(once), raw);
+  assert.equal(withLinks(raw, []), raw);
+  assert.deepEqual(
+    linksIn(once).map((one) => [one.href, one.areas.length]),
+    [[TARGETS.practicing, 1], [TARGETS.mastodon, 1], [TARGETS.instagram, 1], [TARGETS.x, 1]]
+  );
+});
+
+test("an href and a label are escaped once on the way in, and not again on the way out", () => {
+  const markup = withLinks('<svg viewBox="0 0 100 100"><title>T</title></svg>', [
+    { name: "a", href: "https://example.com/?a=1&b=2", label: 'Say "hi" <now>', x: 10, y: 20, width: 30, height: 40 },
+  ]);
+  assert.match(markup, /href="https:\/\/example\.com\/\?a=1&amp;b=2"/);
+  assert.match(markup, /<title>Say &quot;hi&quot; &lt;now&gt;<\/title>/);
+  const layer = linkLayerFor(markup);
+  assert.match(layer, /href="https:\/\/example\.com\/\?a=1&amp;b=2"/);
+  assert.match(layer, /aria-label="Say &quot;hi&quot; &lt;now&gt;"/);
+  assert.match(layer, /left:10%;top:20%;width:30%;height:40%/);
+  // And the picture's own name is its title, not the link's.
+  assert.match(fragmentFor(markup), /aria-label="T cheat sheet"/);
 });
 
 // --- Every render comes back as data ----------------------------------------

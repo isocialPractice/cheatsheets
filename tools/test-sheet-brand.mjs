@@ -22,11 +22,14 @@ import {
   dataUrlFrom,
   drawnWidth,
   kerning,
+  pngSize,
   rasterAsset,
   sheetBrandFrom,
   vectorAsset,
   BRAND_FILES,
   BRAND_SLOTS,
+  FOOTER_LINKS,
+  PRACTICING_HREF,
   RUNS,
   SHEET_FACE,
   SHEET_LANGUAGE,
@@ -327,4 +330,100 @@ test("both renderers draw a branded sheet, and the SVG carries the strip inline"
   const raster = renderPng(composition.toDocument(), { scale: 0.25 });
   assert.deepEqual(raster.warnings ?? [], [], "the rasterizer could not draw something");
   assert.equal(raster.width, 900);
+});
+
+/* --- 6. Where the footer links out ---------------------------------------- */
+
+/** The link areas of a variation, by name. */
+function linksOf(variation) {
+  return Object.fromEntries(variation.links.map((link) => [link.name, link]));
+}
+
+test("the footer asset states its own size, read from its header", () => {
+  // The areas are only right on the strip they were measured on, and this is
+  // how the composition tells which strip it holds without a decoder.
+  assert.equal(assets.footer.width, FOOTER_LINKS.width);
+  assert.equal(assets.footer.height, FOOTER_LINKS.height);
+  assert.equal(pngSize(new Uint8Array([1, 2, 3])), null, "a non PNG was given a size");
+  assert.equal(rasterAsset(new TextEncoder().encode("not really a png")).width, undefined);
+});
+
+test("the strip links its mark and its three icons, and nothing else", () => {
+  const { variation } = composeSheet(DOC, { seed: "brand", brand: assets });
+  assert.equal(variation.brand.footer, "image");
+  const links = linksOf(variation);
+  assert.deepEqual(Object.keys(links), ["practicing", "mastodon", "instagram", "x"]);
+  assert.equal(links.practicing.href, PRACTICING_HREF);
+  assert.equal(links.mastodon.href, "https://mastodon.social/@isocialPractice");
+  assert.equal(links.instagram.href, "https://www.instagram.com/isocialpractice/");
+  assert.equal(links.x.href, "https://x.com/isocialpractice");
+  assert.ok(
+    variation.links.every((link) => !/github\.com/.test(link.href)),
+    "the footer still links GitHub, which it stopped naming"
+  );
+  for (const link of variation.links) assert.ok(link.label.length > 0, `${link.name} has no accessible name`);
+});
+
+test("the strip's areas land where the strip was placed, through its meet fit", () => {
+  // `xMidYMid meet` of 799 x 81 into the slot: the width is the limit, so the
+  // scale is the slot's width over 799 and the strip is centred vertically.
+  const slot = BRAND_SLOTS.footer;
+  const scale = Math.min(slot.width / FOOTER_LINKS.width, slot.height / FOOTER_LINKS.height);
+  const top = slot.y + (slot.height - FOOTER_LINKS.height * scale) / 2;
+  const { variation } = composeSheet(DOC, { seed: "brand", brand: assets });
+  const links = linksOf(variation);
+  for (const area of FOOTER_LINKS.areas) {
+    const placed = links[area.name];
+    assert.ok(Math.abs(placed.x - (slot.x + area.x * scale)) < 1e-9, `${area.name} x`);
+    assert.ok(Math.abs(placed.y - (top + area.y * scale)) < 1e-9, `${area.name} y`);
+    assert.ok(Math.abs(placed.width - area.width * scale) < 1e-9, `${area.name} width`);
+  }
+  // The figures the plan measured them at, so a drift in the slot shows here.
+  assert.equal(links.mastodon.x.toFixed(1), "1409.4");
+  assert.equal(links.x.x.toFixed(1), "1757.6");
+  assert.equal(links.instagram.y.toFixed(1), "3330.4");
+  // Every icon area sits inside the strip, and no two overlap.
+  const icons = ["mastodon", "instagram", "x"].map((name) => links[name]);
+  for (let i = 1; i < icons.length; i++) {
+    assert.ok(icons[i - 1].x + icons[i - 1].width <= icons[i].x, `${icons[i - 1].name} overlaps ${icons[i].name}`);
+  }
+});
+
+test("a strip of any other size is placed with no links, and says so", async () => {
+  // A 2 x 1 PNG: a real image, so it places, but not the strip the areas were
+  // measured on, so landing them on it would put each link on the wrong pixels.
+  const { encodePng } = await import("../api/napkin-sketch/graphic-design/index.js");
+  const tiny = encodePng(new Uint8Array([0, 0, 0, 255, 255, 255, 255, 255]), 2, 1);
+  const brand = { ...assets, footer: rasterAsset(tiny, "image/png", "A different strip") };
+  assert.equal(brand.footer.width, 2);
+  const { variation } = composeSheet(DOC, { seed: "brand", brand });
+  assert.equal(variation.brand.footer, "image");
+  assert.deepEqual(variation.links, []);
+  assert.ok(
+    variation.notes.some((note) => note.includes("carries no links")),
+    `the missing links were silent: ${variation.notes.join(" | ")}`
+  );
+});
+
+test("the drawn footer links its mark square, and its follow line while it is the default", () => {
+  const drawn = composeSheet(DOC, { seed: "brand" });
+  const plain = linksOf(drawn.variation);
+  assert.deepEqual(Object.keys(plain), ["practicing", "follow-line"]);
+  assert.equal(plain.practicing.href, PRACTICING_HREF);
+  assert.equal(plain["follow-line"].href, PRACTICING_HREF);
+  assert.equal(plain["follow-line"].label, "Follow along at practicing.xyz");
+  assert.deepEqual(
+    { x: plain.practicing.x, y: plain.practicing.y, height: plain.practicing.height },
+    { x: 0, y: BRAND_SLOTS.footer.y, height: BRAND_SLOTS.footer.height }
+  );
+  // The area starts where the line was drawn, read off the composition rather
+  // than restated, so a slot that moves the line moves the link with it.
+  assert.equal(plain["follow-line"].x, named(drawn.composition, "follow-line").x);
+  assert.ok(plain["follow-line"].width > 0);
+
+  // A document's own follow line is its own words: the mark still links, the
+  // line does not.
+  const own = composeSheet({ ...DOC, followLine: "Read the rest elsewhere" }, { seed: "brand", brand: assets });
+  assert.equal(own.variation.brand.footer, "drawn");
+  assert.deepEqual(own.variation.links.map((link) => link.name), ["practicing"]);
 });

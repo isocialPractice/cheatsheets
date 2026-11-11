@@ -198,6 +198,14 @@ because a page may embed more than one sheet and a composition always writes
 import, <code>api/cheatsheet/files.mjs</code>, the only module in the folder
 that reads <code>node:fs</code>.</p>
 
+<p>A sheet's footer links out, and <code>variation.links</code> says where, in
+sheet pixels. <code>renderSVG</code> writes them as a final
+<code>&lt;g data-name="links"&gt;</code>, <code>withoutLinks</code> takes it off
+again, and a fragment lifts them into a <code>&lt;nav&gt;</code> beside its
+<code>role="img"</code> picture; <code>linkLayerFor(markup)</code> is that
+<code>&lt;nav&gt;</code> for a page with a box of its own. A raster carries no
+link.</p>
+
 <h2>The catalog</h2>
 
 <pre><code>&lt;category&gt;/&lt;sheet&gt;/sheet.json

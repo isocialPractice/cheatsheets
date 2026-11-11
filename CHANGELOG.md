@@ -30,33 +30,57 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
-## [Unreleased]
+## [1.8.0-alpha]
 
-Two plans, written and not yet carried out. Nothing that runs has changed, so
-neither carries a version: the work they describe earns its own when it lands.
-Both are under `.claude/prompts/`, which is ignored like the rest of `.claude/`,
-so a clone has the record of them here and not the files.
+A sheet's footer links out. The strip's mark goes to practicing.xyz and its
+three icons to Mastodon, Instagram and X, and the footer stopped naming GitHub to
+do it: Mastodon's logo is drawn where the GitHub mark was, and the X mark where
+the Twitter bird was. A minor version, because a sheet that links is something a
+reader of every format but the rasters can now do. The two plans this came from,
+and the one beside it, ship in the same entry; both are under `.claude/prompts/`,
+which is ignored like the rest of `.claude/`, so a clone has the record of them
+here and not the files.
 
 ### Added
 
-- **`.claude/prompts/links.prompt.md` plans links on the footer, with Mastodon's
-  logo in place of the GitHub mark and the X mark in place of the Twitter
-  bird.** The mark square goes to practicing.xyz and the three icons to
-  Mastodon, Instagram and X, so the footer stops naming GitHub. The areas are
-  measured on `assets/footer.png` in its own 799 x 81 pixel space and mapped through the
-  `footer-lockup` placement, because the vendored drawing surface has no anchor
-  element and nothing under `api/napkin-sketch/` is edited here. One seam in
-  `api/cheatsheet/render.mjs` writes them after `toSVG()`, and a fragment lifts
-  them out of its `role="img"` wrapper into a named `<nav>`, since links inside
-  an image have no name for a screen reader. Both icons are replaced in the strip
-  alone: the eleven reference JPEGs stay as they are, because the design
-  language is re-measured against their bytes. At a 390 px width the icons are
-  about 15 x 20 CSS px against WCAG 2.2's 24 px minimum, so the plan stops for a
-  decision on a text row of the same links before it writes any markup. Its
-  last phase adds a Cheatsheet API page to the practicing.xyz site the way the
-  site's other Markdown pages were made: a page shell from the site's page
-  builder, then this repository's documentation site converted to one Markdown
-  file.
+- **The composition reports where a sheet links out, as `variation.links`.**
+  The drawing surface has no anchor element, so a composition cannot hold a
+  link, and the areas come back beside it in sheet pixels. The strip's are
+  measured on `assets/footer.png` in its own 799 x 81 pixels and kept with its
+  loader as `FOOTER_LINKS` in `api/cheatsheet/brand.mjs`, then carried through
+  the same `xMidYMid meet` placement the strip is given. A raster asset now
+  carries its own `width` and `height`, read from the PNG header by `pngSize`,
+  and a strip of any other size is placed with no links and a note saying so,
+  because areas measured on one image land on the wrong parts of another.
+- **The drawn footer links too.** A sheet with no strip, which is every page
+  `tools/cheatsheet-site.mjs` generates, links its navy mark square to the site,
+  and its follow line to the same place while that line is the default one. A
+  follow line a document wrote is its own words and gets no link.
+- **`withLinks` is the one place a link reaches markup.** It writes the areas
+  after `toSVG()` as a final `<g data-name="links">`, one `<a>` per destination
+  holding a rect per area, `fill="none"` and `pointer-events="all"`, so the
+  sheet looks exactly as composed. `withoutLinks` takes the group off and leaves
+  `toSVG()` byte for byte, and `linksIn` reads it back. `renderSVG`,
+  `renderFragment`, `renderOf` and `index.html` all write through it, and the
+  full size tab carries the links as well.
+- **A fragment lifts the links out of the picture.** Everything inside
+  `role="img"` is presentational, so a link left in the SVG would be focusable
+  with no name. A fragment of a sheet that links out is now an outer box holding
+  the named picture and a `<nav>` from `linkLayerFor`, its anchors laid over the
+  sheet in percentages of the viewBox. A destination with two areas is one tab
+  stop, the second `aria-hidden` and there for a pointer only. A sheet with no
+  links is the one `role="img"` box it was.
+- **`index.html` repeats the four links as text under the sheet.** On a phone
+  the icons are about 15 x 20 CSS px, under the 24 px WCAG 2.2 asks a target to
+  reach (2.5.8), and the same links elsewhere on the page at a passing size are
+  that criterion's own equivalent. Each is held to at least 24 x 24, and the
+  Mastodon link carries `rel="me"`, in markup rather than script so a verifier
+  reading the page finds it. Generated pages carry neither: they are somebody
+  else's site.
+- **`.claude/prompts/links.prompt.md`**, the plan this entry carries out. Its
+  fifth phase, a Cheatsheet API page on the practicing.xyz site converted from
+  this repository's documentation, ran on that site the same day. Nothing of it
+  lands here, and the plan's own record is where it is described.
 - **`.claude/prompts/update-extract-html.prompt.md` plans teaching a local HTML
   extraction tool to recognize a GitHub Pages documentation site.** It is
   written to be moved to the workspace that tool lives in and run there with
@@ -65,6 +89,56 @@ so a clone has the record of them here and not the files.
   layout profile before anything is written, a Markdown writer beside the XML
   one, and a switch on the page builder that runs both around the page it
   makes. Its acceptance case is reproducing the page the first plan makes.
+
+### Changed
+
+- **`assets/footer.png` draws Mastodon's logo and the X mark.** Mastodon's is
+  its own purple file, a bubble in a gradient from `#6364FF` to `#563ACC` with a
+  white "m" painted on it, sized to the GitHub glyph's 23 rows; the X is the
+  outline X's own site serves, fitted to the bird's 23 x 21. Both were drawn at
+  8x and averaged down, and 930 pixels changed, every one inside the two old
+  icons' boxes, so the navy block and every figure **The footer is one strip**
+  records still hold. The eleven reference JPEGs keep the GitHub mark and the
+  bird: the design language is re-measured against their bytes, and
+  `DESIGN_LANGUAGE.md` now says which of the two footers each figure is about.
+- **A fragment of a sheet that links out has a new outer shape.** It was one
+  `<div class="cheatsheet" role="img">`; it is now that class on a positioned box
+  holding a `<div role="img">` and the `<nav>`. A stylesheet reaching
+  `.cheatsheet > svg` reaches nothing now, and `.cheatsheet svg` still does.
+  `{ wrap: false }` still returns the element as handed over, its link group
+  included, for a caller whose box is not an image.
+- **`CHEATSHEET.md` and `docs/cheatsheet.html` name the links under
+  Rendering**, in step with each other: where `variation.links` comes from,
+  `withoutLinks`, the fragment's `<nav>`, `linkLayerFor`, and that a raster
+  carries none. `CONTRIBUTING.md`, `docs/drawing-a-sheet.html` and
+  `docs/rendering-outside-the-page.html` carry the longer account.
+- **Four pins moved, each read before it was regenerated.**
+  `tools/fixtures/sheet.variation.json` gained the drawn footer's two links,
+  `sheet.fragment.html` the new shape, and `sheet.renders.json` the bytes of
+  both. `tools/fixtures/sheet.svg` and the PNG digest did not move, which is the
+  evidence the composition itself is untouched.
+
+### Tested
+
+- `tools/test-sheet-brand.mjs`: the asset's header size, the strip's four links
+  and no GitHub, the placement arithmetic and no overlap, a 2 x 1 strip placed
+  with none, and the drawn footer both ways.
+- `tools/test-sheet-render.mjs`: the links on both routes, that they paint
+  nothing, the fragment's layer and its one stop per destination, writing twice
+  as once, and escaping once each way.
+- `tools/test-render-formats.mjs`: a raster is the same bytes with the links and
+  without them.
+- `tools/test-sheet-footer-browser.mjs`: at 1400 and 390 px, a pointer on each
+  mark the strip draws - found in the strip's own pixels, not read from the
+  areas - lands on that mark's link, and the comma between two icons on none.
+  Moving one area off its icon fails both widths.
+- `tools/test-page-structure-browser.mjs`: on `index.html` the sheet's four
+  links are named tab stops in the strip's order, outside the image, with the
+  text row after them; on a phone the row's links reach 24 x 24, Mastodon's
+  carries `rel="me"`, and both go when the sheet does.
+- `tools/test-cheatsheet-site.mjs` and `tools/test-site-pages-browser.mjs`: a
+  generated page links its drawn footer to the site once, in markup and in a
+  real engine, and links no account.
 
 ## [1.7.0-alpha]
 

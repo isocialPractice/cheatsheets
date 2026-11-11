@@ -80,7 +80,7 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { renderSVG } from "../api/cheatsheet/index.mjs";
+import { renderSVG, withoutLinks } from "../api/cheatsheet/index.mjs";
 
 import {
   attributeValue,
@@ -3271,14 +3271,44 @@ test("a generated page carries a render of the cheatsheet's own document", async
       },
     ]);
     const markup = renderCheatsheet(sheet);
-    // The figure, wrapped as the surface wraps an embeddable sheet.
-    assert.match(markup, /<div class="cheatsheet" role="img" aria-label="Acme Reference cheat sheet">/);
+    // The figure, wrapped as the surface wraps an embeddable sheet: the picture
+    // named as an image, and its links laid beside it rather than inside it.
+    assert.match(markup, /<div class="cheatsheet" style="position:relative">\n<div role="img" aria-label="Acme Reference cheat sheet">/);
+    assert.match(markup, /<nav class="cheatsheet-links" aria-label="Follow practicing\.xyz"/);
     assert.match(markup, /<svg id="cheatsheet-site-index"[^>]*viewBox="0 0 3600 3600"/);
     // And the material under it, exactly as the site wrote it. The figure is the
     // reading; the markup is the record.
     assert.ok(markup.includes("<h2>Splice</h2><p>Remove and insert.</p>"), markup);
     // Nothing of the standalone SVG document leaked into the page.
     assert.ok(!markup.includes("<?xml"), "the XML declaration was written into an HTML page");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a generated page carries the links its route earns, and only those", async () => {
+  // A generated page is composed with no brand, so its footer is the drawn one:
+  // the mark square and the default follow line, both naming the site. That is
+  // one destination over two areas, so one stop for a keyboard and a reader,
+  // and the second area is there for a pointer only. Nothing links to an
+  // account the site's owner did not put there.
+  const root = await site({
+    "index.html": page("Acme Reference", "<h2>Splice</h2><p>Remove and insert.</p>"),
+  });
+  try {
+    const [sheet] = cheatsheets(await collectSite(root));
+    const markup = renderCheatsheet(sheet);
+    const nav = /<nav class="cheatsheet-links"[^>]*>([\s\S]*?)<\/nav>/.exec(markup)?.[1];
+    assert.ok(nav, "the generated page has no link layer");
+    const anchors = nav.match(/<a\s[^>]*><\/a>/g);
+    assert.equal(anchors.length, 2);
+    for (const anchor of anchors) assert.match(anchor, /href="https:\/\/practicing\.xyz"/);
+    assert.match(anchors[0], /aria-label="practicing\.xyz"/);
+    assert.match(anchors[1], /aria-hidden="true" tabindex="-1"/);
+    assert.doesNotMatch(markup, /mastodon|instagram|x\.com|github\.com/i, "a generated page links an account");
+    assert.doesNotMatch(markup, /rel="me/, "a generated page claims an identity that is not its own");
+    // And none of it inside the picture.
+    assert.doesNotMatch(/<div role="img"[^>]*>([\s\S]*?)<\/div>/.exec(markup)[1], /<a\s|data-name="links"/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -3310,7 +3340,9 @@ test("the page and a media file of the same sheet are two renders of one composi
     const under = (markup) => markup.slice(markup.indexOf(">", markup.indexOf("<svg")) + 1).trim();
     assert.ok(under(standalone).includes("<tspan"), "the standalone render set no type");
     assert.ok(under(standalone).includes(">first<") && under(standalone).includes(">second<"), under(standalone));
-    assert.equal(under(embedded), under(standalone));
+    // The standalone file carries its links as an SVG group; the page lifts them
+    // out of the picture into a layer beside it. Under the links, one sheet.
+    assert.equal(under(embedded), under(withoutLinks(standalone)));
     // And the two root tags differ in exactly the ways a fragment names.
     assert.match(embedded, /^<svg id="cheatsheet-site-guide"/);
     assert.ok(!/^<svg[^>]*\swidth="/.test(embedded), "the fragment kept the composition's size attributes");

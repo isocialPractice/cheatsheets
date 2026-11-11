@@ -473,3 +473,47 @@ test("the browser entry reports a menu marker and leaves the nav alone", async (
   assert.ok(found.built, "the menu marker stopped the section being built");
   await context.close();
 });
+
+// ## The links a generated sheet carries
+
+test("a generated sheet links its drawn footer to the site, once, and nothing else", async (t) => {
+  if (skip) return t.skip(skip);
+  // A generated page is composed with no brand, so its footer is the navy mark
+  // square and the default follow line, both naming the site. Points in sheet
+  // pixels: the middle of the mark square (x 0 to 288 of the 3264 to 3600 band),
+  // a point well inside the follow line (set from x 576), and the middle of the
+  // code panel, which links nowhere.
+  const points = { square: [144, 3432], line: [800, 3432], panel: [1800, 1800] };
+  for (const width of [390, 1280]) {
+    const { context, page, errors } = await open(generated("index.html"), { width, height: 844 });
+    const found = await page.evaluate((spots) => {
+      const figure = document.querySelector("div.cheatsheet");
+      const svg = figure.querySelector("svg");
+      const hrefAt = ([x, y]) => {
+        const scale = svg.getBoundingClientRect().width / 3600;
+        const pageY = window.scrollY + svg.getBoundingClientRect().top + y * scale;
+        window.scrollTo(0, Math.max(0, pageY - window.innerHeight / 2));
+        const box = svg.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.left + x * scale, box.top + y * scale)?.closest("a");
+        return hit && figure.contains(hit) ? hit.getAttribute("href") : null;
+      };
+      const anchors = [...figure.querySelectorAll("nav a")];
+      return {
+        square: hrefAt(spots.square),
+        line: hrefAt(spots.line),
+        panel: hrefAt(spots.panel),
+        stops: anchors.filter((a) => a.tabIndex >= 0 && a.getAttribute("aria-hidden") !== "true").length,
+        named: anchors.filter((a) => a.tabIndex >= 0).map((a) => a.getAttribute("aria-label")),
+        inImage: Boolean(figure.querySelector('[role="img"] a')),
+      };
+    }, points);
+    await context.close();
+    assert.deepEqual(errors, [], `${width}px: the page logged ${JSON.stringify(errors)}`);
+    assert.equal(found.square, "https://practicing.xyz", `${width}px: the mark square is not the site's link`);
+    assert.equal(found.line, "https://practicing.xyz", `${width}px: the follow line is not the site's link`);
+    assert.equal(found.panel, null, `${width}px: the code panel is under a link`);
+    assert.equal(found.stops, 1, `${width}px: the site is ${found.stops} tab stops, not one`);
+    assert.deepEqual(found.named, ["practicing.xyz"]);
+    assert.ok(!found.inImage, `${width}px: a link sits inside the image`);
+  }
+});

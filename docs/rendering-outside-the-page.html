@@ -92,6 +92,34 @@ place of a slug, so the command is an entry point for a document rather than
 for this repository's own index. It reports the same fields either way, with
 <code>source</code> saying which flag named the sheet.</p>
 
+<h2>Only markup carries the footer's links</h2>
+
+<p>A sheet's footer links out - see <a href="drawing-a-sheet.html">Drawing a
+sheet</a> for what links where - and whether a render can carry those links
+depends on its format.</p>
+
+<table>
+ <tr><th>Format</th><th>The links</th></tr>
+ <tr>
+  <td><code>svg</code></td>
+  <td>Written into the markup as a final <code>&lt;g data-name="links"&gt;</code>,
+   which a browser opening the file follows. Take that group off and what is
+   left is the composition's own markup, byte for byte.</td>
+ </tr>
+ <tr>
+  <td><code>html</code></td>
+  <td>Lifted out of the picture into a <code>&lt;nav&gt;</code> laid over it,
+   because everything inside <code>role="img"</code> is presentational and a
+   link there would have no name a screen reader can give.</td>
+ </tr>
+ <tr>
+  <td><code>png</code>, <code>jpeg</code>, <code>webp</code></td>
+  <td>None. A raster is drawn from the composition, not from the markup, so its
+   bytes are the same whatever the links say. A page that shows one puts the
+   links beside it.</td>
+ </tr>
+</table>
+
 <p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
 The repository is on
 <a href="https://github.com/isocialPractice/cheatsheets">GitHub</a>, and the

@@ -480,6 +480,10 @@ and are recorded here so nothing tries to give them a role:
 Three more are brand colors belonging to the social icons in the footer rather
 than to the sheets: `#24292F` and `#1D9BF0`, each measured at 95% or more inside
 the footer, and the gradient behind the third icon.
+Those are the eleven's, and they stay theirs. Since 2026.11.10 the footer asset
+draws Mastodon's logo, in its own gradient from `#6364FF` to `#563ACC`, where the
+eleven draw the GitHub mark, and the X mark in `#000000` where they draw the
+bird.
 
 The six shares above are carried in code as `CENSUS_SHARES` in
 `api/cheatsheet/language.mjs`, paired with their hexes by `censusFor(language)`
@@ -952,6 +956,11 @@ the full 336 of the footer's height - and at that width its text sets at a
 **149 px cap** against the 154 the follow line measures, and starts at **x 602**
 against the artwork's 604, which is what says the width is right.
 
+**The strip is the brand's current lockup, not the artwork's.** Since
+2026.11.10 its three icons are Mastodon, Instagram and X, where the eleven draw
+GitHub, Instagram and the Twitter bird. Only those two icons changed, each
+inside its own old footprint, so every figure in this section holds for both.
+
 **The ground under the mark belongs to the asset, not to the slot.** The
 artwork does not inset its mark: it sets it 192 px into a navy block that is
 itself flush to the bottom left corner and fills the band, so what reaches the
@@ -962,10 +971,11 @@ asset now carries that ground, the lockup inset 46 of its own 799 columns,
 which lands the bar at 191. The inset cannot live here or in `language.mjs`,
 because only the asset knows where its own mark ends.
 
-One of those icons is drawn over a gradient, and **The colors the sheets are
-drawn in** above already sets the three icon colours aside as brand colours
+Two of the asset's icons are drawn over a gradient, Mastodon's and
+Instagram's, where the artwork has one, and **The colors the sheets are
+drawn in** above already sets the icon colours aside as brand colours
 rather than colours of this design language. A surface with no gradients cannot
-draw that icon at all, so the strip is placed as pixels or it is not there.
+draw either icon at all, so the strip is placed as pixels or it is not there.
 
 A slot with no asset behind it is drawn as it was before either was read: a lone
 wordmark centred on the canvas axis, and a navy rectangle at the mark square's

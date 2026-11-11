@@ -20,8 +20,8 @@
 //
 // | Format | What it is | Behind it |
 // | --- | --- | --- |
-// | `svg` | The composition itself, in the face the markup names | Nothing. `toSVG()` is the whole of it |
-// | `html` | That markup made embeddable in a page | A string transform, no second renderer |
+// | `svg` | The composition itself, in the face the markup names, with its links | `toSVG()`, and `withLinks` writing the sheet's links after it |
+// | `html` | That markup made embeddable in a page, its links lifted beside the picture | A string transform, no second renderer |
 // | `png` | Pixels, by either route | `raster.mjs` |
 // | `jpeg`, `webp` | The same, through a codec the engine carries | `raster.mjs`, browser route only |
 //
@@ -31,6 +31,14 @@
 // sheet handed to a reader are the same bytes. The three rasters are a
 // photograph of that markup, and `html` is that markup with the four things a
 // page has to do to it done already.
+//
+// ## Links are written after the composition, and only into markup
+//
+// The drawing surface has no anchor element, so where a sheet links out comes
+// back from `composeSheet` as `variation.links` and `withLinks` writes it into
+// the markup as a final `<g data-name="links">`. Take that group off and what is
+// left is `toSVG()` byte for byte. A raster is drawn from the composition and
+// not from the markup, so it carries no link, which is all a PNG could do.
 //
 // ## Every render comes back as data, and nothing here touches disk
 //
@@ -340,10 +348,206 @@ export function fragmentFor(markup, options = {}) {
 
   if (options.wrap === false) return scaled;
   const className = options.className ?? FRAGMENT_CLASS;
+  const picture = withoutLinks(scaled);
   // The title is read back out of the markup rather than taken from a document,
-  // because this function is handed markup and nothing else.
-  const label = options.label ?? `${titleOf(scaled) || "Cheatsheet"} cheat sheet`;
-  return `<div class="${attribute(className)}" role="img" aria-label="${attribute(label)}">\n${scaled}\n</div>`;
+  // because this function is handed markup and nothing else. Read with the links
+  // taken off, since each link carries a `<title>` of its own and a sheet with
+  // none would otherwise be named after its first link.
+  const label = options.label ?? `${titleOf(picture) || "Cheatsheet"} cheat sheet`;
+  const layer = linkLayerFor(scaled);
+  if (!layer) {
+    return `<div class="${attribute(className)}" role="img" aria-label="${attribute(label)}">\n${picture}\n</div>`;
+  }
+  // **A sheet that links out is two things side by side, not one inside the
+  // other.** `role="img"` makes everything inside it presentational, so a link
+  // left in the SVG is focusable and has no name a screen reader can give. The
+  // picture keeps the role, and its links are lifted into a `<nav>` laid over it,
+  // which is why the outer box is positioned and holds both.
+  return (
+    `<div class="${attribute(className)}" style="position:relative">\n` +
+    `<div role="img" aria-label="${attribute(label)}">\n${picture}\n</div>\n${layer}\n</div>`
+  );
+}
+
+/** The `data-name` a sheet's link group is written under, and read back by. */
+export const LINK_GROUP = "links";
+
+/** The class of the `<nav>` a fragment lays its links in. */
+export const FRAGMENT_LINKS_CLASS = "cheatsheet-links";
+
+/** What the `<nav>` is called, for a reader moving between landmarks. */
+const LINK_LAYER_LABEL = "Follow practicing.xyz";
+
+/** The link group, with the whitespace that sets it on its own lines. */
+const LINK_GROUP_PATTERN = new RegExp(`\\n?[ \\t]*<g data-name="${LINK_GROUP}">[\\s\\S]*?</g>`);
+
+/**
+ * Composed markup with the sheet's links written into it.
+ *
+ * **The one place a link reaches markup.** The drawing surface has no anchor
+ * element, so a composition cannot hold one; `composeSheet` reports where the
+ * sheet links out as `variation.links`, and this writes them after the fact as
+ * the last child of the root, a `<g data-name="links">` drawn over everything
+ * else. Each destination is one `<a>`, holding a rect per area that goes there,
+ * so a sheet whose mark square and follow line both name the site offers that
+ * site once. The rects are `fill="none"` with `pointer-events="all"`: they take
+ * a pointer and paint nothing, so the sheet looks exactly as composed.
+ *
+ * Markup that already holds a link group has it replaced, so writing twice is
+ * writing once. An empty list writes no group at all.
+ *
+ * @param {string} markup What `composition.toSVG()` returned.
+ * @param {import('./brand.mjs').LinkArea[]} [links] What `variation.links` holds.
+ * @returns {string}
+ */
+export function withLinks(markup, links = []) {
+  if (typeof markup !== "string") {
+    throw new Error("cheatsheet: links are written into composed markup, which this was not");
+  }
+  const bare = withoutLinks(markup);
+  const merged = byDestination(links);
+  if (merged.length === 0) return bare;
+  const close = bare.lastIndexOf("</svg>");
+  if (close < 0) {
+    throw new Error("cheatsheet: links are written before the markup's closing `</svg>`, and this has none");
+  }
+  const anchors = merged.map(
+    (link) =>
+      `    <a href="${attribute(link.href)}" target="_blank" rel="noopener noreferrer">` +
+      `<title>${attribute(link.label)}</title>` +
+      link.areas
+        .map(
+          (area) =>
+            `<rect x="${figure(area.x)}" y="${figure(area.y)}" width="${figure(area.width)}" ` +
+            `height="${figure(area.height)}" fill="none" pointer-events="all"/>`
+        )
+        .join("") +
+      "</a>"
+  );
+  const group = `  <g data-name="${LINK_GROUP}">\n${anchors.join("\n")}\n  </g>\n`;
+  return bare.slice(0, close) + group + bare.slice(close);
+}
+
+/**
+ * Composed markup with its link group taken off, or the markup as it was.
+ *
+ * @param {string} markup
+ * @returns {string}
+ */
+export function withoutLinks(markup) {
+  return typeof markup === "string" ? markup.replace(LINK_GROUP_PATTERN, "") : markup;
+}
+
+/**
+ * The links {@link withLinks} wrote into some markup, read back out of it.
+ *
+ * Read from the markup rather than handed over, so that {@link fragmentFor}
+ * stays a function of markup alone, the way it already reads the title.
+ * Values come back as they sit in the markup, escaped, which is the form an
+ * attribute takes them in again.
+ *
+ * @param {string} markup
+ * @returns {{ href: string, label: string, areas: { x: number, y: number, width: number, height: number }[] }[]}
+ */
+export function linksIn(markup) {
+  const group = typeof markup === "string" ? LINK_GROUP_PATTERN.exec(markup) : null;
+  if (!group) return [];
+  // Anchored at the start or at whitespace, because the captured attributes
+  // begin with the first one and have no space in front of it.
+  const value = (attributes, name) => new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attributes)?.[1] ?? "";
+  return [...group[0].matchAll(/<a\s([^>]*)>([\s\S]*?)<\/a>/g)].map(([, attributes, inner]) => ({
+    href: value(attributes, "href"),
+    label: /<title>([^<]*)<\/title>/.exec(inner)?.[1] ?? "",
+    areas: [...inner.matchAll(/<rect\s([^>]*)\/>/g)].map(([, rect]) => ({
+      x: Number(value(rect, "x")),
+      y: Number(value(rect, "y")),
+      width: Number(value(rect, "width")),
+      height: Number(value(rect, "height")),
+    })),
+  }));
+}
+
+/**
+ * The HTML that lays a sheet's links over it, or an empty string.
+ *
+ * A `<nav>` filling its positioned parent, holding one anchor per area,
+ * placed in percentages of the viewBox so it tracks the sheet at any width.
+ * Everything rides inline, because a fragment lands in a page whose stylesheet
+ * this repository does not write. The `<nav>` itself takes no pointer, so the
+ * sheet under it behaves as it did, and each anchor takes one back.
+ *
+ * A destination with more than one area is one link to a keyboard and a
+ * screen reader: the first area is the anchor that is named and focusable, and
+ * the others are `aria-hidden` with `tabindex="-1"`, there for a pointer only.
+ * Focus is drawn by the browser's own ring, which nothing here takes away.
+ *
+ * @param {string} markup Markup holding a link group, as {@link withLinks} writes it.
+ * @param {{ label?: string }} [options]
+ * @returns {string}
+ */
+export function linkLayerFor(markup, options = {}) {
+  const links = linksIn(markup);
+  const box = viewBoxOf(markup);
+  if (links.length === 0 || !box) return "";
+  const share = (value, start, span) => `${figure(((value - start) / span) * 100, 4)}%`;
+  const anchors = links.flatMap((link) =>
+    link.areas.map((area, at) => {
+      const reach =
+        at === 0 ? ` aria-label="${attribute(link.label)}"` : ` aria-hidden="true" tabindex="-1"`;
+      const place =
+        `position:absolute;display:block;pointer-events:auto;` +
+        `left:${share(area.x, box.x, box.width)};top:${share(area.y, box.y, box.height)};` +
+        `width:${share(area.width, 0, box.width)};height:${share(area.height, 0, box.height)}`;
+      return `<a href="${attribute(link.href)}" target="_blank" rel="noopener noreferrer"${reach} style="${place}"></a>`;
+    })
+  );
+  const label = options.label ?? LINK_LAYER_LABEL;
+  return (
+    `<nav class="${FRAGMENT_LINKS_CLASS}" aria-label="${attribute(label)}" ` +
+    `style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">\n${anchors.join("\n")}\n</nav>`
+  );
+}
+
+/**
+ * Areas grouped by where they go, in the order each destination first appears.
+ *
+ * @param {import('./brand.mjs').LinkArea[]} links
+ * @returns {{ href: string, label: string, areas: import('./brand.mjs').LinkArea[] }[]}
+ */
+function byDestination(links) {
+  /** @type {Map<string, { href: string, label: string, areas: import('./brand.mjs').LinkArea[] }>} */
+  const merged = new Map();
+  for (const link of Array.isArray(links) ? links : []) {
+    if (!link || typeof link.href !== "string" || link.href.length === 0) continue;
+    const one = merged.get(link.href) ?? { href: link.href, label: link.label || link.href, areas: [] };
+    one.areas.push(link);
+    merged.set(link.href, one);
+  }
+  return [...merged.values()];
+}
+
+/**
+ * The root's viewBox, or null.
+ *
+ * @param {string} markup
+ * @returns {{ x: number, y: number, width: number, height: number } | null}
+ */
+function viewBoxOf(markup) {
+  const found = /<svg\b[^>]*\sviewBox="([^"]*)"/.exec(markup);
+  if (!found) return null;
+  const [x, y, width, height] = found[1].trim().split(/[\s,]+/).map(Number);
+  return width > 0 && height > 0 ? { x, y, width, height } : null;
+}
+
+/**
+ * A number as markup writes it: rounded, and with no trailing zeros.
+ *
+ * @param {number} value
+ * @param {number} [places]
+ * @returns {string}
+ */
+function figure(value, places = 2) {
+  return String(Number(value.toFixed(places)));
 }
 
 /**
@@ -448,7 +652,8 @@ export function renderSVG(doc, options = {}) {
           `itself, whoever would have drawn it. Call renderSheet for a format that has a renderer.`
     );
   }
-  return composeSheet(doc, compose).composition.toSVG();
+  const { composition, variation } = composeSheet(doc, compose);
+  return withLinks(composition.toSVG(), variation.links);
 }
 
 /**
@@ -473,7 +678,8 @@ export function renderFragment(doc, options = {}) {
           `which carries no pixels to apply it to. Call renderSheet for a format that has a renderer.`
     );
   }
-  return fragmentFor(composeSheet(doc, compose).composition.toSVG(), render);
+  const { composition, variation } = composeSheet(doc, compose);
+  return fragmentFor(withLinks(composition.toSVG(), variation.links), render);
 }
 
 /**
@@ -522,7 +728,7 @@ export async function renderOf(composed, options = {}) {
       // composition's own, whoever would have drawn it.
       notes.push(`route ${requestedRoute} has no effect on ${named}: the markup is the composition itself.`);
     }
-    const markup = composition.toSVG();
+    const markup = withLinks(composition.toSVG(), variation.links ?? []);
     const text = format === "svg" ? markup : fragmentFor(markup, render);
     const data = encoder.encode(text);
     return {

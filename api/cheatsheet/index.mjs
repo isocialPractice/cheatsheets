@@ -129,12 +129,18 @@ export {
 export {
   filenameFor,
   fragmentFor,
+  linkLayerFor,
+  linksIn,
   renderFragment,
   renderOf,
   renderSVG,
   renderSheet,
   slugFor,
+  withLinks,
+  withoutLinks,
   FRAGMENT_CLASS,
+  FRAGMENT_LINKS_CLASS,
+  LINK_GROUP,
   RASTER_RENDERS,
   RENDER_EXTENSIONS,
   RENDER_FORMATS,
@@ -212,10 +218,14 @@ export {
 export {
   dataUrlFrom,
   fetchSheetBrand,
+  footerLinkAreas,
+  pngSize,
   rasterAsset,
   sheetBrandFrom,
   vectorAsset,
   BRAND_FILES,
+  FOOTER_LINKS,
+  PRACTICING_HREF,
 } from "./brand.mjs";
 
 export {

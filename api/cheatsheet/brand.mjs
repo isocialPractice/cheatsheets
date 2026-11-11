@@ -24,9 +24,19 @@
 // renderers agree on both: the SVG writer inlines a vector's shapes and emits
 // an `<image>` for a raster, and the rasterizer draws the same two. A vector is
 // the better form and the footer asset cannot be one - it carries three social
-// icons, one of them over a gradient, and this drawing surface has no gradients
+// icons, two of them over a gradient, and this drawing surface has no gradients
 // at all. So the strip is a raster or it is nothing, and a sheet with no footer
 // lockup is the thing being fixed.
+//
+// ## Where the footer links are, and why they are kept here
+//
+// The strip's mark and its three icons link out, and where they sit is a fact
+// about the strip's pixels, not about the slot it is placed in - the same
+// reason the mark's inset lives in the asset rather than in `language.mjs`. So
+// {@link FOOTER_LINKS} records them in the strip's own 799 x 81 pixels, and
+// {@link footerLinkAreas} carries them through the placement into sheet
+// pixels. A raster that is not that size gets no areas at all, because areas
+// measured on one image land on the wrong parts of another.
 //
 // The PNG is carried inline rather than linked. A composition is handed to a
 // renderer as a document, not as a page with a base URL, so a relative `href`
@@ -40,8 +50,29 @@
  * caller of this layer does not have to reach into `api/napkin-sketch/` for a
  * typedef.
  *
+ * A raster also carries its own `width` and `height` in pixels when its bytes
+ * are a PNG, read from the header rather than decoded, so a caller can tell
+ * which image it is holding without a decoder.
+ *
  * @typedef {{ kind: 'vector', svg: string, alt?: string }
- *   | { kind: 'raster', dataUrl: string, alt?: string }} BrandAsset
+ *   | { kind: 'raster', dataUrl: string, alt?: string, width?: number, height?: number }} BrandAsset
+ */
+
+/**
+ * One place on a sheet that links out, in sheet pixels.
+ *
+ * `label` is the link's accessible name. Two areas may share an `href` - the
+ * drawn footer links its mark square and its follow line to the same site -
+ * and a writer that wants one link per destination merges them by `href`.
+ *
+ * @typedef {object} LinkArea
+ * @property {string} name What the area covers, stable across sheets.
+ * @property {string} href Where it goes.
+ * @property {string} label Its accessible name.
+ * @property {number} x
+ * @property {number} y
+ * @property {number} width
+ * @property {number} height
  */
 
 /**
@@ -82,7 +113,117 @@ export function rasterAsset(bytes, mime = "image/png", alt) {
   const view = bytes instanceof Uint8Array ? bytes : bytes ? new Uint8Array(bytes) : null;
   if (!view || view.length === 0) return null;
   const dataUrl = dataUrlFrom(view, mime);
-  return alt ? { kind: "raster", dataUrl, alt } : { kind: "raster", dataUrl };
+  /** @type {BrandAsset} */
+  const asset = alt ? { kind: "raster", dataUrl, alt } : { kind: "raster", dataUrl };
+  const size = pngSize(view);
+  if (size) Object.assign(asset, size);
+  return asset;
+}
+
+/** The eight bytes every PNG opens with. */
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * A PNG's width and height, read from its header without decoding it.
+ *
+ * The first chunk of a PNG is always `IHDR`, so the two numbers sit at fixed
+ * offsets: the 8 byte signature, a 4 byte length, the 4 byte type, then width
+ * and height as big-endian 32 bit integers at 16 and 20.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {{ width: number, height: number } | null} Null for anything that is not a PNG.
+ */
+export function pngSize(bytes) {
+  if (!(bytes instanceof Uint8Array) || bytes.length < 24) return null;
+  if (!PNG_SIGNATURE.every((byte, at) => bytes[at] === byte)) return null;
+  const type = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+  if (type !== "IHDR") return null;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
+/** Where the footer's practicing.xyz mark, and the drawn footer, link to. */
+export const PRACTICING_HREF = "https://practicing.xyz";
+
+/**
+ * The footer strip's link areas, in the strip's own pixels.
+ *
+ * Measured on `assets/footer.png` on 2026.11.10, after the strip took the
+ * Mastodon and X marks. Each area is wider than its ink so a finger can land
+ * on it: the icons split at their commas and stay clear of the parentheses,
+ * and the mark takes the whole navy block it sits in.
+ *
+ * | Area | Ink | Area |
+ * | --- | --- | --- |
+ * | mark | x 0 to 93, every row | x 0 to 93, every row |
+ * | Mastodon | x 351 to 372, y 28 to 50 | x 340 to 376, y 16 to 63 |
+ * | Instagram | x 389 to 413, y 27 to 51 | x 382 to 417, y 16 to 63 |
+ * | X | x 430 to 452, y 29 to 49 | x 424 to 460, y 16 to 63 |
+ *
+ * Remeasure and edit these together with the strip. Any other strip size gets
+ * no areas, per {@link footerLinkAreas}.
+ */
+export const FOOTER_LINKS = Object.freeze({
+  width: 799,
+  height: 81,
+  areas: Object.freeze([
+    Object.freeze({ name: "practicing", href: PRACTICING_HREF, label: "practicing.xyz", x: 0, y: 0, width: 94, height: 81 }),
+    Object.freeze({
+      name: "mastodon",
+      href: "https://mastodon.social/@isocialPractice",
+      label: "isocialPractice on Mastodon",
+      x: 340,
+      y: 16,
+      width: 37,
+      height: 48,
+    }),
+    Object.freeze({
+      name: "instagram",
+      href: "https://www.instagram.com/isocialpractice/",
+      label: "isocialpractice on Instagram",
+      x: 382,
+      y: 16,
+      width: 36,
+      height: 48,
+    }),
+    Object.freeze({
+      name: "x",
+      href: "https://x.com/isocialpractice",
+      label: "isocialpractice on X",
+      x: 424,
+      y: 16,
+      width: 37,
+      height: 48,
+    }),
+  ]),
+});
+
+/**
+ * The footer strip's link areas, carried into the box the strip was placed in.
+ *
+ * The strip is placed the way every brand raster is, `xMidYMid meet`: scaled
+ * by the smaller of the two ratios and centred on the other axis. The same
+ * arithmetic here puts each area on the pixels it was measured on.
+ *
+ * @param {BrandAsset | null | undefined} asset The footer asset that was placed.
+ * @param {{ x: number, y: number, width: number, height: number }} box The slot it was placed in.
+ * @returns {LinkArea[] | null} Null when the asset is not the strip the areas were measured on.
+ */
+export function footerLinkAreas(asset, box) {
+  if (!asset || asset.kind !== "raster") return null;
+  if (asset.width !== FOOTER_LINKS.width || asset.height !== FOOTER_LINKS.height) return null;
+  const scale = Math.min(box.width / FOOTER_LINKS.width, box.height / FOOTER_LINKS.height);
+  const left = box.x + (box.width - FOOTER_LINKS.width * scale) / 2;
+  const top = box.y + (box.height - FOOTER_LINKS.height * scale) / 2;
+  return FOOTER_LINKS.areas.map(({ name, href, label, x, y, width, height }) => ({
+    name,
+    href,
+    label,
+    x: left + x * scale,
+    y: top + y * scale,
+    width: width * scale,
+    height: height * scale,
+  }));
 }
 
 /**

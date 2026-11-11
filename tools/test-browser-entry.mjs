@@ -402,7 +402,11 @@ test("the section is the shape the scripted tool writes, and the material is clo
   assert.equal(title.textContent, "Acme Reference");
   // The composed figure, which is the published surface's own fragment: the
   // page and a media file of this sheet are two renders of one composition.
-  assert.match(figure.markup, /^<div class="cheatsheet" role="img" aria-label="Acme Reference cheat sheet">/);
+  assert.match(
+    figure.markup,
+    /^<div class="cheatsheet" style="position:relative">\n<div role="img" aria-label="Acme Reference cheat sheet">/
+  );
+  assert.match(figure.markup, /<nav class="cheatsheet-links"/);
   assert.match(figure.markup, /<svg id="cheatsheet-section-guide"[^>]*viewBox="0 0 3600 3600"/);
   // Named by the surface's own slug, because the seed it reads is a file name or
   // a `<title>` and a title is prose. An `id` may hold no ASCII whitespace, so

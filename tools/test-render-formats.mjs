@@ -77,6 +77,8 @@ import {
   renderOf,
   renderSVG,
   renderSheet,
+  withLinks,
+  withoutLinks,
   RASTER_RENDERS,
   RENDER_EXTENSIONS,
   RENDER_FORMATS,
@@ -163,24 +165,28 @@ function reportOf(render) {
 
 // --- The three that need nothing installed ----------------------------------
 
-test("the svg format is the composition's own markup, which is what it claims", async () => {
+test("the svg format is the composition's own markup with its links, which is what it claims", async () => {
   // Not a copy of the markup but the identity: the surface's job for `svg` is
   // to carry it out with a report around it, so the pin is that the bytes it
-  // hands over are the ones the composition made and the file already holds.
+  // hands over are the ones the composition made and the file already holds -
+  // plus, since 2026.11.10, the link group the composition cannot hold, which
+  // `withLinks` writes from the variation and nothing else adds to.
   const render = await renderSheet(fixtureDocument(), { seed: FIXTURE_SEED, format: "svg" });
   const committed = readFileSync(join(fixtures, "sheet.svg"), "utf8");
   assert.equal(
-    render.text,
+    withoutLinks(render.text),
     committed,
     "the svg format produced different markup than tools/fixtures/sheet.svg. " +
       "That file is committed by tools/test-render-fixture.mjs, so a failure " +
       "here with that file's own case passing means the surface changed the " +
       "markup on its way out rather than the composition moving."
   );
+  const linked = withLinks(committed, composed.variation.links);
+  assert.equal(render.text, linked, "the svg format added something besides the sheet's links");
   // And the three doors onto it agree, which is what stops one of them growing
   // a transform the other two do not have.
-  assert.equal(renderSVG(fixtureDocument(), { seed: FIXTURE_SEED }), committed);
-  assert.equal((await renderOf(composed, { format: "svg" })).text, committed);
+  assert.equal(renderSVG(fixtureDocument(), { seed: FIXTURE_SEED }), linked);
+  assert.equal((await renderOf(composed, { format: "svg" })).text, linked);
 });
 
 test("the html format is the fragment that was committed, in full", async () => {
@@ -213,6 +219,21 @@ test("the png format at the built-in route is the raster that was committed", as
       "which tools/test-render-fixture.mjs commits from composition.toPNG(). A " +
       "failure here alone means the surface changed the pixels on the way out."
   );
+});
+
+test("a raster carries no link, because it is drawn from the composition and not the markup", async () => {
+  // The links are written into markup after `toSVG()`, and the composition a
+  // rasterizer is handed holds none: a PNG cannot carry a link, and drawing an
+  // invisible one would only be a way for the two routes to disagree. So the
+  // raster of a sheet is the same bytes whatever its links say.
+  assert.ok(composed.variation.links.length > 0, "the fixture sheet links nowhere, so this proves nothing");
+  assert.doesNotMatch(composed.composition.toSVG(), /data-name="links"/);
+  const linked = await renderOf(composed, { format: "png", route: "builtin" });
+  const unlinked = await renderOf(
+    { composition: composed.composition, variation: { ...composed.variation, links: [] } },
+    { format: "png", route: "builtin" }
+  );
+  assert.equal(digest(linked.data), digest(unlinked.data));
 });
 
 test("and the report each of the three hands back is the one that was committed", async () => {
