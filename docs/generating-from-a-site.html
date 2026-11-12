@@ -230,14 +230,48 @@ set in; material that reads as no text at all - a page of nothing but an
 <code>&lt;img&gt;</code> - gets no figure rather than a sheet with an invented
 row on it.</p>
 
+<p><strong>One thing in the markup does not survive untouched, and it is the
+one thing that could not.</strong> A relative URL is relative to the page it
+was written on, and a generated page sits in another folder - so
+<code>&lt;img src=&quot;badge.svg&quot;&gt;</code> on
+<code>guide/using-it.html</code>
+would ask for <code>cheatsheets/badge.svg</code> and get nothing. Every
+relative <code>src</code>, <code>href</code>, <code>srcset</code> and
+<code>poster</code> in carried material is therefore rewritten to point from
+where the generated page sits at what it pointed at:</p>
+
+<pre><code>guide/using-it.html    &lt;img src="badge.svg"&gt;
+cheatsheets/guide.html &lt;img src="../guide/badge.svg"&gt;</code></pre>
+
+<p>Nothing else is changed. An absolute URL, a protocol relative
+<code>//host</code> one, a path that was already root relative, and a bare
+fragment all already mean what they meant, so all four are carried as written -
+and a path that walked above the site root was leaving the site anyway and has
+no site relative form to rewrite into. Two attributes are left alone on purpose:
+rewriting a <code>&lt;form action&gt;</code> would point a form at a handler
+nobody expected, and rewriting a <code>&lt;base href&gt;</code> would change how
+every other URL on the page resolves rather than one of them. The query and the
+fragment on a rewritten URL ride along untouched, a path naming a folder keeps
+its trailing separator, and a URL inside a comment or in what a carried
+<code>&lt;script&gt;</code> says is text rather than markup and is not touched.
+A bare <code>?query</code> with no path meant the page it was written on and now
+means the page carrying it, which is the one shape still carried as written. If
+you pass <code>--out</code> a folder outside the site there is no relative path
+from the generated page to anything, so the URLs are carried as written and the
+run says which page and how many.</p>
+
+<p>The browser route does none of this, and should not: it builds its section
+inside the page that is already loaded, so a relative URL in the material is
+already relative to the right page.</p>
+
 <p>And three rules about its own layout, written into the head as a
 <code>&lt;style&gt;</code> block with a comment above it saying what it is
 for:</p>
 
 <pre><code>&lt;style&gt;
 [data-cheatsheet-block] pre { overflow-x: auto; }
-[data-cheatsheet-block] img,
-[data-cheatsheet-block] table { max-width: 100%; }
+[data-cheatsheet-block] img { max-width: 100%; }
+[data-cheatsheet-block] table { max-width: 100%; width: fit-content; display: block; overflow-x: auto; }
 &lt;/style&gt;</code></pre>
 
 <p>A generated page is written whole and carries no stylesheet, so a
@@ -252,6 +286,50 @@ the material underneath the figure is the record. Every selector is scoped to
 and nothing else in the folder, and anything added after them wins on cascade
 order. There is nothing here about type, colour or spacing, and nothing about
 the figure, which carries its own inline style and needs no second opinion.</p>
+
+<p><strong>The table rule is the listing rule and not the image one</strong>,
+which is the distinction worth knowing if you are reading the block and
+wondering why one element gets four declarations. An
+<code>&lt;img&gt;</code> arrives with an intrinsic width, so clamping it to the
+page is the whole answer. A table is wide because of what is in it - its used
+width is never lower than the sum of each column's longest unbreakable run, and
+<code>max-width</code> does not lower that - so a table with enough columns is
+wider than a phone whatever the clamp says. <code>display: block</code> makes it
+a box <code>overflow-x</code> reaches, and it then scrolls itself rather than
+scrolling the page. The cost is that a <code>&lt;table&gt;</code> at
+<code>display: block</code> is no longer a table box, so
+<code>&lt;caption&gt;</code>, <code>&lt;thead&gt;</code> and the column sizing
+algorithm no longer apply the way they do on one. The alternative that also
+contains it, <code>table-layout: fixed</code> with
+<code>width: 100%</code>, reflows every column to an equal share - and the
+material under the figure is the record, so scrolling it is preferred to
+re-laying it out, for the same reason wrapping a listing was refused above. A
+table of your own that you would rather keep as a table box is a rule written
+after this block, which wins on cascade order.</p>
+
+<p><strong>Neither box that scrolls carries a <code>tabindex</code></strong>,
+and that is a decision rather than an oversight. A scrollable region with no
+focusable child inside it is reachable from a keyboard only where the browser
+makes scroll containers focusable itself, and the usual remedy -
+<code>tabindex="0"</code> with an accessible name - is two things this tool
+cannot do: an attribute written into your own element, and a name invented for
+material it only read. It would also land on every carried listing and table
+rather than on the ones that actually scroll, since whether a box overflows is a
+layout result and not something a generated file knows. If you need more, you
+have the two levers that always win here: your own CSS after this block, and
+your own markup, which the tool carries rather than rewrites.</p>
+
+<p><code>width: fit-content</code> is in there so the rule reaches only the
+tables that need it. A table box shrinks to fit; a block box fills its
+container, and <code>max-width: 100%</code> does not stop that, because 100% of
+the container is the container. Without it every carried table spans the whole
+page on a desktop - measured at 1280px, two tables that had been 439 and 512
+wide became 1264 - which is a visible change to the record for the sake of a
+rule that only had business reaching a table too wide to fit. With it they
+measure what they measured before the block, and only a table wider than the
+page is contained. A browser too old for <code>fit-content</code> falls back to
+<code>width: auto</code>, which is the stretch: still contained, which is the
+half that matters.</p>
 
 <p>Every fragment is named, because the master page holds one per cheatsheet and
 a composition carries <code>id="cheatsheet"</code> on its root. The name is the

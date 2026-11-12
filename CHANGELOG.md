@@ -37,6 +37,163 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.9.0]
+
+The two halves of the previous release that were reasoned rather than measured,
+measured - and the one that was wrong, fixed. `1.0.0-alpha.1.8.1` contained a
+carried `<pre>`, and wrote the `img` and `table` rules beside it on the argument
+that they were the same defect from the two other elements that carry an
+intrinsic width. That is true of `img` and was not true of `table`, and a page
+carrying a seven column table scrolled sideways exactly as it had before. Beside
+it, an older defect found while building the case for the image rule: a relative
+URL in carried material pointed at nothing once the material was carried onto a
+page in another folder, so the image rule was a rule for images that on such a
+site never loaded.
+
+It is a minor rather than a patch because the URL fix is new published surface -
+`carryUrls` and `carriedUrlFindings`, and an output folder parameter on
+`writePages`, `renderCheatsheet` and `renderMaster` - and because it changes
+what a generated page says for every site whose material is not written with
+root relative URLs.
+
+### Fixed
+
+- **A table made wide by its own content is contained, which `max-width: 100%`
+  never did.** A table's used width is never lower than its min-content width -
+  the sum of each column's longest unbreakable run - and `max-width` does not
+  lower that, so the rule computed, `getComputedStyle(table).maxWidth` reading
+  `100%`, and changed nothing. Measured at a 390x844 viewport over a generated
+  page carrying a seven column table: the table stayed at 413.6 in a 374 column
+  and the page measured 422 against a `clientWidth` of 390, with and without the
+  rule. It is contained the way the listing is instead, by scrolling itself:
+  `[data-cheatsheet-block] table { max-width: 100%; width: fit-content;
+  display: block; overflow-x: auto; }` gives 374 and 390. Of the four candidates
+  measured, `table-layout: fixed; width: 100%` also contains it and reflows
+  every column to an equal share, which changes what the carried record looks
+  like; `max-width: 100%; overflow-x: auto` is the one that looks like the fix
+  and changes nothing at all, because a `display: table` box ignores `overflow`.
+- **`width: fit-content` is what keeps that to the tables that needed it**, and
+  it was measured rather than assumed. A table box shrinks to fit and a block
+  box fills its container, and `max-width: 100%` does not stop that because 100%
+  of the container is the container - so `display: block` on its own took the two
+  fixture tables from 439.1 and 512.1 wide at 1280px to 1264, stretching every
+  carried table across the page for a rule that only had business reaching one
+  too wide to fit. With `fit-content` they measure 439.1 and 512.1 again, as
+  they did before the style block existed, and only a table wider than the page
+  is contained. A browser too old for `fit-content` falls back to `width: auto`,
+  which is the stretch: still contained, which is the half that matters.
+- **A relative URL in carried material points at what it pointed at.** Material
+  is collected out of a page in one folder and written onto a page in another,
+  and until now every `src`, `href`, `srcset` and `poster` in it was carried
+  byte for byte - so `<img src="badge.svg">` on `guide/using-it.html` became a
+  request for `cheatsheets/badge.svg`, and a link to a sibling page became a
+  request for a name beside the generated page. Measured against a server that
+  logs what was asked for, both 404'd and only a root relative `/badge.svg`
+  survived the carry. Each is now rewritten through `linkFrom`, which already
+  walks two site relative paths for the menu links: resolve the URL against the
+  folder the source page sits in, then walk from the generated page to it, so
+  `badge.svg` becomes `../guide/badge.svg`. The tool already knew the hazard by
+  name - `menuMessage`'s `nested` case refuses to fill a menu inside marked
+  material because its links would be relative to the wrong page - and said
+  nothing about the same URLs in the material itself.
+- **Nothing else about the material is changed**, which is most of what the fix
+  had to get right. An absolute URL, a protocol relative `//host`, a path that
+  was already root relative and a bare fragment all already mean what they
+  meant; a path that walked above the site root was leaving the site and has no
+  site relative form to rewrite into; a URL in a comment or in what a carried
+  `<script>` says is text rather than markup. The query and the fragment ride
+  along untouched, a path naming a folder keeps its trailing separator, and the
+  quoting the site chose is the quoting that goes back. `<form action>` and
+  `<base href>` are left alone on purpose: rewriting the first points a form at
+  a handler nobody expected, and rewriting the second changes how every other
+  URL on the page resolves rather than one of them. A bare `?query` meant the
+  page it was written on and now means the page carrying it, which is the one
+  shape still carried as written and is recorded as such rather than guessed at.
+- **An attribute is only rewritten where it is an attribute.** The values are
+  found by walking the start tag rather than by pattern, for the reason
+  `startTagAt` is a scan: a pattern looking for `\shref\s*=` finds one inside
+  `<div title="see href=x">`, and rewriting there corrupts a site owner's own
+  prose. A carried `<script src>` is rewritten and what the script says is not.
+
+### Changed
+
+- **The output folder is a parameter of the write rather than of the manifest
+  alone.** `writePages`, `renderCheatsheet` and `renderMaster` take the folder
+  as a page of the site names it, because carried material holds URLs and a
+  relative URL has to be walked from somewhere. All three default to the folder
+  the ladder resolves first, which is what every caller but `main` means.
+- **An output folder outside the site reports the URLs it could not rewrite.**
+  There is no site relative path from a generated page to anything there, so the
+  material is carried as written and is broken exactly as it was before - said
+  per page and with a count, rather than left silent, which is what the menu's
+  own outside-the-site refusal already does.
+- **Neither box that scrolls carries a `tabindex`, and that is now written
+  down.** A scrollable region with no focusable child is reachable from a
+  keyboard only where the browser makes scroll containers focusable itself, and
+  the usual remedy - `tabindex="0"` with an accessible name - is an attribute
+  written into a site owner's own element and a name invented for material the
+  tool only read. It would also land on every carried listing and table rather
+  than on the ones that actually scroll, since whether a box overflows is a
+  layout result. The rule relies on the browser, and a site owner has the two
+  levers that always win here: their own CSS after the block, and their own
+  markup. The listing rule shipped in `1.0.0-alpha.1.8.1` under the same
+  constraint without saying so, and this closes that for both.
+- **`docs/generating-from-a-site.html` records all of it**, with what the table
+  rule costs a table box, why scrolling was preferred to reflowing it, the
+  example of a URL before and after the carry, the list of what is deliberately
+  left alone, and the keyboard decision above. `docs/tests.html` gains the one thing a reader of a red suite needs:
+  that `node --test` sweeps git-ignored working folders too, and which cases
+  name the files when it does.
+
+### Tested
+
+- **A carried image, a declared-width table and a content-wide table are
+  measured in a browser**, promoted into `tools/test-site-pages-browser.mjs`
+  from the UI/UX verification that found the defect. The fixture carries no
+  `<img>` at all and both its tables fit 390px, which is why the two rules went
+  in on reasoning in the first place, so the material is written into a second
+  copy of the fixture rather than into `fixtures/site/` - the five queued items
+  that edit those five pages do not need a sixth landing among them.
+- **The tables that already fitted are watched against their own content, not
+  against a figure.** The drawn width is compared with the same table at
+  `width: max-content`, which is what a table box would have shrunk to, so the
+  case says "shrink to fit, not stretched" without hard-coding a font
+  measurement - and it is the case that caught `display: block` stretching them.
+  Their caption and their rows are asserted too, as the first two things a block
+  box could have taken away.
+- **Nothing a generated page asks for comes back 404.** A browser case over a
+  second generated site whose material carries an image beside its source page,
+  a link to its sibling and a path that was already root relative - the case
+  that would have caught the URL defect on its own, whichever of the three
+  remedies had been taken. Without the rewrite it reports
+  `/cheatsheets/badge.svg -> 404`.
+- **Every shape a site writes is pinned as text.**
+  `tools/test-cheatsheet-site.mjs` asserts what a sibling file, a sibling page,
+  a walk upwards, a root relative path, an absolute URL, a protocol relative
+  one, a `mailto:`, a bare fragment, an empty value, a query, a folder, a
+  `srcset`, a `poster`, each quoting style and a self-closing tag become - and
+  the three places a rewrite must not reach, which are a comment, a script's
+  body, and an attribute whose value merely contains the text of one.
+- **The documentation link check no longer reads an example as a link.** Both
+  link cases in `tools/test-docs-site.mjs` scan the raw source for `href="..."`
+  and `src="..."`, which is what keeps them dependency free and what made them
+  wrong the first time a page documented markup carrying one. Listings are
+  blanked before the scan, offsets preserved, because nothing on the site links
+  from inside a `<pre>` and a `<pre>` is the one place a documentation page
+  writes somebody else's markup.
+- **The suite is one command again, and the record of why it was not says
+  where the fix belonged.** On 2026-11-10 a browser profile signed in under
+  `mcp-todo/state/chrome/` brought 38 `*.test.js` files from an installed
+  extension into the sweep, every one of them failing, and both discovery
+  invariants in `tools/test-suite-invocation.mjs` failed with them. Nothing in
+  this repository could fix it - the files were inside a third-party bundle, so
+  the remedy the cases name in their own message was unavailable, and the levers
+  that would have worked were the operator's - and it was fixed where it
+  belonged, the tool now keeping its profile in a per-user folder outside any
+  workspace. `node --test` from the root is green again at 1053 cases with one
+  skipped, the invocation never changed, and what the guard cases bought was the
+  day's notice rather than a week of it.
+
 ## [1.0.0-alpha.1.8.1]
 
 A generated page stopped scrolling sideways on a phone. It is a patch, and the

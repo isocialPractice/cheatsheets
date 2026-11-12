@@ -42,7 +42,7 @@
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, extname, join } from "node:path";
@@ -121,12 +121,19 @@ const TYPES = {
 // Two roots, because the generated pages are written outside the repository
 // and the browser route imports `api/cheatsheet/` from inside it. `/generated/`
 // is the temporary site; everything else is the repository.
-function serve(generated) {
+//
+// **`site: true` serves the copy at `/` instead, with no second root**, which
+// the carried-URL cases need and the entry point cases cannot use: a URL a site
+// owner wrote as `/logo.svg` is theirs to resolve against their own site root,
+// and a server with the repository behind `/` answers it with a 404 that says
+// nothing about the tool.
+function serve(generated, { site: whole = false } = {}) {
   const server = createServer(async (request, response) => {
     const requested = decodeURIComponent(request.url.split("?")[0]);
-    const under = requested.startsWith("/generated/");
+    const under = whole || requested.startsWith("/generated/");
     const base = under ? generated : root;
-    const file = join(base, under ? requested.slice("/generated/".length) : requested);
+    const from = whole ? requested : requested.slice("/generated/".length);
+    const file = join(base, under ? from : requested);
     if (!file.startsWith(base)) {
       response.writeHead(403).end();
       return;
@@ -195,9 +202,93 @@ async function generate(site) {
 const runtime = await loadChromium();
 const skip = runtime.chromium ? false : runtime.reason;
 
+// Material the tracked fixture does not carry, written into a **second copy**
+// of it rather than into `fixtures/site/`. Both reasons matter: these are
+// marked pages, so generating them beside the fixture's own would put more
+// pages in the folder and more sheets on the master, which the cases above
+// assert the shape of by name - and the five queued items that edit the
+// fixture's five pages do not need a committed sixth landing among them.
+//
+// Two things are written here. First, one page carrying what the style block's
+// `img` and `table` rules are for: an image wider than a phone, a table made
+// wide by its own content, and a table that declared a width of its own. The
+// image is a data URI so that whether it loaded is never a question the
+// measurement has to ask.
+const BANNER =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBo" +
+  "ZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDEyMDAgMzAwIj48cmVjdCB3aWR0aD0iMTIwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9" +
+  "IiM0ZGFlNTEiLz48dGV4dCB4PSI0MCIgeT0iMTcwIiBmb250LXNpemU9IjEyMCIgZmlsbD0iIzAwMDEzMiI+d2lkZSBpbWFn" +
+  "ZTwvdGV4dD48L3N2Zz4=";
+
+const widePage = () => `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northwind Traders Handbook</title>
+</head>
+<body>
+<main data-cheatsheet="title">
+  <h2>Material wider than a phone</h2>
+  <p>One image and two tables, each wider than 390 pixels for its own reason.</p>
+  <img id="wide-image" alt="A banner 1200 pixels wide" src="${BANNER}">
+  <table id="content-wide">
+    <caption>Regions and their quarters</caption>
+    <thead>
+      <tr><th>Region</th><th>Q1 revenue</th><th>Q2 revenue</th><th>Q3 revenue</th><th>Q4 revenue</th><th>Account manager</th><th>Notes carried over from the prior year</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Region West</td><td>128,400</td><td>131,900</td><td>142,250</td><td>150,000</td><td>Jane Doe</td><td>Renewed on the same terms as the year before</td></tr>
+      <tr><td>Region East</td><td>98,200</td><td>101,750</td><td>99,400</td><td>112,300</td><td>John Smith</td><td>Moved to quarterly billing in the second quarter</td></tr>
+    </tbody>
+  </table>
+  <table id="declared-wide" style="width: 800px">
+    <caption>The same figures, declared at 800 pixels</caption>
+    <tbody>
+      <tr><td>Region West</td><td>128,400</td><td>Jane Doe</td></tr>
+      <tr><td>Region East</td><td>98,200</td><td>John Smith</td></tr>
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
+`;
+
+// And second, a folder of pages whose marked material carries relative URLs,
+// which is what the tracked fixture has none of: a marked page with an image
+// beside it and a link to its sibling, the files both of those name, and the
+// sibling marking material of its own with a URL that walks up a folder. The
+// badge is a real file rather than a data URI here, because the question is
+// what the browser **asks for** - a generated page carrying a URL relative to
+// the wrong folder answers it with a 404 and nothing else.
+const BADGE = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+<rect width="48" height="48" fill="#4dae51"/></svg>
+`;
+
+const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="16" viewBox="0 0 64 16">
+<rect width="64" height="16" fill="#000132"/></svg>
+`;
+
+const linkedPage = (title, inner) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+</head>
+<body>
+<main data-cheatsheet="title">
+${inner}
+</main>
+</body>
+</html>
+`;
+
 let browser;
 let site;
 let scratch;
+/** The second site, carrying the material the fixture cannot. */
+let carried;
 
 before(async () => {
   if (skip) return;
@@ -208,19 +299,50 @@ before(async () => {
   await writeFile(join(copy, "browser-entry.html"), entryPage(), "utf8");
   await writeFile(join(copy, "browser-entry-menu.html"), entryPage({ menu: true }), "utf8");
   site = await serve(copy);
+  const second = join(scratch, "carried");
+  await cp(fixture, second, { recursive: true });
+  await writeFile(join(second, "wide-material.html"), widePage(), "utf8");
+  await writeFile(join(second, "logo.svg"), LOGO, "utf8");
+  await mkdir(join(second, "guide"), { recursive: true });
+  await writeFile(join(second, "guide", "badge.svg"), BADGE, "utf8");
+  await writeFile(
+    join(second, "guide", "using-it.html"),
+    linkedPage(
+      "Using It",
+      '  <h2>Using it</h2>\n' +
+        '  <p>A badge beside this page, and a link to the next one.</p>\n' +
+        '  <img id="badge" alt="A green badge" src="badge.svg">\n' +
+        '  <a id="sibling" href="reading-it.html">Reading it</a>'
+    ),
+    "utf8"
+  );
+  await writeFile(
+    join(second, "guide", "reading-it.html"),
+    linkedPage(
+      "Reading It",
+      '  <h2>Reading it</h2>\n' +
+        '  <p>A logo one folder up, and a path that was already root relative.</p>\n' +
+        '  <img id="logo" alt="A wordmark" src="../logo.svg">\n' +
+        '  <img id="rooted" alt="The same wordmark" src="/logo.svg">'
+    ),
+    "utf8"
+  );
+  assert.equal(await generate(second), 0, "the generator did not write the second site");
+  carried = await serve(second, { site: true });
   browser = await runtime.chromium.launch();
 });
 
 after(async () => {
   await browser?.close();
   site?.server.close();
+  carried?.server.close();
   if (scratch) await rm(scratch, { recursive: true, force: true });
 });
 
 // The four pages a run over the fixture writes.
 const PAGES = ["index.html", "tutorial.html", "docs.html", MASTER_NAME];
 
-async function open(path, viewport = { width: 1280, height: 900 }) {
+async function openOn(which, path, viewport = { width: 1280, height: 900 }) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   const errors = [];
@@ -231,9 +353,12 @@ async function open(path, viewport = { width: 1280, height: 900 }) {
   page.on("response", (response) => {
     if (response.status() >= 400) errors.push(`${response.url()} -> ${response.status()}`);
   });
-  await page.goto(`${site.base}${path}`, { waitUntil: "load" });
+  await page.goto(`${which.base}${path}`, { waitUntil: "load" });
   return { context, page, errors };
 }
+
+/** The same, on the fixture site, which is where all but one case looks. */
+const open = (path, viewport) => openOn(site, path, viewport);
 
 const generated = (name) => `/generated/${OUTPUT_NAME}/${name}`;
 
@@ -427,6 +552,222 @@ test("a generated page does not scroll sideways at 390px, and scrolls its listin
     ["auto"],
     `a listing wider than the page computed overflow-x ${[...new Set(listings)].join(", ")}`
   );
+});
+
+// The other two rules of the style block, each on the element it is for, and
+// each on material the tracked fixture cannot supply: it carries no `<img>` at
+// all, and both of its tables fit 390px. So `img` and `table` went in on
+// reasoning on 2026.11.11 and were measured the same day, which is how the
+// table one was found to compute and do nothing - *a table made wide by its
+// own content still scrolls the generated page sideways*, closed here by
+// `display: block; overflow-x: auto`. Promoted from
+// `test-results/ui-ux-tester.agent/ui-ux-tester.2026.11.11-wide-material.cases.mjs`,
+// which is where the four candidates were measured.
+
+/** The generated wide-material page at a phone width, each wide element measured. */
+async function measureWide() {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
+  const seen = await page.evaluate(() => {
+    const de = document.documentElement;
+    const at = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const box = el.getBoundingClientRect();
+      return {
+        width: Math.round(box.width * 10) / 10,
+        height: Math.round(box.height * 10) / 10,
+        right: Math.round(box.right),
+        fits: box.right <= de.clientWidth + 1,
+        overflowX: getComputedStyle(el).overflowX,
+        scrolls: el.scrollWidth > el.clientWidth + 1,
+      };
+    };
+    const image = document.getElementById("wide-image");
+    return {
+      scrollWidth: de.scrollWidth,
+      clientWidth: de.clientWidth,
+      image: at("wide-image"),
+      imageLoaded: Boolean(image?.complete && image.naturalWidth > 0),
+      imageNatural: image ? [image.naturalWidth, image.naturalHeight] : null,
+      contentWide: at("content-wide"),
+      declaredWide: at("declared-wide"),
+    };
+  });
+  await context.close();
+  return seen;
+}
+
+test("a carried image wider than the page is drawn inside it, ratio kept", async (t) => {
+  if (skip) return t.skip(skip);
+  const seen = await measureWide();
+  assert.ok(seen.imageLoaded, "the banner did not load, so nothing was measured");
+  assert.deepEqual(seen.imageNatural, [1200, 300], "the banner is not the size the case assumes");
+  assert.ok(
+    seen.image.fits,
+    `the image reaches ${seen.image.right}px in a ${seen.clientWidth}px page`
+  );
+  // 1200x300 drawn at 374 wide is 93.5 tall. A contained image that lost its
+  // ratio would pass the assertion above and look wrong.
+  assert.equal(Math.round((seen.image.width / seen.image.height) * 100), 400);
+});
+
+test("a carried table that declared a width wider than the page is clamped", async (t) => {
+  if (skip) return t.skip(skip);
+  const seen = await measureWide();
+  assert.ok(
+    seen.declaredWide.fits,
+    `the 800px table reaches ${seen.declaredWide.right}px in a ${seen.clientWidth}px page`
+  );
+});
+
+// The one the found issue was opened for. A table's used width is never lower
+// than its min-content width and `max-width` does not lower that, so the rule
+// as first written left the table at 413.6 in a 374 column and the page at 422.
+// Measured at this viewport on 2026.11.11:
+//
+//   max-width: 100%                           table 413.6  page 422  scrolls
+//   display: block; overflow-x: auto          table 374    page 390  fits
+//   table-layout: fixed; width: 100%          table 374    page 390  fits
+//   max-width: 100%; overflow-x: auto         table 413.6  page 422  scrolls
+//
+// The second was taken, for the reason the listing rule was taken over
+// `white-space: pre-wrap`: the element scrolls itself and no cell is re-laid
+// out. The fourth is the one that looks like the fix and is not - a
+// `display: table` box ignores `overflow`. `width: fit-content` was added to
+// the second on 2026.11.12, after the case below it measured what the block box
+// did to the tables that already fitted.
+test("a carried table made wide by its own content scrolls itself, not the page", async (t) => {
+  if (skip) return t.skip(skip);
+  const seen = await measureWide();
+  assert.ok(
+    seen.contentWide.fits,
+    `the content-wide table reaches ${seen.contentWide.right}px in a ${seen.clientWidth}px page`
+  );
+  assert.equal(
+    seen.scrollWidth,
+    seen.clientWidth,
+    `the page measures ${seen.scrollWidth} against a client width of ${seen.clientWidth}`
+  );
+  // The page fitting is the finding; the table scrolling itself is how, and it
+  // is the half that tells this apart from a table whose columns were reflowed
+  // to fit - which would pass the two assertions above and change what the
+  // carried material looks like.
+  assert.equal(seen.contentWide.overflowX, "auto", "the table is not a box that scrolls");
+  assert.ok(seen.contentWide.scrolls, "the table fits its own box, so nothing was contained");
+});
+
+// The cost of the table rule on the tables that already fitted, which is the
+// question the measurement had to answer before the rule could be accepted: a
+// `<table>` at `display: block` is no longer a table box, and a block box fills
+// its container where a table box shrinks to fit. The fixture carries two
+// tables, one on `docs/configuration.html` and one on
+// `tutorial/reading-data.html`, so `docs.html`, `tutorial.html` and the master
+// page are where they land. Neither needs containing at either width, which is
+// what makes them the right thing to watch - a rule that reached a table it had
+// no business reaching shows up here and nowhere else, and this is how
+// `width: fit-content` came to be in the rule: without it both went from 439.1
+// and 512.1 wide at 1280px to 1264.
+//
+// **The stretch is asserted against the table's own content and not against a
+// figure.** 439.1 is a font measurement on one machine, so the case asks the
+// engine instead: the drawn width is compared with the same table at
+// `width: max-content`, which is what a table box would have shrunk to. Equal
+// means shrink to fit; wider means the rule stretched it.
+test("a carried table that already fitted is left the width its content wants", async (t) => {
+  if (skip) return t.skip(skip);
+  let measured = 0;
+  for (const width of [390, 1280]) {
+    for (const name of PAGES) {
+      const context = await browser.newContext({ viewport: { width, height: 844 } });
+      const page = await context.newPage();
+      await page.goto(`${site.base}${generated(name)}`, { waitUntil: "load" });
+      const tables = await page.evaluate(() => {
+        const de = document.documentElement;
+        return [...document.querySelectorAll("[data-cheatsheet-block] table")].map((table) => {
+          const box = table.getBoundingClientRect();
+          const was = table.style.width;
+          table.style.width = "max-content";
+          const wanted = table.getBoundingClientRect().width;
+          table.style.width = was;
+          return {
+            width: Math.round(box.width * 10) / 10,
+            wanted: Math.round(wanted * 10) / 10,
+            fits: box.right <= de.clientWidth + 1,
+            scrolls: table.scrollWidth > table.clientWidth + 1,
+            caption: Boolean(table.querySelector("caption")),
+            rows: table.querySelectorAll("tr").length,
+          };
+        });
+      });
+      await context.close();
+      measured += tables.length;
+      for (const table of tables) {
+        assert.ok(
+          table.fits,
+          `${name} at ${width}px: a fixture table is drawn ${table.width}px wide`
+        );
+        assert.ok(
+          !table.scrolls,
+          `${name} at ${width}px: a fixture table that fitted before now scrolls itself at ${table.width}px`
+        );
+        assert.ok(
+          table.width <= table.wanted + 1,
+          `${name} at ${width}px: a fixture table was stretched to ${table.width}px, ` +
+            `past the ${table.wanted}px its content wants`
+        );
+        // Two things `display: block` could have taken away, and the two a
+        // reader of the carried record would notice first.
+        assert.ok(table.caption, `${name} at ${width}px: a fixture table lost its caption`);
+        assert.ok(table.rows > 1, `${name} at ${width}px: a fixture table lost its rows`);
+      }
+    }
+  }
+  assert.ok(measured > 0, "the fixture carried no table to measure, so nothing was watched");
+});
+
+// The found issue of 2026.11.11, closed 2026.11.12: carried material's relative
+// URLs were carried byte for byte onto a page in another folder, so an image
+// beside the source page and a link to its sibling both 404'd, and only a root
+// relative path survived. `tools/test-cheatsheet-site.mjs` asserts what each
+// shape becomes; this asserts the thing only a browser can - that **nothing the
+// generated page asks for comes back 404** - which is the case that would have
+// caught the defect on its own, whichever of the three remedies had been taken.
+test("nothing a generated page asks for is missing, carried URLs included", async (t) => {
+  if (skip) return t.skip(skip);
+  const { context, page, errors } = await openOn(carried, `/${OUTPUT_NAME}/guide.html`);
+  const asked = await page.evaluate(() => {
+    const at = (id) => {
+      const image = document.getElementById(id);
+      return image === null
+        ? null
+        : { src: image.getAttribute("src"), loaded: Boolean(image.complete && image.naturalWidth > 0) };
+    };
+    const sibling = document.getElementById("sibling");
+    return {
+      badge: at("badge"),
+      logo: at("logo"),
+      rooted: at("rooted"),
+      sibling: sibling?.getAttribute("href") ?? null,
+      // What the browser would actually fetch, which is the question: a URL
+      // relative to the wrong folder reads fine in the markup.
+      siblingResolved: sibling === null ? null : new URL(sibling.href).pathname,
+    };
+  });
+  // Every response, which is where a carried URL pointing at nothing shows up.
+  assert.deepEqual(errors, [], `the generated page asked for something missing: ${errors.join("; ")}`);
+  // The three images, each a different shape of URL, each drawn.
+  assert.ok(asked.badge?.loaded, `the badge beside the source page did not load from ${asked.badge?.src}`);
+  assert.ok(asked.logo?.loaded, `the logo one folder up did not load from ${asked.logo?.src}`);
+  assert.ok(asked.rooted?.loaded, `the root relative logo did not load from ${asked.rooted?.src}`);
+  // The root relative one is the one that worked before the rewrite, so it is
+  // the one that proves the rewrite left it alone.
+  assert.equal(asked.rooted.src, "/logo.svg");
+  // And the sibling link resolves to the page the site owner wrote it on,
+  // rather than to a name beside the generated page.
+  assert.equal(asked.siblingResolved, "/guide/reading-it.html");
+  await context.close();
 });
 
 // ## 2. The section a loaded page builds

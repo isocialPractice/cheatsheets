@@ -37,6 +37,24 @@ const PAGES = readdirSync(docs)
   .sort();
 const SOURCE = new Map(PAGES.map((name) => [name, read("docs", name)]));
 
+/**
+ * A page with its code examples blanked out, for the two link cases.
+ *
+ * Both of those scan the raw source for `href="..."` and `src="..."`, which is
+ * what keeps them dependency free - and what made them wrong the first time a
+ * page documented markup that carries one. `docs/generating-from-a-site.html`
+ * shows what a carried `<img src="badge.svg">` is rewritten to, escaped inside
+ * a `<pre>`, and the scan read it as a link to a file beside the page.
+ *
+ * Blanked rather than skipped so that every offset after an example still lines
+ * up with the source, and so an example is never mistaken for a link: nothing
+ * on this site links from inside a listing, and a listing is the one place a
+ * documentation page writes somebody else's markup.
+ */
+const prose = (html) => html.replace(/<pre[\s\S]*?<\/pre>/g, (block) => block.replace(/[^\n]/g, " "));
+
+const PROSE = new Map(PAGES.map((name) => [name, prose(SOURCE.get(name))]));
+
 // The menu is one element with a known id, so it is lifted by its boundaries
 // rather than parsed. `aria-current` is the one attribute a page writes into
 // its own copy, so comparing copies means normalising it away first.
@@ -96,7 +114,7 @@ test("the menu reaches the page the site documents", () => {
 });
 
 test("every relative link resolves to a file in the repository", () => {
-  for (const [name, html] of SOURCE) {
+  for (const [name, html] of PROSE) {
     for (const [, href] of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
       if (/^(?:https?:|mailto:|#)/.test(href)) continue;
       const [path] = href.split("#");
@@ -111,11 +129,11 @@ test("every relative link resolves to a file in the repository", () => {
 });
 
 test("every fragment a page links to is an id that page carries", () => {
-  for (const [name, html] of SOURCE) {
+  for (const [name, html] of PROSE) {
     for (const [, href] of html.matchAll(/href="(#[^"]+)"/g)) {
       const id = href.slice(1);
       assert.match(
-        html,
+        SOURCE.get(name),
         new RegExp(`id="${id}"`),
         `docs/${name} links "${href}", and carries no element with that id`
       );

@@ -54,6 +54,17 @@
 test moves. Nothing has to be installed first: cases that need a browser skip
 with the install command as their reason.</p>
 
+<p><strong>It finds them in working folders too.</strong> Node reads no
+<code>.gitignore</code>, and its default patterns only skip a folder whose name
+starts with a dot - so a git-ignored folder holding something named like a test
+is swept along with the repository's own. Two cases in
+<code>tools/test-suite-invocation.mjs</code> watch for exactly that and name the
+files, because the symptom on its own is a suite that went red with nothing in
+the repository changed. If they fail, read what they name before reading
+anything else: in November 2026 it was 38 test files inside an installed
+browser extension, in a tool's working folder, and the fix was the tool's
+rather than this repository's.</p>
+
 <h2>The two checks the workflow runs first</h2>
 
 <pre><code>node tools/build-manifest.mjs --check

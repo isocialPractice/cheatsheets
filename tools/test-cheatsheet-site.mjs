@@ -8,7 +8,7 @@
 // collected by any later run of the tool against this folder, and this
 // repository is not a site the tool is for.
 //
-// Ten questions are asked, one per item the file closes.
+// Twelve questions are asked, one per item the file closes.
 //
 //   1. **Does the collector read the markup a site actually writes?** Not the
 //      markup a test would write to be easy - nested elements of the same name,
@@ -71,6 +71,16 @@
 //      makes. With the two things embedding a composition in somebody's page
 //      raised: a page holding several needs several ids, and a cheatsheet with
 //      nothing a sheet can set gets no figure rather than an empty one.
+//  12. **Does a relative URL in carried material still point at what it
+//      pointed at?** The material is collected out of a page in one folder and
+//      written onto a page in another, so every relative `src`, `href`,
+//      `srcset` and `poster` in it means something different where it lands.
+//      The cases are the shapes a site actually writes: a sibling file, a
+//      sibling page, a walk upwards, a root relative path that was already
+//      right, an absolute URL, a bare fragment, a query carried with a path, a
+//      folder with its trailing separator - and the three places a rewrite must
+//      not reach, which are a comment, a script's body, and an attribute whose
+//      value merely contains the text of one.
 //
 // Run with: node --test tools/test-cheatsheet-site.mjs
 import { test } from "node:test";
@@ -84,6 +94,8 @@ import { renderSVG, withoutLinks } from "../api/cheatsheet/index.mjs";
 
 import {
   attributeValue,
+  carriedUrlFindings,
+  carryUrls,
   cheatsheets,
   collectMarked,
   collectSite,
@@ -843,10 +855,21 @@ test("a generated page carries the one style block it needs, scoped to its own b
       assert.ok(head.includes("<style>"), `${where}: the head carries no style block`);
       assert.ok(head.includes("</style>"), `${where}: the style block is left open`);
       const rules = head.slice(head.indexOf("<style>") + "<style>".length, head.indexOf("</style>"));
-      // The rule that closes the issue, and the two that are the same defect
-      // arriving from the other elements that carry an intrinsic width.
+      // The rule that closes the issue, and the two for the elements that
+      // arrive wider than the page for their own reasons.
       assert.match(rules, /\[data-cheatsheet-block\] pre \{ overflow-x: auto; \}/, `${where}: no rule scrolls a wide listing`);
-      assert.match(rules, /\[data-cheatsheet-block\] img,\n\[data-cheatsheet-block\] table \{ max-width: 100%; \}/, `${where}: no rule contains a wide image or table`);
+      assert.match(rules, /\[data-cheatsheet-block\] img \{ max-width: 100%; \}/, `${where}: no rule contains a wide image`);
+      // A table is contained the way the listing is and not the way the image
+      // is, because `max-width` does not lower a min-content width - so the
+      // declaration that matters is `display: block`, and asserting
+      // `max-width` alone would pass on the rule that measured as doing
+      // nothing. See `BLOCK_STYLE`, and the browser measurement in
+      // `tools/test-site-pages-browser.mjs`.
+      assert.match(
+        rules,
+        /\[data-cheatsheet-block\] table \{ max-width: 100%; width: fit-content; display: block; overflow-x: auto; \}/,
+        `${where}: no rule contains a table that is wide because of its own content`
+      );
       // **Every selector is scoped**, which is asserted as a count rather than
       // as the presence of the three that are known: an unscoped selector added
       // later would reach the owner's own markup on a page they keep, and that
@@ -880,6 +903,179 @@ test("a generated page carries the one style block it needs, scoped to its own b
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// ## 12. A relative URL in carried material
+//
+// The found issue of 2026.11.11, closed on 2026.11.12. A page at
+// `guide/using-it.html` carrying `<img src="badge.svg">` was collected into
+// `cheatsheets/guide.html` and the attribute carried byte for byte, so the
+// browser asked for `cheatsheets/badge.svg` and got a 404 - and only a root
+// relative `/badge.svg` survived the carry at all. The text half is here; the
+// half that proves nothing on a generated page 404s is a browser case in
+// `tools/test-site-pages-browser.mjs`.
+
+test("a relative URL in carried material is walked from the generated page", () => {
+  // Every shape a site writes, from one page one folder down, onto one
+  // generated page one folder down - which is the ordinary layout and the one
+  // the defect was measured on.
+  const from = "guide/using-it.html";
+  const onto = `${OUTPUT_NAME}/guide.html`;
+  const carried = (markup) => carryUrls(markup, from, onto);
+
+  // A sibling file and a sibling page: the two the defect was reported for.
+  assert.equal(carried('<img src="badge.svg">'), '<img src="../guide/badge.svg">');
+  assert.equal(carried('<a href="reading-it.html">x</a>'), '<a href="../guide/reading-it.html">x</a>');
+  // A walk upwards resolves first and is then walked back, so a link to the
+  // site root's own page comes out as one `..` and not as two.
+  assert.equal(carried('<a href="../index.html">x</a>'), '<a href="../index.html">x</a>');
+  // The four that are already right, or are not ours to touch.
+  assert.equal(carried('<img src="/badge.svg">'), '<img src="/badge.svg">');
+  assert.equal(carried('<a href="https://example.com/x">x</a>'), '<a href="https://example.com/x">x</a>');
+  assert.equal(carried('<a href="//example.com/x">x</a>'), '<a href="//example.com/x">x</a>');
+  assert.equal(carried('<a href="mailto:jane.doe@example.com">x</a>'), '<a href="mailto:jane.doe@example.com">x</a>');
+  // A fragment points inside whichever page carries it, so it still means what
+  // it meant. An empty value and a bare query mean the carrying page and are
+  // the gap `relativeUrl` records rather than guessing at.
+  assert.equal(carried('<a href="#top">x</a>'), '<a href="#top">x</a>');
+  assert.equal(carried('<a href="">x</a>'), '<a href="">x</a>');
+  // The query and the fragment belong to the site and ride along untouched.
+  assert.equal(carried('<img src="badge.svg?v=2#x">'), '<img src="../guide/badge.svg?v=2#x">');
+  // A path naming a folder keeps its separator, or the browser asks for a file
+  // where it asked for an index.
+  assert.equal(carried('<a href="sub/">x</a>'), '<a href="../guide/sub/">x</a>');
+  // `poster`, and a `src` on a void element nested inside another.
+  assert.equal(
+    carried('<video poster="shot.jpg"><source src="clip.mp4"></video>'),
+    '<video poster="../guide/shot.jpg"><source src="../guide/clip.mp4"></video>'
+  );
+  // Every candidate of a `srcset`, each keeping its descriptor.
+  assert.equal(
+    carried('<img srcset="small.png 1x, large.png 2x" src="small.png">'),
+    '<img srcset="../guide/small.png 1x, ../guide/large.png 2x" src="../guide/small.png">'
+  );
+  // The quoting the site chose is the quoting that goes back, including none.
+  assert.equal(carried("<a href=sibling.html>x</a>"), "<a href=../guide/sibling.html>x</a>");
+  assert.equal(carried("<a href='sibling.html'>x</a>"), "<a href='../guide/sibling.html'>x</a>");
+  // A self-closing tag, and a page two folders down.
+  assert.equal(
+    carryUrls('<img src="icon.svg" />', "guide/api/nav.html", onto),
+    '<img src="../guide/api/icon.svg" />'
+  );
+});
+
+test("a rewrite reaches a start tag and nothing that only looks like one", () => {
+  const from = "guide/using-it.html";
+  const onto = `${OUTPUT_NAME}/guide.html`;
+  const carried = (markup) => carryUrls(markup, from, onto);
+
+  // An attribute whose value contains the text of another is the case a pattern
+  // gets wrong and a scan gets right - rewriting inside it corrupts a site
+  // owner's own prose.
+  assert.equal(carried('<div title="see href=x">t</div>'), '<div title="see href=x">t</div>');
+  assert.equal(carried('<div data-note="src=badge.svg">t</div>'), '<div data-note="src=badge.svg">t</div>');
+  // A comment's text is not markup.
+  assert.equal(carried('<!-- <img src="old.svg"> -->'), '<!-- <img src="old.svg"> -->');
+  // A script's own `src` is a URL and is rewritten; what the script says is
+  // the script's, and a tag built in a string is text until it runs.
+  assert.equal(
+    carried('<script src="draw.js">var s = \'<img src="x.svg">\';</script>'),
+    '<script src="../guide/draw.js">var s = \'<img src="x.svg">\';</script>'
+  );
+  // The two attributes deliberately left out, because rewriting either does
+  // more than move a URL - see `URL_ATTRIBUTES`.
+  assert.equal(carried('<form action="search"></form>'), '<form action="search"></form>');
+  assert.equal(carried('<base href="/guide/">'), '<base href="/guide/">');
+  // A closing tag carries no attributes and is not read as if it did.
+  assert.equal(carried("<p>text</p>"), "<p>text</p>");
+});
+
+test("a URL that was already leaving the site is left exactly as it was", () => {
+  // A path that walks above the site root has no site relative form, so there
+  // is nothing to rewrite it into and guessing would turn a link that worked on
+  // the site into one that works nowhere.
+  assert.equal(
+    carryUrls('<a href="../../outside.html">x</a>', "guide/using-it.html", `${OUTPUT_NAME}/guide.html`),
+    '<a href="../../outside.html">x</a>'
+  );
+});
+
+test("a URL already inside the generated folder is carried unchanged", () => {
+  // The case that says the walk is a walk and not a prefix: a page the site
+  // keeps inside the folder this tool resolved, carrying a sibling of the
+  // generated page, comes out with the same relative URL it went in with.
+  assert.equal(
+    carryUrls('<img src="inside.svg">', `${OUTPUT_NAME}/kept.html`, `${OUTPUT_NAME}/kept.html`),
+    '<img src="inside.svg">'
+  );
+});
+
+test("the output folder at the site root leaves a root page's URLs alone", () => {
+  // `--out .` puts the generated pages beside the site's own, so a page at the
+  // root and the page carrying it are in one folder and nothing moves.
+  assert.equal(carryUrls('<img src="badge.svg">', "index.html", "index.html"), '<img src="badge.svg">');
+  // And a page one folder down is still one folder away.
+  assert.equal(
+    carryUrls('<img src="badge.svg">', "guide/using-it.html", "guide.html"),
+    '<img src="guide/badge.svg">'
+  );
+});
+
+test("the whole carry is a run away, so a site reads its own URLs back", async () => {
+  // The two functions above, through `main`, with a server's view of it left to
+  // the browser case: a page in a folder, an image beside it, a link to its
+  // sibling, and the generated page naming both from where it actually sits.
+  const root = await site({
+    "guide/using-it.html": page("Using It", '<img src="badge.svg"><a href="reading-it.html">Next</a>'),
+    "guide/reading-it.html": page("Reading It", '<p>Plain.</p><img src="../logo.svg">'),
+  });
+  try {
+    assert.equal((await run([root])).code, 0);
+    const written = readFileSync(join(root, OUTPUT_NAME, "guide.html"), "utf8");
+    assert.ok(written.includes('src="../guide/badge.svg"'), written);
+    assert.ok(written.includes('href="../guide/reading-it.html"'), written);
+    // `../logo.svg` off `guide/reading-it.html` is `logo.svg` at the root, and
+    // from `cheatsheets/guide.html` that is one `..` and not two.
+    assert.ok(written.includes('src="../logo.svg"'), written);
+    // Not one copy of what was written, which is the whole of the defect.
+    assert.ok(!written.includes('src="badge.svg"'), written);
+    // The master page carries the same material and therefore the same answer.
+    const master = readFileSync(join(root, OUTPUT_NAME, MASTER_NAME), "utf8");
+    assert.ok(master.includes('src="../guide/badge.svg"'), master);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("an output folder outside the site reports the URLs it could not rewrite", async () => {
+  // The one route where there is no answer: `--out` somewhere with no site
+  // relative form, so the material is carried as written and is broken exactly
+  // as it was before the rewrite existed. Said rather than left silent, which
+  // is what the menu's own outside-the-site refusal already does.
+  const root = await site({
+    "guide/using-it.html": page("Using It", '<img src="badge.svg"><a href="reading-it.html">Next</a>'),
+  });
+  try {
+    const pages = await collectSite(root);
+    assert.deepEqual(carriedUrlFindings(pages, OUTPUT_NAME), []);
+    const findings = carriedUrlFindings(pages, "../beside");
+    assert.equal(findings.length, 1, findings.join("\n"));
+    assert.match(findings[0], /^guide\/using-it\.html: /);
+    assert.match(findings[0], /not inside the site/);
+    assert.match(findings[0], /2 relative URLs/);
+    assert.match(findings[0], /badge\.svg/);
+    // And a site whose material carries no relative URL has nothing to report,
+    // whatever the folder is.
+    const plain = await site({ "x.html": page("X", '<img src="/root.svg"><pre>code</pre>') });
+    try {
+      assert.deepEqual(carriedUrlFindings(await collectSite(plain), "../beside"), []);
+    } finally {
+      await rm(plain, { recursive: true, force: true });
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("a heading out of a title is escaped, because a title is text and not markup", async () => {
   const root = await site({ "x.html": page("Arrays &amp; <b>Objects</b>", "<p>a</p>") });
   try {
@@ -3467,10 +3663,14 @@ test("material a sheet cannot be set from gets no figure, and keeps its markup",
     assert.equal(siteDocument(sheet), null);
     const markup = renderCheatsheet(sheet);
     assert.ok(!markup.includes("<svg"), markup);
-    // The page is still written and still carries what the site marked.
-    assert.ok(markup.includes('<img src="chart.png" alt="">'), markup);
+    // The page is still written and still carries what the site marked, with
+    // the one thing a carry does not leave alone: a relative URL was relative
+    // to the site root and the generated page is a folder down from it.
+    assert.ok(markup.includes('<img src="../chart.png" alt="">'), markup);
     assert.equal((await run([root])).code, 0);
-    assert.ok(readFileSync(join(root, OUTPUT_NAME, "index.html"), "utf8").includes("chart.png"));
+    assert.ok(
+      readFileSync(join(root, OUTPUT_NAME, "index.html"), "utf8").includes('src="../chart.png"')
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

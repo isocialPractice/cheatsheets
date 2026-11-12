@@ -426,10 +426,44 @@ export const GENERATOR = "cheatsheet-site";
  * - **`pre { overflow-x: auto }`** is the rule that closes the issue, and it is
  *   the one `docs/docs.css` already proves on this repository's own pages: a
  *   wide listing scrolls itself rather than scrolling the document.
- * - **`img` and `table` at `max-width: 100%`** are the same defect from the two
- *   other elements that carry an intrinsic width. Neither was exercised by the
- *   fixture, and waiting for a second report of a page that scrolls sideways is
- *   waiting to be told something already known.
+ * - **`img { max-width: 100% }`** is the same defect from an element that
+ *   carries an **intrinsic width**: a 1200 wide banner is drawn 1200 wide and
+ *   clamping it is enough, because nothing about the element resists the clamp.
+ *   Measured 2026.11.11 at 390px: drawn 1200 before the rule and 374 after it,
+ *   its ratio kept.
+ * - **`table` is wide for a different reason, and `max-width` alone does not
+ *   answer it.** A table's used width is never lower than its **min-content**
+ *   width - the sum of each column's longest unbreakable run - and `max-width`
+ *   does not lower that. So the rule computes, `getComputedStyle` reading
+ *   `100%`, and changes nothing: a seven column table made wide by its own
+ *   content stayed at 413.6 in a 374 column and the page still scrolled
+ *   sideways, measured 2026.11.11, which is the found issue that followed the
+ *   one this block was written for. It is contained the way the listing is
+ *   instead, by scrolling itself - `display: block` makes it a box that
+ *   `overflow-x` reaches, which a `display: table` box is not, and that is why
+ *   adding `overflow-x` beside `max-width` measured as doing nothing at all.
+ *
+ * **What `display: block` costs**, since it is not free: a `<table>` at
+ * `display: block` stops being a table box, so `<caption>`, `<thead>` and the
+ * column sizing algorithm no longer apply the way they do on one. It was
+ * accepted because the alternative that also contains the table -
+ * `table-layout: fixed; width: 100%` - reflows every column to an equal share,
+ * which changes what the carried material looks like on a page whose whole
+ * premise is that the material is the record a reader goes to when the drawn
+ * sheet has lost something. The same argument chose scrolling over
+ * `white-space: pre-wrap` for the listing.
+ *
+ * **`width: fit-content` is what keeps that cost to the tables that need
+ * containing**, and it was measured rather than reasoned. A table box shrinks
+ * to fit by default; a block box fills its container, and `max-width: 100%`
+ * does not stop that, because 100% of the container *is* the container. Without
+ * `fit-content` the two fixture tables went from 439.1 and 512.1 wide at 1280px
+ * to 1264 - every carried table stretched across the page on a desktop, for a
+ * rule that only had business reaching one too wide to fit. With it they
+ * measure 439.1 and 512.1 again, exactly as before the block, while the seven
+ * column table is still 374 in a 374 column and scrolling itself. A browser too
+ * old for `fit-content` falls back to `width: auto`, which is the stretch - the
+ * table is still contained, which is the half that mattered.
  *
  * **Not `white-space: pre-wrap`**, which would be the smaller change and the
  * wrong one. A line break inserted into a carried listing changes what the
@@ -441,6 +475,21 @@ export const GENERATOR = "cheatsheet-site";
  * as the belt to these braces and does nothing: the block is a child of
  * `<body>` at `width: auto` and is already exactly the page's width, so the
  * element that has to be contained is always the carried one inside it.
+ *
+ * **No `tabindex` on either box that scrolls, and that is a decision rather
+ * than an oversight.** A scrollable region with no focusable child inside it is
+ * reachable from a keyboard only where the browser makes scroll containers
+ * focusable itself, and the usual remedy - `tabindex="0"` with an accessible
+ * name - is two things this tool cannot do: an attribute written into a site
+ * owner's own element, and a name invented for material it only read. It would
+ * also be written onto every carried listing and table rather than onto the
+ * ones that actually scroll, since whether a box overflows is a layout result
+ * and not something a generated file knows. So the rule relies on the browser's
+ * own behaviour, and a site owner who needs more has the two levers that always
+ * win here: their own CSS after this block, and their own markup, which this
+ * tool carries rather than rewrites. The listing rule shipped in
+ * `1.0.0-alpha.1.8.1` with the same constraint and without saying so, which is
+ * the gap this paragraph closes for both.
  */
 export const BLOCK_STYLE = [
   `<!-- Written by ${GENERATOR}. These rules keep the carried material below`,
@@ -448,8 +497,8 @@ export const BLOCK_STYLE = [
   "     this tool wrote, and anything the site adds after them overrides them. -->",
   "<style>",
   `[${CHEATSHEET_BLOCK}] pre { overflow-x: auto; }`,
-  `[${CHEATSHEET_BLOCK}] img,`,
-  `[${CHEATSHEET_BLOCK}] table { max-width: 100%; }`,
+  `[${CHEATSHEET_BLOCK}] img { max-width: 100%; }`,
+  `[${CHEATSHEET_BLOCK}] table { max-width: 100%; width: fit-content; display: block; overflow-x: auto; }`,
   "</style>",
 ];
 
@@ -2254,10 +2303,11 @@ export function pageFilename(page) {
  * shape on the day a second one arrived.
  *
  * @param {Cheatsheet} sheet
+ * @param {string} [where] The output folder, site relative, for {@link carryUrls}.
  * @returns {string}
  */
-export function renderCheatsheet(sheet) {
-  return cheatsheetDocument(sheet.heading, sheet.pages, sheetLines(sheet, 1));
+export function renderCheatsheet(sheet, where = OUTPUT_NAME) {
+  return cheatsheetDocument(sheet.heading, sheet.pages, sheetLines(sheet, 1, where));
 }
 
 /**
@@ -2278,13 +2328,14 @@ export function renderCheatsheet(sheet) {
  * on its own.
  *
  * @param {{ heading: string, pages: SitePage[], parts: Cheatsheet[] }} master
+ * @param {string} [where] The output folder, site relative, for {@link carryUrls}.
  * @returns {string}
  */
-export function renderMaster(master) {
+export function renderMaster(master, where = OUTPUT_NAME) {
   const lines = [`<h1>${escapeHtml(master.heading)}</h1>`];
   for (const sheet of master.parts) {
     lines.push(`<section data-cheatsheet-sheet="${escapeHtml(sheet.name)}">`);
-    lines.push(...sheetLines(sheet, 2));
+    lines.push(...sheetLines(sheet, 2, where));
     lines.push("</section>");
   }
   return cheatsheetDocument(master.heading, master.pages, lines);
@@ -2349,13 +2400,27 @@ function cheatsheetDocument(heading, sources, body) {
  * same cheatsheet inside the master carry the same render of the same document
  * - the argument this function was already one function for.
  *
+ * **The output folder is a parameter because the carried markup holds URLs.**
+ * A relative `src` or `href` in a site's material is relative to the page it
+ * was written on, and this is writing it onto a page in another folder, so
+ * {@link carryUrls} needs to know which folder that is. A flat output folder
+ * means the generated page's own name changes nothing about the answer - every
+ * page in it sits at the same depth - but it is handed over rather than
+ * assumed, because the name is the one thing that would have to change if the
+ * folder ever stopped being flat.
+ *
  * @param {Cheatsheet} sheet
  * @param {number} level The level the cheatsheet's own heading is written at.
+ * @param {string} where The output folder, site relative.
  * @returns {string[]}
  */
-function sheetLines(sheet, level) {
+function sheetLines(sheet, level, where) {
   const grouped = sheet.folder !== "";
   const lines = [`<h${level}>${escapeHtml(sheet.heading)}</h${level}>`, ...sheetFigure(sheet)];
+  // The generated page, as a path a link can be walked from. An output folder
+  // outside the site has no such path, so the carry is left alone there and
+  // {@link carriedUrlFindings} is what says so.
+  const outputId = insideSite(where) ? (where === "." ? sheet.name : `${where}/${sheet.name}`) : null;
   for (const page of sheet.pages) {
     if (grouped) {
       lines.push(`<section data-cheatsheet-page="${escapeHtml(page.id)}">`);
@@ -2368,7 +2433,10 @@ function sheetLines(sheet, level) {
       lines.push(`<main ${CHEATSHEET_BLOCK}="${escapeHtml(block.tag)}">`);
       // The site's own markup, carried through rather than re-escaped: it is
       // markup, and the whole premise is that the site already published it.
-      lines.push(block.content.trim());
+      // The one thing that does not survive untouched is a relative URL, which
+      // was relative to a page in another folder - see {@link carryUrls}.
+      const carried = block.content.trim();
+      lines.push(outputId === null ? carried : carryUrls(carried, page.id, outputId));
       lines.push("</main>");
     }
     if (grouped) lines.push("</section>");
@@ -2940,10 +3008,13 @@ function masterSheet(sheets) {
  * concatenates, and a cheatsheet is its own pages.
  *
  * @param {Cheatsheet} sheet
+ * @param {string} where The output folder, site relative.
  * @returns {string}
  */
-function renderSheet(sheet) {
-  return sheet.parts === undefined ? renderCheatsheet(sheet) : renderMaster(sheet);
+function renderSheet(sheet, where) {
+  return sheet.parts === undefined
+    ? renderCheatsheet(sheet, where)
+    : renderMaster(sheet, where);
 }
 
 /**
@@ -2954,18 +3025,26 @@ function renderSheet(sheet) {
  * over a site that marked nothing leaves no empty folder behind on somebody
  * else's tree.
  *
+ * **`where` is the same folder as `out`, said the other way**, and both are
+ * needed: `out` is where this process writes, which may be absolute and is this
+ * machine's answer, and `where` is the folder as a page of the site names it,
+ * which is what a URL carried onto a generated page has to be walked from. A
+ * caller that does not name one means the folder the ladder resolves first,
+ * which is what every caller but {@link main} is doing.
+ *
  * @param {SitePage[]} pages
  * @param {string} out The resolved output folder.
+ * @param {string} [where] The same folder, site relative, as {@link main} measured it.
  * @returns {Promise<Array<{ name: string, path: string, sources: string[], blocks: number }>>}
  */
-export async function writePages(pages, out) {
+export async function writePages(pages, out, where = OUTPUT_NAME) {
   const written = [];
   const sheets = pagesToWrite(pages);
   if (sheets.length === 0) return written;
   await mkdir(out, { recursive: true });
   for (const sheet of sheets) {
     const path = join(out, sheet.name);
-    await writeFile(path, renderSheet(sheet), "utf8");
+    await writeFile(path, renderSheet(sheet, where), "utf8");
     written.push({
       name: sheet.name,
       path,
@@ -3132,6 +3211,333 @@ export function linkFrom(pageId, target) {
  */
 function insideSite(where) {
   return !(isAbsolute(where) || where === ".." || where.startsWith("../"));
+}
+
+/**
+ * The attributes of carried material that hold one URL each.
+ *
+ * The four the found issue named, and no more. An attribute nobody has met is a
+ * guess, and two of the guesses are worse than a gap: a carried
+ * `<form action="search">` rewritten points a form on a page the site owner did
+ * not write at a handler they did not expect, and a carried
+ * `<base href="...">` rewritten changes how every other URL on the generated
+ * page resolves rather than one of them. Both are refused by not being here.
+ */
+const URL_ATTRIBUTES = ["src", "href", "poster"];
+
+/** The one attribute whose value is a list of URL and descriptor pairs. */
+const URL_SET_ATTRIBUTE = "srcset";
+
+/**
+ * One start tag's attributes, as names and the offsets of their values.
+ *
+ * Scanned rather than matched, for the reason {@link startTagAt} is: a pattern
+ * looking for `\shref\s*=` finds one inside `<div title="see href=x">` and
+ * rewriting there corrupts a site owner's own text. Walking the tag means an
+ * attribute is only an attribute where the cursor is between them.
+ *
+ * A value's offsets are `-1` where the attribute was written without one, which
+ * is a real state and not an empty string: `<img src>` says nothing to resolve.
+ *
+ * @param {string} tag A whole start tag, `<` to `>`.
+ * @returns {Array<{ name: string, from: number, to: number, quote: string }>}
+ */
+function tagAttributes(tag) {
+  /** @type {Array<{ name: string, from: number, to: number, quote: string }>} */
+  const found = [];
+  let at = 1;
+  // The element name, which is not an attribute and ends at the first thing
+  // that could start one.
+  while (at < tag.length && !/[\s/>]/.test(tag[at])) at += 1;
+  while (at < tag.length) {
+    // A `/` between attributes is legal and is not part of a name, which is
+    // what keeps `<img src="x" />` reading as one attribute rather than two.
+    while (at < tag.length && /[\s/]/.test(tag[at])) at += 1;
+    if (at >= tag.length || tag[at] === ">") break;
+    const nameFrom = at;
+    while (at < tag.length && !/[\s=/>]/.test(tag[at])) at += 1;
+    const name = tag.slice(nameFrom, at).toLowerCase();
+    if (name === "") {
+      at += 1;
+      continue;
+    }
+    let after = at;
+    while (after < tag.length && /\s/.test(tag[after])) after += 1;
+    if (tag[after] !== "=") {
+      found.push({ name, from: -1, to: -1, quote: "" });
+      continue;
+    }
+    at = after + 1;
+    while (at < tag.length && /\s/.test(tag[at])) at += 1;
+    const quote = tag[at] === '"' || tag[at] === "'" ? tag[at] : "";
+    if (quote !== "") {
+      at += 1;
+      const from = at;
+      while (at < tag.length && tag[at] !== quote) at += 1;
+      found.push({ name, from, to: at, quote });
+      at += 1;
+      continue;
+    }
+    const from = at;
+    while (at < tag.length && !/[\s>]/.test(tag[at])) at += 1;
+    found.push({ name, from, to: at, quote });
+  }
+  return found;
+}
+
+/**
+ * Whether a URL means anything to resolve against the page it was written on.
+ *
+ * Four shapes are left exactly as the site wrote them, and each for its own
+ * reason: a scheme (`https:`, `mailto:`, `data:`) is already absolute, `//host`
+ * is absolute but for the scheme, a leading `/` is already relative to the site
+ * root and therefore already right on the generated page, and an empty path is
+ * a bare query or fragment.
+ *
+ * **That last one is the known gap**, rather than a case that resolves to
+ * nothing: `href="#top"` on the generated page points inside the generated page
+ * and is still what a reader wants, but `href="?q=1"` meant the page it was
+ * written on and now means the page carrying it. Rewriting it would mean
+ * writing a link to the source page, which is a link this tool has never
+ * written and a decision wider than this one. It is left as it was and said
+ * here rather than silently handled wrongly.
+ *
+ * @param {string} path The value with any query and fragment already split off.
+ * @returns {boolean}
+ */
+function relativeUrl(path) {
+  if (path === "") return false;
+  if (path.startsWith("/")) return false;
+  return !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(path);
+}
+
+/**
+ * A URL written on one page of a site, as a path relative to the site root.
+ *
+ * `""` is the site root itself, which `../` from a page one folder down means.
+ * `null` is a path that walks above the root - a link that was already leaving
+ * the site, and has no site relative form to rewrite into.
+ *
+ * The trailing separator is not carried here: a site relative path is a path,
+ * and whether it named a folder is {@link carriedUrl}'s to put back, after
+ * {@link linkFrom} has walked it.
+ *
+ * @param {string} pageId The page it was written on, site relative.
+ * @param {string} path A relative URL off that page.
+ * @returns {string | null}
+ */
+function resolveOnPage(pageId, path) {
+  const segments = pageId.split("/").slice(0, -1);
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (segments.length === 0) return null;
+      segments.pop();
+      continue;
+    }
+    segments.push(part);
+  }
+  return segments.join("/");
+}
+
+/**
+ * One carried URL, rewritten to point from the generated page at what it meant.
+ *
+ * The value, unchanged, where there is nothing to do - which is most values.
+ *
+ * @param {string} value The attribute's value as the site wrote it.
+ * @param {string} pageId The page it was written on, site relative.
+ * @param {string} outputId The generated page it is being carried onto, site relative.
+ * @returns {string}
+ */
+function carriedUrl(value, pageId, outputId) {
+  // The query and the fragment are the site's and are carried untouched; only
+  // the path in front of them resolves against a folder.
+  const split = /^([^?#]*)([?#][\s\S]*)?$/.exec(value);
+  if (split === null) return value;
+  const [, path, rest = ""] = split;
+  if (!relativeUrl(path)) return value;
+  const target = resolveOnPage(pageId, path);
+  if (target === null) return value;
+  // A path naming a folder keeps its trailing separator. Without it the browser
+  // asks for a file where it asked for a folder's index, which is a different
+  // request even on a server that redirects between the two.
+  const folder = path.endsWith("/") || /(^|\/)\.{1,2}$/.test(path);
+  const walked = linkFrom(outputId, target);
+  const link = walked === "" ? "./" : folder && !walked.endsWith("/") ? `${walked}/` : walked;
+  return `${link}${rest}`;
+}
+
+/**
+ * A `srcset` value, each of its candidates rewritten.
+ *
+ * Split on the commas that end a candidate rather than on every comma, because
+ * a URL may hold one: `image.webp 2x, photo,wide.jpg 800w` is two candidates
+ * and splitting naively makes three. A candidate's URL runs to the first space,
+ * so the comma that matters is the one after a descriptor or after a URL with
+ * no descriptor - which is the comma not inside the first run of non-space
+ * characters.
+ *
+ * @param {string} value
+ * @param {string} pageId
+ * @param {string} outputId
+ * @returns {string}
+ */
+function carriedUrlSet(value, pageId, outputId) {
+  return value
+    .split(/\s*,\s*(?=[^,\s]*(?:\s|$))/)
+    .map((candidate) => {
+      const match = /^(\s*)(\S+)([\s\S]*)$/.exec(candidate);
+      if (match === null) return candidate;
+      const [, before, url, after] = match;
+      return `${before}${carriedUrl(url, pageId, outputId)}${after}`;
+    })
+    .join(", ");
+}
+
+/**
+ * Carried material with every relative URL in it pointing where it pointed.
+ *
+ * **The defect this closes.** A page at `guide/using-it.html` carrying
+ * `<img src="badge.svg">` is collected into `cheatsheets/guide.html`, and until
+ * 2026.11.12 the attribute was carried byte for byte - so the browser asked for
+ * `cheatsheets/badge.svg` and got a 404. The same held for a link to a sibling
+ * page, and for every carried image on every site whose material is not written
+ * with root relative URLs. Only `/badge.svg` survived the carry, which is a
+ * thing the documentation never said and a site owner had no way to know.
+ *
+ * **The tool already knew the hazard by name and only half said it.**
+ * {@link menuProblem}'s `nested` case refuses to fill a menu inside marked
+ * material, because "a menu written there is collected onto the generated
+ * cheatsheet by the next run, where its links are relative to the wrong page".
+ * That is this, about the links this tool writes. These are the site's own, and
+ * they were carried without a word.
+ *
+ * **Rewritten rather than refused.** Refusing the marking - the other end of
+ * what the menu does - costs a site owner the material, which on a page whose
+ * premise is that the carried markup is the record is the one thing not worth
+ * trading. {@link linkFrom} already walks two site relative paths for the menu
+ * links, so the answer was a function call away: resolve the URL against the
+ * folder the page sits in, then walk from the generated page to it.
+ *
+ * **Nothing here reaches the browser route.** `api/cheatsheet/site.mjs` builds
+ * its section inside the page that is already loaded, so a relative URL in the
+ * material is already relative to the right page and rewriting it would be the
+ * one thing that broke it.
+ *
+ * @param {string} markup One block's carried content.
+ * @param {string} pageId The page it was read from, site relative.
+ * @param {string} outputId The generated page it is written onto, site relative.
+ * @returns {string}
+ */
+export function carryUrls(markup, pageId, outputId) {
+  const ranges = opaqueRanges(markup);
+  let out = "";
+  let at = 0;
+  while (at < markup.length) {
+    const open = markup.indexOf("<", at);
+    if (open === -1) break;
+    const range = ranges.find(([start]) => start === open);
+    // A comment's text is not markup, so nothing in it is an attribute.
+    if (range !== undefined && markup.startsWith("<!--", open)) {
+      out += markup.slice(at, range[1]);
+      at = range[1];
+      continue;
+    }
+    // Inside a script or a style, and not at its start tag: a URL in a template
+    // literal is the script's to resolve, and a `<a href>` built there is text
+    // until it runs.
+    if (range === undefined && ranges.some(([start, end]) => open > start && open < end)) {
+      out += markup.slice(at, open + 1);
+      at = open + 1;
+      continue;
+    }
+    const tag = startTagAt(markup, open);
+    if (tag === null) break;
+    out += markup.slice(at, open);
+    out += rewriteTag(tag.text, pageId, outputId);
+    // A script or style start tag is handled; its body is not, and the walk
+    // resumes inside it so the branch above can skip over it.
+    at = tag.end + 1;
+  }
+  return out + markup.slice(at);
+}
+
+/**
+ * One start tag with its URL attributes rewritten, written back right to left.
+ *
+ * Right to left because every offset {@link tagAttributes} measured is into the
+ * tag as it was read, and a replacement that changes a length invalidates every
+ * offset after it.
+ *
+ * @param {string} tag
+ * @param {string} pageId
+ * @param {string} outputId
+ * @returns {string}
+ */
+function rewriteTag(tag, pageId, outputId) {
+  const wanted = tagAttributes(tag).filter(
+    (one) =>
+      one.from !== -1 &&
+      (URL_ATTRIBUTES.includes(one.name) || one.name === URL_SET_ATTRIBUTE)
+  );
+  let out = tag;
+  for (const attribute of wanted.reverse()) {
+    const value = tag.slice(attribute.from, attribute.to);
+    const written =
+      attribute.name === URL_SET_ATTRIBUTE
+        ? carriedUrlSet(value, pageId, outputId)
+        : carriedUrl(value, pageId, outputId);
+    if (written === value) continue;
+    // An unquoted value that gains nothing but path segments stays unquoted -
+    // `../` holds no character that ends one - so the quoting the site chose is
+    // the quoting that goes back.
+    out = `${out.slice(0, attribute.from)}${written}${out.slice(attribute.to)}`;
+  }
+  return out;
+}
+
+/**
+ * The run level finding for carried URLs that cannot be rewritten at all.
+ *
+ * {@link carryUrls} walks two site relative paths, and an output folder outside
+ * the site has no site relative form - so on that one route the URLs are
+ * carried as written and are broken exactly as they were before 2026.11.12.
+ * Reported rather than left silent, for the reason the menu's own
+ * outside-the-site refusal is: a site owner who passed `--out` somewhere unusual
+ * should be told what it cost rather than find the images missing.
+ *
+ * @param {SitePage[]} pages
+ * @param {string} where The output folder, site relative.
+ * @returns {string[]}
+ */
+export function carriedUrlFindings(pages, where) {
+  if (insideSite(where)) return [];
+  /** @type {string[]} */
+  const findings = [];
+  for (const page of pages) {
+    const carried = page.blocks.flatMap((block) =>
+      [...block.content.matchAll(/<[a-zA-Z][^>]*>/g)].flatMap((tag) =>
+        tagAttributes(tag[0])
+          .filter(
+            (one) =>
+              one.from !== -1 &&
+              (URL_ATTRIBUTES.includes(one.name) || one.name === URL_SET_ATTRIBUTE)
+          )
+          .map((one) => tag[0].slice(one.from, one.to))
+          .filter((value) => relativeUrl(/^[^?#]*/.exec(value)[0]))
+      )
+    );
+    if (carried.length === 0) continue;
+    findings.push(
+      `${page.id}: the output folder ${where} is not inside the site, so the ${carried.length} relative ` +
+        `URL${carried.length === 1 ? "" : "s"} in this page's marked material (${carried
+          .slice(0, 3)
+          .join(", ")}) were carried as written and will not resolve from the generated page. Pass --out a ` +
+        `folder inside the site, or let the tool resolve one.`
+    );
+  }
+  return findings;
 }
 
 /**
@@ -3446,9 +3852,14 @@ export async function main(argv) {
   const manifest = planned.length > 0 ? manifestFor(where, planned) : null;
   const menus = plannedMenus(pages, manifest, where);
   findings.push(...menus.findings);
+  // The third run level finding, and the second that needs the folder: a
+  // relative URL in carried material is rewritten to point from the generated
+  // page, and an output folder outside the site is the one route where it
+  // cannot be.
+  findings.push(...carriedUrlFindings(pages, where));
   // Nothing before this point has touched the disk, which is what makes
   // `--dry-run` the absence of three calls rather than a mode of its own.
-  const written = dry ? [] : await writePages(pages, out.path);
+  const written = dry ? [] : await writePages(pages, out.path, where);
   if (!dry && manifest !== null) await writeManifest(out.path, manifest);
   // Last, and into the site's own pages rather than the generated folder. After
   // the manifest because a menu names what the manifest records, and a run that

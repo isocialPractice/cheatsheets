@@ -88,6 +88,34 @@
 // Only the last of those three is new, and it is the one that catches the next
 // tester's record on the day it is written rather than on the day it goes red.
 //
+// ## The day it earned that, and what fixed it
+//
+// It was not the tester's record that arrived first. On 2026-11-10 a person
+// signed the social tool's browser profile in, which created
+// `mcp-todo/state/chrome/` and with it 38 `*.test.js` files belonging to an
+// installed browser extension - written for another runner, so every one of
+// them failed under `node --test`, and both guard cases failed beside them.
+// Measured 2026.11.11: `node --test tools/test-*.mjs` reported 1041 cases with
+// those two as the only failures, and the bare command added 38 failing files
+// on top of them.
+//
+// **Nothing in this repository could fix it**, which is why the invariant is
+// worth more than a rule would be. The files were inside a third-party bundle,
+// so the remedy the cases name in their own failure message - *rename each to
+// `<name>.cases.mjs`* - was not available; the folder is the tool's, and the
+// levers that would have worked (a dot in the workspace's name, or the
+// workspace moved out of the tree) are both the operator's, in a file no run
+// edits. The suite was read as `node --test tools/test-*.mjs` in the meantime
+// and the defect was queued.
+//
+// It was fixed where it belonged. The tool now keeps its profile in a per-user
+// folder outside any workspace - a profile is machine state - so on 2026.11.12
+// `find mcp-todo -name "*.test.js"` is `0` and the bare command is green again,
+// at 1053 cases with one skipped. **The invocation never changed**, and the
+// case for it never had to: what the guard cases bought was the day's notice
+// that something had walked into the tree, said in the one place a reader of a
+// red suite would look.
+//
 // Run with: node --test tools/test-suite-invocation.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
