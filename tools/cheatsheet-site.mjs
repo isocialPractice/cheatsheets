@@ -403,6 +403,26 @@ export const MASTER_NAME = "all-cheatsheets.html";
 export const GENERATOR = "cheatsheet-site";
 
 /**
+ * The attribute on the box a carried table is given to scroll in.
+ *
+ * **Not a marking, and the name is what makes sure of it.** A generated page is
+ * a page in the site owner's folder, so the next run walks over it - and an
+ * attribute this tool wrote that reads as a marking is a block collected twice.
+ * The marker scan requires the character after `data-cheatsheet` to end the
+ * attribute name, per {@link attributeCandidates}, so a `-` after it is a
+ * different attribute: `data-cheatsheet-scroll` is no more a marking than
+ * {@link MENU_MARKER} or {@link CHEATSHEET_BLOCK} is, and the browser route
+ * asks `querySelectorAll` for `[data-cheatsheet]`, which does not match a
+ * longer name either.
+ *
+ * It is an attribute rather than a class for the reason the block marker is: a
+ * class is a name a site owner's own stylesheet may already use, and a `data-`
+ * attribute is addressable from CSS without being something they can collide
+ * with by accident.
+ */
+export const SCROLL_WRAPPER = "data-cheatsheet-scroll";
+
+/**
  * The comment and the rules a generated page carries about its own layout.
  *
  * A generated page is written whole, into a folder belonging to the site owner,
@@ -414,7 +434,7 @@ export const GENERATOR = "cheatsheet-site";
  * and `all-cheatsheets.html` reported a `scrollWidth` of 494 against a
  * `clientWidth` of 390, pushed by a single carried template literal.
  *
- * **It is three rules and not a stylesheet.** The page has to keep looking like
+ * **It is four rules and not a stylesheet.** The page has to keep looking like
  * the site it was generated from, so this says nothing about type, colour or
  * spacing, and nothing at all about the figure - which carries its own inline
  * style and measures square already, and would only come to disagree with a
@@ -439,31 +459,50 @@ export const GENERATOR = "cheatsheet-site";
  *   content stayed at 413.6 in a 374 column and the page still scrolled
  *   sideways, measured 2026.11.11, which is the found issue that followed the
  *   one this block was written for. It is contained the way the listing is
- *   instead, by scrolling itself - `display: block` makes it a box that
- *   `overflow-x` reaches, which a `display: table` box is not, and that is why
- *   adding `overflow-x` beside `max-width` measured as doing nothing at all.
+ *   instead, by a box that scrolls - but the box is {@link SCROLL_WRAPPER}
+ *   rather than the table, for the reason below.
+ * - **`[data-cheatsheet-scroll] { max-width: 100%; overflow-x: auto }`** is the
+ *   box, and {@link wrapCarriedTables} is what writes it. The table keeps its
+ *   own `max-width: 100%` and nothing else, so it is a table box again.
  *
- * **What `display: block` costs**, since it is not free: a `<table>` at
- * `display: block` stops being a table box, so `<caption>`, `<thead>` and the
- * column sizing algorithm no longer apply the way they do on one. It was
- * accepted because the alternative that also contains the table -
- * `table-layout: fixed; width: 100%` - reflows every column to an equal share,
- * which changes what the carried material looks like on a page whose whole
- * premise is that the material is the record a reader goes to when the drawn
- * sheet has lost something. The same argument chose scrolling over
- * `white-space: pre-wrap` for the listing.
+ * **Why the scroll box is a wrapper and not the table, which is the part that
+ * had to be measured twice.** The rule between 2026.11.11 and 2026.11.13 put
+ * `display: block; overflow-x: auto; width: fit-content` on the `<table>`
+ * itself. That contains the table, and it costs more than the comment here
+ * admitted: a `<table>` at `display: block` is not a table box, so its
+ * `<caption>`, `<thead>` and `<tbody>` are wrapped in an **anonymous table
+ * box** inside the block - and that box has no width of its own, so it shrinks
+ * to fit. A width the site owner declared on the `<table>` then sized the block
+ * that scrolled rather than the table that laid out, and the columns were laid
+ * out as though nothing had been declared. Measured 2026.11.12 on a generated
+ * page, read as written and again with this block disabled:
  *
- * **`width: fit-content` is what keeps that cost to the tables that need
- * containing**, and it was measured rather than reasoned. A table box shrinks
- * to fit by default; a block box fills its container, and `max-width: 100%`
- * does not stop that, because 100% of the container *is* the container. Without
- * `fit-content` the two fixture tables went from 439.1 and 512.1 wide at 1280px
- * to 1264 - every carried table stretched across the page on a desktop, for a
- * rule that only had business reaching one too wide to fit. With it they
- * measure 439.1 and 512.1 again, exactly as before the block, while the seven
- * column table is still 374 in a 374 column and scrolling itself. A browser too
- * old for `fit-content` falls back to `width: auto`, which is the stretch - the
- * table is still contained, which is the half that mattered.
+ *     <table style="width: 100%">   1280   box 1264   rows 152.9   was 1258
+ *     <table style="width: 100%">    390   box  374   rows 152.9   was  368
+ *     <table style="width: 50%">    1280   box  632   rows  64.7   was  628
+ *     <table style="width: 50%">     390   box  187   rows  64.7   was  183
+ *
+ * `width: 100%` is the commonest thing an author writes on a table, so that
+ * reached ordinary sites, and it contradicted the two things the rule said
+ * about itself: that `width: fit-content` kept the cost to the tables that need
+ * containing, and that `table-layout: fixed; width: 100%` had been refused for
+ * reflowing every column. A declared width reflowed every column of a table
+ * that was never too wide for the page.
+ *
+ * **A wrapper the tool wrote is where the containment belongs.** The `<div>` is
+ * the box that scrolls and the table is a table again, so `<caption>`,
+ * `<thead>` and the column sizing algorithm all apply as the owner wrote them.
+ * The cost is the one thing the earlier reading bought: the carried markup is
+ * no longer handed across untouched, because an element this tool wrote now
+ * sits between the block and the table. That was weighed against redrawing the
+ * owner's table and lost - the material under the figure is the record, and a
+ * wrapper around it changes nothing about what it says.
+ *
+ * **`width: fit-content` is gone with the block box that needed it.** A table
+ * box shrinks to fit by default; it was a block box that filled its container,
+ * which is what `fit-content` was added to undo on 2026.11.12. The two fixture
+ * tables measure 439.1 and 512.1 at 1280px with the rule as it now stands,
+ * which is what they measured before any of this block existed.
  *
  * **Not `white-space: pre-wrap`**, which would be the smaller change and the
  * wrong one. A line break inserted into a carried listing changes what the
@@ -476,20 +515,40 @@ export const GENERATOR = "cheatsheet-site";
  * `<body>` at `width: auto` and is already exactly the page's width, so the
  * element that has to be contained is always the carried one inside it.
  *
- * **No `tabindex` on either box that scrolls, and that is a decision rather
- * than an oversight.** A scrollable region with no focusable child inside it is
- * reachable from a keyboard only where the browser makes scroll containers
- * focusable itself, and the usual remedy - `tabindex="0"` with an accessible
- * name - is two things this tool cannot do: an attribute written into a site
- * owner's own element, and a name invented for material it only read. It would
- * also be written onto every carried listing and table rather than onto the
- * ones that actually scroll, since whether a box overflows is a layout result
- * and not something a generated file knows. So the rule relies on the browser's
- * own behaviour, and a site owner who needs more has the two levers that always
- * win here: their own CSS after this block, and their own markup, which this
- * tool carries rather than rewrites. The listing rule shipped in
- * `1.0.0-alpha.1.8.1` with the same constraint and without saying so, which is
- * the gap this paragraph closes for both.
+ * **The carried listing still carries no `tabindex`, and the table's wrapper
+ * does.** A scrollable region with no focusable child is reachable from a
+ * keyboard only where the browser makes scroll containers focusable itself, and
+ * that was taken on trust until 2026.11.12, when it was measured on a generated
+ * page at 390x844 carrying a table 2586px wide in a 374px column and the wide
+ * listing on `tutorial.html`:
+ *
+ *     Chromium 151                 both boxes in the tab order, 40px per press
+ *     Firefox 153                  both boxes, 32px and 36px per press
+ *     WebKit 605.1.15 (Safari)     neither box in fourteen presses
+ *
+ * So two engines of three honour it and one does not, which made carried
+ * material that overflows keyboard inaccessible on Safari - the listing since
+ * `1.0.0-alpha.1.8.1` and the table since `1.0.0-alpha.1.9.0`. The two
+ * objections that ruled the remedy out both fall away on the wrapper: it is not
+ * the site owner's element, and a table's `<caption>` is the owner's own words
+ * rather than a name invented for material the tool only read. So the wrapper
+ * carries `tabindex="0"`, with `role="region"` and an `aria-label` from the
+ * caption where there is one.
+ *
+ * **Neither objection falls away for the listing**, which is why it is left as
+ * it was and said rather than fixed. A `<pre>` is the owner's own element and
+ * has no caption to be named from, so the only remedies are an attribute
+ * written into their markup or a wrapper carrying a name this tool made up.
+ * `docs/generating-from-a-site.html` states the measurement and what it costs,
+ * and a site owner who needs more has the two levers that always win here:
+ * their own CSS after this block, and their own markup, which this tool carries
+ * rather than rewrites.
+ *
+ * **The one cost of `tabindex` on the wrapper is a tab stop that may do
+ * nothing**, since whether a box overflows is a layout result and not something
+ * a generated file knows. It is written on every carried table's wrapper rather
+ * than on the ones that scroll. That is the trade taken: an extra stop on a
+ * `<div>` the tool wrote is a smaller cost than content no keyboard can reach.
  */
 export const BLOCK_STYLE = [
   `<!-- Written by ${GENERATOR}. These rules keep the carried material below`,
@@ -498,7 +557,8 @@ export const BLOCK_STYLE = [
   "<style>",
   `[${CHEATSHEET_BLOCK}] pre { overflow-x: auto; }`,
   `[${CHEATSHEET_BLOCK}] img { max-width: 100%; }`,
-  `[${CHEATSHEET_BLOCK}] table { max-width: 100%; width: fit-content; display: block; overflow-x: auto; }`,
+  `[${CHEATSHEET_BLOCK}] [${SCROLL_WRAPPER}] { max-width: 100%; overflow-x: auto; }`,
+  `[${CHEATSHEET_BLOCK}] table { max-width: 100%; }`,
   "</style>",
 ];
 
@@ -2433,10 +2493,14 @@ function sheetLines(sheet, level, where) {
       lines.push(`<main ${CHEATSHEET_BLOCK}="${escapeHtml(block.tag)}">`);
       // The site's own markup, carried through rather than re-escaped: it is
       // markup, and the whole premise is that the site already published it.
-      // The one thing that does not survive untouched is a relative URL, which
-      // was relative to a page in another folder - see {@link carryUrls}.
+      // Two things do not survive untouched, and both are stated where they are
+      // done: a relative URL was relative to a page in another folder, per
+      // {@link carryUrls}, and a carried table is given the box it scrolls in,
+      // per {@link wrapCarriedTables}. The URLs are rewritten first, so the
+      // wrapper is written around the table as it will be read.
       const carried = block.content.trim();
-      lines.push(outputId === null ? carried : carryUrls(carried, page.id, outputId));
+      const resolved = outputId === null ? carried : carryUrls(carried, page.id, outputId);
+      lines.push(wrapCarriedTables(resolved));
       lines.push("</main>");
     }
     if (grouped) lines.push("</section>");
@@ -3495,6 +3559,112 @@ function rewriteTag(tag, pageId, outputId) {
     out = `${out.slice(0, attribute.from)}${written}${out.slice(attribute.to)}`;
   }
   return out;
+}
+
+/**
+ * A table's own `<caption>`, read as the one line of text an `aria-label` takes.
+ *
+ * **The table's own, which is why the search is bounded.** A `<caption>` is a
+ * table's first child, so the first one in a carried `<table>` is its own
+ * unless the table has none and holds another table that does - and taking a
+ * nested table's caption would name the wrapper after material it does not
+ * contain. The slice ends at the first nested `<table`, which is as far as a
+ * caption of this table can be.
+ *
+ * {@link textLines} is what turns the caption's markup into text, rather than a
+ * second reading written here: it is the same decode and the same whitespace
+ * collapse the composed sheet reads a `<caption>` with, so the label and the
+ * sheet's own label row cannot come to disagree about what the caption says.
+ *
+ * @param {string} element One carried `<table>` element, start tag to close.
+ * @returns {string | null} `null` where there is no caption, or it is empty.
+ */
+function captionText(element) {
+  const nested = element.slice(1).search(/<table(?=[\s>/])/i);
+  const own = nested === -1 ? element : element.slice(0, nested + 1);
+  const match = /<caption(?=[\s>])[^>]*>([\s\S]*?)<\/caption>/i.exec(own);
+  if (match === null) return null;
+  const text = textLines(match[1])
+    .map((line) => line.text)
+    .join(" ")
+    .trim();
+  return text === "" ? null : text;
+}
+
+/**
+ * Carried material with every table wrapped in the box that contains it.
+ *
+ * **The defect this closes, and the one it answers beside it.** Until
+ * `1.0.0-alpha.1.10.0` {@link BLOCK_STYLE} contained a carried table by putting
+ * `display: block` on the `<table>` itself, which takes it out of the table
+ * formatting context: a width the site owner declared then sized the block that
+ * scrolled and the columns were laid out as though they had been given nothing.
+ * The containment moves onto a `<div>` this tool wrote, so the table is a table
+ * box again and the owner's own declared width lays out columns again. The long
+ * form, with the measurements, is in {@link BLOCK_STYLE}.
+ *
+ * The wrapper is also the element the keyboard remedy can be written on. A
+ * scroll box with no focusable child is unreachable from a keyboard in WebKit,
+ * measured 2026.11.12, and `tabindex="0"` was refused as an attribute written
+ * into the owner's element under a name the tool invented. Neither objection
+ * reaches a `<div>` the tool wrote and names from the table's own `<caption>`.
+ *
+ * Four decisions, each with a tempting other reading:
+ *
+ * - **Outermost tables only.** The close is found by the same depth walk
+ *   {@link closingTagOf} gives a marked element, so a table inside a table is
+ *   inside the wrapper already. Wrapping it again would put a scroll box around
+ *   a cell's contents and a second tab stop inside the first.
+ * - **`role` and `aria-label` only where there is a caption.** A region with no
+ *   accessible name is worse than no region - a screen reader announces a
+ *   landmark the reader cannot tell from any other. `tabindex` is written
+ *   either way, because reaching the material is the half that does not depend
+ *   on being able to name it.
+ * - **A table this scan cannot close is carried as written.** Unbalanced markup
+ *   is {@link UNCLOSED}'s to report, and a wrapper closed at a guess would move
+ *   the owner's markup rather than contain it.
+ * - **A `<table>` inside a comment or a carried `<script>` is not a table**,
+ *   read off the same {@link opaqueRanges} every other scan here reads. A
+ *   wrapper written into a script string is a syntax error in somebody's code.
+ *
+ * **Nothing here reaches the browser route.** `api/cheatsheet/site.mjs` builds
+ * its section inside a page that already carries the owner's own stylesheet, so
+ * there is no {@link BLOCK_STYLE} on that route for a wrapper to pair with -
+ * and a `<div>` written there would change the carried shape for no containment
+ * at all.
+ *
+ * @param {string} markup One block's carried content.
+ * @returns {string}
+ */
+export function wrapCarriedTables(markup) {
+  const ranges = opaqueRanges(markup);
+  const pattern = /<table(?=[\s>/])/gi;
+  let out = "";
+  let at = 0;
+  let match;
+  while ((match = pattern.exec(markup)) !== null) {
+    if (match.index < at || inside(match.index, ranges)) continue;
+    const start = startTagAt(markup, match.index);
+    if (start === null) break;
+    // `<table/>` opens and closes in one tag, so it holds nothing to contain.
+    if (markup[start.end - 1] === "/") continue;
+    const close = closingTagOf(markup, "table", start.end + 1, ranges);
+    if (close === null) continue;
+    const element = markup.slice(match.index, close.end);
+    const caption = captionText(element);
+    const named =
+      caption === null ? "" : ` role="region" aria-label="${escapeHtml(caption)}"`;
+    // The element's own indentation, so the two tags read as a wrapper around
+    // it rather than as a line the owner wrote. The slice below already carries
+    // the whitespace in front of the table, which is why the indent is repeated
+    // after each newline this adds rather than before the open tag.
+    const indent = indentAt(markup, match.index);
+    out += markup.slice(at, match.index);
+    out += `<div ${SCROLL_WRAPPER} tabindex="0"${named}>\n${indent}${element}\n${indent}</div>`;
+    at = close.end;
+    pattern.lastIndex = close.end;
+  }
+  return out + markup.slice(at);
 }
 
 /**

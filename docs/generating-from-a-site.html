@@ -230,9 +230,10 @@ set in; material that reads as no text at all - a page of nothing but an
 <code>&lt;img&gt;</code> - gets no figure rather than a sheet with an invented
 row on it.</p>
 
-<p><strong>One thing in the markup does not survive untouched, and it is the
-one thing that could not.</strong> A relative URL is relative to the page it
-was written on, and a generated page sits in another folder - so
+<p><strong>Two things in the markup do not survive untouched.</strong> The
+first is a relative URL, and it is the one that could not: a relative URL is
+relative to the page it was written on, and a generated page sits in another
+folder - so
 <code>&lt;img src=&quot;badge.svg&quot;&gt;</code> on
 <code>guide/using-it.html</code>
 would ask for <code>cheatsheets/badge.svg</code> and get nothing. Every
@@ -264,14 +265,33 @@ run says which page and how many.</p>
 inside the page that is already loaded, so a relative URL in the material is
 already relative to the right page.</p>
 
-<p>And three rules about its own layout, written into the head as a
+<p><strong>The second is a carried table, which is written inside a
+<code>&lt;div&gt;</code> the tool owns.</strong> It is the box the table
+scrolls in, and it is also the one element on the page that can carry the
+keyboard attributes a scrolling box needs - both of which are the next section.
+Nothing about the table itself is changed: it is handed across as you wrote it,
+inside a wrapper that was not there before.</p>
+
+<pre><code>&lt;div data-cheatsheet-scroll tabindex="0" role="region" aria-label="Regions and their quarters"&gt;
+&lt;table&gt;...&lt;/table&gt;
+&lt;/div&gt;</code></pre>
+
+<p><code>data-cheatsheet-scroll</code> is not a marking and cannot be read as
+one, which is what makes it safe to write into a folder the next run walks
+over: the scanner requires the character after <code>data-cheatsheet</code> to
+end the attribute name, so a longer name is a different attribute. The browser
+route writes no wrapper, because it has no style block to pair one with - it
+builds its section inside a page that already carries your stylesheet.</p>
+
+<p>And four rules about its own layout, written into the head as a
 <code>&lt;style&gt;</code> block with a comment above it saying what it is
 for:</p>
 
 <pre><code>&lt;style&gt;
 [data-cheatsheet-block] pre { overflow-x: auto; }
 [data-cheatsheet-block] img { max-width: 100%; }
-[data-cheatsheet-block] table { max-width: 100%; width: fit-content; display: block; overflow-x: auto; }
+[data-cheatsheet-block] [data-cheatsheet-scroll] { max-width: 100%; overflow-x: auto; }
+[data-cheatsheet-block] table { max-width: 100%; }
 &lt;/style&gt;</code></pre>
 
 <p>A generated page is written whole and carries no stylesheet, so a
@@ -289,47 +309,83 @@ the figure, which carries its own inline style and needs no second opinion.</p>
 
 <p><strong>The table rule is the listing rule and not the image one</strong>,
 which is the distinction worth knowing if you are reading the block and
-wondering why one element gets four declarations. An
-<code>&lt;img&gt;</code> arrives with an intrinsic width, so clamping it to the
-page is the whole answer. A table is wide because of what is in it - its used
-width is never lower than the sum of each column's longest unbreakable run, and
+wondering why a table needs a wrapper at all. An <code>&lt;img&gt;</code>
+arrives with an intrinsic width, so clamping it to the page is the whole
+answer. A table is wide because of what is in it - its used width is never
+lower than the sum of each column's longest unbreakable run, and
 <code>max-width</code> does not lower that - so a table with enough columns is
-wider than a phone whatever the clamp says. <code>display: block</code> makes it
-a box <code>overflow-x</code> reaches, and it then scrolls itself rather than
-scrolling the page. The cost is that a <code>&lt;table&gt;</code> at
-<code>display: block</code> is no longer a table box, so
-<code>&lt;caption&gt;</code>, <code>&lt;thead&gt;</code> and the column sizing
-algorithm no longer apply the way they do on one. The alternative that also
-contains it, <code>table-layout: fixed</code> with
-<code>width: 100%</code>, reflows every column to an equal share - and the
+wider than a phone whatever the clamp says. It needs a box that
+<code>overflow-x</code> reaches, and a <code>display: table</code> box is not
+one. The alternative that also contains it, <code>table-layout: fixed</code>
+with <code>width: 100%</code>, reflows every column to an equal share - and the
 material under the figure is the record, so scrolling it is preferred to
-re-laying it out, for the same reason wrapping a listing was refused above. A
-table of your own that you would rather keep as a table box is a rule written
-after this block, which wins on cascade order.</p>
+re-laying it out, for the same reason wrapping a listing was refused above.</p>
 
-<p><strong>Neither box that scrolls carries a <code>tabindex</code></strong>,
-and that is a decision rather than an oversight. A scrollable region with no
-focusable child inside it is reachable from a keyboard only where the browser
-makes scroll containers focusable itself, and the usual remedy -
-<code>tabindex="0"</code> with an accessible name - is two things this tool
-cannot do: an attribute written into your own element, and a name invented for
-material it only read. It would also land on every carried listing and table
-rather than on the ones that actually scroll, since whether a box overflows is a
-layout result and not something a generated file knows. If you need more, you
-have the two levers that always win here: your own CSS after this block, and
-your own markup, which the tool carries rather than rewrites.</p>
+<p><strong>The box is the wrapper and not the table, and the reason is a
+declared width.</strong> Between 2026.11.11 and 2026.11.13 the rule put
+<code>display: block</code> on the <code>&lt;table&gt;</code> itself, which
+contains it - and takes it out of the table formatting context, so its
+<code>&lt;caption&gt;</code>, <code>&lt;thead&gt;</code> and
+<code>&lt;tbody&gt;</code> are wrapped in an <strong>anonymous table box</strong>
+that has no width of its own and shrinks to fit. A width you declared on the
+table then sized the block that scrolled rather than the table that laid out,
+and your columns were laid out as though you had declared nothing. Measured on
+a generated page at 1280px, a <code>&lt;table style="width: 100%"&gt;</code> was
+a 1264px box with its rows drawn at 152.9px; with the style block removed the
+same rows took 1258. A table that declared nothing was untouched either way.
+<code>width: 100%</code> is the commonest thing there is to write on a table, so
+that reached ordinary pages. The containment is on a wrapper now, the table is
+a table box again, and a width you declare lays out columns again.</p>
 
-<p><code>width: fit-content</code> is in there so the rule reaches only the
-tables that need it. A table box shrinks to fit; a block box fills its
-container, and <code>max-width: 100%</code> does not stop that, because 100% of
-the container is the container. Without it every carried table spans the whole
-page on a desktop - measured at 1280px, two tables that had been 439 and 512
-wide became 1264 - which is a visible change to the record for the sake of a
-rule that only had business reaching a table too wide to fit. With it they
-measure what they measured before the block, and only a table wider than the
-page is contained. A browser too old for <code>fit-content</code> falls back to
-<code>width: auto</code>, which is the stretch: still contained, which is the
-half that matters.</p>
+<p>A table of your own that you would rather not have in a scrolling box is a
+rule written after this block, which wins on cascade order:
+<code>[data-cheatsheet-scroll] { overflow-x: visible }</code>.</p>
+
+<p><strong>The wrapper carries <code>tabindex="0"</code>; your listing still
+carries nothing.</strong> A scrollable region with no focusable child inside it
+is reachable from a keyboard only where the browser makes scroll containers
+focusable itself, which was taken on trust until it was measured on 2026.11.12
+at 390x844, on a generated page carrying a table 2586px wide in a 374px column
+and a wide listing:</p>
+
+<pre><code>Chromium 151              both boxes in the tab order, 40px per ArrowRight
+Firefox 153               both boxes, 32px and 36px per press
+WebKit 605.1.15 (Safari)  neither box in fourteen presses</code></pre>
+
+<p>So two engines of three reach it and one does not, which left carried
+material that overflows unreachable without a pointer on Safari. The remedy -
+<code>tabindex="0"</code> with an accessible name - was refused for being two
+things the tool cannot do: an attribute written into your own element, and a
+name invented for material it only read. Neither reaches the wrapper. It is the
+tool's own element, and a table's <code>&lt;caption&gt;</code> is your words
+rather than an invented name, so the wrapper carries <code>tabindex="0"</code>,
+with <code>role="region"</code> and an <code>aria-label</code> from the caption
+where there is one. A table with no caption is still reachable and claims no
+role, because a region a screen reader announces and cannot name is worse than
+no region at all.</p>
+
+<p>Both objections still stand for a listing, which is why it is left as it
+was: a <code>&lt;pre&gt;</code> is your own element and has no caption to be
+named from, so the only remedies are an attribute written into your markup or a
+wrapper under a name the tool made up. <strong>On Safari, a carried listing
+wider than the page cannot be scrolled from a keyboard.</strong> If that
+matters on your site, you have the two levers that always win here: your own
+CSS after this block, and your own markup, which the tool carries rather than
+rewrites - a <code>tabindex="0"</code> on the <code>&lt;pre&gt;</code> in the
+page you keep is carried onto the generated one with everything else.</p>
+
+<p>The one cost of the attribute is a tab stop that may do nothing, since
+whether a box overflows is a layout result and not something a generated file
+knows: it is written on every carried table's wrapper rather than on the ones
+that scroll. That is the trade - an extra stop on a <code>&lt;div&gt;</code> the
+tool wrote is a smaller cost than material no keyboard can reach.</p>
+
+<p><code>max-width: 100%</code> on the table is the whole of what is left on
+it, and <code>width: fit-content</code> is gone with the block box that needed
+it. A table box shrinks to fit on its own; it was a block box that filled its
+container. Two carried tables that measure 439 and 512 wide at 1280px measure
+439 and 512 with this block, which is what they measured before any of it
+existed, and only a table wider than its box is contained.</p>
 
 <p>Every fragment is named, because the master page holds one per cheatsheet and
 a composition carries <code>id="cheatsheet"</code> on its root. The name is the

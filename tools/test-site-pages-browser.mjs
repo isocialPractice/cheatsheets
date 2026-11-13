@@ -48,7 +48,7 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { main, OUTPUT_NAME, MASTER_NAME } from "./cheatsheet-site.mjs";
+import { main, OUTPUT_NAME, MASTER_NAME, SCROLL_WRAPPER } from "./cheatsheet-site.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const fixture = join(root, "fixtures", "site");
@@ -211,9 +211,11 @@ const skip = runtime.chromium ? false : runtime.reason;
 //
 // Two things are written here. First, one page carrying what the style block's
 // `img` and `table` rules are for: an image wider than a phone, a table made
-// wide by its own content, and a table that declared a width of its own. The
-// image is a data URI so that whether it loaded is never a question the
-// measurement has to ask.
+// wide by its own content, and two tables that declared a width of their own -
+// one in pixels wider than a phone, one at `width: 100%`, which is the
+// commonest thing an author writes on a table and the case that measured wrong
+// until 2026.11.13. The image is a data URI so that whether it loaded is never a
+// question the measurement has to ask.
 const BANNER =
   "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAwIiBo" +
   "ZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDEyMDAgMzAwIj48cmVjdCB3aWR0aD0iMTIwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9" +
@@ -247,6 +249,13 @@ const widePage = () => `<!DOCTYPE html>
     <tbody>
       <tr><td>Region West</td><td>128,400</td><td>Jane Doe</td></tr>
       <tr><td>Region East</td><td>98,200</td><td>John Smith</td></tr>
+    </tbody>
+  </table>
+  <table id="full-width" style="width: 100%">
+    <caption>Declared at the width of the page</caption>
+    <tbody>
+      <tr><td>Region West</td><td>128,400</td><td>Jane Doe</td></tr>
+      <tr id="full-width-last"><td>Region East</td><td>98,200</td><td>John Smith</td></tr>
     </tbody>
   </table>
 </main>
@@ -564,24 +573,58 @@ test("a generated page does not scroll sideways at 390px, and scrolls its listin
 // `test-results/ui-ux-tester.agent/ui-ux-tester.2026.11.11-wide-material.cases.mjs`,
 // which is where the four candidates were measured.
 
-/** The generated wide-material page at a phone width, each wide element measured. */
-async function measureWide() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+/**
+ * The generated wide-material page, each wide element measured.
+ *
+ * **Each table is measured with the box it sits in**, because which of the two
+ * is which is the whole of the issue closed on 2026.11.13: the box that scrolls
+ * is the wrapper the tool wrote and the table inside it is a table again, so a
+ * measurement that reads only one of them cannot tell a contained table from a
+ * redrawn one. `rows` is the last row's span, which is what the columns were
+ * actually laid out to - the box is the same width either way, and that is what
+ * made this invisible for a day.
+ *
+ * @param {{ width: number, height: number }} [viewport]
+ */
+async function measureWide(viewport = { width: 390, height: 844 }) {
+  const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
-  const seen = await page.evaluate(() => {
+  const seen = await page.evaluate((wrapper) => {
     const de = document.documentElement;
+    const round = (n) => Math.round(n * 10) / 10;
     const at = (id) => {
       const el = document.getElementById(id);
       if (!el) return null;
       const box = el.getBoundingClientRect();
       return {
-        width: Math.round(box.width * 10) / 10,
-        height: Math.round(box.height * 10) / 10,
+        width: round(box.width),
+        height: round(box.height),
         right: Math.round(box.right),
         fits: box.right <= de.clientWidth + 1,
         overflowX: getComputedStyle(el).overflowX,
         scrolls: el.scrollWidth > el.clientWidth + 1,
+      };
+    };
+    // A table with the wrapper it was given, read as one measurement: the box
+    // is the wrapper's, the layout is the table's.
+    const table = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const box = el.closest(`[${wrapper}]`);
+      const rows = [...el.querySelectorAll("tr")];
+      const last = rows.length === 0 ? null : rows[rows.length - 1].getBoundingClientRect();
+      const caption = el.querySelector("caption");
+      return {
+        table: at(id),
+        boxWidth: box === null ? null : round(box.getBoundingClientRect().width),
+        boxFits: box === null ? null : box.getBoundingClientRect().right <= de.clientWidth + 1,
+        boxScrolls: box === null ? null : box.scrollWidth > box.clientWidth + 1,
+        boxOverflowX: box === null ? null : getComputedStyle(box).overflowX,
+        wrapped: box !== null,
+        display: getComputedStyle(el).display,
+        rows: last === null ? null : round(last.width),
+        caption: caption === null ? null : round(caption.getBoundingClientRect().width),
       };
     };
     const image = document.getElementById("wide-image");
@@ -591,10 +634,11 @@ async function measureWide() {
       image: at("wide-image"),
       imageLoaded: Boolean(image?.complete && image.naturalWidth > 0),
       imageNatural: image ? [image.naturalWidth, image.naturalHeight] : null,
-      contentWide: at("content-wide"),
-      declaredWide: at("declared-wide"),
+      contentWide: table("content-wide"),
+      declaredWide: table("declared-wide"),
+      fullWidth: table("full-width"),
     };
-  });
+  }, SCROLL_WRAPPER);
   await context.close();
   return seen;
 }
@@ -617,8 +661,8 @@ test("a carried table that declared a width wider than the page is clamped", asy
   if (skip) return t.skip(skip);
   const seen = await measureWide();
   assert.ok(
-    seen.declaredWide.fits,
-    `the 800px table reaches ${seen.declaredWide.right}px in a ${seen.clientWidth}px page`
+    seen.declaredWide.table.fits,
+    `the 800px table reaches ${seen.declaredWide.table.right}px in a ${seen.clientWidth}px page`
   );
 });
 
@@ -635,27 +679,162 @@ test("a carried table that declared a width wider than the page is clamped", asy
 // The second was taken, for the reason the listing rule was taken over
 // `white-space: pre-wrap`: the element scrolls itself and no cell is re-laid
 // out. The fourth is the one that looks like the fix and is not - a
-// `display: table` box ignores `overflow`. `width: fit-content` was added to
-// the second on 2026.11.12, after the case below it measured what the block box
-// did to the tables that already fitted.
-test("a carried table made wide by its own content scrolls itself, not the page", async (t) => {
+// `display: table` box ignores `overflow`.
+//
+// **The box that scrolls moved off the table on 2026.11.13**, and the finding
+// is unchanged: `display: block` contained the table by taking it out of the
+// table formatting context, which cost every table a declared width. The
+// wrapper contains it with the table left a table, so what this case now
+// watches is the wrapper's `overflow-x` and the wrapper's scroll rather than
+// the table's - and the table overflowing it is the half that says nothing was
+// re-laid out to fit.
+test("a carried table made wide by its own content scrolls in its box, not the page", async (t) => {
   if (skip) return t.skip(skip);
   const seen = await measureWide();
+  const wide = seen.contentWide;
+  assert.ok(wide.wrapped, "the content-wide table was given no box to scroll in");
   assert.ok(
-    seen.contentWide.fits,
-    `the content-wide table reaches ${seen.contentWide.right}px in a ${seen.clientWidth}px page`
+    wide.boxFits,
+    `the box around the content-wide table is ${wide.boxWidth}px in a ${seen.clientWidth}px page`
   );
   assert.equal(
     seen.scrollWidth,
     seen.clientWidth,
     `the page measures ${seen.scrollWidth} against a client width of ${seen.clientWidth}`
   );
-  // The page fitting is the finding; the table scrolling itself is how, and it
-  // is the half that tells this apart from a table whose columns were reflowed
-  // to fit - which would pass the two assertions above and change what the
-  // carried material looks like.
-  assert.equal(seen.contentWide.overflowX, "auto", "the table is not a box that scrolls");
-  assert.ok(seen.contentWide.scrolls, "the table fits its own box, so nothing was contained");
+  // The page fitting is the finding; the box scrolling is how, and the table
+  // overflowing that box is what tells this apart from a table whose columns
+  // were reflowed to fit - which would pass every assertion above and change
+  // what the carried material looks like.
+  assert.equal(wide.boxOverflowX, "auto", "the box around the table is not one that scrolls");
+  assert.ok(wide.boxScrolls, "the table fits its box, so nothing was contained");
+  assert.ok(
+    wide.table.width > wide.boxWidth + 1,
+    `the table is ${wide.table.width}px inside a ${wide.boxWidth}px box, so its columns were re-laid out`
+  );
+  // And it is still a table, which is the whole of what moving the containment
+  // onto the wrapper bought.
+  assert.equal(wide.display, "table", `the carried table is display: ${wide.display}`);
+});
+
+// The case that would have caught the issue closed on 2026.11.13, and the
+// reason it is the **row** that is asserted rather than the box: a carried
+// `<table style="width: 100%">` measured 1264 wide at this viewport both before
+// and after the defect, while its rows were laid out to 152.9 against the 1258
+// they take with no style block at all. Three declared widths, because the
+// defect was identical at every one of them - a declared width reached the
+// anonymous table box inside a block and nothing a reader sees.
+test("a carried table's declared width lays out its columns, not the box around it", async (t) => {
+  if (skip) return t.skip(skip);
+  // A row box sits inside the table's own border box by the default
+  // `border-spacing: 2px` on each side, so a row that fills its table measures
+  // four pixels narrower than it. The defect this watches for drew the rows at
+  // 152.9 in a 1264 table, so the allowance is three orders of magnitude from
+  // the thing being caught.
+  const SPACING = 6;
+  for (const viewport of [
+    { width: 1280, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    const seen = await measureWide(viewport);
+    // `width: 100%` is the commonest declaration there is, and a table that
+    // honours it is a table as wide as the box it was given.
+    const full = seen.fullWidth;
+    const atFull = `width: 100% at ${viewport.width}px`;
+    assert.ok(full.wrapped, `${atFull}: the table was given no box`);
+    assert.ok(
+      full.table.width >= full.boxWidth - 1,
+      `${atFull}: the table is ${full.table.width}px in a ${full.boxWidth}px box`
+    );
+    // `width: 800px` is honoured where the page is wider than 800 and clamped to
+    // the box where it is not, which is the case that was already watched.
+    const px = seen.declaredWide;
+    const atPx = `width: 800px at ${viewport.width}px`;
+    const wanted = Math.min(800, px.boxWidth);
+    assert.ok(
+      Math.abs(px.table.width - wanted) <= 1,
+      `${atPx}: the table is ${px.table.width}px where ${wanted}px was asked for`
+    );
+    // And in both cases the **rows** are laid out to the table's width rather
+    // than to their content, which is the measurement the defect hid: the box
+    // was 1264 either way, and only the row said which of the two had happened.
+    for (const [where, one] of [[atFull, full], [atPx, px]]) {
+      assert.ok(one.rows !== null, `${where}: the table has no row to measure`);
+      assert.ok(
+        one.rows >= one.table.width - SPACING,
+        `${where}: the last row spans ${one.rows}px in a ${one.table.width}px table`
+      );
+      // The caption takes the table's width with the rows. While the defect
+      // stood it shrank to the anonymous table box with them, so a caption that
+      // sat on one line across the table wrapped into a column of one and two
+      // word lines - the part of it a reader saw first.
+      assert.ok(
+        one.caption >= one.table.width - 1,
+        `${where}: the caption is ${one.caption}px under a ${one.table.width}px table`
+      );
+    }
+    assert.equal(
+      seen.scrollWidth,
+      seen.clientWidth,
+      `at ${viewport.width}px the page measures ${seen.scrollWidth} against ${seen.clientWidth}`
+    );
+  }
+});
+
+// The found issue of 2026.11.12. WebKit reaches no scroll container of its own,
+// so the 2212px hidden inside the content-wide table was unreachable without a
+// pointer on Safari; Chromium and Firefox both put the box in the tab order
+// themselves. The engine this suite drives is one of the two that never needed
+// the attribute, so what is measured here is that the attribute works rather
+// than that it was necessary - the necessity is recorded in `BLOCK_STYLE` and
+// in `docs/generating-from-a-site.html`, and the attribute itself is asserted
+// as text in `tools/test-cheatsheet-site.mjs`.
+test("the box a carried table scrolls in is reached by a keyboard and scrolls with one", async (t) => {
+  if (skip) return t.skip(skip);
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
+    const reached = await page.evaluate((wrapper) => {
+      const box = document.getElementById("content-wide")?.closest(`[${wrapper}]`);
+      if (!box) return null;
+      box.focus();
+      return {
+        focused: document.activeElement === box,
+        hidden: Math.round(box.scrollWidth - box.clientWidth),
+        before: box.scrollLeft,
+      };
+    }, SCROLL_WRAPPER);
+    assert.ok(reached, "the content-wide table has no box to focus");
+    assert.ok(reached.focused, "the box around a carried table cannot take focus");
+    // The fixture's seven column table hides about 40px at this viewport, which
+    // is enough to scroll and not enough to assume: a box hiding nothing would
+    // pass the press below without having been scrolled at all.
+    assert.ok(reached.hidden > 20, `the box hides only ${reached.hidden}px, so nothing was scrolled`);
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
+    // **Waited for rather than read.** A keyboard scroll is animated, so
+    // reading `scrollLeft` in the turn after the press reads where the box
+    // still is and not where it is going - which is a case that fails on a
+    // working fix and is the one thing a regression test may not do.
+    const left = async () =>
+      page.evaluate((wrapper) => {
+        const box = document.getElementById("content-wide")?.closest(`[${wrapper}]`);
+        return box === null ? null : box.scrollLeft;
+      }, SCROLL_WRAPPER);
+    const until = Date.now() + 2000;
+    let after = await left();
+    while (after <= reached.before && Date.now() < until) {
+      await page.waitForTimeout(50);
+      after = await left();
+    }
+    assert.ok(
+      after > reached.before,
+      `two ArrowRight presses moved scrollLeft from ${reached.before} to ${after}`
+    );
+  } finally {
+    await context.close();
+  }
 });
 
 // The cost of the table rule on the tables that already fitted, which is the

@@ -124,6 +124,7 @@ import {
   siteDocument,
   textLines,
   titleOf,
+  wrapCarriedTables,
   writeManifest,
   writePages,
   ATTRIBUTE_METHOD,
@@ -150,6 +151,7 @@ import {
   NOT_SITE,
   OUTPUT_NAME,
   PAGE_EXTENSIONS,
+  SCROLL_WRAPPER,
   UNCLOSED,
   USAGE,
 } from "./cheatsheet-site.mjs";
@@ -861,14 +863,34 @@ test("a generated page carries the one style block it needs, scoped to its own b
       assert.match(rules, /\[data-cheatsheet-block\] img \{ max-width: 100%; \}/, `${where}: no rule contains a wide image`);
       // A table is contained the way the listing is and not the way the image
       // is, because `max-width` does not lower a min-content width - so the
-      // declaration that matters is `display: block`, and asserting
-      // `max-width` alone would pass on the rule that measured as doing
-      // nothing. See `BLOCK_STYLE`, and the browser measurement in
+      // rule that matters is the one on the box that scrolls. That box is the
+      // wrapper `wrapCarriedTables` writes and not the `<table>`: putting
+      // `display: block` on the table itself contained it and drew its rows at
+      // content width whenever the owner had declared one, which is the issue
+      // closed on 2026.11.13. See `BLOCK_STYLE`, and the browser measurement in
       // `tools/test-site-pages-browser.mjs`.
       assert.match(
         rules,
-        /\[data-cheatsheet-block\] table \{ max-width: 100%; width: fit-content; display: block; overflow-x: auto; \}/,
+        /\[data-cheatsheet-block\] \[data-cheatsheet-scroll\] \{ max-width: 100%; overflow-x: auto; \}/,
         `${where}: no rule contains a table that is wide because of its own content`
+      );
+      assert.match(
+        rules,
+        /\[data-cheatsheet-block\] table \{ max-width: 100%; \}/,
+        `${where}: no rule clamps a carried table to the page`
+      );
+      // And the table is left a table box, which is the half of the fix that is
+      // an absence: either of these two back on the `<table>` is the defect
+      // again, and both would pass every assertion above.
+      const tableRule = /\[data-cheatsheet-block\] table \{([^}]*)\}/.exec(rules);
+      assert.ok(tableRule, `${where}: the style block has no rule for a carried table`);
+      assert.ok(
+        !/display\s*:\s*block/.test(tableRule[1]),
+        `${where}: the table rule takes the table out of the table formatting context again`
+      );
+      assert.ok(
+        !/fit-content/.test(tableRule[1]),
+        `${where}: the table rule still carries the fit-content a block box needed`
       );
       // **Every selector is scoped**, which is asserted as a count rather than
       // as the presence of the three that are known: an unscoped selector added
@@ -901,6 +923,118 @@ test("a generated page carries the one style block it needs, scoped to its own b
     }
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a carried table is written inside the box that scrolls, and nothing else is", async () => {
+  // The other half of the issue closed on 2026.11.13: the rule above is only
+  // the containment, and the element it names has to be written for it to reach
+  // anything. The shapes are the four a real page carries, and the last two are
+  // the ones a wrapper written too freely gets wrong.
+  const root = await site({
+    "splice.html": page(
+      "Splicing Arrays",
+      [
+        "<table><caption>Arguments</caption><tr><th>start</th><td>where</td></tr></table>",
+        "<pre>items.splice(1, 2)</pre>",
+        "<ul><li>a listing is not a table</li></ul>",
+      ].join("\n")
+    ),
+  });
+  try {
+    const markup = renderCheatsheet(only(await collectSite(root)));
+    // One wrapper, around the one table, and the table is still the table the
+    // page wrote - a wrapper that rewrote the element would pass a count.
+    const wrappers = [...markup.matchAll(new RegExp(`<div ${SCROLL_WRAPPER}\\b[^>]*>`, "g"))];
+    assert.equal(wrappers.length, 1, `${wrappers.length} scroll wrappers on a page carrying one table`);
+    assert.match(
+      markup,
+      new RegExp(`<div ${SCROLL_WRAPPER}[^>]*>\\s*<table>`),
+      "the wrapper does not open in front of the table"
+    );
+    assert.match(markup, /<\/table>\s*<\/div>/, "the wrapper does not close after the table");
+    assert.ok(
+      markup.includes("<caption>Arguments</caption>"),
+      "the carried table lost its caption on the way through the wrapper"
+    );
+    // And neither of the other two carried elements is given one. The listing
+    // scrolls itself through `BLOCK_STYLE`, and a `<ul>` is not wide for any
+    // reason this tool has an opinion about.
+    assert.ok(
+      !new RegExp(`<div ${SCROLL_WRAPPER}[^>]*>\\s*<pre>`).test(markup),
+      "a carried listing was given a scroll wrapper"
+    );
+    assert.ok(
+      !new RegExp(`<div ${SCROLL_WRAPPER}[^>]*>\\s*<ul>`).test(markup),
+      "a carried list was given a scroll wrapper"
+    );
+    // The keyboard half, which is the found issue of 2026.11.12: WebKit reaches
+    // no scroll box of its own, so the attribute is what makes the material
+    // reachable there. Asserted as text rather than in a browser because the
+    // engine the suite drives is one of the two that never needed it.
+    assert.match(wrappers[0][0], /tabindex="0"/, "the wrapper is not in the tab order");
+    assert.match(
+      wrappers[0][0],
+      /role="region"/,
+      "the wrapper is a focusable box with no role"
+    );
+    assert.match(
+      wrappers[0][0],
+      /aria-label="Arguments"/,
+      "the wrapper is not named from the table's own caption"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a carried table with no caption is reachable, and is not a region with no name", async () => {
+  // The case the naming decision is about. A region a screen reader announces
+  // and cannot name is worse than no region at all, and a caption is the only
+  // name here that is the site owner's own words - so `role` and `aria-label`
+  // go together or neither goes, while `tabindex` does not depend on either.
+  const root = await site({
+    "splice.html": page("Splicing Arrays", "<table><tr><td>no caption</td></tr></table>"),
+  });
+  try {
+    const markup = renderCheatsheet(only(await collectSite(root)));
+    const wrapper = new RegExp(`<div ${SCROLL_WRAPPER}\\b[^>]*>`).exec(markup);
+    assert.ok(wrapper, "a carried table was given no scroll wrapper");
+    assert.match(wrapper[0], /tabindex="0"/, "the wrapper is not in the tab order");
+    assert.ok(!/role=/.test(wrapper[0]), "the wrapper claims a role it cannot name");
+    assert.ok(!/aria-label=/.test(wrapper[0]), "the wrapper carries a name the tool invented");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("wrapCarriedTables leaves alone what it cannot contain, and wraps outermost only", () => {
+  // The three readings a scan of somebody else's markup has to get right, and
+  // each is silent when it is wrong: a wrapper written into a script string is
+  // a syntax error in their code, a wrapper closed at a guess moves their
+  // markup, and a wrapper per nested table is a tab stop inside a tab stop.
+  const open = new RegExp(`<div ${SCROLL_WRAPPER}`, "g");
+  const count = (markup) => [...markup.matchAll(open)].length;
+
+  const nested = wrapCarriedTables(
+    "<table><tr><td><table><tr><td>inner</td></tr></table></td></tr></table>"
+  );
+  assert.equal(count(nested), 1, "a table inside a table was wrapped twice");
+
+  // Two siblings are two tables, which is the half the guard above must not eat.
+  assert.equal(
+    count(wrapCarriedTables("<table><tr><td>a</td></tr></table>\n<table><tr><td>b</td></tr></table>")),
+    2,
+    "a second carried table was left uncontained"
+  );
+
+  for (const [what, markup] of [
+    ["a commented out table", "<!-- <table><tr><td>x</td></tr></table> -->"],
+    ["a table in a script string", '<script>el.innerHTML = "<table><tr><td>x</td></tr></table>";</script>'],
+    ["an unclosed table", "<table><tr><td>x</td></tr>"],
+    ["a self closing table", "<table/>"],
+  ]) {
+    assert.equal(wrapCarriedTables(markup), markup, `${what} was rewritten`);
   }
 });
 

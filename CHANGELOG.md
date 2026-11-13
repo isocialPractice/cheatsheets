@@ -37,6 +37,124 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.10.0]
+
+The containment that shipped in `1.0.0-alpha.1.9.0`, measured a second time and
+found to cost more than it said. `display: block` on a carried `<table>`
+contains it and takes it out of the table formatting context, so a width the
+site owner declared sized the box that scrolled rather than the table that laid
+out - and `width: 100%`, which is the commonest thing an author writes on a
+table, drew every column at content width on an ordinary page. The containment
+moves onto a `<div>` the tool writes around the table, which leaves the table a
+table and makes the keyboard remedy the previous release had refused available
+on an element the tool owns.
+
+It is a minor rather than a patch for the reason the previous one was: there is
+new published surface - `wrapCarriedTables` and `SCROLL_WRAPPER` - and it
+changes what a generated page says for every site whose material carries a
+table.
+
+### Fixed
+
+- **A width declared on a carried table lays out its columns again.** A
+  `<table>` at `display: block` is not a table box, so its `<caption>`,
+  `<thead>` and `<tbody>` are wrapped in an **anonymous table box** that has no
+  width of its own and shrinks to fit: the declared width reached the block that
+  scrolled and the columns were laid out as though nothing had been declared.
+  Measured on a generated page, read as written and again with the style block
+  disabled - a `<table style="width: 100%">` was a 1264px box at 1280px with its
+  rows drawn at **152.9**, against 1258 with no block at all, and 374 against
+  368 at 390px; a `<table style="width: 50%">` drew its rows at **64.7** against
+  628 and 183. The `<caption>` shrank with the rows, so a caption that sat on
+  one line across the table wrapped into a column of one and two word lines. A
+  table that declared nothing was untouched at either width, which is why both
+  fixture tables and all four cases watching them passed throughout.
+- **The containment is a wrapper the tool wrote.** Each carried `<table>` is
+  written inside `<div data-cheatsheet-scroll>`, and the style block contains
+  the wrapper instead: `[data-cheatsheet-block] [data-cheatsheet-scroll]
+  { max-width: 100%; overflow-x: auto; }` with `table { max-width: 100%; }`
+  beside it. The table keeps its table box, so `<caption>`, `<thead>` and the
+  column sizing algorithm apply as the owner wrote them, and the wrapper is what
+  scrolls. `width: fit-content` is gone with the block box that needed it - a
+  table box shrinks to fit on its own, and the two fixture tables measure 439.1
+  and 512.1 at 1280px, which is what they measured before any of this existed.
+- **A carried table that overflows can be scrolled from a keyboard on Safari.**
+  The previous release wrote down that neither box that scrolls carries a
+  `tabindex` and rested on the browser's own behaviour. Measured at 390x844 on a
+  generated page carrying a table 2586px wide in a 374px column and the wide
+  listing: **Chromium 151** puts both boxes in the tab order and moves
+  `scrollLeft` 40px per ArrowRight, **Firefox 153** the same at 32px and 36px,
+  and **WebKit 605.1.15, reporting Safari 26.5**, reaches neither box in
+  fourteen presses - so 2212px inside the table and 156px inside the listing
+  were unreachable without a pointer, the listing since `1.0.0-alpha.1.8.1` and
+  the table since `1.0.0-alpha.1.9.0`. Both objections that ruled the remedy out
+  fall away on the wrapper: it is not the site owner's element, and a table's
+  `<caption>` is the owner's own words rather than a name the tool invented. The
+  wrapper carries `tabindex="0"`, with `role="region"` and an `aria-label` from
+  the caption where there is one - and neither where there is none, because a
+  region a screen reader announces and cannot name is worse than no region.
+- **The carried listing is said rather than fixed, and that is the whole of
+  it.** A `<pre>` is the owner's own element and has no caption to be named
+  from, so the only remedies are an attribute written into their markup or a
+  wrapper under an invented name. `docs/generating-from-a-site.html` states the
+  three engine measurement, says plainly that a carried listing wider than the
+  page cannot be scrolled from a keyboard on Safari, and names the two levers a
+  site owner has - including that a `tabindex="0"` they write on their own
+  `<pre>` is carried onto the generated page with everything else.
+
+### Changed
+
+- **A second thing in carried material no longer survives untouched.** The
+  first was a relative URL; a carried table now arrives inside a wrapper that
+  was not in the owner's markup. Nothing about the table itself is changed, and
+  the wrapper is written where the URLs have already been rewritten, so it sits
+  around the table as it will be read. Only the outermost table of a nest is
+  wrapped, a table inside a comment or a carried `<script>` is not a table, and
+  a table this scan cannot close is carried exactly as written rather than
+  closed at a guess.
+- **`data-cheatsheet-scroll` cannot be read as a marking**, which is what makes
+  it safe to write into a folder the next run walks over. The marker scan
+  requires the character after `data-cheatsheet` to end the attribute name, so a
+  longer name is a different attribute - the same thing that already keeps
+  `data-cheatsheet-menu` and `data-cheatsheet-block` out of the collector - and
+  the browser route asks `querySelectorAll` for `[data-cheatsheet]`, which does
+  not match a longer name either.
+- **The browser route writes no wrapper.** `api/cheatsheet/site.mjs` builds its
+  section inside a page that already carries the owner's stylesheet, so there is
+  no style block there for a wrapper to pair with and a `<div>` written on that
+  route would change the carried shape for no containment at all.
+- **`docs/generating-from-a-site.html` records the second reading**, with the
+  measurements that found it, what an anonymous table box does to a declared
+  width, the wrapper and its attributes, the one line of CSS that turns the
+  scrolling off, the three engine keyboard table, and the tab stop the attribute
+  costs on a table that fits.
+
+### Tested
+
+- **The row is measured, not the box.** `tools/test-site-pages-browser.mjs`
+  gains a `<table style="width: 100%">` on the wide-material page and asserts
+  the last row's span against the table's width at 1280px and at 390px, with the
+  caption's width beside it. The box was 1264 either way, which is what made the
+  defect invisible to a measurement for a day; the row and the caption are the
+  two things that said which of the two had happened.
+- **The existing content-wide case watches the wrapper.** The finding is
+  unchanged - the page does not scroll sideways - but the box that scrolls is
+  the wrapper now, so the case asserts the wrapper's `overflow-x` and its
+  scroll, the table overflowing it, and `display: table` on the table itself,
+  which is the half that says nothing was re-laid out to fit.
+- **The keyboard fix is asserted as text and exercised in a browser.** The
+  attribute and the name from the caption are pinned in
+  `tools/test-cheatsheet-site.mjs`, since the engine the suite drives is one of
+  the two that never needed them; the browser case focuses the wrapper, waits
+  for the animated scroll rather than reading it in the turn after the press,
+  and watches `scrollLeft` move.
+- **What the wrapper is not written around.** A carried listing, a carried
+  list, a table inside a table, a commented-out table, a table in a script
+  string, an unclosed table and a self-closing one - each silent when it is
+  wrong, which is why each is a case rather than a comment. With the two the
+  naming decision turns on: a table with a caption is a named region, and a
+  table without one is reachable and claims no role.
+
 ## [1.0.0-alpha.1.9.0]
 
 The two halves of the previous release that were reasoned rather than measured,
