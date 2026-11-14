@@ -54,6 +54,16 @@
 test moves. Nothing has to be installed first: cases that need a browser skip
 with the install command as their reason.</p>
 
+<p><strong>A few cases want three browsers rather than one.</strong> Containment
+and keyboard reach are read differently by different engines - a scroll box is
+in the tab order in Chromium and Firefox and is not in WebKit, and a declared
+width wider than the page is clamped in the first two while the third leaves the
+table alone and scrolls the box around it - so those cases run over whichever of
+the three are installed and report per engine. Each engine that is not installed
+skips with its own install command, and the rest of the suite is unaffected.</p>
+
+<pre><code>npm install -g @playwright/test &amp;&amp; npx playwright install</code></pre>
+
 <p><strong>It finds them in working folders too.</strong> Node reads no
 <code>.gitignore</code>, and its default patterns only skip a folder whose name
 starts with a dot - so a git-ignored folder holding something named like a test

@@ -32,7 +32,19 @@
 // with the reason when it is not found. Install it for a machine that should
 // run them:
 //
-//   npm install -g @playwright/test && npx playwright install chromium
+//   npm install -g @playwright/test && npx playwright install
+//
+// **Three engines, for the three cases where one engine is not an answer.**
+// Everything about a generated page's own markup reads the same everywhere and
+// is measured on Chromium alone. Containment and keyboard reach are not: the
+// `tabindex` on a carried table's wrapper was written for WebKit, which is the
+// one engine that puts no scroll box in the tab order itself, so measuring it
+// on Chromium measures the engine that never needed it. And the clamp a
+// declared width takes at 390px is read two ways - Chromium and Firefox clamp
+// the table, WebKit leaves it at its declared width and scrolls the wrapper the
+// difference - so a case asserting one of those over both engines fails for a
+// reason that is not a defect. Whichever of the three are installed are
+// launched; the rest skip per engine with the install command as the reason.
 //
 // The site under test is `fixtures/site/`, copied to a temporary folder and
 // generated there, because a run writes a `cheatsheets/` folder and the fixture
@@ -71,7 +83,25 @@ function candidateBases() {
   return bases;
 }
 
-async function loadChromium() {
+/** A launch failure's first line, which is the sentence naming what is wrong. */
+const firstLine = (text) => text.split(/\r?\n/)[0];
+
+/** The engines looked for, in the order a report reads best in. */
+const ENGINES = ["chromium", "firefox", "webkit"];
+
+/**
+ * The browser types Playwright offers this machine, or why there are none.
+ *
+ * **What this resolves is the library and not a browser.** Every engine is a
+ * named export of the module whether or not its binary was ever downloaded, so
+ * a type found here says nothing about whether it launches - that is settled
+ * one engine at a time in `before`, where the failure has an install command to
+ * offer. A copy of Playwright old enough to be missing one of the three names
+ * is handled the same way, which is why each is read rather than assumed.
+ *
+ * @returns {Promise<{ engines?: Record<string, import("playwright").BrowserType>, reason?: string }>}
+ */
+async function loadEngines() {
   const named = process.env.PLAYWRIGHT_MODULE;
   const specifiers = named ? [named] : [];
   for (const base of candidateBases()) {
@@ -90,8 +120,12 @@ async function loadChromium() {
       const module = await import(specifier);
       // The resolved entry is CommonJS, so the named exports arrive under
       // default as well as beside it depending on how it was built.
-      const chromium = module.chromium ?? module.default?.chromium;
-      if (chromium) return { chromium };
+      const found = Object.fromEntries(
+        ENGINES.map((name) => [name, module[name] ?? module.default?.[name]]).filter(
+          ([, type]) => Boolean(type)
+        )
+      );
+      if (found.chromium) return { engines: found };
     } catch {
       // Try the next one.
     }
@@ -99,7 +133,7 @@ async function loadChromium() {
   return {
     reason:
       "Playwright is not installed. Run `npm install -g @playwright/test && " +
-      "npx playwright install chromium`, or point PLAYWRIGHT_MODULE at a copy.",
+      "npx playwright install`, or point PLAYWRIGHT_MODULE at a copy.",
   };
 }
 
@@ -199,8 +233,18 @@ async function generate(site) {
   }
 }
 
-const runtime = await loadChromium();
-const skip = runtime.chromium ? false : runtime.reason;
+const runtime = await loadEngines();
+
+/**
+ * Why every case here is skipped, or `false`.
+ *
+ * Assigned once more in `before`, when Chromium turns out not to launch: the
+ * library resolving says nothing about a binary being on disk, and a case
+ * reading an undefined browser reports a type error where it should report an
+ * install command. Read inside each case rather than at registration, so the
+ * second assignment is in force by the time any of them runs.
+ */
+let skip = runtime.engines ? false : runtime.reason;
 
 // Material the tracked fixture does not carry, written into a **second copy**
 // of it rather than into `fixtures/site/`. Both reasons matter: these are
@@ -293,6 +337,11 @@ ${inner}
 </html>
 `;
 
+/** The engines that launched, by name. Chromium is {@link browser} as well. */
+const browsers = new Map();
+/** Why an engine is not in {@link browsers}, for a per engine skip. */
+const unavailable = new Map();
+
 let browser;
 let site;
 let scratch;
@@ -338,11 +387,30 @@ before(async () => {
   );
   assert.equal(await generate(second), 0, "the generator did not write the second site");
   carried = await serve(second, { site: true });
-  browser = await runtime.chromium.launch();
+  for (const name of ENGINES) {
+    const type = runtime.engines[name];
+    if (!type) {
+      unavailable.set(name, `This copy of Playwright offers no ${name}.`);
+      continue;
+    }
+    try {
+      browsers.set(name, await type.launch());
+    } catch (error) {
+      // A missing binary and a broken one read the same from here, and the
+      // same command fixes both.
+      unavailable.set(
+        name,
+        `${name} did not launch: ${firstLine(error.message)}. ` +
+          `Run \`npx playwright install ${name}\`.`
+      );
+    }
+  }
+  browser = browsers.get("chromium");
+  if (!browser) skip = unavailable.get("chromium");
 });
 
 after(async () => {
-  await browser?.close();
+  for (const one of browsers.values()) await one.close();
   site?.server.close();
   carried?.server.close();
   if (scratch) await rm(scratch, { recursive: true, force: true });
@@ -585,9 +653,12 @@ test("a generated page does not scroll sideways at 390px, and scrolls its listin
  * made this invisible for a day.
  *
  * @param {{ width: number, height: number }} [viewport]
+ * @param {import("playwright").Browser} [engine] Which browser to read it in.
+ *   Chromium unless a case is one of the three that reads differently per
+ *   engine, per {@link overEngines}.
  */
-async function measureWide(viewport = { width: 390, height: 844 }) {
-  const context = await browser.newContext({ viewport });
+async function measureWide(viewport = { width: 390, height: 844 }, engine = browser) {
+  const context = await engine.newContext({ viewport });
   const page = await context.newPage();
   await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
   const seen = await page.evaluate((wrapper) => {
@@ -643,6 +714,37 @@ async function measureWide(viewport = { width: 390, height: 844 }) {
   return seen;
 }
 
+/**
+ * Run one case over every engine that launched, as a subtest naming it.
+ *
+ * **Three cases take this and the rest do not**, which is the line drawn in the
+ * header: a measurement of the markup a run wrote reads the same in every
+ * engine, and paying three launches for it buys nothing. Containment, keyboard
+ * reach and the clamp are the three where one engine's reading is not the
+ * promise - the `tabindex` exists for the engine that needed it, and the clamp
+ * is kept two different ways.
+ *
+ * An engine that is not installed skips its own subtest with the install
+ * command, so a machine with Chromium alone reports the two it has not got
+ * rather than failing or passing silently.
+ *
+ * @param {import("node:test").TestContext} t
+ * @param {(engine: import("playwright").Browser, name: string) => Promise<void>} body
+ */
+async function overEngines(t, body) {
+  if (skip) return t.skip(skip);
+  let ran = 0;
+  for (const name of ENGINES) {
+    await t.test(name, async (st) => {
+      const engine = browsers.get(name);
+      if (!engine) return st.skip(unavailable.get(name));
+      ran += 1;
+      await body(engine, name);
+    });
+  }
+  assert.ok(ran > 0, "no engine launched, so nothing was measured");
+}
+
 test("a carried image wider than the page is drawn inside it, ratio kept", async (t) => {
   if (skip) return t.skip(skip);
   const seen = await measureWide();
@@ -657,13 +759,55 @@ test("a carried image wider than the page is drawn inside it, ratio kept", async
   assert.equal(Math.round((seen.image.width / seen.image.height) * 100), 400);
 });
 
+// **The clamp is one of two ways the promise is kept, and the promise is the
+// page.** Measured 2026.11.13 at 390x844 on the generated wide-material page,
+// over the `<table style="width: 800px">` it carries:
+//
+//   Chromium 151   table 374   box 374   the declared 800 clamped to the box
+//   Firefox 153    table 374   box 374   the same
+//   WebKit 26.5    table 800   box 374   the table left alone, the box scrolls
+//
+// WebKit reads the same 800 with the style block removed entirely, so that is
+// how the engine applies `max-width` to a table box rather than something this
+// tool did - and the page does not scroll sideways in any of the three, which
+// is what was being promised. So what is asserted over every engine is the box
+// and the page, and the clamp is asserted only where the engine clamps: a case
+// written to Chromium's reading alone fails under WebKit for a reason that is
+// not a defect, and one written to neither watches nothing.
 test("a carried table that declared a width wider than the page is clamped", async (t) => {
-  if (skip) return t.skip(skip);
-  const seen = await measureWide();
-  assert.ok(
-    seen.declaredWide.table.fits,
-    `the 800px table reaches ${seen.declaredWide.table.right}px in a ${seen.clientWidth}px page`
-  );
+  await overEngines(t, async (engine, name) => {
+    const seen = await measureWide({ width: 390, height: 844 }, engine);
+    const px = seen.declaredWide;
+    assert.ok(px.wrapped, `${name}: the 800px table was given no box to scroll in`);
+    assert.ok(
+      px.boxFits,
+      `${name}: the box around the 800px table reaches ${px.boxWidth}px in a ${seen.clientWidth}px page`
+    );
+    assert.equal(
+      seen.scrollWidth,
+      seen.clientWidth,
+      `${name}: the page measures ${seen.scrollWidth} against a client width of ${seen.clientWidth}`
+    );
+    if (px.table.fits) {
+      assert.ok(
+        px.table.width <= px.boxWidth + 1,
+        `${name}: the table is ${px.table.width}px inside a ${px.boxWidth}px box it is said to fit`
+      );
+    } else {
+      // The other way the same promise is kept. Asserted against the declared
+      // 800 rather than merely "wider than the box", so an engine that laid the
+      // table out to something else entirely is not read as this case.
+      assert.ok(
+        Math.abs(px.table.width - 800) <= 1,
+        `${name}: the table is neither clamped to ${px.boxWidth}px nor at the 800px ` +
+          `it declared, but ${px.table.width}px`
+      );
+      assert.ok(
+        px.boxScrolls,
+        `${name}: the table is ${px.table.width}px in a ${px.boxWidth}px box that does not scroll`
+      );
+    }
+  });
 });
 
 // The one the found issue was opened for. A table's used width is never lower
@@ -688,33 +832,43 @@ test("a carried table that declared a width wider than the page is clamped", asy
 // watches is the wrapper's `overflow-x` and the wrapper's scroll rather than
 // the table's - and the table overflowing it is the half that says nothing was
 // re-laid out to fit.
+// Over every engine, because this is the promise itself rather than one
+// engine's way of keeping it: a table made wide by its own content has no
+// declared width for an engine to read two ways, and all three were measured
+// containing it at 390px on 2026.11.13.
 test("a carried table made wide by its own content scrolls in its box, not the page", async (t) => {
-  if (skip) return t.skip(skip);
-  const seen = await measureWide();
-  const wide = seen.contentWide;
-  assert.ok(wide.wrapped, "the content-wide table was given no box to scroll in");
-  assert.ok(
-    wide.boxFits,
-    `the box around the content-wide table is ${wide.boxWidth}px in a ${seen.clientWidth}px page`
-  );
-  assert.equal(
-    seen.scrollWidth,
-    seen.clientWidth,
-    `the page measures ${seen.scrollWidth} against a client width of ${seen.clientWidth}`
-  );
-  // The page fitting is the finding; the box scrolling is how, and the table
-  // overflowing that box is what tells this apart from a table whose columns
-  // were reflowed to fit - which would pass every assertion above and change
-  // what the carried material looks like.
-  assert.equal(wide.boxOverflowX, "auto", "the box around the table is not one that scrolls");
-  assert.ok(wide.boxScrolls, "the table fits its box, so nothing was contained");
-  assert.ok(
-    wide.table.width > wide.boxWidth + 1,
-    `the table is ${wide.table.width}px inside a ${wide.boxWidth}px box, so its columns were re-laid out`
-  );
-  // And it is still a table, which is the whole of what moving the containment
-  // onto the wrapper bought.
-  assert.equal(wide.display, "table", `the carried table is display: ${wide.display}`);
+  await overEngines(t, async (engine, name) => {
+    const seen = await measureWide({ width: 390, height: 844 }, engine);
+    const wide = seen.contentWide;
+    assert.ok(wide.wrapped, `${name}: the content-wide table was given no box to scroll in`);
+    assert.ok(
+      wide.boxFits,
+      `${name}: the box around the content-wide table is ${wide.boxWidth}px in a ${seen.clientWidth}px page`
+    );
+    assert.equal(
+      seen.scrollWidth,
+      seen.clientWidth,
+      `${name}: the page measures ${seen.scrollWidth} against a client width of ${seen.clientWidth}`
+    );
+    // The page fitting is the finding; the box scrolling is how, and the table
+    // overflowing that box is what tells this apart from a table whose columns
+    // were reflowed to fit - which would pass every assertion above and change
+    // what the carried material looks like.
+    assert.equal(
+      wide.boxOverflowX,
+      "auto",
+      `${name}: the box around the table is not one that scrolls`
+    );
+    assert.ok(wide.boxScrolls, `${name}: the table fits its box, so nothing was contained`);
+    assert.ok(
+      wide.table.width > wide.boxWidth + 1,
+      `${name}: the table is ${wide.table.width}px inside a ${wide.boxWidth}px box, ` +
+        "so its columns were re-laid out"
+    );
+    // And it is still a table, which is the whole of what moving the containment
+    // onto the wrapper bought.
+    assert.equal(wide.display, "table", `${name}: the carried table is display: ${wide.display}`);
+  });
 });
 
 // The case that would have caught the issue closed on 2026.11.13, and the
@@ -724,6 +878,13 @@ test("a carried table made wide by its own content scrolls in its box, not the p
 // they take with no style block at all. Three declared widths, because the
 // defect was identical at every one of them - a declared width reached the
 // anonymous table box inside a block and nothing a reader sees.
+//
+// **Chromium alone, unlike the three cases around it.** Half of what this reads
+// is the clamp, which WebKit does not apply to a table box - so run over three
+// engines it would fail on `width: 800px` at 390px for the reason the case
+// above now records rather than for a defect. What is engine independent here
+// is the row and the caption taking the table's width, and both are watched at
+// 1280px where no clamp is in play.
 test("a carried table's declared width lays out its columns, not the box around it", async (t) => {
   if (skip) return t.skip(skip);
   // A row box sits inside the table's own border box by the default
@@ -784,57 +945,69 @@ test("a carried table's declared width lays out its columns, not the box around 
 // The found issue of 2026.11.12. WebKit reaches no scroll container of its own,
 // so the 2212px hidden inside the content-wide table was unreachable without a
 // pointer on Safari; Chromium and Firefox both put the box in the tab order
-// themselves. The engine this suite drives is one of the two that never needed
-// the attribute, so what is measured here is that the attribute works rather
-// than that it was necessary - the necessity is recorded in `BLOCK_STYLE` and
-// in `docs/generating-from-a-site.html`, and the attribute itself is asserted
-// as text in `tools/test-cheatsheet-site.mjs`.
+// themselves. The attribute itself is asserted as text in
+// `tools/test-cheatsheet-site.mjs`, and why it was needed is recorded in
+// `BLOCK_STYLE` and in `docs/generating-from-a-site.html`.
+//
+// **This is the case the multi engine harness was written for.** Until
+// 2026.11.14 it drove Chromium, which is one of the two engines that never
+// needed the attribute, so the reading that justified the whole change was the
+// one nothing asserted. Measured by hand on 2026.11.13 and watched here since:
+// WebKit 26.5 takes the wrapper on the first Tab press and moves it 40px per
+// ArrowRight, Chromium 151 on the second at 40px, Firefox 153 on the second at
+// 32px then 40px. So the three agree on what is asserted - the box takes focus
+// and a press moves it - and differ only in how far, which is why no figure is
+// asserted.
 test("the box a carried table scrolls in is reached by a keyboard and scrolls with one", async (t) => {
-  if (skip) return t.skip(skip);
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await context.newPage();
-  try {
-    await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
-    const reached = await page.evaluate((wrapper) => {
-      const box = document.getElementById("content-wide")?.closest(`[${wrapper}]`);
-      if (!box) return null;
-      box.focus();
-      return {
-        focused: document.activeElement === box,
-        hidden: Math.round(box.scrollWidth - box.clientWidth),
-        before: box.scrollLeft,
-      };
-    }, SCROLL_WRAPPER);
-    assert.ok(reached, "the content-wide table has no box to focus");
-    assert.ok(reached.focused, "the box around a carried table cannot take focus");
-    // The fixture's seven column table hides about 40px at this viewport, which
-    // is enough to scroll and not enough to assume: a box hiding nothing would
-    // pass the press below without having been scrolled at all.
-    assert.ok(reached.hidden > 20, `the box hides only ${reached.hidden}px, so nothing was scrolled`);
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowRight");
-    // **Waited for rather than read.** A keyboard scroll is animated, so
-    // reading `scrollLeft` in the turn after the press reads where the box
-    // still is and not where it is going - which is a case that fails on a
-    // working fix and is the one thing a regression test may not do.
-    const left = async () =>
-      page.evaluate((wrapper) => {
+  await overEngines(t, async (engine, name) => {
+    const context = await engine.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    try {
+      await page.goto(`${carried.base}/${OUTPUT_NAME}/wide-material.html`, { waitUntil: "load" });
+      const reached = await page.evaluate((wrapper) => {
         const box = document.getElementById("content-wide")?.closest(`[${wrapper}]`);
-        return box === null ? null : box.scrollLeft;
+        if (!box) return null;
+        box.focus();
+        return {
+          focused: document.activeElement === box,
+          hidden: Math.round(box.scrollWidth - box.clientWidth),
+          before: box.scrollLeft,
+        };
       }, SCROLL_WRAPPER);
-    const until = Date.now() + 2000;
-    let after = await left();
-    while (after <= reached.before && Date.now() < until) {
-      await page.waitForTimeout(50);
-      after = await left();
+      assert.ok(reached, `${name}: the content-wide table has no box to focus`);
+      assert.ok(reached.focused, `${name}: the box around a carried table cannot take focus`);
+      // The fixture's seven column table hides about 40px at this viewport, which
+      // is enough to scroll and not enough to assume: a box hiding nothing would
+      // pass the press below without having been scrolled at all.
+      assert.ok(
+        reached.hidden > 20,
+        `${name}: the box hides only ${reached.hidden}px, so nothing was scrolled`
+      );
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      // **Waited for rather than read.** A keyboard scroll is animated, so
+      // reading `scrollLeft` in the turn after the press reads where the box
+      // still is and not where it is going - which is a case that fails on a
+      // working fix and is the one thing a regression test may not do.
+      const left = async () =>
+        page.evaluate((wrapper) => {
+          const box = document.getElementById("content-wide")?.closest(`[${wrapper}]`);
+          return box === null ? null : box.scrollLeft;
+        }, SCROLL_WRAPPER);
+      const until = Date.now() + 2000;
+      let after = await left();
+      while (after <= reached.before && Date.now() < until) {
+        await page.waitForTimeout(50);
+        after = await left();
+      }
+      assert.ok(
+        after > reached.before,
+        `${name}: two ArrowRight presses moved scrollLeft from ${reached.before} to ${after}`
+      );
+    } finally {
+      await context.close();
     }
-    assert.ok(
-      after > reached.before,
-      `two ArrowRight presses moved scrollLeft from ${reached.before} to ${after}`
-    );
-  } finally {
-    await context.close();
-  }
+  });
 });
 
 // The cost of the table rule on the tables that already fitted, which is the

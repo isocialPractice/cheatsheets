@@ -103,6 +103,7 @@ so a marker written inside one is still not a marker.</p>
 
 <h2>The two methods side by side</h2>
 
+<div class="table-scroll" tabindex="0">
 <table>
  <tr><th></th><th>The attribute</th><th>The comment</th></tr>
  <tr>
@@ -133,6 +134,7 @@ so a marker written inside one is still not a marker.</p>
   <td>the page and the line</td>
  </tr>
 </table>
+</div>
 
 <p>The trade-off is the first two rows against the next two. An attribute
 carries one value and there is nothing to get right beyond spelling it, which
@@ -363,6 +365,14 @@ with <code>role="region"</code> and an <code>aria-label</code> from the caption
 where there is one. A table with no caption is still reachable and claims no
 role, because a region a screen reader announces and cannot name is worse than
 no region at all.</p>
+
+<p><strong>And the engine that needed it is now the engine it is measured
+in.</strong> Until 2026.11.14 the suite drove Chromium, which is one of the two
+that never needed the attribute, so the reading the whole remedy rests on was
+the one nothing asserted. <code>tools/test-site-pages-browser.mjs</code> now
+runs the cases that measure containment and keyboard reach over whichever of
+Chromium, Firefox and WebKit are installed, and skips per engine with the
+install command where one is not.</p>
 
 <p>Both objections still stand for a listing, which is why it is left as it
 was: a <code>&lt;pre&gt;</code> is your own element and has no caption to be

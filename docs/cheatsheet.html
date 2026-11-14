@@ -97,12 +97,14 @@ folder, so it goes to <code>.tmp/</code> either way.</p>
 
 <pre><code>&lt;!-- {% cheatsheet: [heading: page, group: page, name: splice] %} --&gt;</code></pre>
 
+<div class="table-scroll" tabindex="0">
 <table>
  <tr><th>Property</th><th>Takes</th><th>Means</th></tr>
  <tr><td><code>heading</code></td><td><code>title</code>, <code>page</code></td><td>where the heading is read from</td></tr>
  <tr><td><code>group</code></td><td><code>folder</code>, <code>page</code></td><td>join the folder's cheatsheet, or be one</td></tr>
  <tr><td><code>name</code></td><td>a file name</td><td>what the cheatsheet is written as</td></tr>
 </table>
+</div>
 
 <p>The comment applies to the element that follows it, with nothing but
 whitespace between. Where a comment and an attribute both speak about one
@@ -135,6 +137,7 @@ with ordinary DOM methods, for a site that will not run a build step.</p>
 const { element, heading, findings } = cheatsheetSection(document);
 if (element) document.body.append(element);</code></pre>
 
+<div class="table-scroll" tabindex="0">
 <table>
  <tr><th>Export</th><th>Answers</th></tr>
  <tr><td><code>markedElements</code></td><td>the outermost marked elements, in document order</td></tr>
@@ -143,18 +146,21 @@ if (element) document.body.append(element);</code></pre>
  <tr><td><code>collectFromDocument</code></td><td>all of it as data, with the sheet document</td></tr>
  <tr><td><code>cheatsheetSection</code></td><td>the section element, built and handed back</td></tr>
 </table>
+</div>
 
 <p>It finds a marker a script wrote at run time, which a file scan cannot. It
 fills no menu, because nothing here writes a folder for one to list.</p>
 
 <h2>The three models</h2>
 
+<div class="table-scroll" tabindex="0">
 <table>
  <tr><th>Model</th><th>Carries</th></tr>
  <tr><td><strong>document</strong></td><td>a title and ordered sections</td></tr>
  <tr><td><strong>theme</strong></td><td>palette roles, type stack and scale, spacing step, curve and shape tokens, stroke weights</td></tr>
  <tr><td><strong>layout</strong></td><td>a named composition, its grid, and the slots a section may occupy</td></tr>
 </table>
+</div>
 
 <p>A section asks for a <strong>kind</strong> of slot - <code>entries</code> or
 <code>listing</code> - never for one by name. A layout keeps one slot per kind;
@@ -218,6 +224,7 @@ commit it whenever a cheatsheet is added, renamed or moved.</p>
 
 <h2>Palette</h2>
 
+<div class="table-scroll" tabindex="0">
 <table>
  <tr><th>Role</th><th>Light</th><th>Dark</th></tr>
  <tr><td>Page</td><td><code>#F8F8F9</code></td><td><code>#020433</code></td></tr>
@@ -226,6 +233,7 @@ commit it whenever a cheatsheet is added, renamed or moved.</p>
  <tr><td>Borders</td><td><code>#6F6F8C</code></td><td><code>#6F6F8C</code></td></tr>
  <tr><td>Link, accent</td><td><code>#2E7534</code></td><td><code>#4CAE50</code></td></tr>
 </table>
+</div>
 
 <p>The mark's green <code>#4CAE50</code> reaches 2.65:1 on the off white
 ground, so on light it carries nothing a reader has to see an edge of;

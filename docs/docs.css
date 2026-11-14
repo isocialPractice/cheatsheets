@@ -205,11 +205,28 @@ pre code {
  font-size: 0.9375rem;
  line-height: 1.55;
 }
+/* A table stays a table box, and the box that scrolls is the wrapper around
+   it. `display: block` on the table itself contained a wide one by taking it
+   out of the table formatting context, which put its rows in an anonymous
+   table box that shrinks to fit - so the `width: 100%` above sized the block
+   and never reached the columns. Measured 2026.11.13 in Chromium 151 and
+   WebKit 26.5: four tables on `cheatsheet.html` drew their rows at 288.2,
+   489.5, 647.4 and 740.1 in a 768px column. The same reading
+   `tools/cheatsheet-site.mjs` records for a carried table, in the file it
+   argues it out in. */
 table {
  width: 100%;
  margin: 0 0 var(--space-2);
  border-collapse: collapse;
- display: block;
+ max-width: 100%;
+}
+/* A class here and an attribute there: a generated page writes into a site
+   owner's folder where a class name can collide, and these pages are the
+   repository's own. `tabindex` because WebKit puts no scroll box in the tab
+   order itself, so without it a table wider than a phone is unreachable from
+   a keyboard in Safari. */
+.table-scroll {
+ max-width: 100%;
  overflow-x: auto;
 }
 th, td {

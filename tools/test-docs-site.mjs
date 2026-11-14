@@ -167,6 +167,61 @@ test("every page is a document a reader can get into", () => {
   }
 });
 
+// The structural half of the found issue of 2026.11.13, which the browser cases
+// in `tools/test-docs-pages-browser.mjs` measure the result of. It is here as
+// well as there because the two answer different questions and only one of them
+// runs on a bare clone: a width is a layout result and needs an engine, while
+// *is the table in a box at all* is text, and a table added to a page without
+// one is the way this comes back. The containment was moved off the `<table>`
+// and onto a wrapper on 2026.11.14, for the reason `BLOCK_STYLE` in
+// `tools/cheatsheet-site.mjs` records at length: a table at `display: block` is
+// not a table box, so its rows are laid out in an anonymous one that shrinks to
+// fit and the declared `width: 100%` never reaches the columns.
+test("every table on the site sits in a box that scrolls, and the table is left a table", () => {
+  let counted = 0;
+  for (const [name, html] of SOURCE) {
+    const opens = [...html.matchAll(/<table(?=[\s>])/g)];
+    counted += opens.length;
+    for (const open of opens) {
+      // The wrapper is written on the line in front of the table and nothing
+      // else is allowed between them, so a table that gained one is the only
+      // thing this matches.
+      assert.match(
+        html.slice(0, open.index),
+        /<div class="table-scroll" tabindex="0">\s*$/,
+        `docs/${name} carries a <table> that is not wrapped in a focusable div.table-scroll`
+      );
+    }
+    assert.equal(
+      (html.match(/<div class="table-scroll"/g) || []).length,
+      opens.length,
+      `docs/${name} has other than one box per table`
+    );
+  }
+  assert.ok(counted > 0, "the site carries no table at all, so nothing was checked");
+
+  // And the stylesheet puts the containment on the box rather than on the
+  // table, which is the defect itself rather than a consequence of it.
+  const sheet = read("docs", "docs.css");
+  const rule = /(^|\})\s*table\s*\{([^}]*)\}/m.exec(sheet);
+  assert.ok(rule, "docs/docs.css carries no rule for table at all");
+  assert.doesNotMatch(
+    rule[2],
+    /display\s*:\s*block/,
+    "docs/docs.css takes every table out of the table formatting context again"
+  );
+  assert.doesNotMatch(
+    rule[2],
+    /overflow-x\s*:/,
+    "docs/docs.css asks a table box to scroll, which it cannot - the box around it does"
+  );
+  assert.match(
+    sheet,
+    /\.table-scroll\s*\{[^}]*overflow-x\s*:\s*auto/,
+    "docs/docs.css gives div.table-scroll nothing to scroll with"
+  );
+});
+
 test("nothing on the site needs a script to be read", () => {
   // The menu is fixed above the breakpoint and the top of the document below
   // it, which is what removes the need for a collapse and with it the only
