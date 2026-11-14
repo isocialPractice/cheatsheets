@@ -37,6 +37,97 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.10.1]
+
+The same defect as the release before it, in the second file that was carrying
+it: `docs/docs.css` put `display: block; overflow-x: auto` on every
+documentation table, which is the pair `1.0.0-alpha.1.10.0` had just moved off a
+carried `<table>` and onto a wrapper. Unlike the generated-page case this one
+was not hypothetical - it was live on the published site, where it had been
+since the documentation moved out of `README.md` on 2026.11.08.
+
+A patch rather than a minor: there is no new surface a caller writes against,
+and nothing a generated page or the API does changes. What changes is how this
+repository's own documentation reads, and which engines the suite reads it in.
+
+### Fixed
+
+- **Every documentation table lays its rows out to the width its stylesheet
+  declares.** A `<table>` at `display: block` is not a table box, so its rows
+  are laid out in an **anonymous table box** that has no width of its own and
+  shrinks to fit - the `width: 100%` beside it sized the block that scrolled and
+  never reached the columns. Measured at 1280x900 in a 768px column, in Chromium
+  151 and WebKit 26.5, over the four tables on `docs/cheatsheet.html`: the
+  palette table drew its rows at **288.2**, the property table at **489.5**, the
+  export table at **647.4** and the model table at **740.1**, so one page showed
+  four tables at four widths where its stylesheet asked for one. The five tables
+  on the other pages measured 767 against a 768 box, which is their content
+  being wider than the column rather than the rule being honoured - restoring
+  `display: table` draws all nine at 768. At 390x844 the palette table was still
+  288.2 in a 358px column.
+- **The table is left a table and the box around it scrolls.** `table` keeps
+  `width: 100%` with `max-width: 100%` beside it, and `div.table-scroll` carries
+  `max-width: 100%; overflow-x: auto`. Each of the nine tables on the site -
+  four on `docs/cheatsheet.html`, two on `docs/rendering-outside-the-page.html`,
+  one each on `docs/drawing-a-sheet.html`, `docs/generating-from-a-site.html`
+  and `docs/index.html` - is written inside one. A class here and an attribute
+  on the generated pages, because those write into a site owner's folder where a
+  class name can collide and these pages are the repository's own.
+- **A documentation table wider than a phone can be scrolled from a
+  keyboard.** Each wrapper carries `tabindex="0"`, for the reason the carried
+  table's wrapper does: WebKit puts no scroll box in the tab order itself, so
+  without it the surface table on `docs/index.html` - 378.3px wide in a 358px
+  column at 390x844, in Chromium and WebKit both - was unreachable in Safari
+  without a pointer. No `role="region"` and no `aria-label`, because no
+  documentation table has a `<caption>` to be named from and a region a screen
+  reader announces and cannot name is worse than no region.
+
+### Changed
+
+- **The suite reads three engines where one is not an answer.**
+  `tools/test-site-pages-browser.mjs` resolved `chromium` and nothing else, so
+  the keyboard case added in the previous release passed on one of the two
+  engines that never needed the attribute it was written for. It now launches
+  whichever of Chromium, Firefox and WebKit are installed and skips per engine,
+  with that engine's install command as the reason, over the cases that measure
+  containment and keyboard reach.
+- **The clamp is asserted only where the engine clamps.** *A carried table that
+  declared a width wider than the page is clamped* was engine specific as
+  written. At 390x844 Chromium 151 and Firefox 153 clamp `#declared-wide` from
+  800 to the 374px box; **WebKit 26.5 leaves the table at 800 and scrolls the
+  wrapper the remaining 426px**. That is not a regression - WebKit reads the same
+  800 with the style block removed entirely - and the promise holds either way,
+  since the page scrolls sideways in none of the three. So the box and the page
+  are asserted over every engine, the clamp only where it happens, and WebKit's
+  scroll is recorded as the other way the same promise is kept.
+- **`docs/tests.html` says why a few cases want three browsers**, and
+  `docs/generating-from-a-site.html` records that the engine the carried
+  wrapper's `tabindex` was written for is now the engine it is measured in.
+
+### Tested
+
+- **`tools/test-docs-pages-browser.mjs`** is new, named the way the other
+  browser driven files in `tools/` are, and reads every `<table>` on every page
+  in `docs/` at 1280x900 and at 390x844 over all three engines. Four cases:
+  the rows span the table's own width with `display: table` on it, a table wider
+  than its box has something hidden in it while the page never scrolls sideways,
+  every box takes focus and scrolls with an ArrowRight, and every box reached by
+  a real Tab press draws the site's focus ring without widening the page. The
+  first two fail on the stylesheet as it stood, in all three engines; the third
+  passed vacuously against markup carrying no wrapper at all, so it counts the
+  boxes against the tables before it asserts anything about them. The fourth
+  counts the rings it read against the boxes the site carries, both read off the
+  pages, so the nine boxes standing today are a measurement rather than a figure
+  a tenth table would contradict.
+- **The structural half is checked without a browser too.**
+  `tools/test-docs-site.mjs` is dependency free and reads the pages as text,
+  which is why it watched this site for five days without noticing - a column
+  width is a layout result. *Is the table in a box at all* is not, so it now
+  holds that every `<table>` is wrapped in a focusable `div.table-scroll`, one
+  box per table, and that the stylesheet puts neither `display: block` nor an
+  `overflow-x` on the table itself. That is the case that runs on a bare clone,
+  and the way this comes back is a table added to a page without a wrapper.
+
 ## [1.0.0-alpha.1.10.0]
 
 The containment that shipped in `1.0.0-alpha.1.9.0`, measured a second time and
