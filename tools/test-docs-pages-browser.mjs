@@ -516,6 +516,7 @@ test("every documentation table's box shows where focus went, and the ring costs
       const page = await context.newPage();
       try {
         let rings = 0;
+        let boxes = 0;
         for (const which of PAGES) {
           await page.goto(`${site.base}/docs/${which}`, { waitUntil: "load" });
           const counts = await page.evaluate(
@@ -528,6 +529,7 @@ test("every documentation table's box shows where focus went, and the ring costs
             WRAPPER
           );
           if (counts.boxes === 0) continue;
+          boxes += counts.boxes;
           const seen = new Map();
           const limit = counts.focusable * 2 + 20;
           for (let press = 0; press < limit && seen.size < counts.boxes; press += 1) {
@@ -577,10 +579,16 @@ test("every documentation table's box shows where focus went, and the ring costs
             rings += 1;
           }
         }
+        // Counted off the site rather than written down. The site carried nine
+        // boxes on 2026.11.14, and a tenth table added to a page is a page this
+        // case covers rather than a figure it contradicts - which is the same
+        // reason `PAGES` is read from the folder. The vacuity this guards is a
+        // site with no box at all, so that is what is asserted.
+        assert.ok(boxes > 0, `${name} at ${viewport.width}px: the site carries no box to focus`);
         assert.equal(
           rings,
-          9,
-          `${name} at ${viewport.width}px: read a ring off ${rings} boxes, and the site carries 9`
+          boxes,
+          `${name} at ${viewport.width}px: read a ring off ${rings} of the site's ${boxes} boxes`
         );
       } finally {
         await context.close();
