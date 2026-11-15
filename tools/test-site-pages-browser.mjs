@@ -774,7 +774,7 @@ test("a carried image wider than the page is drawn inside it, ratio kept", async
 // and the page, and the clamp is asserted only where the engine clamps: a case
 // written to Chromium's reading alone fails under WebKit for a reason that is
 // not a defect, and one written to neither watches nothing.
-test("a carried table that declared a width wider than the page is clamped", async (t) => {
+test("a carried table that declared a width wider than the page is contained in its box, not the page", async (t) => {
   await overEngines(t, async (engine, name) => {
     const seen = await measureWide({ width: 390, height: 844 }, engine);
     const px = seen.declaredWide;

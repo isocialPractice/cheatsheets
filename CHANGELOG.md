@@ -37,6 +37,37 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [Unreleased]
+
+Two names the suite prints, found by the UI/UX review of 2026.11.14 and fixed
+here. No assertion changed, no generated page or API behaviour changed, and
+there is no new surface a caller writes against - so there is nothing to
+version yet, and this section ships with whatever release comes next.
+
+### Changed
+
+- **The containment case is named for the promise both its branches keep.** *A
+  carried table that declared a width wider than the page is clamped* is now *a
+  carried table that declared a width wider than the page is contained in its
+  box, not the page*, which is the shape the content-wide case beside it already
+  used. The old name was true in two of the three engines the case has run over
+  since `1.0.0-alpha.1.10.1`: Chromium 151 and Firefox 153 clamp the declared
+  800 to the 374px box, while WebKit 26.5 leaves the table at 800 and scrolls
+  the wrapper the remaining 426px. Both branches pin a number rather than
+  falling through, so the case was sound and only its name was not - what the
+  suite printed was a tick beside *is clamped > webkit* for the one engine where
+  the table is not clamped. The body and the fifteen lines of comment above it
+  are untouched.
+- **`tools/test-docs-pages-browser.mjs` opens on the cases it actually holds.**
+  Its multi engine paragraph counted three where the file has four - the focus
+  ring case joined it the same day that paragraph was written - and gave one of
+  the two readings the three launches are paid for. It now gives both: the tab
+  order WebKit puts no scroll box in, and the `:focus-visible` match that no
+  engine makes on a programmatic `focus()`, which is why that case drives a real
+  Tab press and reads the ring off all three. The count is left to be read off
+  the `test(` lines rather than written down again, since writing it down is
+  what went stale.
+
 ## [1.0.0-alpha.1.10.1]
 
 The same defect as the release before it, in the second file that was carrying

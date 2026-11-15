@@ -45,13 +45,24 @@
 //
 //   npm install -g @playwright/test && npx playwright install
 //
-// **Three engines, because one of the three cases here is only ever false in
-// one of them.** The widths read the same everywhere; the keyboard reach does
-// not. WebKit puts no scroll box in the tab order of its own, measured three
-// ways on 2026.11.12 and again on 2026.11.13, so without the `tabindex` on each
-// wrapper a documentation table wider than a phone is unreachable in Safari and
-// in no other engine. A case for it driving Chromium alone would pass on the
-// engine that never needed it.
+// **Three engines, because the widths read the same everywhere and the
+// keyboard does not.** Every case in this file runs over each engine that
+// launched - the count is read off the `test(` lines below rather than
+// written down here, where it has already gone stale once - and two of the
+// readings they take are an engine's own rather than ones Chromium can give
+// on the others' behalf.
+//
+// The first is the tab order. WebKit puts no scroll box in it of its own,
+// measured three ways on 2026.11.12 and again on 2026.11.13, so without the
+// `tabindex` on each wrapper a documentation table wider than a phone is
+// unreachable in Safari and in no other engine. A case for it driving
+// Chromium alone would pass on the engine that never needed it.
+//
+// The second is the ring that says where a press landed. It is
+// `:focus-visible`, which matches a plain div on a real Tab press and on a
+// programmatic `focus()` in no engine at all, so that case drives the
+// keyboard and reads the outline off all three rather than letting one
+// engine's styling of a div stand for the rest.
 //
 // Run with: node --test tools/test-docs-pages-browser.mjs
 import { test, after, before } from "node:test";
