@@ -75,13 +75,23 @@ anything else: in November 2026 it was 38 test files inside an installed
 browser extension, in a tool's working folder, and the fix was the tool's
 rather than this repository's.</p>
 
-<h2>The two checks the workflow runs first</h2>
+<h2>The checks the workflow runs first</h2>
 
 <pre><code>node tools/build-manifest.mjs --check
-node api/napkin-sketch/VENDOR-CHECK.mjs</code></pre>
+node api/napkin-sketch/VENDOR-CHECK.mjs
+node --test tools/test-fixture-expected.mjs tools/test-fixture-site.mjs tools/test-browser-entry.mjs</code></pre>
 
-<p>Both run before the site publishes, so a stale manifest or an edited byte
-under <code>api/napkin-sketch/</code> fails the deploy rather than shipping.</p>
+<p>All of them run before the site publishes, so a stale manifest, an edited
+byte under <code>api/napkin-sketch/</code> or a generated page that moved fails
+the deploy rather than shipping.</p>
+
+<p>The third is the site tooling against the two committed fixtures under
+<code>fixtures/</code>, compared with the output committed beside them in
+<code>fixtures/expected/</code>. It is three files rather than the whole suite
+because this is a gate in front of a deploy: what belongs in it is what the
+deploy would otherwise publish wrong, and like the two checks above it, it
+installs nothing. The engine driven cases are not in it and skip where no
+browser is installed.</p>
 
 <p class="foot">Part of the <a href="index.html">cheatsheets documentation</a>.
 The repository is on

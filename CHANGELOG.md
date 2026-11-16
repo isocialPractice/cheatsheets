@@ -37,12 +37,24 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
-## [Unreleased]
+## [1.0.0-alpha.1.10.2]
 
-Two names the suite prints, found by the UI/UX review of 2026.11.14 and fixed
-here. No assertion changed, no generated page or API behaviour changed, and
-there is no new surface a caller writes against - so there is nothing to
-version yet, and this section ships with whatever release comes next.
+The five fixture items, which is the last of **Cliche Tutorial/Documentation
+Site to Test Cheatsheet API and Script**. `fixtures/site/` now carries every
+marking the site tooling reads, a folder inside a folder, and both menu modes;
+`fixtures/site-taken/` is a second root where everything is already the site
+owner's; and what a run writes against either one is committed under
+`fixtures/expected/` and compared in the Pages gate.
+
+A patch rather than a minor, for the reason `1.0.0-alpha.1.10.1` was: there is
+no new published surface, and nothing a generated page or the API does changes.
+What changes is what the repository can say when either of them moves - until
+now nothing in it stated what a generated page is supposed to look like, so a
+page that composed its figure at half the size or linked a menu one folder too
+high would have passed every case there was.
+
+It also carries the two names the suite prints that `## [Unreleased]` had been
+holding since 2026.11.14, which is the release they ship with.
 
 ### Changed
 
@@ -67,6 +79,83 @@ version yet, and this section ships with whatever release comes next.
   Tab press and reads the ring off all three. The count is left to be read off
   the `test(` lines rather than written down again, since writing it down is
   what went stale.
+- **`tools/test-fixture-site.mjs` reads what the two roots carry rather than
+  what they lack.** Its fourth section listed five things that belonged to later
+  items and held them absent, so that a fixture which quietly grew one would not
+  make the item adding it read as done. All five landed here, so the section is
+  gone and the cases that replace it read the markings, the nesting, the two
+  menu modes and the variant off the fixtures - and the README check asks where
+  each one is instead of that it is missing. Twelve cases where there were
+  eight.
+- **`tools/test-site-pages-browser.mjs` reads five generated pages.** The
+  fixture writes `reference.html` now, so the page list and the master page's
+  sheet ids carry it. Nothing else about that file changed: four sheets on one
+  page is still what the `id` option exists for, and it is still what the case
+  measures.
+
+### Added
+
+- **Both authoring methods have a fixture, in one folder.**
+  `docs/commands.html` is `docs/reference/commands.html` and is marked with the
+  comment syntax rather than the attribute, standing in front of its `<section>`
+  with nothing but whitespace between the two - which the page's own prose
+  outside the marking is what exercises, since a directive carried forward to
+  the next element it could find would be one applied to the wrong material. Its
+  sibling `exit-codes.html` is marked with the attribute, so `reference.html` is
+  one cheatsheet written out of both methods. The comment asks for
+  `heading: page` and the page's `<title>` is a sentence, so the heading read
+  off the file name is visibly the file name.
+- **A folder inside a folder, which is what says which name a cheatsheet
+  takes.** `docs/reference/` is three segments deep, so `pageFolder` reading the
+  **immediate** parent is the difference between `reference.html` and
+  `docs.html` - and two folders at the root could never have asked that. `docs/`
+  is left holding one page on purpose: one page in a folder is a cheatsheet with
+  one section, and the tempting other reading is to group only at two or more.
+- **Both menu modes, each in the page a site would mark it on.** `index.html`
+  asks for the `page` mode, one link to the page carrying every cheatsheet;
+  `commands.html` asks for the `dropdown`, an entry per generated page, from two
+  folders down - so the link walk that mode raised is exercised rather than
+  assumed, and a run fills `../../cheatsheets/reference.html` rather than a path
+  that works from the folder the tool resolved.
+- **`fixtures/site-taken/`, a second root where everything is already the site
+  owner's.** A `cheatsheets/` folder of their own, so the output ladder resolves
+  past it and writes into `cheatsheets/cheatsheets/` - the case the ladder's unit
+  tests cannot reach, since resolving is a question about a disk. And a `<nav>`
+  holding a menu somebody wrote by hand, which a run refuses rather than writes
+  over, because it recognises only its own fill. That is the one expected finding
+  of the root and the reason it is a second root: `fixtures/site/` reads clean,
+  and a root with an expected finding cannot be asserted to have none.
+
+### Tested
+
+- **`fixtures/expected/`, the output a run writes, committed.** Every file a run
+  creates or changes in either root, at the path it lands at: the five generated
+  pages and their manifest, the two pages whose menus were filled, and the
+  variant's two pages in the folder the ladder resolved. Until now nothing in
+  the repository said what a generated page is supposed to look like, which is
+  the same gap `tools/test-render-fixture.mjs` was written for one layer down.
+- **`tools/test-fixture-expected.mjs` runs the tool against both roots and
+  compares the two.** A diff of the tree rather than a read of the output
+  folder, because a run writes into pages the site owner keeps as well - so a
+  file it deleted, or one it started writing somewhere new, is part of what is
+  pinned. It also pins the exit code each root ends on, and holds every file the
+  first run wrote byte identical over a second run. What that second run does
+  not reach is the folder it resolves: a run that stopped reading the name its
+  manifest recorded would write a third folder beside the first and leave the
+  first one's files untouched, so the recorded name being read at all is held by
+  `tools/test-cheatsheet-site.mjs` rather than here.
+- **The API is pinned with it.** A generated page is the tool's page shape
+  wrapped around `api/cheatsheet/` composing material read off the fixture, so
+  the `<svg>` in every expected page moves when the layout, the type
+  measurement, the theme or the seed does. The browser route reading a live
+  document is still `tools/test-site-pages-browser.mjs` through an engine and
+  `tools/test-browser-entry.mjs` against a hand written DOM.
+- **The Pages gate runs the site tooling against the fixtures.** Three files in
+  the job that already checks the vendored surface and the catalog, so a change
+  that moved a generated page cannot reach the published site with nothing
+  having read it. Three rather than the whole suite, because this is the gate in
+  front of a deploy and what belongs in it is what the deploy would otherwise
+  publish wrong - and, like the two checks beside it, it installs nothing.
 
 ## [1.0.0-alpha.1.10.1]
 

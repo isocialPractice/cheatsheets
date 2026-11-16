@@ -11,13 +11,28 @@
   <p>A tutorial for <code>demo-app</code>, and the documentation for the tool that ships it.</p>
 </header>
 
+<!--
+  The element below the links is where this page's menu goes: the page mode, so
+  it is filled with one link to the page carrying every cheatsheet. It is
+  outside the marked element on purpose - a menu written inside collected
+  material is carried onto the generated cheatsheet by the next run, with its
+  links relative to the page it came off rather than the page it ended up on,
+  and the run refuses it rather than doing that.
+
+  It is empty, because a fill is written over whatever is between the tags. The
+  run wraps what it writes in a comment of its own and recognises nothing else,
+  so a hand written menu left here would be refused instead - the variant site
+  beside this one carries that case.
+-->
 <nav>
   <ul>
     <li><a href="tutorial/getting-started.html">Getting started</a></li>
     <li><a href="tutorial/reading-data.html">Reading data</a></li>
     <li><a href="docs/configuration.html">Configuration</a></li>
-    <li><a href="docs/commands.html">Commands</a></li>
+    <li><a href="docs/reference/commands.html">Commands</a></li>
+    <li><a href="docs/reference/exit-codes.html">Exit codes</a></li>
   </ul>
+  <div data-cheatsheet-menu="page"></div>
 </nav>
 
 <!--

@@ -1,0 +1,60 @@
+{
+  "generator": "cheatsheet-site",
+  "manifestVersion": 3,
+  "marker": "data-cheatsheet",
+  "output": "cheatsheets",
+  "pages": [
+    {
+      "sources": [
+        "docs/configuration.html",
+        "docs/reference/commands.html",
+        "docs/reference/exit-codes.html",
+        "index.html",
+        "tutorial/getting-started.html",
+        "tutorial/reading-data.html"
+      ],
+      "page": "all-cheatsheets.html",
+      "heading": "All Cheatsheets",
+      "headingSource": "master",
+      "blocks": 6
+    },
+    {
+      "sources": [
+        "docs/configuration.html"
+      ],
+      "page": "docs.html",
+      "heading": "Docs",
+      "headingSource": "folder",
+      "blocks": 1
+    },
+    {
+      "sources": [
+        "docs/reference/commands.html",
+        "docs/reference/exit-codes.html"
+      ],
+      "page": "reference.html",
+      "heading": "Reference",
+      "headingSource": "folder",
+      "blocks": 2
+    },
+    {
+      "sources": [
+        "index.html"
+      ],
+      "page": "index.html",
+      "heading": "Acme Corp Handbook",
+      "headingSource": "title",
+      "blocks": 1
+    },
+    {
+      "sources": [
+        "tutorial/getting-started.html",
+        "tutorial/reading-data.html"
+      ],
+      "page": "tutorial.html",
+      "heading": "Tutorial",
+      "headingSource": "folder",
+      "blocks": 2
+    }
+  ]
+}

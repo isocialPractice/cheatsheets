@@ -416,8 +416,8 @@ after(async () => {
   if (scratch) await rm(scratch, { recursive: true, force: true });
 });
 
-// The four pages a run over the fixture writes.
-const PAGES = ["index.html", "tutorial.html", "docs.html", MASTER_NAME];
+// The five pages a run over the fixture writes.
+const PAGES = ["index.html", "tutorial.html", "docs.html", "reference.html", MASTER_NAME];
 
 async function openOn(which, path, viewport = { width: 1280, height: 900 }) {
   const context = await browser.newContext({ viewport });
@@ -525,12 +525,12 @@ test("the master page carries one sheet per cheatsheet, each with its own id", a
   });
   assert.deepEqual(
     [...found.ids].sort(),
-    ["cheatsheet-site-docs", "cheatsheet-site-index", "cheatsheet-site-tutorial"],
+    ["cheatsheet-site-docs", "cheatsheet-site-index", "cheatsheet-site-reference", "cheatsheet-site-tutorial"],
     `the master page's sheet ids were ${found.ids.join(", ")}`
   );
-  // The reason the `id` option exists: three sheets on one page is three ids.
+  // The reason the `id` option exists: four sheets on one page is four ids.
   assert.equal(new Set(found.ids).size, found.ids.length, "two sheets on one page share an id");
-  assert.deepEqual(found.headed, ["h2", "h2", "h2"], "a sheet is not under a heading of its own");
+  assert.deepEqual(found.headed, ["h2", "h2", "h2", "h2"], "a sheet is not under a heading of its own");
   await context.close();
 });
 

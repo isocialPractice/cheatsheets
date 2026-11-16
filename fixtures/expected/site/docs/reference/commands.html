@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Every command demo-app answers to</title>
+</head>
+<body>
+<p><a href="../../index.html">Acme Corp Handbook</a></p>
+
+<nav data-cheatsheet-menu="dropdown">
+  <!-- cheatsheet-site:menu -->
+  <details>
+    <summary>Cheatsheets</summary>
+    <ul>
+      <li><a href="../../cheatsheets/all-cheatsheets.html">All Cheatsheets</a></li>
+      <li><a href="../../cheatsheets/docs.html">Docs</a></li>
+      <li><a href="../../cheatsheets/reference.html">Reference</a></li>
+      <li><a href="../../cheatsheets/index.html">Index</a></li>
+      <li><a href="../../cheatsheets/tutorial.html">Tutorial</a></li>
+    </ul>
+  </details>
+  <!-- /cheatsheet-site:menu -->
+</nav>
+
+<!--
+  The one page of this fixture marked with the comment syntax, and the one
+  carrying the dropdown menu above. Both of those are why it is the comment
+  page: an attribute carries one value, and this page has two things to say
+  about its material.
+
+  The directive below stands immediately in front of the element it applies
+  to, with nothing but whitespace between the two. A paragraph, a second
+  comment or a closing tag in between is reported rather than carried forward
+  to the next element it could find - which is why the explanatory comment you
+  are reading is before the paragraph rather than after it.
+
+  It asks for the file name as the heading. The title above is a sentence this
+  page wrote to be read, so the generated section is headed Commands and not
+  the sentence, and which source answered is visible rather than taken on
+  trust.
+
+  The paragraph outside the marked element below is deliberate: it is a page
+  carrying material the collector does not take, which is what makes the
+  marking a marking rather than a formality.
+-->
+<p>
+  Every command reads the configuration first, so a flag on the command line is
+  the exception rather than the way the tool is driven.
+</p>
+
+<!-- {% cheatsheet: [heading: page] %} -->
+<section>
+  <h2>check</h2>
+  <p>Reads the folder and reports. Writes nothing.</p>
+  <pre><code>demo-app check [folder] [--quiet] [--json]</code></pre>
+
+  <h2>write</h2>
+  <p>
+    The same read, with the report written to <code>outputDir</code>. The file
+    is named for the day it was written, so a second run on one day replaces
+    that day's report rather than growing a folder of them.
+  </p>
+  <pre><code>demo-app write ./records --out ./reports</code></pre>
+
+  <h2>explain</h2>
+  <p>
+    Takes one record and says what the check made of it, field by field. It is
+    the command for the failure nobody can reproduce from the report alone.
+  </p>
+  <pre><code>demo-app explain ./records/0042.json</code></pre>
+
+  <h2>What every command refuses</h2>
+  <p>
+    A folder that is not there, and a schema that names a type the tool has no
+    reader for. Both are reported with the path rather than the sentence, so
+    there is somewhere to go and look.
+  </p>
+  <pre><code>demo-app check ./missing
+# demo-app: ./missing is not there.</code></pre>
+</section>
+
+<footer>
+  <p>Acme Corp, 123 Main Street, Suite 100, Springfield. (555) 123-4567.</p>
+</footer>
+</body>
+</html>

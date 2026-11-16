@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northwind Traders Notes</title>
+</head>
+<body>
+<header>
+  <h1>Northwind Traders Notes</h1>
+  <p>One page of notes on <code>demo-app</code>, kept beside a cheatsheets folder of our own.</p>
+</header>
+
+<!--
+  The menu element below already holds a menu somebody wrote by hand, which is
+  the whole of what this element is here for. A fill is written over whatever
+  is between the tags, and the run recognises only its own fill - wrapped in a
+  comment it writes itself - so this is refused and reported rather than
+  replaced. The site beside this one carries the two menus that are filled.
+-->
+<nav data-cheatsheet-menu="dropdown">
+  <ul>
+    <li><a href="cheatsheets/index.html">Our cheatsheets</a></li>
+  </ul>
+</nav>
+
+<main data-cheatsheet="title">
+  <h2>What we use demo-app for</h2>
+  <p>
+    One folder of records a week, checked against the schema we keep beside
+    them. The report is read by a person rather than by anything else, so the
+    exit code is the half we ignore.
+  </p>
+
+  <h3>What we changed from the defaults</h3>
+  <dl>
+    <dt>strict</dt>
+    <dd>On, because two tools write into the records folder.</dd>
+    <dt>outputDir</dt>
+    <dd>A folder a week, so an old report is still there to compare against.</dd>
+  </dl>
+</main>
+
+<footer>
+  <p>Questions to <a href="mailto:admin@example.net">admin@example.net</a>.</p>
+  <p>Northwind Traders, 123 Main Street, Springfield. (555) 123-4567.</p>
+</footer>
+</body>
+</html>

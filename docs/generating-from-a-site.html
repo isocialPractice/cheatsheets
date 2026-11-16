@@ -455,15 +455,33 @@ folder is read off where the file sits rather than out of the file, so an older
 manifest answers that as well as a current one and is rewritten on the way
 past.</p>
 
-<p>There is a site to run it against, committed. <code>fixtures/site/</code> is
-a small placeholder site - half tutorial, half tool documentation - carrying
-every page shape the tooling has to handle: prose sections, code examples, a
-table, and a chart whose script holds a <code>&lt;/div&gt;</code> in a string,
-which is the case that proves a script is an opaque span rather than markup.
-Read its <a href="../fixtures/site/README.md">README</a> for what is in it and
-what is deliberately not yet.</p>
+<p>There are two sites to run it against, committed.
+<code>fixtures/site/</code> is a small placeholder site - half tutorial, half
+tool documentation - carrying every page shape the tooling has to handle: prose
+sections, code examples, a table, and a chart whose script holds a
+<code>&lt;/div&gt;</code> in a string, which is the case that proves a script is
+an opaque span rather than markup. It carries every marking as well: the
+attribute on four of its six pages, the comment syntax on a fifth, both menu
+modes, and a folder inside a folder, so that the name a cheatsheet takes is read
+off the immediate parent rather than assumed.
+<code>fixtures/site-taken/</code> is the second root, where everything is
+already the site owner's - a <code>cheatsheets/</code> folder the output ladder
+resolves past, and a hand written menu a run refuses rather than writing over.
+Read their READMEs for what is in each:
+<a href="../fixtures/site/README.md">site</a> and
+<a href="../fixtures/site-taken/README.md">site-taken</a>.</p>
 
 <pre><code>node tools/cheatsheet-site.mjs fixtures/site --dry-run</code></pre>
+
+<p>What a run writes against either one is committed too, under
+<code>fixtures/expected/</code>: every file it creates or changes, at the path
+it lands at, including the pages whose menus were filled.
+<code>tools/test-fixture-expected.mjs</code> runs the tool against a copy and
+compares the two, and the Pages workflow runs it before it publishes - so a
+change that moved a generated page is a diff to read rather than something that
+reaches a site unnoticed. The <code>&lt;svg&gt;</code> in those pages is the
+API composing material read off the fixture, so that comparison holds both
+halves of the tooling at once.</p>
 
 <h2>Why the collector is a scanner</h2>
 

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Cheatsheets</title>
+<meta name="generator" content="cheatsheet-site">
+<meta name="cheatsheet-source" content="docs/configuration.html">
+<meta name="cheatsheet-source" content="docs/reference/commands.html">
+<meta name="cheatsheet-source" content="docs/reference/exit-codes.html">
+<meta name="cheatsheet-source" content="index.html">
+<meta name="cheatsheet-source" content="tutorial/getting-started.html">
+<meta name="cheatsheet-source" content="tutorial/reading-data.html">
+<!-- Written by cheatsheet-site. These rules keep the carried material below
+     inside the page width, and nothing else - they are scoped to the blocks
+     this tool wrote, and anything the site adds after them overrides them. -->
+<style>
+[data-cheatsheet-block] pre { overflow-x: auto; }
+[data-cheatsheet-block] img { max-width: 100%; }
+[data-cheatsheet-block] [data-cheatsheet-scroll] { max-width: 100%; overflow-x: auto; }
+[data-cheatsheet-block] table { max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>All Cheatsheets</h1>
+<section data-cheatsheet-sheet="docs.html">
+<h2>Docs</h2>
+<div class="cheatsheet" style="position:relative">
+<div role="img" aria-label="Docs cheat sheet">
+<svg id="cheatsheet-site-docs" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3600 3600" style="display:block;width:100%;height:auto">
+  <title>Docs</title>
+  <rect width="3600" height="3600" fill="#FFFFFF" data-name="background"/>
+  <rect data-name="masthead" x="0" y="0" width="3600" height="528" fill="#000132"/>
+  <rect data-name="code-panel" x="240" y="1200" width="3072" height="2016" fill="#000132"/>
+  <rect data-name="spine" x="0" y="1008" width="240" height="2208" fill="#4DAE51"/>
+  <rect data-name="divider" x="0" y="3216" width="3600" height="48" fill="#4DAE51"/>
+  <text data-name="wordmark" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="305.981" font-weight="300" xml:space="preserve" fill="#FFFFFF"><tspan x="873.338" y="353">practicing.xyz</tspan></text>
+  <rect data-name="rule-upper-left" x="0" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
+  <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1576.636" y="730">Docs</tspan></text>
+  <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
+  <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1381">// Configuration</tspan></text>
+  <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1440.974">Where the options are read from</tspan></text>
+  <text data-name="code-2" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="1500.948">config/reports.json beside the records folder, where there is</tspan></text>
+  <text data-name="code-3" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="1560.923">one. Every option has a default, so a folder with no configuration file is</tspan></text>
+  <text data-name="code-4" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="1620.897">a folder that reads with the defaults rather than one that refuses.</tspan></text>
+  <text data-name="code-5" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1680.871">Options</tspan></text>
+  <text data-name="code-6" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1740.845">Option</tspan></text>
+  <text data-name="code-7" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1800.819">Default</tspan></text>
+  <text data-name="code-8" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="1860.793">What it decides</tspan></text>
+  <text data-name="code-9" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="1920.768">folder</tspan></text>
+  <text data-name="code-10" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="1980.742">./records</tspan></text>
+  <text data-name="code-11" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2040.716">Which folder is read</tspan></text>
+  <text data-name="code-12" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2100.69">schema</tspan></text>
+  <text data-name="code-13" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2160.664">./schema.json</tspan></text>
+  <text data-name="code-14" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2220.639">Which fields a record must carry</tspan></text>
+  <text data-name="code-15" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2280.613">outputDir</tspan></text>
+  <text data-name="code-16" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2340.587">./reports</tspan></text>
+  <text data-name="code-17" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2400.561">Where a written report lands</tspan></text>
+  <text data-name="code-18" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2460.535">strict</tspan></text>
+  <text data-name="code-19" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2520.509">false</tspan></text>
+  <text data-name="code-20" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2580.484">Whether a field the schema does not name is a failure</tspan></text>
+  <text data-name="code-21" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2640.458">locale</tspan></text>
+  <text data-name="code-22" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2700.432">en</tspan></text>
+  <text data-name="code-23" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2760.406">How a date in a record is read</tspan></text>
+  <text data-name="code-24" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#B4BEC8"><tspan x="336" y="2820.38">The one option worth setting deliberately</tspan></text>
+  <text data-name="code-25" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2880.355">strict decides what an unknown field means. Left off, a record</tspan></text>
+  <text data-name="code-26" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="2940.329">may carry anything the schema does not name; turned on, it may not - which</tspan></text>
+  <text data-name="code-27" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="3000.303">is what a folder that several tools write into wants, and what a folder a</tspan></text>
+  <text data-name="code-28" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="51.46" xml:space="preserve" fill="#FFFFFF"><tspan x="336" y="3060.277">person maintains by hand almost never does.</tspan></text>
+  <rect data-name="mark-square" x="0" y="3264" width="288" height="336" fill="#000132"/>
+  <text data-name="follow-line" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="208.623" font-weight="400" xml:space="preserve" fill="#000132"><tspan x="576" y="3479">Follow along at practicing.xyz</tspan></text>
+</svg>
+</div>
+<nav class="cheatsheet-links" aria-label="Follow practicing.xyz" style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-label="practicing.xyz" style="position:absolute;display:block;pointer-events:auto;left:0%;top:90.6667%;width:8%;height:9.3333%"></a>
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" style="position:absolute;display:block;pointer-events:auto;left:16%;top:90.6667%;width:75.6839%;height:9.3333%"></a>
+</nav>
+</div>
+<section data-cheatsheet-page="docs/configuration.html">
+<h3>Configuration</h3>
+<main data-cheatsheet-block="section">
+<h2>Where the options are read from</h2>
+  <p>
+    <code>config/reports.json</code> beside the records folder, where there is
+    one. Every option has a default, so a folder with no configuration file is
+    a folder that reads with the defaults rather than one that refuses.
+  </p>
+
+  <div data-cheatsheet-scroll tabindex="0" role="region" aria-label="Options">
+  <table>
+    <caption>Options</caption>
+    <thead>
+      <tr><th>Option</th><th>Default</th><th>What it decides</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>folder</td><td><code>./records</code></td><td>Which folder is read</td></tr>
+      <tr><td>schema</td><td><code>./schema.json</code></td><td>Which fields a record must carry</td></tr>
+      <tr><td>outputDir</td><td><code>./reports</code></td><td>Where a written report lands</td></tr>
+      <tr><td>strict</td><td><code>false</code></td><td>Whether a field the schema does not name is a failure</td></tr>
+      <tr><td>locale</td><td><code>en</code></td><td>How a date in a record is read</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>The one option worth setting deliberately</h2>
+  <p>
+    <code>strict</code> decides what an unknown field means. Left off, a record
+    may carry anything the schema does not name; turned on, it may not - which
+    is what a folder that several tools write into wants, and what a folder a
+    person maintains by hand almost never does.
+  </p>
+</main>
+</section>
+</section>
+<section data-cheatsheet-sheet="reference.html">
+<h2>Reference</h2>
+<div class="cheatsheet" style="position:relative">
+<div role="img" aria-label="Reference cheat sheet">
+<svg id="cheatsheet-site-reference" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3600 3600" style="display:block;width:100%;height:auto">
+  <title>Reference</title>
+  <rect width="3600" height="3600" fill="#FFFFFF" data-name="background"/>
+  <rect data-name="masthead" x="0" y="0" width="3600" height="528" fill="#000132"/>
+  <rect data-name="code-panel" x="240" y="1200" width="3072" height="2016" fill="#000132"/>
+  <rect data-name="spine" x="0" y="1008" width="240" height="2208" fill="#4DAE51"/>
+  <rect data-name="divider" x="0" y="3216" width="3600" height="48" fill="#4DAE51"/>
+  <text data-name="wordmark" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="305.981" font-weight="300" xml:space="preserve" fill="#FFFFFF"><tspan x="873.338" y="353">practicing.xyz</tspan></text>
+  <rect data-name="rule-upper-left" x="0" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
+  <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1347.682" y="730">Reference</tspan></text>
+  <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
+  <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1302">// Commands</tspan></text>
+  <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1351.512">check</tspan></text>
+  <text data-name="code-2" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1401.024">Reads the folder and reports. Writes nothing.</tspan></text>
+  <text data-name="code-3" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1450.537">demo-app check [folder] [--quiet] [--json]</tspan></text>
+  <text data-name="code-4" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1500.049">write</tspan></text>
+  <text data-name="code-5" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1549.561">The same read, with the report written to outputDir. The file</tspan></text>
+  <text data-name="code-6" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1599.073">is named for the day it was written, so a second run on one day replaces</tspan></text>
+  <text data-name="code-7" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1648.586">that day&apos;s report rather than growing a folder of them.</tspan></text>
+  <text data-name="code-8" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1698.098">demo-app write ./records --out ./reports</tspan></text>
+  <text data-name="code-9" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1747.61">explain</tspan></text>
+  <text data-name="code-10" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1797.122">Takes one record and says what the check made of it, field by field. It is</tspan></text>
+  <text data-name="code-11" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1846.634">the command for the failure nobody can reproduce from the report alone.</tspan></text>
+  <text data-name="code-12" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1896.147">demo-app explain ./records/0042.json</tspan></text>
+  <text data-name="code-13" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1945.659">What every command refuses</tspan></text>
+  <text data-name="code-14" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1995.171">A folder that is not there, and a schema that names a type the tool has no</tspan></text>
+  <text data-name="code-15" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2044.683">reader for. Both are reported with the path rather than the sentence, so</tspan></text>
+  <text data-name="code-16" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2094.196">there is somewhere to go and look.</tspan></text>
+  <text data-name="code-17" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2143.708">demo-app check ./missing</tspan></text>
+  <text data-name="code-18" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2193.22"># demo-app: ./missing is not there.</tspan></text>
+  <text data-name="code-20" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2292.244">// Exit Codes</tspan></text>
+  <text data-name="code-21" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2341.757">The three codes</tspan></text>
+  <text data-name="code-22" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2391.269">0</tspan></text>
+  <text data-name="code-23" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2440.781">Every record carried every field the schema declares.</tspan></text>
+  <text data-name="code-24" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2490.293">1</tspan></text>
+  <text data-name="code-25" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2539.806">The folder was read and something in it failed the check.</tspan></text>
+  <text data-name="code-26" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2589.318">2</tspan></text>
+  <text data-name="code-27" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2638.83">Nothing was read: the folder or the schema is not there.</tspan></text>
+  <text data-name="code-28" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2688.342">Why a failed check is not an error</tspan></text>
+  <text data-name="code-29" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2737.854">A record that failed is an answer, and the report names the field it failed</tspan></text>
+  <text data-name="code-30" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2787.367">on. A folder that is not there is a question nobody can answer, which is</tspan></text>
+  <text data-name="code-31" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2836.879">the one case worth telling apart in a scheduled run.</tspan></text>
+  <text data-name="code-32" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2886.391">demo-app check ./records --quiet</tspan></text>
+  <text data-name="code-33" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2935.903">echo $?</tspan></text>
+  <text data-name="code-34" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2985.416">Reading one without reading the report</tspan></text>
+  <text data-name="code-35" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3034.928">The code says whether to look. The report says where, so a run that only</tspan></text>
+  <text data-name="code-36" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3084.44">branches on the code is a run that still has to read it afterwards.</tspan></text>
+  <text data-name="code-37" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3133.952">demo-app check ./records || demo-app explain ./records/0042.json</tspan></text>
+  <rect data-name="mark-square" x="0" y="3264" width="288" height="336" fill="#000132"/>
+  <text data-name="follow-line" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="208.623" font-weight="400" xml:space="preserve" fill="#000132"><tspan x="576" y="3479">Follow along at practicing.xyz</tspan></text>
+</svg>
+</div>
+<nav class="cheatsheet-links" aria-label="Follow practicing.xyz" style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-label="practicing.xyz" style="position:absolute;display:block;pointer-events:auto;left:0%;top:90.6667%;width:8%;height:9.3333%"></a>
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" style="position:absolute;display:block;pointer-events:auto;left:16%;top:90.6667%;width:75.6839%;height:9.3333%"></a>
+</nav>
+</div>
+<section data-cheatsheet-page="docs/reference/commands.html">
+<h3>Commands</h3>
+<main data-cheatsheet-block="section">
+<h2>check</h2>
+  <p>Reads the folder and reports. Writes nothing.</p>
+  <pre><code>demo-app check [folder] [--quiet] [--json]</code></pre>
+
+  <h2>write</h2>
+  <p>
+    The same read, with the report written to <code>outputDir</code>. The file
+    is named for the day it was written, so a second run on one day replaces
+    that day's report rather than growing a folder of them.
+  </p>
+  <pre><code>demo-app write ./records --out ./reports</code></pre>
+
+  <h2>explain</h2>
+  <p>
+    Takes one record and says what the check made of it, field by field. It is
+    the command for the failure nobody can reproduce from the report alone.
+  </p>
+  <pre><code>demo-app explain ./records/0042.json</code></pre>
+
+  <h2>What every command refuses</h2>
+  <p>
+    A folder that is not there, and a schema that names a type the tool has no
+    reader for. Both are reported with the path rather than the sentence, so
+    there is somewhere to go and look.
+  </p>
+  <pre><code>demo-app check ./missing
+# demo-app: ./missing is not there.</code></pre>
+</main>
+</section>
+<section data-cheatsheet-page="docs/reference/exit-codes.html">
+<h3>Exit Codes</h3>
+<main data-cheatsheet-block="article">
+<h2>The three codes</h2>
+  <dl>
+    <dt>0</dt>
+    <dd>Every record carried every field the schema declares.</dd>
+    <dt>1</dt>
+    <dd>The folder was read and something in it failed the check.</dd>
+    <dt>2</dt>
+    <dd>Nothing was read: the folder or the schema is not there.</dd>
+  </dl>
+
+  <h2>Why a failed check is not an error</h2>
+  <p>
+    A record that failed is an answer, and the report names the field it failed
+    on. A folder that is not there is a question nobody can answer, which is
+    the one case worth telling apart in a scheduled run.
+  </p>
+  <pre><code>demo-app check ./records --quiet
+echo $?</code></pre>
+
+  <h2>Reading one without reading the report</h2>
+  <p>
+    The code says whether to look. The report says where, so a run that only
+    branches on the code is a run that still has to read it afterwards.
+  </p>
+  <pre><code>demo-app check ./records || demo-app explain ./records/0042.json</code></pre>
+</main>
+</section>
+</section>
+<section data-cheatsheet-sheet="index.html">
+<h2>Acme Corp Handbook</h2>
+<div class="cheatsheet" style="position:relative">
+<div role="img" aria-label="Acme Corp Handbook cheat sheet">
+<svg id="cheatsheet-site-index" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3600 3600" style="display:block;width:100%;height:auto">
+  <title>Acme Corp Handbook</title>
+  <rect width="3600" height="3600" fill="#FFFFFF" data-name="background"/>
+  <rect data-name="masthead" x="0" y="0" width="3600" height="528" fill="#000132"/>
+  <rect data-name="code-panel" x="240" y="1200" width="3072" height="2016" fill="#000132"/>
+  <rect data-name="spine" x="0" y="1008" width="240" height="2208" fill="#4DAE51"/>
+  <rect data-name="divider" x="0" y="3216" width="3600" height="48" fill="#4DAE51"/>
+  <text data-name="wordmark" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="305.981" font-weight="300" xml:space="preserve" fill="#FFFFFF"><tspan x="873.338" y="353">practicing.xyz</tspan></text>
+  <rect data-name="rule-upper-left" x="0" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
+  <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="835.454" y="730">Acme Corp Handbook</tspan></text>
+  <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
+  <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="1337">What demo-app does</tspan></text>
+  <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="1404.307">demo-app reads a folder of records, checks each against the</tspan></text>
+  <text data-name="code-2" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="1471.613">schema it declares, and writes a report. It installs nothing and reads</tspan></text>
+  <text data-name="code-3" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="1538.92">nothing but the folder it is pointed at.</tspan></text>
+  <text data-name="code-4" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="1606.227">The three words worth knowing</tspan></text>
+  <text data-name="code-5" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="1673.534">Record</tspan></text>
+  <text data-name="code-6" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="1740.84">One file in the folder, holding one subject.</tspan></text>
+  <text data-name="code-7" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="1808.147">Schema</tspan></text>
+  <text data-name="code-8" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="1875.454">The fields a record must carry, and what each one may hold.</tspan></text>
+  <text data-name="code-9" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="1942.76">Report</tspan></text>
+  <text data-name="code-10" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="2010.067">What came back: the records that passed, and the field that failed on each that did not.</tspan></text>
+  <text data-name="code-11" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#B4BEC8"><tspan x="432" y="2077.374">Where to go next</tspan></text>
+  <text data-name="code-12" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="2144.681">Start with the tutorial if you have a folder of records already. Read the</tspan></text>
+  <text data-name="code-13" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="2211.987">configuration pages first if you are deciding whether the schema can say</tspan></text>
+  <text data-name="code-14" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="57.024" xml:space="preserve" fill="#FFFFFF"><tspan x="432" y="2279.294">what your records need.</tspan></text>
+  <rect data-name="mark-square" x="0" y="3264" width="288" height="336" fill="#000132"/>
+  <text data-name="follow-line" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="208.623" font-weight="400" xml:space="preserve" fill="#000132"><tspan x="576" y="3479">Follow along at practicing.xyz</tspan></text>
+</svg>
+</div>
+<nav class="cheatsheet-links" aria-label="Follow practicing.xyz" style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-label="practicing.xyz" style="position:absolute;display:block;pointer-events:auto;left:0%;top:90.6667%;width:8%;height:9.3333%"></a>
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" style="position:absolute;display:block;pointer-events:auto;left:16%;top:90.6667%;width:75.6839%;height:9.3333%"></a>
+</nav>
+</div>
+<main data-cheatsheet-block="main">
+<h2>What demo-app does</h2>
+  <p>
+    <code>demo-app</code> reads a folder of records, checks each against the
+    schema it declares, and writes a report. It installs nothing and reads
+    nothing but the folder it is pointed at.
+  </p>
+
+  <h3>The three words worth knowing</h3>
+  <dl>
+    <dt>Record</dt>
+    <dd>One file in the folder, holding one subject.</dd>
+    <dt>Schema</dt>
+    <dd>The fields a record must carry, and what each one may hold.</dd>
+    <dt>Report</dt>
+    <dd>What came back: the records that passed, and the field that failed on each that did not.</dd>
+  </dl>
+
+  <h3>Where to go next</h3>
+  <p>
+    Start with the tutorial if you have a folder of records already. Read the
+    configuration pages first if you are deciding whether the schema can say
+    what your records need.
+  </p>
+</main>
+</section>
+<section data-cheatsheet-sheet="tutorial.html">
+<h2>Tutorial</h2>
+<div class="cheatsheet" style="position:relative">
+<div role="img" aria-label="Tutorial cheat sheet">
+<svg id="cheatsheet-site-tutorial" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3600 3600" style="display:block;width:100%;height:auto">
+  <title>Tutorial</title>
+  <rect width="3600" height="3600" fill="#FFFFFF" data-name="background"/>
+  <rect data-name="masthead" x="0" y="0" width="3600" height="528" fill="#000132"/>
+  <rect data-name="code-panel" x="240" y="1200" width="3072" height="2016" fill="#000132"/>
+  <rect data-name="spine" x="0" y="1008" width="240" height="2208" fill="#4DAE51"/>
+  <rect data-name="divider" x="0" y="3216" width="3600" height="48" fill="#4DAE51"/>
+  <text data-name="wordmark" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="305.981" font-weight="300" xml:space="preserve" fill="#FFFFFF"><tspan x="873.338" y="353">practicing.xyz</tspan></text>
+  <rect data-name="rule-upper-left" x="0" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
+  <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1476.72" y="730">Tutorial</tspan></text>
+  <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
+  <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="1342">// Getting Started</tspan></text>
+  <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="1377.656">Check one folder</tspan></text>
+  <text data-name="code-2" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1413.313">One argument, and the folder is read in place. Nothing is written.</tspan></text>
+  <text data-name="code-3" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1448.969">demo-app check ./records</tspan></text>
+  <text data-name="code-4" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="1484.625">Declare what a record must carry</tspan></text>
+  <text data-name="code-5" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1520.282">A schema is a plain object. Every field names a type, and a field left out</tspan></text>
+  <text data-name="code-6" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1555.938">of the schema is a field the check ignores.</tspan></text>
+  <text data-name="code-7" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1591.594">const schema = {</tspan></text>
+  <text data-name="code-8" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1627.251">id: &quot;string&quot;,</tspan></text>
+  <text data-name="code-9" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1662.907">opened: &quot;date&quot;,</tspan></text>
+  <text data-name="code-10" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1698.563">owner: &quot;email&quot;,</tspan></text>
+  <text data-name="code-11" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1734.219">total: &quot;number&quot;,</tspan></text>
+  <text data-name="code-12" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1769.876">};</tspan></text>
+  <text data-name="code-13" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="1805.532">Read the report rather than the exit code</tspan></text>
+  <text data-name="code-14" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1841.188">The exit code says whether anything failed. The report says what, which is</tspan></text>
+  <text data-name="code-15" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1876.845">the half worth reading in a terminal.</tspan></text>
+  <text data-name="code-16" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1912.501">const report = await check(&quot;./records&quot;, schema);</tspan></text>
+  <text data-name="code-17" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1948.157">for (const failure of report.failures) {</tspan></text>
+  <text data-name="code-18" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="1983.814">console.log(`${failure.record}: ${failure.field} ${failure.why}`);</tspan></text>
+  <text data-name="code-19" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2019.47">}</tspan></text>
+  <text data-name="code-20" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2055.126">Two flags, and when each is worth it</tspan></text>
+  <text data-name="code-21" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2090.783">--quiet prints the failures and nothing else, which is what a</tspan></text>
+  <text data-name="code-22" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2126.439">scheduled run wants. --json prints the report as data, for</tspan></text>
+  <text data-name="code-23" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2162.095">anything that reads it rather than looks at it.</tspan></text>
+  <text data-name="code-24" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2197.752">demo-app check ./records --quiet</tspan></text>
+  <text data-name="code-25" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2233.408">demo-app check ./records --json &gt; report.json</tspan></text>
+  <text data-name="code-27" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2304.721">// Reading Data</tspan></text>
+  <text data-name="code-28" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2340.377">What a report says</tspan></text>
+  <text data-name="code-29" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2376.033">Fields of a report</tspan></text>
+  <text data-name="code-30" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2411.69">Field</tspan></text>
+  <text data-name="code-31" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2447.346">Type</tspan></text>
+  <text data-name="code-32" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2483.002">What it holds</tspan></text>
+  <text data-name="code-33" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2518.658">checked</tspan></text>
+  <text data-name="code-34" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2554.315">number</tspan></text>
+  <text data-name="code-35" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2589.971">How many records were read</tspan></text>
+  <text data-name="code-36" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2625.627">passed</tspan></text>
+  <text data-name="code-37" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2661.284">number</tspan></text>
+  <text data-name="code-38" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2696.94">How many carried every field the schema declares</tspan></text>
+  <text data-name="code-39" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2732.596">failures</tspan></text>
+  <text data-name="code-40" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2768.253">array</tspan></text>
+  <text data-name="code-41" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2803.909">One entry per record that did not, naming the field</tspan></text>
+  <text data-name="code-42" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2839.565">started</tspan></text>
+  <text data-name="code-43" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2875.222">date</tspan></text>
+  <text data-name="code-44" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="2910.878">When the run began, in UTC</tspan></text>
+  <text data-name="code-45" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2946.534">Failures over a week</tspan></text>
+  <text data-name="code-46" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="2982.191">Failures per day, last seven days</tspan></text>
+  <text data-name="code-47" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#B4BEC8"><tspan x="480" y="3017.847">Reading it without a browser</tspan></text>
+  <text data-name="code-48" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="3053.503">The same numbers are in the JSON report. A chart is for a person looking at</tspan></text>
+  <text data-name="code-49" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="30.598" xml:space="preserve" fill="#FFFFFF"><tspan x="480" y="3089.16">a week; the report is for anything that has to decide something.</tspan></text>
+  <rect data-name="mark-square" x="0" y="3264" width="288" height="336" fill="#000132"/>
+  <text data-name="follow-line" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="208.623" font-weight="400" xml:space="preserve" fill="#000132"><tspan x="576" y="3479">Follow along at practicing.xyz</tspan></text>
+</svg>
+</div>
+<nav class="cheatsheet-links" aria-label="Follow practicing.xyz" style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-label="practicing.xyz" style="position:absolute;display:block;pointer-events:auto;left:0%;top:90.6667%;width:8%;height:9.3333%"></a>
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" style="position:absolute;display:block;pointer-events:auto;left:16%;top:90.6667%;width:75.6839%;height:9.3333%"></a>
+</nav>
+</div>
+<section data-cheatsheet-page="tutorial/getting-started.html">
+<h3>Getting Started</h3>
+<main data-cheatsheet-block="article">
+<h2>Check one folder</h2>
+  <p>One argument, and the folder is read in place. Nothing is written.</p>
+  <pre><code>demo-app check ./records</code></pre>
+
+  <h2>Declare what a record must carry</h2>
+  <p>
+    A schema is a plain object. Every field names a type, and a field left out
+    of the schema is a field the check ignores.
+  </p>
+  <pre><code>const schema = {
+  id: "string",
+  opened: "date",
+  owner: "email",
+  total: "number",
+};</code></pre>
+
+  <h2>Read the report rather than the exit code</h2>
+  <p>
+    The exit code says whether anything failed. The report says what, which is
+    the half worth reading in a terminal.
+  </p>
+  <pre><code>const report = await check("./records", schema);
+for (const failure of report.failures) {
+  console.log(`${failure.record}: ${failure.field} ${failure.why}`);
+}</code></pre>
+
+  <h2>Two flags, and when each is worth it</h2>
+  <p>
+    <code>--quiet</code> prints the failures and nothing else, which is what a
+    scheduled run wants. <code>--json</code> prints the report as data, for
+    anything that reads it rather than looks at it.
+  </p>
+  <pre><code>demo-app check ./records --quiet
+demo-app check ./records --json &gt; report.json</code></pre>
+</main>
+</section>
+<section data-cheatsheet-page="tutorial/reading-data.html">
+<h3>Reading Data</h3>
+<main data-cheatsheet-block="section">
+<h2>What a report says</h2>
+  <div data-cheatsheet-scroll tabindex="0" role="region" aria-label="Fields of a report">
+  <table>
+    <caption>Fields of a report</caption>
+    <thead>
+      <tr><th>Field</th><th>Type</th><th>What it holds</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>checked</td><td>number</td><td>How many records were read</td></tr>
+      <tr><td>passed</td><td>number</td><td>How many carried every field the schema declares</td></tr>
+      <tr><td>failures</td><td>array</td><td>One entry per record that did not, naming the field</td></tr>
+      <tr><td>started</td><td>date</td><td>When the run began, in UTC</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Failures over a week</h2>
+  <figure>
+    <figcaption>Failures per day, last seven days</figcaption>
+    <svg id="failures" viewBox="0 0 280 120" role="img" aria-label="Failures per day, last seven days">
+      <rect x="0" y="0" width="280" height="120" fill="#f4f4f4"></rect>
+    </svg>
+    <script>
+      // Drawn rather than written out, so the chart is a chart rather than a
+      // picture of one. The closing tag in the string below is deliberate: it
+      // is what makes this page a test of the opaque span rather than a page
+      // that merely has a script on it.
+      (function drawFailures() {
+        const counts = [4, 2, 7, 1, 0, 3, 5];
+        const chart = document.getElementById("failures");
+        const widest = Math.max(...counts, 1);
+        counts.forEach(function (count, at) {
+          const height = (count / widest) * 96;
+          const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          bar.setAttribute("x", String(8 + at * 38));
+          bar.setAttribute("y", String(108 - height));
+          bar.setAttribute("width", "28");
+          bar.setAttribute("height", String(height));
+          bar.setAttribute("fill", "#4dae51");
+          chart.appendChild(bar);
+        });
+        const legend = '<div class="legend">failures</div>';
+        if (legend.length === 0) chart.innerHTML = legend;
+      })();
+    </script>
+  </figure>
+
+  <h2>Reading it without a browser</h2>
+  <p>
+    The same numbers are in the JSON report. A chart is for a person looking at
+    a week; the report is for anything that has to decide something.
+  </p>
+</main>
+</section>
+</section>
+</body>
+</html>

@@ -715,42 +715,66 @@ If the folder ever grows a file the site does need, the step is a literal
 `rm javaScriptArrays/*.jpg` and will not touch it - but say so there, because a
 workflow that drops tracked files reads as a fault to whoever meets it next.
 
-## What is in `fixtures/site/`
+## What is in `fixtures/`
 
-A small placeholder site, committed, existing only so the cheatsheet tooling has
-something to run against. Half of it is a tutorial and half of it is
-documentation for a tool, which is the shape a real site that wants a cheatsheet
-section has. See
-[fixtures/site/README.md](fixtures/site/README.md).
+Two small placeholder sites, committed, existing only so the cheatsheet tooling
+has something to run against, and the output a run writes against them.
 
-Three things about it are rules rather than details.
+| Folder | What it is |
+| --- | --- |
+| `fixtures/site/` | Six pages, half tutorial and half tool documentation, carrying every marking and every page shape the tooling reads. It reads clean: the tool has nothing to report about it |
+| `fixtures/site-taken/` | A second root where everything is already the site owner's - a `cheatsheets/` folder the output ladder resolves past, and a hand written menu a run refuses |
+| `fixtures/expected/` | Every file a run creates or changes in either root, committed at the path it lands at |
 
-**Everything in it is placeholder content.** Acme Corp, `demo-app`,
-`jane.doe@example.com`, 123 Main Street, (555) 123-4567. A fixture is read as an
-example of how to mark a site up, so a real name or a real address written into
-one is published twice over - and `tools/test-fixture-site.mjs` holds every
-address in it to a reserved domain rather than leaving that to a reader's
-judgement.
+Each root has a README of its own:
+[site](fixtures/site/README.md),
+[site-taken](fixtures/site-taken/README.md).
 
-**It is marked up on purpose, and it is the only folder here that is.** Every
-other case about `tools/cheatsheet-site.mjs` builds its site tree in the system
-temporary folder, because a page in this repository carrying `data-cheatsheet`
-would be collected by a run against this folder. So **never run the tool against
-the repository root** - name the fixture:
+Four things about them are rules rather than details.
+
+**Everything in them is placeholder content.** Acme Corp, `demo-app`,
+`jane.doe@example.com`, 123 Main Street, (555) 123-4567 in the first, and
+Northwind Traders with `admin@example.net` in the second - a different
+organisation on purpose, so two roots cannot be read as one site. A fixture is
+read as an example of how to mark a site up, so a real name or a real address
+written into one is published twice over, and `tools/test-fixture-site.mjs`
+holds every address in both to a reserved domain rather than leaving that to a
+reader's judgement.
+
+**They are marked up on purpose, and they are the only folders here that
+are.** Every other case about `tools/cheatsheet-site.mjs` builds its site tree
+in the system temporary folder, because a page in this repository carrying
+`data-cheatsheet` would be collected by a run against this folder. So **never
+run the tool against the repository root** - name a fixture:
 
 ```batch
 node tools/cheatsheet-site.mjs fixtures/site --dry-run
 ```
 
-**The suite reads it from a copy.** `tools/test-fixture-site.mjs` copies the
-folder into the temporary folder before any real run, so a suite run writes
-nothing into the repository. Committing the generated pages and comparing
-against them is its own item in `TODO.md`, and it waits for the page composition
-to settle.
+**The suite reads them from a copy.** Both test files copy a root into the
+temporary folder before any real run, so a suite run writes nothing into the
+repository. That matters more than it used to: a run over `fixtures/site/`
+fills the two menus it marks, which rewrites two of its pages in place.
 
-It ships with the site, like everything else outside the one exception above.
-That is deliberate and costs 12 KB: a marked up site a reader can view is the
-clearest statement of what the markings are for.
+**The expected output is committed, and it is regenerated deliberately.** A
+change to the tool, to the composition or to a fixture fails
+`tools/test-fixture-expected.mjs`, and the failure is the review. Once the new
+output has been read:
+
+```batch
+set MCP_FIXTURE_UPDATE=1
+node --test tools/test-fixture-expected.mjs
+```
+
+rewrites `fixtures/expected/` from a real run and passes - the same variable,
+and the same rule about never setting it to make a red suite green, as
+`tools/test-render-fixture.mjs` one layer down.
+
+All three folders ship with the site, like everything else outside the one
+exception above. That is deliberate and costs 145 KB, 124 KB of it the expected
+output: a marked up site a reader can view is the clearest statement of what the
+markings are for, and the generated pages beside it are the clearest statement
+of what they produce.
 
 ## Where the documentation lives
 
@@ -809,10 +833,13 @@ node api/napkin-sketch/VENDOR-CHECK.mjs
 node --test
 ```
 
-The first two are what the Pages workflow runs before it publishes, and the
-first is the one that catches a fault invisible locally: Pages serves from a
-case sensitive filesystem while the work happens on Windows, so a path cased
-wrongly resolves here and 404s on the published site.
+The Pages workflow runs the first two and three files of the third before it
+publishes - `tools/test-fixture-expected.mjs`, `tools/test-fixture-site.mjs` and
+`tools/test-browser-entry.mjs`, which is the site tooling against the committed
+fixtures and needs nothing installed. The first is the one that catches a fault
+invisible locally: Pages serves from a case sensitive filesystem while the work
+happens on Windows, so a path cased wrongly resolves here and 404s on the
+published site.
 
 ### A leftover test file is named `.cases.mjs`
 

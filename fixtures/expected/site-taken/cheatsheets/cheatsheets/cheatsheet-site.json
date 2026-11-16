@@ -1,0 +1,26 @@
+{
+  "generator": "cheatsheet-site",
+  "manifestVersion": 3,
+  "marker": "data-cheatsheet",
+  "output": "cheatsheets/cheatsheets",
+  "pages": [
+    {
+      "sources": [
+        "index.html"
+      ],
+      "page": "all-cheatsheets.html",
+      "heading": "All Cheatsheets",
+      "headingSource": "master",
+      "blocks": 1
+    },
+    {
+      "sources": [
+        "index.html"
+      ],
+      "page": "index.html",
+      "heading": "Northwind Traders Notes",
+      "headingSource": "title",
+      "blocks": 1
+    }
+  ]
+}

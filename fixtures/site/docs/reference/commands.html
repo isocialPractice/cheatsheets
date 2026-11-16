@@ -3,16 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Commands</title>
+<title>Every command demo-app answers to</title>
 </head>
 <body>
-<p><a href="../index.html">Acme Corp Handbook</a></p>
+<p><a href="../../index.html">Acme Corp Handbook</a></p>
+
+<nav data-cheatsheet-menu="dropdown"></nav>
 
 <!--
-  Code examples with prose around them, which is the other half of what tool
-  documentation is. This page is the second section of the docs folder's one
-  cheatsheet - a folder is a subject, so `configuration.html` and this are two
-  pages about the same thing.
+  The one page of this fixture marked with the comment syntax, and the one
+  carrying the dropdown menu above. Both of those are why it is the comment
+  page: an attribute carries one value, and this page has two things to say
+  about its material.
+
+  The directive below stands immediately in front of the element it applies
+  to, with nothing but whitespace between the two. A paragraph, a second
+  comment or a closing tag in between is reported rather than carried forward
+  to the next element it could find - which is why the explanatory comment you
+  are reading is before the paragraph rather than after it.
+
+  It asks for the file name as the heading. The title above is a sentence this
+  page wrote to be read, so the generated section is headed Commands and not
+  the sentence, and which source answered is visible rather than taken on
+  trust.
 
   The paragraph outside the marked element below is deliberate: it is a page
   carrying material the collector does not take, which is what makes the
@@ -23,7 +36,8 @@
   the exception rather than the way the tool is driven.
 </p>
 
-<section data-cheatsheet="title">
+<!-- {% cheatsheet: [heading: page] %} -->
+<section>
   <h2>check</h2>
   <p>Reads the folder and reports. Writes nothing.</p>
   <pre><code>demo-app check [folder] [--quiet] [--json]</code></pre>

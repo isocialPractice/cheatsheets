@@ -171,7 +171,10 @@ so it finds a marker a script wrote at run time - which a file scan cannot.
 `--dry-run` reports the folder it resolved, the pages it would write and the
 menus it would fill, and touches nothing. The script installs nothing, because
 it runs against somebody else's checkout, and
-[fixtures/site/](fixtures/site/README.md) is a placeholder site to try it on.
+[fixtures/site/](fixtures/site/README.md) is a placeholder site to try it on -
+with [fixtures/site-taken/](fixtures/site-taken/README.md) beside it for the
+cases where a site owner got there first. What a run writes against either is
+committed under `fixtures/expected/` and compared before the site publishes.
 
 ## [Adding to the Catalog](https://isocialpractice.github.io/cheatsheets/docs/adding-to-the-catalog.html)
 

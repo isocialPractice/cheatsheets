@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference</title>
+<meta name="generator" content="cheatsheet-site">
+<meta name="cheatsheet-source" content="docs/reference/commands.html">
+<meta name="cheatsheet-source" content="docs/reference/exit-codes.html">
+<!-- Written by cheatsheet-site. These rules keep the carried material below
+     inside the page width, and nothing else - they are scoped to the blocks
+     this tool wrote, and anything the site adds after them overrides them. -->
+<style>
+[data-cheatsheet-block] pre { overflow-x: auto; }
+[data-cheatsheet-block] img { max-width: 100%; }
+[data-cheatsheet-block] [data-cheatsheet-scroll] { max-width: 100%; overflow-x: auto; }
+[data-cheatsheet-block] table { max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>Reference</h1>
+<div class="cheatsheet" style="position:relative">
+<div role="img" aria-label="Reference cheat sheet">
+<svg id="cheatsheet-site-reference" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3600 3600" style="display:block;width:100%;height:auto">
+  <title>Reference</title>
+  <rect width="3600" height="3600" fill="#FFFFFF" data-name="background"/>
+  <rect data-name="masthead" x="0" y="0" width="3600" height="528" fill="#000132"/>
+  <rect data-name="code-panel" x="240" y="1200" width="3072" height="2016" fill="#000132"/>
+  <rect data-name="spine" x="0" y="1008" width="240" height="2208" fill="#4DAE51"/>
+  <rect data-name="divider" x="0" y="3216" width="3600" height="48" fill="#4DAE51"/>
+  <text data-name="wordmark" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="305.981" font-weight="300" xml:space="preserve" fill="#FFFFFF"><tspan x="873.338" y="353">practicing.xyz</tspan></text>
+  <rect data-name="rule-upper-left" x="0" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-upper-right" x="3168" y="532" width="432" height="45" fill="#4DAE51"/>
+  <rect data-name="rule-lower-left" x="0" y="623" width="432" height="20" fill="#4DAE51"/>
+  <rect data-name="rule-lower-right" x="3168" y="623" width="432" height="20" fill="#4DAE51"/>
+  <text data-name="title" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="196.106" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="1347.682" y="730">Reference</tspan></text>
+  <text data-name="lead-in" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="155.772" font-weight="400" xml:space="preserve" fill="#414143"><tspan x="384" y="1133">Starting Point for Practical Use:</tspan></text>
+  <text data-name="code-0" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1302">// Commands</tspan></text>
+  <text data-name="code-1" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1351.512">check</tspan></text>
+  <text data-name="code-2" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1401.024">Reads the folder and reports. Writes nothing.</tspan></text>
+  <text data-name="code-3" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1450.537">demo-app check [folder] [--quiet] [--json]</tspan></text>
+  <text data-name="code-4" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1500.049">write</tspan></text>
+  <text data-name="code-5" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1549.561">The same read, with the report written to outputDir. The file</tspan></text>
+  <text data-name="code-6" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1599.073">is named for the day it was written, so a second run on one day replaces</tspan></text>
+  <text data-name="code-7" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1648.586">that day&apos;s report rather than growing a folder of them.</tspan></text>
+  <text data-name="code-8" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1698.098">demo-app write ./records --out ./reports</tspan></text>
+  <text data-name="code-9" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1747.61">explain</tspan></text>
+  <text data-name="code-10" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1797.122">Takes one record and says what the check made of it, field by field. It is</tspan></text>
+  <text data-name="code-11" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1846.634">the command for the failure nobody can reproduce from the report alone.</tspan></text>
+  <text data-name="code-12" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1896.147">demo-app explain ./records/0042.json</tspan></text>
+  <text data-name="code-13" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="1945.659">What every command refuses</tspan></text>
+  <text data-name="code-14" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="1995.171">A folder that is not there, and a schema that names a type the tool has no</tspan></text>
+  <text data-name="code-15" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2044.683">reader for. Both are reported with the path rather than the sentence, so</tspan></text>
+  <text data-name="code-16" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2094.196">there is somewhere to go and look.</tspan></text>
+  <text data-name="code-17" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2143.708">demo-app check ./missing</tspan></text>
+  <text data-name="code-18" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2193.22"># demo-app: ./missing is not there.</tspan></text>
+  <text data-name="code-20" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2292.244">// Exit Codes</tspan></text>
+  <text data-name="code-21" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2341.757">The three codes</tspan></text>
+  <text data-name="code-22" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2391.269">0</tspan></text>
+  <text data-name="code-23" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2440.781">Every record carried every field the schema declares.</tspan></text>
+  <text data-name="code-24" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2490.293">1</tspan></text>
+  <text data-name="code-25" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2539.806">The folder was read and something in it failed the check.</tspan></text>
+  <text data-name="code-26" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2589.318">2</tspan></text>
+  <text data-name="code-27" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2638.83">Nothing was read: the folder or the schema is not there.</tspan></text>
+  <text data-name="code-28" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2688.342">Why a failed check is not an error</tspan></text>
+  <text data-name="code-29" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2737.854">A record that failed is an answer, and the report names the field it failed</tspan></text>
+  <text data-name="code-30" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2787.367">on. A folder that is not there is a question nobody can answer, which is</tspan></text>
+  <text data-name="code-31" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2836.879">the one case worth telling apart in a scheduled run.</tspan></text>
+  <text data-name="code-32" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2886.391">demo-app check ./records --quiet</tspan></text>
+  <text data-name="code-33" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="2935.903">echo $?</tspan></text>
+  <text data-name="code-34" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#B4BEC8"><tspan x="528" y="2985.416">Reading one without reading the report</tspan></text>
+  <text data-name="code-35" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3034.928">The code says whether to look. The report says where, so a run that only</tspan></text>
+  <text data-name="code-36" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3084.44">branches on the code is a run that still has to read it afterwards.</tspan></text>
+  <text data-name="code-37" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="41.725" xml:space="preserve" fill="#FFFFFF"><tspan x="528" y="3133.952">demo-app check ./records || demo-app explain ./records/0042.json</tspan></text>
+  <rect data-name="mark-square" x="0" y="3264" width="288" height="336" fill="#000132"/>
+  <text data-name="follow-line" font-family="&quot;Helvetica Neue&quot;, Arial, system-ui, sans-serif" font-size="208.623" font-weight="400" xml:space="preserve" fill="#000132"><tspan x="576" y="3479">Follow along at practicing.xyz</tspan></text>
+</svg>
+</div>
+<nav class="cheatsheet-links" aria-label="Follow practicing.xyz" style="position:absolute;inset:0;margin:0;padding:0;pointer-events:none">
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-label="practicing.xyz" style="position:absolute;display:block;pointer-events:auto;left:0%;top:90.6667%;width:8%;height:9.3333%"></a>
+<a href="https://practicing.xyz" target="_blank" rel="noopener noreferrer" aria-hidden="true" tabindex="-1" style="position:absolute;display:block;pointer-events:auto;left:16%;top:90.6667%;width:75.6839%;height:9.3333%"></a>
+</nav>
+</div>
+<section data-cheatsheet-page="docs/reference/commands.html">
+<h2>Commands</h2>
+<main data-cheatsheet-block="section">
+<h2>check</h2>
+  <p>Reads the folder and reports. Writes nothing.</p>
+  <pre><code>demo-app check [folder] [--quiet] [--json]</code></pre>
+
+  <h2>write</h2>
+  <p>
+    The same read, with the report written to <code>outputDir</code>. The file
+    is named for the day it was written, so a second run on one day replaces
+    that day's report rather than growing a folder of them.
+  </p>
+  <pre><code>demo-app write ./records --out ./reports</code></pre>
+
+  <h2>explain</h2>
+  <p>
+    Takes one record and says what the check made of it, field by field. It is
+    the command for the failure nobody can reproduce from the report alone.
+  </p>
+  <pre><code>demo-app explain ./records/0042.json</code></pre>
+
+  <h2>What every command refuses</h2>
+  <p>
+    A folder that is not there, and a schema that names a type the tool has no
+    reader for. Both are reported with the path rather than the sentence, so
+    there is somewhere to go and look.
+  </p>
+  <pre><code>demo-app check ./missing
+# demo-app: ./missing is not there.</code></pre>
+</main>
+</section>
+<section data-cheatsheet-page="docs/reference/exit-codes.html">
+<h2>Exit Codes</h2>
+<main data-cheatsheet-block="article">
+<h2>The three codes</h2>
+  <dl>
+    <dt>0</dt>
+    <dd>Every record carried every field the schema declares.</dd>
+    <dt>1</dt>
+    <dd>The folder was read and something in it failed the check.</dd>
+    <dt>2</dt>
+    <dd>Nothing was read: the folder or the schema is not there.</dd>
+  </dl>
+
+  <h2>Why a failed check is not an error</h2>
+  <p>
+    A record that failed is an answer, and the report names the field it failed
+    on. A folder that is not there is a question nobody can answer, which is
+    the one case worth telling apart in a scheduled run.
+  </p>
+  <pre><code>demo-app check ./records --quiet
+echo $?</code></pre>
+
+  <h2>Reading one without reading the report</h2>
+  <p>
+    The code says whether to look. The report says where, so a run that only
+    branches on the code is a run that still has to read it afterwards.
+  </p>
+  <pre><code>demo-app check ./records || demo-app explain ./records/0042.json</code></pre>
+</main>
+</section>
+</body>
+</html>

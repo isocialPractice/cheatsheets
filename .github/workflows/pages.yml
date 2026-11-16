@@ -41,6 +41,11 @@ jobs:
   # than shipping. The checker is the package's own, written into the folder
   # beside the copy by napkin-sketch vendor, so it is plain node with no
   # install and nothing of this repository's behind it.
+  #
+  # Since 2026.11.16 the site tooling is checked here as well, against the two
+  # committed fixture sites and the output they are pinned to. The step below
+  # says why that belongs in a gate rather than only in the suite, and it needs
+  # no install either - which is what let it in.
   manifest:
     runs-on: ubuntu-latest
     steps:
@@ -57,6 +62,32 @@ jobs:
 
       - name: Check the cheatsheet tree and the committed manifest
         run: node tools/build-manifest.mjs --check
+
+      # Added 2026.11.16, with the committed expectations it reads. The fixture
+      # sites under fixtures/ are the only marked up pages in the repository,
+      # and until this step existed nothing outside a developer's own machine
+      # ran the site tooling against them - so a change that moved a generated
+      # page could reach the published site with no check having read it.
+      #
+      # It runs the scripted tool against both fixture roots and compares every
+      # file a run creates or changes with fixtures/expected/, which is also
+      # where the API is held: a generated page is the tool's page shape wrapped
+      # around api/cheatsheet/ composing material read off the fixture, so those
+      # bytes move when either half does. The browser route's own cases run
+      # beside them against a hand written DOM, which is the half that needs
+      # nothing installed; the engine driven cases in
+      # tools/test-site-pages-browser.mjs are not here, and skip with the
+      # install command where they are run.
+      #
+      # Three files rather than the whole suite, deliberately. This is the gate
+      # in front of a deploy, and what belongs in it is what the deploy would
+      # otherwise publish wrong.
+      - name: Run the site tooling against the committed fixtures
+        run: >
+          node --test
+          tools/test-fixture-expected.mjs
+          tools/test-fixture-site.mjs
+          tools/test-browser-entry.mjs
 
   # The site is the repository root with one exception, and the exception is
   # spelled out rather than assumed: see "What the site does not carry" in

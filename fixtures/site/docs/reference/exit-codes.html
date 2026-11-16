@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What demo-app exits with</title>
+</head>
+<body>
+<p><a href="../../index.html">Acme Corp Handbook</a></p>
+
+<!--
+  The sibling of commands.html, marked with the parent tag method, so one
+  folder of this fixture carries both markings and one cheatsheet is written
+  out of the two of them.
+
+  The folder is what names that cheatsheet, and this folder is the reason the
+  pages are nested: the immediate parent is read, so these two pages are
+  written as reference.html and headed Reference, rather than joining the
+  docs folder above them.
+-->
+<article data-cheatsheet="page">
+  <h2>The three codes</h2>
+  <dl>
+    <dt>0</dt>
+    <dd>Every record carried every field the schema declares.</dd>
+    <dt>1</dt>
+    <dd>The folder was read and something in it failed the check.</dd>
+    <dt>2</dt>
+    <dd>Nothing was read: the folder or the schema is not there.</dd>
+  </dl>
+
+  <h2>Why a failed check is not an error</h2>
+  <p>
+    A record that failed is an answer, and the report names the field it failed
+    on. A folder that is not there is a question nobody can answer, which is
+    the one case worth telling apart in a scheduled run.
+  </p>
+  <pre><code>demo-app check ./records --quiet
+echo $?</code></pre>
+
+  <h2>Reading one without reading the report</h2>
+  <p>
+    The code says whether to look. The report says where, so a run that only
+    branches on the code is a run that still has to read it afterwards.
+  </p>
+  <pre><code>demo-app check ./records || demo-app explain ./records/0042.json</code></pre>
+</article>
+
+<footer>
+  <p>Questions to <a href="mailto:admin@example.org">admin@example.org</a>.</p>
+</footer>
+</body>
+</html>
