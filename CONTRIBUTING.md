@@ -776,6 +776,19 @@ output: a marked up site a reader can view is the clearest statement of what the
 markings are for, and the generated pages beside it are the clearest statement
 of what they produce.
 
+**Both of those figures are budgeted, in the two files that hold them.**
+`tools/test-fixture-site.mjs` holds the input fixtures to 24 KB a root and 6 KB
+a page, and `tools/test-fixture-expected.mjs` holds the expectation tree to
+160 KB and 64 KB a file - loose enough for two or three more generated pages,
+since one more marked up fixture page adds a whole composed page to the tree,
+and tight enough that committing a real site's output as a fixture fails rather
+than lands. The same file holds the gate's own clock: the three files
+`.github/workflows/pages.yml` runs are read off the workflow and timed, and
+8 seconds is the figure, which is loose against a shared runner and far below
+anything that installs, fetches or launches a browser. Which three files are in
+the gate is pinned beside it, so a browser driven file added there fails by name
+rather than by how long it took.
+
 ## Where the documentation lives
 
 The long documentation moved out of `README.md` into `docs/` on 2026.11.08,

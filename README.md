@@ -153,6 +153,20 @@ two renders of one composition. A menu element is never written over: a fill
 carries a signature, which is how a run tells its own work from a hand written
 menu left there as a fallback.
 
+A site that is not written yet has no page to mark, so it has a front end of its
+own - one JSON file, and the whole site out of it:
+
+```bash
+node tools/cheatsheet-data.mjs <data file>
+```
+
+An entry is a page: `page` and `material`, with the same `heading`, `group` and
+`name` a comment carries, taken from the comment's own vocabulary rather than a
+second copy of it. A page per entry, `all-cheatsheets.html` carrying all of them,
+`cheatsheet-menu.html` to move between them, and the manifest. Nothing past the
+read is different, so a cheatsheet generated from a data file and the same
+cheatsheet generated from marked up pages are the same bytes.
+
 A site that will not run a build step has the other route, which needs no
 checkout and nothing installed:
 

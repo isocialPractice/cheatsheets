@@ -57,7 +57,8 @@ node tools/build-manifest.mjs --check       # the same walk as a gate
 node api/napkin-sketch/VENDOR-CHECK.mjs     # hash the vendored copy against its record
 node tools/cheatsheet.mjs --list            # what there is
 node tools/cheatsheet.mjs --generate &lt;slug&gt; # compose and render one
-node tools/cheatsheet-site.mjs &lt;site&gt;       # read a site, write cheatsheets out of it</code></pre>
+node tools/cheatsheet-site.mjs &lt;site&gt;       # read a site, write cheatsheets out of it
+node tools/cheatsheet-data.mjs &lt;file&gt;       # the same, out of one JSON file</code></pre>
 
 <h2>tools/cheatsheet.mjs</h2>
 
@@ -126,6 +127,51 @@ than defaulted.</p>
 <p>A generated page carries a render of the cheatsheet's own document and the
 material it was read from, so the page and a media file of the same sheet are
 two renders of one composition.</p>
+
+<h2>tools/cheatsheet-data.mjs</h2>
+
+<pre><code>&lt;data file&gt;   the JSON file to read (required)
+--out &lt;dir&gt;   write here instead of resolving cheatsheets/ beside the file
+--dry-run     report the folder and the pages, touch nothing</code></pre>
+
+<p>For a site that is not written yet, so there is no page to mark. The same
+back end: a data file says in JSON what a marked up page says in an attribute
+or a comment, and nothing past the read is different.</p>
+
+<pre><code>{
+  "menu": "dropdown",
+  "entries": [
+    {
+      "page": "guide/arrays.html",
+      "title": "Working with arrays",
+      "material": ["&lt;h2&gt;splice&lt;/h2&gt;&lt;p&gt;Removes and inserts in place.&lt;/p&gt;"]
+    }
+  ]
+}</code></pre>
+
+<div class="table-scroll" tabindex="0">
+<table>
+ <tr><th>Property</th><th>Takes</th><th>In a crawled site</th></tr>
+ <tr><td><code>dataVersion</code></td><td>a number</td><td>nothing - no page declares one</td></tr>
+ <tr><td><code>menu</code></td><td><code>page</code>, <code>dropdown</code></td><td><code>data-cheatsheet-menu</code> on an element</td></tr>
+ <tr><td><code>entries</code></td><td>a list of entries</td><td>the pages of the site</td></tr>
+ <tr><td><code>page</code></td><td>a path inside the site</td><td>the page's own path</td></tr>
+ <tr><td><code>title</code></td><td>text</td><td><code>&lt;title&gt;</code></td></tr>
+ <tr><td><code>heading</code></td><td><code>title</code>, <code>page</code></td><td><code>heading:</code>, or <code>data-cheatsheet="&lt;source&gt;"</code></td></tr>
+ <tr><td><code>group</code></td><td><code>folder</code>, <code>page</code></td><td><code>group:</code></td></tr>
+ <tr><td><code>name</code></td><td>a file name</td><td><code>name:</code></td></tr>
+ <tr><td><code>material</code></td><td>a list of blocks</td><td>what a <code>data-cheatsheet</code> element wraps</td></tr>
+</table>
+</div>
+
+<p>The first three are the file's, the rest an entry's; <code>page</code> and
+<code>material</code> are the two an entry cannot be written without. A block is
+markup, or
+<code>{ "tag": "table", "markup": "&lt;table&gt;..." }</code> where the element
+is worth recording - markup alone is recorded as a <code>&lt;section&gt;</code>.
+The menu is a page here, <code>cheatsheet-menu.html</code>, since there is no
+page of the site's own to splice one into. A finding names the property's path
+in the file, as <code>entries[2].heading</code>.</p>
 
 <h2>api/cheatsheet/site.mjs</h2>
 

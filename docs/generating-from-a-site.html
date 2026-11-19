@@ -206,6 +206,158 @@ Each is reported with the page and the line, and the plain content case names
 both ways out - empty the element, or keep the markup and drop the
 attribute.</p>
 
+<h2>The data file, for a site that is not written yet</h2>
+
+<p>Both markings above are written <em>on a page</em>, which is the one thing a
+site that does not exist yet has not got. A new site, a site generated out of a
+database, a folder of notes somebody wants a cheatsheet section from before
+there is anything to publish it beside: each has the material and none of them
+has a page to mark. So there is a second way in -
+<code>node tools/cheatsheet-data.mjs &lt;data file&gt;</code> - which reads one
+JSON file and writes the whole thing: a page per entry,
+<code>all-cheatsheets.html</code> carrying all of them,
+<code>cheatsheet-menu.html</code> to move between them, and the manifest.</p>
+
+<p><strong>It is a second front end and not a second generator.</strong> A data
+file says in JSON exactly what a marked up page says in an attribute or a
+comment, and everything past the read is the same code: the same function
+renders the pages, plans what a run writes, records the manifest and builds the
+menu. A cheatsheet generated from a data file and the same cheatsheet generated
+from marked up pages are the same bytes, which the suite holds by running one
+piece of material through both routes and comparing the two renders.</p>
+
+<p>The smallest file that writes something:</p>
+
+<pre><code>{
+  "entries": [
+    {
+      "page": "guide/arrays.html",
+      "title": "Working with arrays",
+      "material": ["&lt;h2&gt;splice&lt;/h2&gt;&lt;p&gt;Removes and inserts in place.&lt;/p&gt;"]
+    }
+  ]
+}</code></pre>
+
+<h3>The contract, property by property</h3>
+
+<p>This is the mapping, and it is the whole of what a new site writes against.
+Each property stands for one piece of markup a crawled page would have carried,
+so a reader who knows one route knows the other.</p>
+
+<div class="table-scroll" tabindex="0">
+<table>
+ <tr><th>Property</th><th>Takes</th><th>In a crawled site</th></tr>
+ <tr>
+  <td><code>dataVersion</code></td>
+  <td>a number</td>
+  <td>nothing - no page declares a version of the markings</td>
+ </tr>
+ <tr>
+  <td><code>menu</code></td>
+  <td><code>page</code> or <code>dropdown</code></td>
+  <td><code>data-cheatsheet-menu</code> on the element a page wants its menu
+   in</td>
+ </tr>
+ <tr>
+  <td><code>entries</code></td>
+  <td>a list of entries</td>
+  <td>the pages of the site the scanner crawls</td>
+ </tr>
+ <tr>
+  <td><code>page</code></td>
+  <td>a path inside the site</td>
+  <td>the page's own path</td>
+ </tr>
+ <tr>
+  <td><code>title</code></td>
+  <td>text</td>
+  <td><code>&lt;title&gt;</code></td>
+ </tr>
+ <tr>
+  <td><code>heading</code></td>
+  <td><code>title</code> or <code>page</code></td>
+  <td><code>heading:</code> in a comment, or
+   <code>data-cheatsheet="&lt;source&gt;"</code></td>
+ </tr>
+ <tr>
+  <td><code>group</code></td>
+  <td><code>folder</code> or <code>page</code></td>
+  <td><code>group:</code> in a comment</td>
+ </tr>
+ <tr>
+  <td><code>name</code></td>
+  <td>a file name</td>
+  <td><code>name:</code> in a comment</td>
+ </tr>
+ <tr>
+  <td><code>material</code></td>
+  <td>a list of blocks</td>
+  <td>the markup a <code>data-cheatsheet</code> element wraps, one block per
+   element</td>
+ </tr>
+</table>
+</div>
+
+<p>The first three are the file's; the rest are an entry's. <strong>An entry is
+one page</strong>, so <code>page</code> and <code>material</code> are the two it
+cannot be written without, and everything else about a cheatsheet follows from
+the path the way it follows from a path in a crawled site: a folder is a
+subject, so two entries named <code>guide/one.html</code> and
+<code>guide/two.html</code> are written as <code>guide.html</code>, headed for
+the folder, with a section each in the order they are listed.</p>
+
+<p><strong>A data file is the comment method, said in JSON.</strong> That is why
+<code>heading</code>, <code>group</code> and <code>name</code> are the three a
+comment carries and not some other set: a comment is the marking that can say
+several things at once, and so is a record with several fields. The three take
+their values and their descriptions from the comment's own vocabulary rather
+than having a second copy of it, so the two cannot be edited into
+disagreeing.</p>
+
+<h3>A block of material</h3>
+
+<p>Markup, or a record naming the element it came off:</p>
+
+<pre><code>"material": [
+  "&lt;h2&gt;splice&lt;/h2&gt;&lt;p&gt;Removes and inserts in place.&lt;/p&gt;",
+  { "tag": "table", "markup": "&lt;table&gt;&lt;caption&gt;Returns&lt;/caption&gt;...&lt;/table&gt;" }
+]</code></pre>
+
+<p>Written as markup alone it is recorded as a <code>&lt;section&gt;</code>,
+which is the preset half of the mapping: a crawled page has an element whether
+or not it meant to choose one, and a data file has none, so one is supplied. The
+name is written onto the generated page as
+<code>data-cheatsheet-block</code> - the same place the scanner records the real
+element it found - and is read by nothing else, so naming it is worth doing only
+where the element says something about the material.</p>
+
+<h3>The menu is a page here</h3>
+
+<p>A crawled site has pages of its own for a menu to be spliced into, and a
+data file site is nothing but the generated folder - so the menu is a page of
+that folder. <code>cheatsheet-menu.html</code> is the front door: the same
+<code>&lt;details&gt;</code> a marked page would have been filled with, in the
+same document shell every generated page carries, linking its siblings. It is
+written only where the file asks for a menu, and it claims its name the way
+<code>all-cheatsheets.html</code> does - an entry that wants it is told rather
+than written over.</p>
+
+<h3>What a file can be wrong about</h3>
+
+<p>The same judgement the markings get: a property the contract does not hold,
+or a value it does not take, is reported and ignored, and the pages that could
+be read are still written. A finding names <strong>the property's path in the
+file</strong> - <code>entries[2].heading</code> - because that is what a reader
+has to go and edit. An entry that names no page, names a path outside the site,
+names a page another entry already stands for, or carries no material is
+reported and writes nothing; a file that is not a record, holds no
+<code>entries</code>, or declares a version this tool does not read is refused
+whole, because a file written against a later vocabulary holds properties this
+one would drop in silence.</p>
+
+<p><code>node tools/cheatsheet-data.mjs --help</code> prints the table above
+from the same object the read uses, so the two cannot come apart.</p>
+
 <h2>What a generated page carries</h2>
 
 <p>A render of a cheatsheet document, and the material it was read from. The

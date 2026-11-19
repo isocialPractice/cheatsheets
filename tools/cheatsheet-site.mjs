@@ -2416,12 +2416,17 @@ export function renderMaster(master, where = OUTPUT_NAME) {
  * that for a sheet document to say, and a page shell derived from one would be
  * the composition answering a question nobody asked it.
  *
+ * **Exported for the data file route**, which has a page of its own to write -
+ * the menu - and no business inventing a second head for it. Nothing else about
+ * that route writes a page: the cheatsheets and the master are
+ * {@link renderCheatsheet} and {@link renderMaster} as they always were.
+ *
  * @param {string} heading What the page is titled.
  * @param {SitePage[]} sources The pages of the site it was read from, in order.
  * @param {string[]} body
  * @returns {string}
  */
-function cheatsheetDocument(heading, sources, body) {
+export function cheatsheetDocument(heading, sources, body) {
   return [
     "<!DOCTYPE html>",
     '<html lang="en">',

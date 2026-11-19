@@ -378,6 +378,37 @@ async function chooseCategory(page, id = "javascript") {
   await page.selectOption("#category", id);
 }
 
+/**
+ * Waits for the sheet that was asked for, rather than for any sheet at all.
+ *
+ * `#curCheatSheet` keeps the outgoing graphic while the next document is in
+ * flight, which is deliberate - *nothing below the sheet moves while the
+ * graphic is still in flight* is the case that holds the page to it - so
+ * `waitForSelector("#curCheatSheet > svg")` is satisfied by the previous
+ * sheet's graphic the instant it is called, on every selection but the first.
+ * Under load the evaluate that follows one can therefore read the sheet the
+ * reader moved on from, which is how *a committed unrun cheatsheet draws,
+ * injects nothing and asks for no console* reported `Colors and Backgrounds`
+ * against the selected `Typography and Text` once in three full sweeps on
+ * 2026.11.14 - the sheet one place along from the one asked for, while the
+ * page was behaving exactly as written. A flake is worse than a failure: it
+ * names a defect that is not there, on the day somebody is reading the log for
+ * a different reason.
+ *
+ * The graphic carries the sheet's own name in its `<title>`, which the drawn
+ * assertions already read, so the title is what tells the sheet that landed
+ * from the one still on screen. Clearing the box before selecting would answer
+ * the same question and cost the page the reservation, so the wait is what
+ * changed rather than the page.
+ */
+function waitForSheet(page, title) {
+  return page.waitForFunction(
+    (expected) =>
+      document.querySelector("#curCheatSheet > svg > title")?.textContent === expected,
+    title
+  );
+}
+
 // The second entry marked as a sheet that runs nothing, which the real catalog
 // has no example of: all eleven are `kind: "run"`, and the builder recognizes
 // `read`, `embed` and `none` besides. The folder is left as it is, so the
@@ -594,7 +625,7 @@ test("changing the category takes the sheet of the category being left down", { 
   const { page } = await openPage("two/");
   await page.selectOption("#category", "javascript");
   await page.selectOption("#example", { index: 1 });
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, twoCategories().categories[0].cheatsheets[0].title);
 
   await page.selectOption("#category", "second");
   const state = await page.evaluate(() => ({
@@ -688,7 +719,7 @@ test("every example runs as a module without a strict mode refusal", { skip }, a
     await chooseCategory(page, category.id);
     for (const sheet of category.cheatsheets) {
       await page.selectOption("#example", sheet.id);
-      await page.waitForSelector("#curCheatSheet > svg");
+      await waitForSheet(page, sheet.title);
     }
   }
   await new Promise((resolve) => setTimeout(resolve, 500));
@@ -709,7 +740,7 @@ test("the sheet is composed into a box reserved at the manifest's own ratio", { 
   );
 
   await page.selectOption("#example", { label: "Sorting Arrays" });
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, entry.title);
   const drawn = await page.evaluate(() => {
     const box = document.getElementById("curCheatSheet");
     const svg = box.querySelector("svg");
@@ -760,7 +791,7 @@ test("nothing below the sheet moves while the graphic is still in flight", { ski
     () => getComputedStyle(document.getElementById("curCheatSheet")).display === "block"
   );
   const reserved = await read();
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, "Random Sort Array");
   const landed = await read();
   await page.close();
 
@@ -796,7 +827,7 @@ test("a selection the reader moved on from does not land on top of the one they 
 
   await page.selectOption("#example", { label: "Sorting Arrays" });
   await page.selectOption("#example", { label: "Splicing Arrays" });
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, "Splicing Arrays");
   await held;
   // The composition runs off the resolved document, so the overwrite lands a
   // tick after the response rather than with it.
@@ -822,7 +853,7 @@ test("selecting the blank option takes the sheet back down", { skip }, async () 
   const { page } = await openPage();
   await chooseCategory(page);
   await page.selectOption("#example", { label: "Sorting Arrays" });
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, "Sorting Arrays");
 
   await page.selectOption("#example", "");
   const state = await page.evaluate(() => ({
@@ -855,7 +886,7 @@ function readSelection() {
 test("a link's fragment selects the cheatsheet it names", { skip }, async () => {
   const slug = "javascript/arrays/splicing-arrays";
   const { page } = await openPage(`#${slug}`);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, "Splicing Arrays");
   const state = await page.evaluate(readSelection);
   const label = await page.getAttribute("#curCheatSheet", "aria-label");
   await page.close();
@@ -873,9 +904,10 @@ test("a fragment resolves against the category it belongs to, not the first one"
   // link into it only works if the category travelled with the entry. Reading
   // the category off the front of the slug would send every one of these to
   // `javascript`, where the option does not exist.
-  const slug = twoCategories().categories[1].cheatsheets[0].id;
+  const entry = twoCategories().categories[1].cheatsheets[0];
+  const slug = entry.id;
   const { page } = await openPage(`two/#${slug}`);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, entry.title);
   const state = await page.evaluate(readSelection);
   const shown = await page.evaluate(() =>
     [...document.getElementById("example").getElementsByTagName("optgroup")].map(
@@ -927,7 +959,7 @@ test("a percent escaped fragment resolves to the same cheatsheet", { skip }, asy
   // A slash is legal in a fragment and the page writes one, but a client that
   // escapes it on the way out should not produce a dead link.
   const { page } = await openPage("#javascript%2Farrays%2Fsorting-arrays");
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, "Sorting Arrays");
   const state = await page.evaluate(readSelection);
   await page.close();
 
@@ -1026,7 +1058,7 @@ test("changing the category clears the fragment with the selection", { skip }, a
   const { page } = await openPage("two/");
   await page.selectOption("#category", "javascript");
   await page.selectOption("#example", { index: 1 });
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, twoCategories().categories[0].cheatsheets[0].title);
 
   await page.selectOption("#category", "second");
   const state = await page.evaluate(readSelection);
@@ -1086,7 +1118,7 @@ test("the console guidance follows the selected cheatsheet's kind", { skip }, as
 
   // A script the page injects: all three lines are true, so all three show.
   await page.selectOption("#example", sheets[0].id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, sheets[0].title);
   assert.deepEqual(await guidance(), { intro: true, step: true, footnote: true });
 
   // A sheet that runs nothing. The fault this closes: the heading blurb and
@@ -1094,12 +1126,12 @@ test("the console guidance follows the selected cheatsheet's kind", { skip }, as
   // reader to open a console that nothing would ever write to, and the
   // footnote underneath pointed back up at an instruction that did not apply.
   await page.selectOption("#example", sheets[DRAWN_INDEX].id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, sheets[DRAWN_INDEX].title);
   assert.deepEqual(await guidance(), { intro: false, step: false, footnote: false });
 
   // And back, so the hiding is a state rather than a one way door.
   await page.selectOption("#example", sheets[0].id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, sheets[0].title);
   assert.deepEqual(await guidance(), { intro: true, step: true, footnote: true });
   await page.close();
 });
@@ -1127,11 +1159,11 @@ test("a sheet that runs nothing has no script element injected for it", { skip }
     page.evaluate(() => document.querySelectorAll("body > script[src]").length);
 
   await page.selectOption("#example", sheets[DRAWN_INDEX].id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, sheets[DRAWN_INDEX].title);
   assert.equal(await injected(), 0);
 
   await page.selectOption("#example", sheets[0].id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, sheets[0].title);
   assert.equal(await injected(), 1);
   await page.close();
 });
@@ -1164,7 +1196,7 @@ test("a committed unrun cheatsheet draws, injects nothing and asks for no consol
   for (const sheet of category.cheatsheets) {
     assert.notEqual(sheet.kind, "run", `${sheet.id} is a run payload, which this case is not about`);
     await page.selectOption("#example", sheet.id);
-    await page.waitForSelector("#curCheatSheet > svg");
+    await waitForSheet(page, sheet.title);
     seen.push(
       await page.evaluate(() => ({
         drawn: document.querySelector("#curCheatSheet > svg > title")?.textContent,
@@ -1305,7 +1337,7 @@ test("a committed embed cheatsheet frames the demo the manifest records for it",
   for (const sheet of embedded) {
     await page.selectOption("#example", sheet.id);
     await page.waitForSelector("#sheetDemoFrame > iframe");
-    await page.waitForSelector("#curCheatSheet > svg");
+    await waitForSheet(page, sheet.title);
     seen.push(
       await page.evaluate(() => {
         const frames = document.querySelectorAll("#sheetDemoFrame > iframe");
@@ -1345,7 +1377,7 @@ test("and a cheatsheet of any other kind frames nothing at all", { skip }, async
   const seen = [];
   for (const sheet of unframed) {
     await page.selectOption("#example", sheet.id);
-    await page.waitForSelector("#curCheatSheet > svg");
+    await waitForSheet(page, sheet.title);
     seen.push(
       await page.evaluate(() => ({
         frames: document.querySelectorAll("#sheetDemoFrame > iframe").length,
@@ -1378,7 +1410,7 @@ test("the frame comes down on the next selection and on a category change", { sk
 
   // On to a sheet with no demo of its own.
   await page.selectOption("#example", reading.id);
-  await page.waitForSelector("#curCheatSheet > svg");
+  await waitForSheet(page, reading.title);
   assert.equal(await frames(), 0, "a read cheatsheet was shown under the previous demo");
 
   // Back to one with a demo, then out of the category entirely.
@@ -1436,7 +1468,7 @@ test("and framing five demos leaves the back button where it was", { skip }, asy
   for (const sheet of embedded) {
     await page.selectOption("#example", sheet.id);
     await page.waitForSelector("#sheetDemoFrame > iframe");
-    await page.waitForSelector("#curCheatSheet > svg");
+    await waitForSheet(page, sheet.title);
   }
   assert.equal(
     await page.evaluate(() => history.length),

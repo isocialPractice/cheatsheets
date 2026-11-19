@@ -76,6 +76,7 @@
 // Run with: node --test tools/test-fixture-expected.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -86,6 +87,10 @@ import { main, MANIFEST_NAME, MASTER_NAME, OUTPUT_NAME } from "./cheatsheet-site
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fixtures = join(root, "fixtures");
 const update = process.env.MCP_FIXTURE_UPDATE === "1";
+// Set by the timing case below on the gate it spawns, so the child measures
+// nothing and the recursion stops one level down. Named beside
+// `MCP_FIXTURE_UPDATE` above, which is the convention this file already has.
+const timed = process.env.MCP_FIXTURE_GATE_TIMED === "1";
 
 /**
  * The committed roots, and what a run against each one is for.
@@ -325,4 +330,154 @@ test("the variant resolves past the folder the site owner already has", async ()
   assert.match(result.out, new RegExp(`output folder\\s+${OUTPUT_NAME}/${OUTPUT_NAME}`));
   assert.equal(result.err.trim().split("\n").length, 1, "the variant reports more than its one refusal");
   assert.match(result.err, /already holds content, so no menu was written into it/);
+});
+
+// ---------------------------------------------------------------------------
+// ## The gate's two budgets
+//
+// `.github/workflows/pages.yml` runs three of these files in front of every
+// deploy, which is the reason the expectations are committed rather than
+// generated: the gate reads them on every push to `main`. So what the gate
+// costs is a property of this repository and not of whoever is running the
+// suite, and the two figures it turns on are written here, beside the
+// regeneration the header documents, because regenerating is the one act that
+// moves either of them.
+//
+// | Budget | Measured | Caught by it |
+// | --- | --- | --- |
+// | The bytes of `fixtures/expected/` | 124,381 over 11 files on 2026.11.19, 50,949 of them the master page | An expectation tree grown by an order of magnitude - a real site's output committed as a fixture |
+// | The wall time of the three files | 215 ms on the machine this was written on | A gate that stopped being pure node: an install step, a download, an engine launch |
+//
+// **The two are deliberately loose and tight in different places, because they
+// catch different things.** `tools/test-fixture-site.mjs` holds the *input*
+// fixtures to 24 KB a root and 6 KB a page, and can afford a quarter of
+// headroom because a fixture page is hand written and grows when somebody
+// writes one. The expectation tree is generated, so one more marked up fixture
+// page adds a whole composed page to it - 8 KB to 19 KB, measured across the
+// five committed ones - and a budget with a quarter of headroom would fail on
+// the second one somebody added. Hence room for two or three, and no more.
+//
+// The clock is the looser of the two on purpose. Wall time on a shared runner
+// is not a figure anything can be held to within a factor, so the budget is
+// against a change of *kind* rather than against drift: everything it exists
+// to catch - an install, a fetch, a browser - costs seconds at minimum, and
+// nothing short of one of those can reach it. Which files are in the gate is
+// not the clock's question either; the case below reads that off the workflow,
+// so a browser driven file added to the gate is caught by name rather than by
+// how long it took.
+// ---------------------------------------------------------------------------
+
+/** The whole expectation tree, over every root, with no root named. */
+function committedTree() {
+  return filesUnder(join(fixtures, "expected"));
+}
+
+/**
+ * The files the Pages gate's `node --test` step runs, read off the workflow.
+ *
+ * Comment lines are dropped first. The step's own prose names
+ * `tools/test-site-pages-browser.mjs` to say it is deliberately *not* in the
+ * gate, so a read that kept the comments would measure a gate nothing runs.
+ *
+ * @returns {Promise<string[]>}
+ */
+async function gateFiles() {
+  const workflow = await readFile(join(root, ".github", "workflows", "pages.yml"), "utf8");
+  const lines = workflow.split("\n").filter((line) => !/^\s*#/.test(line));
+  const start = lines.findIndex((line) => line.includes("node --test"));
+  assert.ok(start >= 0, "the Pages gate no longer runs node --test at all");
+  const named = [...(lines[start].match(/tools\/\S+\.mjs/g) ?? [])];
+  // The folded scalar's continuation lines, one file each, ending at the first
+  // line that is not one.
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const one = lines[index].match(/^\s+(tools\/\S+\.mjs)\s*$/);
+    if (!one) break;
+    named.push(one[1]);
+  }
+  return named;
+}
+
+/**
+ * `node --test` over a list of files, from the repository root.
+ *
+ * **`NODE_TEST_CONTEXT` comes off the child's environment**, which is the whole
+ * reason this is a function rather than four lines in the case below. The test
+ * runner sets it in every file it loads, and a `node --test` that sees it in its
+ * own environment reports *run() is being called recursively within a test
+ * file*, runs nothing at all and exits 0 - so a timing case that inherited it
+ * would measure node's start-up, read 33 ms, and pass for as long as it existed.
+ * It did, until the case was made to count what the child ran.
+ */
+function spawned(files, extra) {
+  const env = { ...process.env, ...extra };
+  delete env.NODE_TEST_CONTEXT;
+  delete env.NODE_TEST_WORKER_ID;
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, ["--test", ...files], { cwd: root, env });
+    const out = [];
+    child.on("error", (error) => resolve({ code: -1, out: String(error) }));
+    child.stdout.on("data", (chunk) => out.push(chunk));
+    child.stderr.on("data", (chunk) => out.push(chunk));
+    child.on("close", (code) => resolve({ code, out: Buffer.concat(out).toString("utf8") }));
+  });
+}
+
+test("the committed expectations are small enough to read on every push", async () => {
+  const held = await committedTree();
+  assert.ok(held.size > 0, "fixtures/expected/ is empty, so this is checking nothing");
+  const sizes = [...held].map(([page, text]) => [page, Buffer.byteLength(text)]);
+  const bytes = sizes.reduce((total, [, size]) => total + size, 0);
+  // Room for two or three more composed pages over the 124,381 that were there
+  // when this was written, which is what adding a marked up fixture page or a
+  // second cheatsheet to one costs.
+  assert.ok(
+    bytes < 160 * 1024,
+    `fixtures/expected/ is ${bytes} bytes over ${held.size} files, which is more output than a gate should read on every push`
+  );
+  // And the per file figure, which the master page is: it carries every
+  // cheatsheet either root produces, so it is the file that grows when the
+  // fixture does, and it was 50,949 of the total.
+  for (const [page, size] of sizes) {
+    assert.ok(
+      size < 64 * 1024,
+      `fixtures/expected/${page} is ${size} bytes, which is longer than a committed expectation should be`
+    );
+  }
+});
+
+test("the gate runs the three files this budget is written against", async () => {
+  // The clock below measures whatever the workflow names, so the list is worth
+  // pinning on its own: a browser driven file added to the gate is a decision
+  // to argue for in a commit, and this is what makes it one.
+  assert.deepEqual(await gateFiles(), [
+    "tools/test-fixture-expected.mjs",
+    "tools/test-fixture-site.mjs",
+    "tools/test-browser-entry.mjs",
+  ]);
+});
+
+test("and running them costs a fraction of a second", { skip: timed }, async () => {
+  // The gate as the workflow runs it, in a child with the guard set so its own
+  // copy of this case skips and the recursion stops here. One extra process
+  // tree, which is what the measurement costs the suite.
+  const files = await gateFiles();
+  const started = performance.now();
+  const { code, out } = await spawned(files, { MCP_FIXTURE_GATE_TIMED: "1" });
+  const took = Math.round(performance.now() - started);
+  // A measurement of a failing gate is not a measurement of the gate, so the
+  // exit code is read first.
+  assert.equal(code, 0, `the gate failed, so its cost was not measured:\n${out.slice(-2000)}`);
+  // And a measurement of a gate that ran nothing is not one either. Read off
+  // the child's own tally rather than inferred from its exit code, because the
+  // exit code of a runner that skipped every file is 0 - which is the shape
+  // this case passed in before `spawned` took `NODE_TEST_CONTEXT` off.
+  const passed = Number(out.match(/^.{0,2}\s*pass (\d+)$/m)?.[1] ?? 0);
+  assert.ok(
+    passed > files.length,
+    `the gate reported ${passed} passing cases over ${files.length} files, so the measured ${took} ms is not the gate's:\n${out.slice(-2000)}`
+  );
+  assert.ok(
+    took < 8000,
+    `the gate took ${took} ms over ${files.length} files, which is long enough that something in it is installing, fetching or launching`
+  );
 });

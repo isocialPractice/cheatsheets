@@ -15,6 +15,7 @@ node api/napkin-sketch/VENDOR-CHECK.mjs     # hash the vendored copy against its
 node tools/cheatsheet.mjs --list            # what there is
 node tools/cheatsheet.mjs --generate <slug> # compose and render one
 node tools/cheatsheet-site.mjs <site>       # read a site, write cheatsheets out of it
+node tools/cheatsheet-data.mjs <file>       # the same, out of one JSON file
 ```
 
 ## `tools/cheatsheet.mjs`
@@ -90,6 +91,50 @@ own work - and a value naming neither menu is reported rather than defaulted.
 A generated page carries a render of the cheatsheet's own document and the
 material it was read from, so the page and a media file of the same sheet are
 two renders of one composition.
+
+## `tools/cheatsheet-data.mjs`
+
+```text
+<data file>   the JSON file to read (required)
+--out <dir>   write here instead of resolving cheatsheets/ beside the file
+--dry-run     report the folder and the pages, touch nothing
+```
+
+For a site that is not written yet, so there is no page to mark. The same back
+end: a data file says in JSON what a marked up page says in an attribute or a
+comment, and nothing past the read is different.
+
+```json
+{
+  "menu": "dropdown",
+  "entries": [
+    {
+      "page": "guide/arrays.html",
+      "title": "Working with arrays",
+      "material": ["<h2>splice</h2><p>Removes and inserts in place.</p>"]
+    }
+  ]
+}
+```
+
+| Property | Takes | In a crawled site |
+| --- | --- | --- |
+| `dataVersion` | a number | nothing - no page declares one |
+| `menu` | `page`, `dropdown` | `data-cheatsheet-menu` on an element |
+| `entries` | a list of entries | the pages of the site |
+| `page` | a path inside the site | the page's own path |
+| `title` | text | `<title>` |
+| `heading` | `title`, `page` | `heading:`, or `data-cheatsheet="<source>"` |
+| `group` | `folder`, `page` | `group:` |
+| `name` | a file name | `name:` |
+| `material` | a list of blocks | what a `data-cheatsheet` element wraps |
+
+The first three are the file's, the rest an entry's; `page` and `material` are
+the two an entry cannot be written without. A block is markup, or
+`{ "tag": "table", "markup": "<table>..." }` where the element is worth
+recording - markup alone is recorded as a `<section>`. The menu is a page here,
+`cheatsheet-menu.html`, since there is no page of the site's own to splice one
+into. A finding names the property's path in the file, as `entries[2].heading`.
 
 ## `api/cheatsheet/site.mjs`
 

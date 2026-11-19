@@ -17,22 +17,18 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
 
 ## Current
 
-- [ ] Keep the fixture small enough that running it on every commit costs nothing
-  - The sixth item of the fixture section and the one that was waiting for the CI run rather than for the fixture: the budget in `tools/test-fixture-site.mjs` measures the marked up folders - 24 KB over a root and 6 KB a file - and nothing measures the committed output that the Pages gate now reads on every push. `fixtures/expected/` is 124,381 bytes over 11 files as of 2026.11.16, 50,949 of them the master page, which is the figure a budget would be written against
-  - What the item settles is two numbers and where each is held: the bytes of the expectation tree, and the run time of the three files the gate runs. Both belong in `tools/test-fixture-expected.mjs`, beside the regeneration the header already documents, so a run that doubles either is a case that says so rather than a commit nobody measured
-  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
-- [ ] `tools/test-example-selection.mjs` reads the sheet that was on the page before the one it selected
-  - **Issue**: found while testing on 2026.11.14, in work that touched neither this file nor anything it reads. *A committed unrun cheatsheet draws, injects nothing and asks for no console* failed once under the full `node --test` sweep with `actual: 'Colors and Backgrounds'` against `expected: 'Typography and Text'` - the html-css sheet one place along from the one selected. It passed in the two full sweeps either side of it and three times in isolation, so it is a race rather than a defect in the page. The cause is visible in the case: after `page.selectOption("#example", sheet.id)` it waits for `#curCheatSheet > svg`, which the **previous** sheet's graphic already satisfies, so under load the evaluate can read the outgoing sheet. Every case in the file that selects and then waits on that selector has it, not only this one
-  - **Goal**: Wait for the sheet that was asked for rather than for any sheet. The title element already carries the name - `page.waitForFunction` on `#curCheatSheet > svg > title` matching `sheet.title`, or clear `#curCheatSheet` before selecting so the old graphic cannot answer the wait. A flake in a browser case is worse than a failure: it reports a defect that is not there on the day somebody is reading the log for a different reason
-  - From: Preview Links and Example Loading
-- [ ] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
-  - Taken before the generator below it rather than after, which is the opposite of the order this section is written in. A contract written after the thing that reads it describes what was built; written first, it decides it - and the generator is the first code in this repository that would read a data file nobody has specified yet
-  - The two vocabularies it has to agree with already exist and are data for that reason: `COMMENT_PROPERTIES` in `tools/cheatsheet-site.mjs`, which is what a page can say about its own material, and `HEADING_SOURCES` in `api/cheatsheet/site.mjs`. A third vocabulary that drifts from either is the failure to avoid
+- [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
+  - The model is one function wide, which is what makes this two more readers rather than two more routes: `sitePages` in `tools/cheatsheet-data.mjs` hands back the `SitePage` objects the scanner's pipeline already reads, and everything past it is shared. A format that reached a page by any other path would be the second back end the JSON route was shaped to avoid
+  - `DATA_PROPERTIES` is already the contract, so an XML attribute and a JSON property name the same thing or the contract has become three. Two shapes are worth deciding deliberately rather than discovering: a property is an attribute or a child element in XML and neither is obviously right, and in HTML the material is already markup, which is the one format where a block needs no escaping at all
   - From: Dedicated cheatsheet website `->` Building on the API
-- [ ] Generate a whole site - a menu and one page per entry - from a single JSON data file
-  - Unblocked as of 2026.11.16: what held it back was that a generated page's shape was still moving, and the shape is now pinned by committed output in `fixtures/expected/`, so a generator that writes the same shape has something to be compared against from its first run
-  - It reuses what is already there rather than growing a second mechanism: `renderCheatsheet` and `renderMaster` for the pages, `plannedPages` for what a run writes, `renderMenu` for the menu, and the manifest for what the menu lists. The item is the data file and the walk from it to those, not a second page writer
+- [ ] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
+  - Answerable now in a way it was not before 2026.11.19: there is a generated site to look at, and `cheatsheet-menu.html` is what a data file site has instead of a page of the site's own to reach it from
+  - The two routes pull opposite ways, which is the whole of what the decision has to settle. A crawled site is a section of something by construction - the output folder is resolved under the site root and a menu is spliced into the site's own pages. A data file site has nothing to be a section of. So the answer is probably both with a stated default, and the item is to write that down where a reader of the folder finds it rather than leave it to be inferred
   - From: Dedicated cheatsheet website `->` Building on the API
+- [ ] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
+  - The one open item of its section, and what the ten `## New Cheatsheets` categories are waiting on: each of those is content to be written, and how a new sheet's image is produced is what decides the cost of writing one
+  - It reaches the catalog rather than the site tooling, so it does not compete with the two items above for the same files. The eleven original JPEGs stay as they are - they are evidence the design language was measured off, per `javaScriptArrays/README.md`, not output to be regenerated
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 ### Create and Deploy GitHub Pages Override
 
@@ -78,12 +74,19 @@ removed the request all three were about.
 
 Nothing is outstanding here either, as of 2026.10.16: the site link is the
 first thing under the README's level 1 heading, where a reader meets it before
-anything else the file has to say. One thing is outstanding about how the
-loading is **watched**, found on 2026.11.14 and queued below.
+anything else the file has to say. One thing was outstanding about how the
+loading is **watched**, found on 2026.11.14, and it closed three days later.
 
-- [ ] `tools/test-example-selection.mjs` reads the sheet that was on the page before the one it selected
-  - **Issue**: found while testing on 2026.11.14, in work that touched neither this file nor anything it reads. *A committed unrun cheatsheet draws, injects nothing and asks for no console* failed once under the full `node --test` sweep with `actual: 'Colors and Backgrounds'` against `expected: 'Typography and Text'` - the html-css sheet one place along from the one selected. It passed in the two full sweeps either side of it and three times in isolation, so it is a race rather than a defect in the page. The cause is visible in the case: after `page.selectOption("#example", sheet.id)` it waits for `#curCheatSheet > svg`, which the **previous** sheet's graphic already satisfies, so under load the evaluate can read the outgoing sheet. Every case in the file that selects and then waits on that selector has it, not only this one
-  - **Goal**: Wait for the sheet that was asked for rather than for any sheet. The title element already carries the name - `page.waitForFunction` on `#curCheatSheet > svg > title` matching `sheet.title`, or clear `#curCheatSheet` before selecting so the old graphic cannot answer the wait. A flake in a browser case is worse than a failure: it reports a defect that is not there on the day somebody is reading the log for a different reason
+The watching was settled on 2026.11.19. The flake found on 2026.11.14 was the
+wait rather than the page: `#curCheatSheet` keeps the outgoing graphic while the
+next document is in flight, so `waitForSelector("#curCheatSheet > svg")` was
+answered by the previous sheet on every selection but the first, and under load
+the evaluate after one could read the sheet the reader had moved on from. All
+twenty wait sites in `tools/test-example-selection.mjs` now wait on the
+graphic's own `<title>` matching the sheet that was selected. The page is
+unchanged, deliberately: clearing the box before selecting would answer the same
+question and cost the page the reservation *nothing below the sheet moves while
+the graphic is still in flight* exists for.
 
 ## Page Structure and Responsiveness
 
@@ -1264,9 +1267,21 @@ names, the heading sources, the element lists and `prose` moved into that module
 and the scripted tool re-exports them: a copy in each is two vocabularies that
 agree until one of them is edited.
 
-- [ ] Generate a whole site - a menu and one page per entry - from a single JSON data file
+**The data file route landed on 2026.11.19**, the contract and the generator in
+one run because the contract is what the generator reads: written after it, a
+contract describes what was built. `tools/cheatsheet-data.mjs` is a second front
+end and not a second generator - everything past the read is imported, so the
+pages, the plan, the manifest and the menu are the scanner's own, and the suite
+holds that by running one piece of material through both front ends and
+comparing the two renders byte for byte. `DATA_PROPERTIES` is the contract, nine
+properties each saying what it maps onto in a marked up page, and three of them
+take their values and their descriptions from `COMMENT_PROPERTIES` rather than
+having a copy: a data file is the comment method said in JSON, which is why
+those three and not some other set. The one thing the route adds is a page -
+`cheatsheet-menu.html`, since a data file site is nothing but the generated
+folder and has no page of the site's own for a menu to be spliced into.
+
 - [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
-- [ ] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
 - [ ] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
 
 ## AI Helper API
@@ -1337,7 +1352,18 @@ writes against either is committed under `fixtures/expected/` and compared by
 `tools/test-fixture-expected.mjs`, which the Pages gate runs before it
 publishes.
 
-- [ ] Keep the fixture small enough that running it on every commit costs nothing
+The sixth closed on 2026.11.19, which finishes the section: both of the figures
+the fixture work turns on are now written down beside the regeneration that
+moves them. The expectation tree is held to 160 KB and 64 KB a file in
+`tools/test-fixture-expected.mjs`, against the 124,381 bytes over 11 files it
+was that day - room for two or three more composed pages, which is what one more
+marked up fixture page costs, and no more. The gate's own cost is held beside
+it: the three files `.github/workflows/pages.yml` runs are read off the workflow
+and timed in a child, at 8 seconds against the 215 ms they take, which is loose
+against a shared runner and far below anything that installs, fetches or
+launches a browser. Which three files those are is pinned in a case of its own,
+so a browser driven file added to the gate fails by name rather than by the
+clock.
 
 ## Create New Ideas
 
@@ -2297,5 +2323,21 @@ generate ideas about generating ideas.
   - The item that was held back, and what it was waiting for is done: the page shape changed on 2026.11.10 when it stopped being string concatenation, and committing output from the old shape would have meant committing it twice with a diff nobody could read in between
   - Last of the five on purpose - the four above change what the fixture carries, so expected output committed before them would be regenerated by every one of them
   - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [x] Keep the fixture small enough that running it on every commit costs nothing
+  - The sixth item of the fixture section and the one that was waiting for the CI run rather than for the fixture: the budget in `tools/test-fixture-site.mjs` measures the marked up folders - 24 KB over a root and 6 KB a file - and nothing measures the committed output that the Pages gate now reads on every push. `fixtures/expected/` is 124,381 bytes over 11 files as of 2026.11.16, 50,949 of them the master page, which is the figure a budget would be written against
+  - What the item settles is two numbers and where each is held: the bytes of the expectation tree, and the run time of the three files the gate runs. Both belong in `tools/test-fixture-expected.mjs`, beside the regeneration the header already documents, so a run that doubles either is a case that says so rather than a commit nobody measured
+  - From: Cliche Tutorial/Documentation Site to Test Cheatsheet API and Script
+- [x] `tools/test-example-selection.mjs` reads the sheet that was on the page before the one it selected
+  - **Issue**: found while testing on 2026.11.14, in work that touched neither this file nor anything it reads. *A committed unrun cheatsheet draws, injects nothing and asks for no console* failed once under the full `node --test` sweep with `actual: 'Colors and Backgrounds'` against `expected: 'Typography and Text'` - the html-css sheet one place along from the one selected. It passed in the two full sweeps either side of it and three times in isolation, so it is a race rather than a defect in the page. The cause is visible in the case: after `page.selectOption("#example", sheet.id)` it waits for `#curCheatSheet > svg`, which the **previous** sheet's graphic already satisfies, so under load the evaluate can read the outgoing sheet. Every case in the file that selects and then waits on that selector has it, not only this one
+  - **Goal**: Wait for the sheet that was asked for rather than for any sheet. The title element already carries the name - `page.waitForFunction` on `#curCheatSheet > svg > title` matching `sheet.title`, or clear `#curCheatSheet` before selecting so the old graphic cannot answer the wait. A flake in a browser case is worse than a failure: it reports a defect that is not there on the day somebody is reading the log for a different reason
+  - From: Preview Links and Example Loading
+- [x] Define the preset mapping from data file properties to tags and attributes, and document it as the contract a new site writes against
+  - Taken before the generator below it rather than after, which is the opposite of the order this section is written in. A contract written after the thing that reads it describes what was built; written first, it decides it - and the generator is the first code in this repository that would read a data file nobody has specified yet
+  - The two vocabularies it has to agree with already exist and are data for that reason: `COMMENT_PROPERTIES` in `tools/cheatsheet-site.mjs`, which is what a page can say about its own material, and `HEADING_SOURCES` in `api/cheatsheet/site.mjs`. A third vocabulary that drifts from either is the failure to avoid
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Generate a whole site - a menu and one page per entry - from a single JSON data file
+  - Unblocked as of 2026.11.16: what held it back was that a generated page's shape was still moving, and the shape is now pinned by committed output in `fixtures/expected/`, so a generator that writes the same shape has something to be compared against from its first run
+  - It reuses what is already there rather than growing a second mechanism: `renderCheatsheet` and `renderMaster` for the pages, `plannedPages` for what a run writes, `renderMenu` for the menu, and the manifest for what the menu lists. The item is the data file and the walk from it to those, not a second page writer
+  - From: Dedicated cheatsheet website `->` Building on the API
 
 </details>
