@@ -37,6 +37,129 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.11.0]
+
+The data file route, which is the two items of **Dedicated cheatsheet website**
+`->` **Building on the API** that the section's own order put last and that this
+run took together: the contract a data file is written against, and the
+generator that reads one. A site that already publishes its material marks the
+pages it has; a site that is not written yet has no page to mark, which was the
+one case the scanner could never serve.
+
+A minor rather than a patch, for the reason `1.0.0-alpha.1.10.0` was: there is
+new published surface - `tools/cheatsheet-data.mjs` with its `DATA_PROPERTIES`
+contract, and `cheatsheetDocument` exported from the scanner for the one page
+the new route writes that the old one has no equivalent of.
+
+### Added
+
+- **`tools/cheatsheet-data.mjs` writes a whole cheatsheet site out of one JSON
+  file**: a page per entry, `all-cheatsheets.html` carrying all of them,
+  `cheatsheet-menu.html` to move between them, and the manifest. It is a second
+  front end and emphatically not a second generator - everything past the read
+  is imported, so `renderCheatsheet` and `renderMaster` write the pages,
+  `plannedPages` says what a run writes, `manifestFor` records it, `renderMenu`
+  builds the menu, and `resolveOutput` and `readManifest` settle which folder
+  they go in. *A data file site and a marked up site write the same cheatsheet,
+  byte for byte* is the case that holds it: the same material through both front
+  ends, and the two renders compared. Every other case in that file would still
+  pass on the day the two routes started writing different pages.
+- **`DATA_PROPERTIES` is the contract, and it is one object rather than a
+  passage of prose.** Nine properties, three of the file's and six of an
+  entry's, each saying what it maps onto in a marked up page - which is the
+  mapping itself. The read decides what a property is from it, a finding for a
+  property it does not know reads the same list to say what the vocabulary is,
+  `--help` prints the table, and `docs/generating-from-a-site.html` tabulates
+  it. **Three of the nine are not defined there at all**: `heading`, `group` and
+  `name` take their values and their descriptions from `COMMENT_PROPERTIES`,
+  which takes `heading` from the published `HEADING_SOURCES` the DOM route
+  reads. The item's own words for why - a third vocabulary that drifts from
+  either of the two that exist is the failure to avoid - and the chain is what
+  makes it one reading rather than three that agree today. Two cases hold both
+  links of it.
+- **A data file is the comment method, said in JSON**, which is the sentence the
+  whole mapping follows from. A comment is the marking that can say several
+  things at once and so is a record with several fields, so the three properties
+  a comment carries are the three an entry carries, and they are carried on
+  every block of the entry rather than the first - `commentOption` answers the
+  same whichever block it looks at, since a page says one thing about its own
+  heading however many elements it marked. The attribute is still in the mapping
+  for the two markings that have no comment form: `material` is what a
+  `data-cheatsheet` element wraps, and `menu` is `data-cheatsheet-menu`.
+- **The preset half of the mapping is the element.** A crawled page has an
+  element whether or not it meant to choose one, and a data file has none, so
+  one is supplied: a block written as markup alone is recorded as a
+  `<section>`, and a block that names its own element keeps it. The name is
+  written onto the generated page as `data-cheatsheet-block`, the same place the
+  scanner records the real element it found, and is read by nothing else.
+- **The menu is a page here, and that is the one thing the new route writes that
+  the old one has no shape for.** A crawled site has pages of its own for a menu
+  to be spliced into; a data file site is nothing but the generated folder. So
+  `cheatsheet-menu.html` is the front door - the same `<details>` a marked page
+  would have been filled with, in the shared document shell, linking its
+  siblings - and it claims its name the way `all-cheatsheets.html` does, an
+  entry that wants it being told rather than written over. `cheatsheetDocument`
+  is exported from `tools/cheatsheet-site.mjs` for it, so the menu page is not a
+  second kind of document in the same folder.
+- **A finding names the property's path in the file**, as `entries[2].heading`,
+  because that is what a reader has to go and edit. The judgement is the
+  markings' own: a property the contract does not hold, or a value it does not
+  take, is reported and ignored, and the pages that could be read are still
+  written. An entry that names no page, names a path outside the site, names a
+  page another entry already stands for, or carries no material is reported and
+  writes nothing. **A path is read one segment at a time**, so an empty segment
+  and a `.` are refused beside a leading slash and a `..`: `guide//arrays.html`
+  is what string concatenation produces when the folder it joined was already
+  empty, and the folder both of those resolve to is no folder at all. A file
+  that is not a record, holds no `entries`, or declares a
+  version this tool does not read is refused whole - the asymmetry being
+  deliberate, since a file written against a later vocabulary holds properties
+  this one would drop in silence.
+- **The two numbers the fixture gate turns on are written down, in
+  `tools/test-fixture-expected.mjs`.** The expectation tree is held to 160 KB
+  and 64 KB a file, against the 124,381 bytes over 11 files it was on
+  2026.11.19 - room for two or three more composed pages, which is what adding a
+  marked up fixture page costs, and no more. The clock is the gate's own: the
+  three files `.github/workflows/pages.yml` runs are read off the workflow,
+  timed in a child, and held to 8 seconds against the 215 ms they take. That
+  figure is loose on purpose - wall time on a shared runner is not a figure
+  anything can be held to within a factor, so the budget is against a change of
+  kind rather than against drift, and everything it exists to catch costs
+  seconds at minimum. Which three files are in the gate is pinned in a case of
+  its own, so a browser driven file added there fails by name rather than by how
+  long it took. That is the sixth and last item of **Cliche
+  Tutorial/Documentation Site to Test Cheatsheet API and Script**, and the one
+  that was waiting for the gate rather than for the fixture.
+
+### Fixed
+
+- **The browser cases that select a cheatsheet wait for the one they asked for
+  rather than for any sheet at all.** `#curCheatSheet` keeps the outgoing
+  graphic while the next document is in flight - deliberately, and *nothing
+  below the sheet moves while the graphic is still in flight* is the case that
+  holds the page to it - so `waitForSelector("#curCheatSheet > svg")` was
+  satisfied by the previous sheet's graphic the instant it was called, on every
+  selection but the first. Under load the evaluate after one could therefore
+  read the sheet the reader had moved on from, which is how *a committed unrun
+  cheatsheet draws, injects nothing and asks for no console* reported `Colors
+  and Backgrounds` against the selected `Typography and Text` once in three full
+  sweeps on 2026.11.14: the sheet one place along from the one asked for, while
+  the page was behaving exactly as written. All twenty wait sites in
+  `tools/test-example-selection.mjs` now wait on the graphic's own `<title>`
+  matching the sheet that was selected, which the drawn assertions already read.
+  A flake is worse than a failure - it names a defect that is not there, on the
+  day somebody is reading the log for a different reason - and the fix is in the
+  wait rather than in the page, because clearing the box before selecting would
+  cost the page the reservation that other case exists for.
+- **The gate's clock counts what the gate ran.** Node's test runner sets
+  `NODE_TEST_CONTEXT` in every file it loads, and a `node --test` that sees it
+  in its own environment reports *run() is being called recursively within a
+  test file*, runs nothing and exits 0 - so the timing case above measured
+  node's start-up, read 33 ms, and passed for as long as it existed, which was
+  the hour between writing it and counting what the child ran. It comes off the
+  child's environment now, and the case reads the child's own passing tally
+  before it believes the measurement.
+
 ## [1.0.0-alpha.1.10.2]
 
 The five fixture items, which is the last of **Cliche Tutorial/Documentation
