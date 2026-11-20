@@ -194,7 +194,16 @@ const RENDERERS = { auto: "auto", browser: "browser", builtin: "builtin" };
 // `--check` is here rather than among the value flags because its slug is
 // optional: bare, it checks the whole catalog, and a slug after it is read as
 // the positional below.
-const SWITCHES = new Set(["--check", "--data-only", "--dry-run", "--json", "--list", "--help", "-h"]);
+const SWITCHES = new Set([
+  "--all",
+  "--check",
+  "--data-only",
+  "--dry-run",
+  "--json",
+  "--list",
+  "--help",
+  "-h",
+]);
 
 /**
  * Flags that take a value.
@@ -231,11 +240,13 @@ const NOT_YET = {
 
 const USAGE = `
 node tools/cheatsheet.mjs --generate <slug> [options]
+node tools/cheatsheet.mjs --all             [options]
 node tools/cheatsheet.mjs --document <path> [options]
 node tools/cheatsheet.mjs --list            [--json]
 node tools/cheatsheet.mjs --check [<slug>]  [--json]
 
   --generate <slug>      The cheatsheet to compose, by manifest slug or folder path
+  --all                  Every cheatsheet in the catalog, each from its own sheet.json
   --document <path>      A JSON document to compose, in place of a catalog slug
   --format <fmt>         svg (default), png, webp or jpg. The preset's raster format is ${PRESET.format}
   --renderer <r>         auto (default), browser, or builtin
@@ -255,6 +266,11 @@ node tools/cheatsheet.mjs --check [<slug>]  [--json]
 A render goes beside its sheet.json when it is publishable, and into .tmp/ when
 it is not. A --document render has no folder in the catalog, so it goes to .tmp/
 whichever it is. See the header of this file for why that is a rule.
+
+--all composes every catalog sheet by the same path --generate does, so the two
+write the same bytes to the same place. One sheet that cannot be composed is
+reported against its own id and the rest still run, the exit code saying some
+failed. It takes no --out, --seed or --data-only: each of those means one sheet.
 `.trimStart();
 
 /**
@@ -636,8 +652,13 @@ async function checkSheets({ slug, json }) {
   return { exit: bad.length ? 1 : 0, text: lines.join("\n") };
 }
 
-/** `--generate` and `--document`: composes one sheet and writes it, or says what it would write. */
-async function generate(flags) {
+/**
+ * The format and the renderer a call named, both held to their own tables.
+ *
+ * @param {Record<string, string | boolean>} flags
+ * @returns {{ format: { raster: boolean, ext: string, format: string }, renderer: string }}
+ */
+function routeOf(flags) {
   const name = String(flags.format ?? "svg").toLowerCase();
   // `Object.hasOwn` rather than a truth test on the lookup. `FORMATS` is an
   // object literal, so `FORMATS.constructor` and `FORMATS.__proto__` are both
@@ -662,7 +683,12 @@ async function generate(flags) {
         `Use ${Object.keys(RENDERERS).join(", ")}.`
     );
   }
+  return { format, renderer };
+}
 
+/** `--generate` and `--document`: composes one sheet and writes it, or says what it would write. */
+async function generate(flags) {
+  const { format, renderer } = routeOf(flags);
   const theme = await readThemeOption(flags.theme === undefined ? undefined : String(flags.theme));
   const layout = await readLayoutOption(flags.layout === undefined ? undefined : String(flags.layout));
   const subject = await subjectOf(flags, {
@@ -709,15 +735,70 @@ async function generate(flags) {
     };
   }
 
-  const scale = asNumber("scale", flags.scale, PRESET.longEdge / CANVAS_EDGE);
-  const quality = asNumber("quality", flags.quality, PRESET.quality);
-  const capBytes = asNumber("max-bytes", flags["max-bytes"], PRESET.capBytes);
-  const background =
-    flags.background === undefined
-      ? undefined
-      : String(flags.background) === "none"
-        ? null
-        : String(flags.background);
+  return { exit: 0, ...reported(await renderSubject(subject, settingsOf(flags, format, renderer)), flags) };
+}
+
+/**
+ * How a report is returned, by where the bytes went.
+ *
+ * @param {object} result
+ * @param {Record<string, string | boolean>} flags
+ */
+function reported(result, flags) {
+  if (flags.json) return { json: result };
+  if (result.written === "-" || result.wouldWrite === "-") {
+    // The bytes are on stdout, so the report goes to stderr or it corrupts
+    // them. This is the one route where the two cannot share a stream.
+    return flags["dry-run"] ? { text: reportOf(result) } : { stderr: reportOf(result) };
+  }
+  return { text: reportOf(result) };
+}
+
+/**
+ * The settings every sheet in one call shares.
+ *
+ * Pulled out of {@link generate} when `--all` arrived, because a batch and a
+ * single sheet differ in how many documents they compose and in nothing else:
+ * the weight cap, the scale, the encoder and the destination rule are the
+ * call's, not the sheet's. Two copies of them would be two commands that agree
+ * until one is edited.
+ *
+ * @param {Record<string, string | boolean>} flags
+ * @param {{ raster: boolean, ext: string, format: string }} format
+ * @param {string} renderer
+ */
+function settingsOf(flags, format, renderer) {
+  return {
+    format,
+    renderer,
+    // Whether a route was named at all, which decides one note rather than the
+    // render: `--renderer browser` on an SVG is reasonable to type and means
+    // nothing, and the note that says so should name the flag that was typed.
+    rendererNamed: flags.renderer !== undefined,
+    scale: asNumber("scale", flags.scale, PRESET.longEdge / CANVAS_EDGE),
+    quality: asNumber("quality", flags.quality, PRESET.quality),
+    capBytes: asNumber("max-bytes", flags["max-bytes"], PRESET.capBytes),
+    background:
+      flags.background === undefined
+        ? undefined
+        : String(flags.background) === "none"
+          ? null
+          : String(flags.background),
+    out: flags.out === undefined ? undefined : String(flags.out),
+    dry: Boolean(flags["dry-run"]),
+    theme: flags.theme === undefined ? "default" : String(flags.theme),
+  };
+}
+
+/**
+ * Renders one composed subject, writes it where the rule sends it, and reports.
+ *
+ * @param {object} subject What {@link subjectOf} or {@link compose} handed back.
+ * @param {ReturnType<typeof settingsOf>} settings
+ */
+async function renderSubject(subject, settings) {
+  const { composition, variation } = subject;
+  const { format, renderer, scale, quality, capBytes, background } = settings;
 
   // The render is the published surface's as of 2026.10.31, rather than this
   // command's: one call per format, with the bytes, the route that answered and
@@ -747,7 +828,7 @@ async function generate(flags) {
 
   /** @type {string[]} */
   const notes = [...render.notes];
-  if (!format.raster && flags.renderer !== undefined && renderer !== "auto") {
+  if (!format.raster && settings.rendererNamed && renderer !== "auto") {
     // Not an error, because `--format svg --renderer browser` is a reasonable
     // thing to type and means nothing: the markup is the composition's own,
     // whoever would have drawn it. Said here rather than left to the surface's
@@ -775,11 +856,10 @@ async function generate(flags) {
   // rather than restated here from the route and the scale.
   const publishable = !overCap && render.publishable;
 
-  const out = flags.out === undefined ? undefined : String(flags.out);
   const target = destinationFor({
     entry: { id: subject.id, folder: subject.folder },
     format,
-    out,
+    out: settings.out,
     publishable,
   });
   const shown = target.stdout ? "-" : relative(root, target.path).split(sep).join("/");
@@ -791,32 +871,178 @@ async function generate(flags) {
     format: format.ext,
     renderer: route,
     requestedRenderer: renderer,
-    theme: flags.theme === undefined ? "default" : String(flags.theme),
+    theme: settings.theme,
     seed: variation.seed,
     scale: format.raster ? scale : null,
     quality: format.raster ? quality : null,
     pixels,
     bytes: data.byteLength,
     publishable,
-    written: flags["dry-run"] ? null : shown,
-    wouldWrite: flags["dry-run"] ? shown : null,
+    written: settings.dry ? null : shown,
+    wouldWrite: settings.dry ? shown : null,
     notes,
   };
 
-  if (!flags["dry-run"]) {
+  if (!settings.dry) {
     // Standard output and a named file are one call, as of 2026.10.31. The
     // destination is this command's decision and the writing is the surface's,
     // which is the same division the render above follows.
     await writeRender(render, target.stdout ? "-" : target.path);
   }
+  return result;
+}
 
-  if (flags.json) return { exit: 0, json: result };
-  if (target.stdout && !flags["dry-run"]) {
-    // The bytes are on stdout, so the report goes to stderr or it corrupts
-    // them. This is the one route where the two cannot share a stream.
-    return { exit: 0, stderr: reportOf(result) };
+/**
+ * `--all`: composes every cheatsheet in the catalog from its own `sheet.json`.
+ *
+ * **The whole point is that it is one act.** `--generate <slug>` has composed a
+ * sheet through the API since 2026.10.27 and `--check` has read all of them
+ * since the same day, but there was no way to *write* all of them - so the
+ * answer to "how is a new cheatsheet's image produced" was 28 invocations or a
+ * screenshot taken by hand. For a catalog meant to grow from one category to
+ * ten, that figure is what decides the cost of writing one sheet, which is what
+ * the item asking for this said.
+ *
+ * It composes by exactly the path a single sheet takes - {@link compose}, then
+ * {@link renderSubject}, with one {@link settingsOf} for the call - so a batch
+ * and a single `--generate` of the same slug write the same bytes to the same
+ * place. A loop that rendered its own way would be a second command.
+ *
+ * **One sheet that cannot be composed does not stop the other twenty-seven.**
+ * Its error is recorded against its own id and the run carries on, exiting 1 at
+ * the end: somebody fixing one `sheet.json` should not have to wait for the
+ * rest of the catalog, which is the reading the data file route takes about one
+ * bad entry.
+ *
+ * **Four flags are refused rather than ranked**, because each would have to
+ * mean something different in a batch than it means for one sheet, and silently
+ * picking one of the two meanings is worse than saying so.
+ *
+ * @param {Record<string, string | boolean>} flags
+ */
+async function generateAll(flags) {
+  if (flags.generate !== undefined || flags.slug !== undefined) {
+    throw new Error(
+      "cheatsheet: --all is every cheatsheet in the catalog, and --generate names one. Pass one of them."
+    );
   }
-  return { exit: 0, text: reportOf(result) };
+  if (flags.seed !== undefined) {
+    throw new Error(
+      "cheatsheet: --seed is one document's seed, and --all composes every document. One seed across the " +
+        "catalog would draw every sheet from the same variation. Pass --seed with --generate <slug>."
+    );
+  }
+  if (flags.out !== undefined) {
+    throw new Error(
+      "cheatsheet: --out names one destination, and --all has one per cheatsheet - a publishable render " +
+        "goes beside its own sheet.json, which is the rule the social recipe reads. Pass --out with " +
+        "--generate <slug>."
+    );
+  }
+  if (flags["data-only"]) {
+    throw new Error(
+      "cheatsheet: --data-only emits one document, and --all composes every one. `--check --json` is the " +
+        "whole catalog's compositions, which is the question this would be asked for."
+    );
+  }
+  for (const other of ["list", "check"]) {
+    if (flags[other] !== undefined) {
+      throw new Error(`cheatsheet: --${other} reads the catalog and --all writes it. Run them separately.`);
+    }
+  }
+
+  const result = await composeEach(entriesOf(await readManifest()), flags);
+  if (flags.json) return { exit: result.failed ? 1 : 0, json: result };
+  return { exit: result.failed ? 1 : 0, text: reportOfAll(result) };
+}
+
+/**
+ * Composes and renders a list of catalog entries, one result each.
+ *
+ * The loop, separated from {@link generateAll}'s flag handling, and exported
+ * because this is where the carry-on behaviour above lives and it is the only
+ * way to exercise it. Every committed document composes, so a failing entry has
+ * to be supplied - and supplying it by moving a committed `sheet.json` aside is
+ * not available: `node --test` runs the suite's files in parallel processes, and
+ * three other files read those documents while this one runs. Measured on
+ * 2026.11.20, when that is exactly what a first draft of the case did and three
+ * unrelated files failed with `ENOENT` on the file it had moved.
+ *
+ * @param {Array<object>} entries Catalog entries, each with an `id` and a `path`.
+ * @param {Record<string, string | boolean>} flags
+ * @returns {Promise<object>} The batch result, as `--json` reports it.
+ */
+export async function composeEach(entries, flags) {
+  const { format, renderer } = routeOf(flags);
+  const theme = await readThemeOption(flags.theme === undefined ? undefined : String(flags.theme));
+  const layout = await readLayoutOption(flags.layout === undefined ? undefined : String(flags.layout));
+  const settings = settingsOf(flags, format, renderer);
+
+  /** @type {object[]} */
+  const results = [];
+  for (const entry of entries) {
+    try {
+      const { folder, ...composed } = await compose(entry, { theme, layout });
+      results.push(
+        await renderSubject(
+          { source: "catalog", id: entry.id, path: entry.path, folder, ...composed },
+          settings
+        )
+      );
+    } catch (error) {
+      results.push({ command: "generate", id: entry.id, source: "catalog", error: error.message });
+    }
+  }
+
+  const failed = results.filter((one) => one.error !== undefined);
+  return {
+    command: "generate-all",
+    composed: results.length,
+    written: settings.dry ? 0 : results.length - failed.length,
+    format: format.ext,
+    requestedRenderer: renderer,
+    theme: settings.theme,
+    layout: (layout ?? SHEET_LAYOUT).name,
+    dryRun: settings.dry,
+    failed: failed.length,
+    cheatsheets: results,
+  };
+}
+
+/**
+ * The human readable form of a batch result.
+ *
+ * One line per cheatsheet and a summary, rather than {@link reportOf} twenty
+ * eight times: six lines each is 168 lines of report for a run whose question
+ * is "did they all compose, and where did they go". A note or an error is the
+ * only thing worth a second line, and both get one.
+ *
+ * @param {object} result What {@link composeEach} handed back.
+ * @returns {string}
+ */
+export function reportOfAll(result) {
+  const lines = [];
+  for (const one of result.cheatsheets) {
+    if (one.error !== undefined) {
+      lines.push(`FAIL ${one.id}`);
+      lines.push(`       ${one.error}`);
+      continue;
+    }
+    lines.push(
+      `ok   ${one.id}  ${kb(one.bytes)}${one.publishable ? "" : "  not publishable"}` +
+        `  -> ${one.written ?? one.wouldWrite}`
+    );
+    for (const note of one.notes) lines.push(`       ${note}`);
+  }
+  lines.push(
+    `\n${result.composed} composed as ${result.format}, ` +
+      (result.dryRun
+        ? `${result.composed - result.failed} to write`
+        : `${result.written} written`) +
+      (result.failed ? `, ${result.failed} failed` : "") +
+      (result.dryRun ? " - nothing was written, because --dry-run" : "")
+  );
+  return lines.join("\n");
 }
 
 /** The human readable form of a generate result. */
@@ -863,7 +1089,7 @@ export async function run(argv) {
           "for a cheatsheet in the catalog, a path for a JSON document anywhere."
       );
     }
-    for (const other of ["list", "check"]) {
+    for (const other of ["list", "check", "all"]) {
       if (flags[other] !== undefined) {
         throw new Error(
           `cheatsheet: --${other} reads the catalog, and --document is a file outside it. ` +
@@ -873,13 +1099,14 @@ export async function run(argv) {
     }
     return generate(flags);
   }
+  if (flags.all) return generateAll(flags);
   if (flags.list) return listCatalog({ json: Boolean(flags.json) });
   if (flags.check !== undefined) {
     const slug = flags.check === true ? flags.slug : flags.check;
     return checkSheets({ slug: slug === undefined ? undefined : String(slug), json: Boolean(flags.json) });
   }
   if (flags.generate !== undefined || flags.slug !== undefined) return generate(flags);
-  throw new Error("cheatsheet: nothing to do. Run `--help` for the four commands.");
+  throw new Error("cheatsheet: nothing to do. Run `--help` for the five commands.");
 }
 
 // Only when invoked, not when imported by the test file beside it.

@@ -81,11 +81,41 @@ language.</p>
   <td>Reads a JSON document from anywhere in place of a slug.</td>
  </tr>
  <tr>
+  <td><code>--all</code></td>
+  <td>Every cheatsheet in the catalog, each from its own
+   <code>sheet.json</code>.</td>
+ </tr>
+ <tr>
   <td><code>--help</code></td>
   <td>The rest.</td>
  </tr>
 </table>
 </div>
+
+<h2>The whole catalog is one act</h2>
+
+<p><code>--generate</code> has composed a sheet through this layer since the day
+the command existed, and <code>--check</code> has read every committed document
+since the same day - but there was no way to <em>write</em> all of them, so the
+answer to "how is a new cheatsheet's picture produced" was one invocation per
+sheet, or a screenshot taken by hand. For a catalog growing from one category to
+ten, that figure is what decides the cost of writing one sheet.</p>
+
+<pre><code>node tools/cheatsheet.mjs --all</code></pre>
+
+<p>It composes each entry by the same path a single <code>--generate</code>
+takes, so a batch and one slug write the same bytes to the same place - a loop
+that rendered its own way would be a second command that agrees until one of
+them is edited. A sheet that cannot be composed is reported against its own id
+and the rest still run, the exit code saying some failed: somebody fixing one
+<code>sheet.json</code> should not have to wait for the rest of the catalog.</p>
+
+<p><code>--out</code>, <code>--seed</code> and <code>--data-only</code> are
+refused with it rather than ranked, because each means one sheet - one
+destination, one document's variation, one document emitted - and a batch has
+one of each per cheatsheet. Nothing a batch writes is committed: the page
+composes its own sheet in the browser, so a render is on demand here as it is
+anywhere else.</p>
 
 <h2>A sheet does not have to be in the catalog</h2>
 

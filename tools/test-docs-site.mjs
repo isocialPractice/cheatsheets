@@ -252,6 +252,37 @@ test("the README points at pages that exist, and names the two short records", (
   }
 });
 
+// A decision recorded in one document and in nothing a person running the tool
+// ever sees is a decision nobody finds, which is what the item asking for this
+// one said. So the record and the two pointers at it are held together: the
+// section is in the document, and both tools' `--help` names it.
+test("where a generated folder is published is recorded, and both tools point at it", async () => {
+  const source = SOURCE.get("generating-from-a-site.html");
+  assert.ok(source !== undefined, "the page that documents the site tooling is gone");
+  // Wrapped where the file wraps, so a phrase is matched as the sentence reads
+  // rather than as the line happens to break.
+  const page = source.replace(/\s+/g, " ");
+  const heading = "Where the generated folder is published";
+  assert.ok(page.includes(`>${heading}</h2>`), `the page does not carry the "${heading}" section`);
+  // Both ways named, so the section cannot be edited down to one of them and
+  // still read as the decision it is.
+  for (const way of ["a section of an existing site", "a site of its own"]) {
+    assert.ok(page.includes(way), `the section does not name ${way}`);
+  }
+  // And the check it says is checkable, which is the half that stops the rule
+  // being advice.
+  assert.ok(page.includes("grep -r "), "the section does not say how to check a folder is portable");
+
+  for (const tool of ["cheatsheet-site.mjs", "cheatsheet-data.mjs"]) {
+    const { USAGE } = await import(`./${tool}`);
+    assert.ok(USAGE.includes(heading), `${tool} --help does not name the rule`);
+    assert.ok(
+      USAGE.includes("docs/generating-from-a-site.html"),
+      `${tool} --help does not say where the rule is written`
+    );
+  }
+});
+
 // The front door's own job: a section whose detail moved to a page says so in
 // its heading, rather than leaving a reader to find the menu.
 test("every level 2 heading in the README is a link to the site", () => {

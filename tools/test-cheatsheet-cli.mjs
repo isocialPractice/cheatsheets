@@ -33,7 +33,7 @@ import { fileURLToPath } from "node:url";
 
 import { RENDER_EXTENSIONS } from "../api/cheatsheet/index.mjs";
 import { MIN_PUBLISH_SCALE, resolveChromium } from "../api/cheatsheet/raster.mjs";
-import { destinationFor, findEntry, parseFlags, run } from "./cheatsheet.mjs";
+import { composeEach, destinationFor, findEntry, parseFlags, reportOfAll, run } from "./cheatsheet.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = join(root, ".tmp", "cheatsheet-cli-cases");
@@ -296,7 +296,7 @@ test("and the preset's long edge clears the floor under which the code face grey
   );
 });
 
-// ## What the three commands report
+// ## What the five commands report
 
 test("--list names every cheatsheet in the catalog, with its kind", async () => {
   const { exit, json } = await run(["--list", "--json"]);
@@ -331,6 +331,117 @@ test("and a named slug checks that sheet alone", async () => {
   const { json } = await run(["--check", EMBEDDED, "--json"]);
   assert.equal(json.checked, 1);
   assert.equal(json.cheatsheets[0].id, EMBEDDED);
+});
+
+test("--all plans every cheatsheet in the catalog, in the order the catalog lists them", async () => {
+  const { exit, json } = await run(["--all", "--dry-run", "--json"]);
+  assert.equal(exit, 0);
+  assert.equal(json.command, "generate-all");
+  const expected = manifest.categories.flatMap((category) => category.cheatsheets);
+  assert.equal(json.composed, expected.length);
+  assert.deepEqual(
+    json.cheatsheets.map((one) => one.id),
+    expected.map((one) => one.id)
+  );
+  assert.equal(json.failed, 0, "a committed sheet.json no longer composes");
+  // A dry run writes nothing and says so in both halves of the report: the
+  // count, and the per sheet field that names the destination.
+  assert.equal(json.written, 0);
+  assert.equal(json.dryRun, true);
+  for (const one of json.cheatsheets) {
+    assert.equal(one.written, null, `${one.id} reports a write on a dry run`);
+    assert.ok(one.wouldWrite.endsWith(`sheet.${json.format}`), `${one.id} would write ${one.wouldWrite}`);
+  }
+});
+
+test("and composes each of them exactly as --generate of that slug would", async () => {
+  // The claim that makes `--all` one command rather than two: it is
+  // `compose` then `renderSubject` with one settings object, which is the path
+  // a single `--generate` takes - so every sheet's seed, weight, route and
+  // destination has to agree with what that slug reports on its own. The whole
+  // catalog rather than a sample, because this is the only case that holds the
+  // two paths together and a sample would hold them for one sheet.
+  const batch = (await run(["--all", "--dry-run", "--json"])).json;
+  for (const one of batch.cheatsheets) {
+    const alone = (await run(["--generate", one.id, "--dry-run", "--json"])).json;
+    assert.deepEqual(
+      {
+        seed: one.seed,
+        bytes: one.bytes,
+        renderer: one.renderer,
+        publishable: one.publishable,
+        wouldWrite: one.wouldWrite,
+        notes: one.notes,
+      },
+      {
+        seed: alone.seed,
+        bytes: alone.bytes,
+        renderer: alone.renderer,
+        publishable: alone.publishable,
+        wouldWrite: alone.wouldWrite,
+        notes: alone.notes,
+      },
+      `--all and --generate ${one.id} do not agree`
+    );
+  }
+});
+
+test("a sheet that cannot be composed is reported against its id, and the rest still run", async () => {
+  // Supplied rather than found, because every committed document composes.
+  // Supplied through `composeEach` rather than by moving a committed
+  // `sheet.json` aside, because `node --test` runs this file in parallel with
+  // three others that read those documents - the first draft of this case did
+  // move one, and all three failed with ENOENT on the file it had moved.
+  //
+  // The entry names a folder under the scratch directory that holds no
+  // `sheet.json`, which is exactly what a catalog entry pointing at a folder
+  // somebody has not written yet looks like.
+  const missing = "cheatsheet-cli-cases/not-written-yet";
+  const result = await composeEach(
+    [
+      { id: RUNNABLE, path: RUNNABLE },
+      { id: missing, path: `.tmp/${missing}` },
+      { id: EMBEDDED, path: EMBEDDED },
+    ],
+    parseFlags(["--dry-run"])
+  );
+  assert.equal(result.composed, 3);
+  assert.equal(result.failed, 1);
+  assert.deepEqual(
+    result.cheatsheets.filter((one) => one.error !== undefined).map((one) => one.id),
+    [missing]
+  );
+  // The two around it still composed, which is the half an exit code hides.
+  for (const id of [RUNNABLE, EMBEDDED]) {
+    const one = result.cheatsheets.find((each) => each.id === id);
+    assert.equal(one.error, undefined, `${id} failed as well`);
+    assert.ok(one.wouldWrite.endsWith("sheet.svg"), `${id} would write ${one.wouldWrite}`);
+  }
+  // And the report names the failure rather than burying it in a count.
+  const text = reportOfAll(result);
+  assert.match(text, new RegExp(`^FAIL ${missing.replace(/\//g, "\\/")}$`, "m"));
+  assert.match(text, /^3 composed as svg, 2 to write, 1 failed/m);
+});
+
+test("--all refuses the flags that mean one sheet, rather than picking a meaning", async () => {
+  const refused = [
+    [["--all", "--out", join(scratch, "x")], /--out names one destination/],
+    [["--all", "--seed", "1"], /--seed is one document's seed/],
+    [["--all", "--data-only"], /--data-only emits one document/],
+    [["--all", "--generate", RUNNABLE], /--all is every cheatsheet in the catalog/],
+    [["--all", RUNNABLE], /--all is every cheatsheet in the catalog/],
+    [["--all", "--check"], /--check reads the catalog and --all writes it/],
+    [["--all", "--list"], /--list reads the catalog and --all writes it/],
+  ];
+  for (const [argv, message] of refused) {
+    await assert.rejects(() => run(argv), message, `${argv.join(" ")} was accepted`);
+  }
+  // And the document route refuses it from its own side, where the other two
+  // catalog commands are already refused.
+  await assert.rejects(
+    () => run(["--document", join(root, "tools", "fixtures", "sheet.formats.json"), "--all"]),
+    /--all reads the catalog, and --document is a file outside it/
+  );
 });
 
 test("--data-only emits the document and what the composition chose, and writes nothing", async () => {

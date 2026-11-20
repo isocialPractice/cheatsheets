@@ -329,11 +329,12 @@ the preset, and the rule about where a render is allowed to land:
 node tools/cheatsheet.mjs --list
 node tools/cheatsheet.mjs --check
 node tools/cheatsheet.mjs --generate html-css/html-apis/web-storage --format webp
+node tools/cheatsheet.mjs --all --format webp
 node tools/cheatsheet.mjs --document .tmp/draft.json --format webp
 node tools/cheatsheet.mjs --help
 ```
 
-Four things about it are worth knowing before the first call, and the rest is
+Five things about it are worth knowing before the first call, and the rest is
 in `--help` and the file's own header.
 
 **A document does not have to be in the catalog.** `--generate <slug>` names a
@@ -380,6 +381,15 @@ A `--theme` file is a **theme** rather than a design language, and it may be
 partial - `{ "colors": { "green": "#E8833A" } }` is a whole answer. It used to
 be parsed straight into the retired `options.language`, so changing six colours
 meant writing out every coordinate on the sheet.
+
+**`--all` is the whole catalog in one act, and that is the figure that matters
+when a category is being written.** Every entry composed from its own
+`sheet.json`, by the same path a single `--generate` takes - so the two write
+the same bytes to the same place, and a new sheet costs writing a `sheet.json`
+and nothing else. A sheet that cannot be composed is reported against its own id
+and the rest still run, so fixing one document does not mean waiting for the
+other twenty-seven. It takes no `--out`, `--seed` or `--data-only`: each of
+those means one sheet, and a batch has one destination per cheatsheet.
 
 Seed the ledger before rendering the whole catalog at once -
 `cross-os-social seed --workspace mcp-todo` - or the first bulk run reads as 28

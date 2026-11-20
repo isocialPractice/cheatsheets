@@ -17,18 +17,14 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
 
 ## Current
 
-- [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
-  - The model is one function wide, which is what makes this two more readers rather than two more routes: `sitePages` in `tools/cheatsheet-data.mjs` hands back the `SitePage` objects the scanner's pipeline already reads, and everything past it is shared. A format that reached a page by any other path would be the second back end the JSON route was shaped to avoid
-  - `DATA_PROPERTIES` is already the contract, so an XML attribute and a JSON property name the same thing or the contract has become three. Two shapes are worth deciding deliberately rather than discovering: a property is an attribute or a child element in XML and neither is obviously right, and in HTML the material is already markup, which is the one format where a block needs no escaping at all
-  - From: Dedicated cheatsheet website `->` Building on the API
-- [ ] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
-  - Answerable now in a way it was not before 2026.11.19: there is a generated site to look at, and `cheatsheet-menu.html` is what a data file site has instead of a page of the site's own to reach it from
-  - The two routes pull opposite ways, which is the whole of what the decision has to settle. A crawled site is a section of something by construction - the output folder is resolved under the site root and a menu is spliced into the site's own pages. A data file site has nothing to be a section of. So the answer is probably both with a stated default, and the item is to write that down where a reader of the folder finds it rather than leave it to be inferred
-  - From: Dedicated cheatsheet website `->` Building on the API
-- [ ] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
-  - The one open item of its section, and what the ten `## New Cheatsheets` categories are waiting on: each of those is content to be written, and how a new sheet's image is produced is what decides the cost of writing one
-  - It reaches the catalog rather than the site tooling, so it does not compete with the two items above for the same files. The eleven original JPEGs stay as they are - they are evidence the design language was measured off, per `javaScriptArrays/README.md`, not output to be regenerated
-  - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [ ] Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
+- [ ] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
 
 ### Create and Deploy GitHub Pages Override
 
@@ -438,12 +434,11 @@ The `javascript/` category. Built first: the existing eleven array examples
 migrate into it as the `arrays` sub group, so building this category is the
 migration and the pipeline's acceptance test.
 
-- [ ] Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
-- [ ] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
-  - Create `3` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
+Its first two subjects - **General JavaScript Overview** and **JS Dates** -
+were queued into `## Current` on 2026.11.20, together because they are one
+batch and `## Design Composition per Set` counts a set by the batch. The rest
+follow in the order below.
+
 - [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
   - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
@@ -772,7 +767,13 @@ halves: an element is a letterform or an area and not both. Without it the
 analyzer measures no sizes and the generator invents a type scale, which is the
 failure the asset exists to prevent.
 
-- [ ] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
+Nothing is outstanding here. The last item closed on 2026.11.20, and it is what
+the algorithms above were for: `node tools/cheatsheet.mjs --all` composes every
+cheatsheet in the catalog from its own `sheet.json`, by the path a single
+`--generate` takes, so a new sheet costs writing a `sheet.json` and nothing
+else. Nothing a batch writes is committed - the page composes its own sheet in
+the browser, so a render is on demand here as it is anywhere else - and the
+eleven original JPEGs are untouched by it, being reference rather than output.
 
 ### Rendering and Conversion
 
@@ -1281,8 +1282,16 @@ those three and not some other set. The one thing the route adds is a page -
 `cheatsheet-menu.html`, since a data file site is nothing but the generated
 folder and has no page of the site's own for a menu to be spliced into.
 
-- [ ] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
-- [ ] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
+**The last two items closed on 2026.11.20**, and nothing is outstanding here.
+The data file route reads XML and HTML beside JSON - one contract under all
+three, a format deciding only where a value is written, and `readData` handing
+back one record whichever file it read, so there is still one back end below it.
+And where a generated folder is published is written down rather than left to be
+inferred: a crawled site's folder is a section of that site, a data file site's
+folder is a site of its own, and either may be published the other way as long
+as nothing in it points out of it. The rule is under **Where the generated
+folder is published** in `docs/generating-from-a-site.html`, with both tools'
+`--help` pointing at it.
 
 ## AI Helper API
 
@@ -2339,5 +2348,17 @@ generate ideas about generating ideas.
   - Unblocked as of 2026.11.16: what held it back was that a generated page's shape was still moving, and the shape is now pinned by committed output in `fixtures/expected/`, so a generator that writes the same shape has something to be compared against from its first run
   - It reuses what is already there rather than growing a second mechanism: `renderCheatsheet` and `renderMaster` for the pages, `plannedPages` for what a run writes, `renderMenu` for the menu, and the manifest for what the menu lists. The item is the data file and the walk from it to those, not a second page writer
   - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Accept XML and HTML as data file formats alongside JSON, mapping each onto the same internal model
+  - The model is one function wide, which is what makes this two more readers rather than two more routes: `sitePages` in `tools/cheatsheet-data.mjs` hands back the `SitePage` objects the scanner's pipeline already reads, and everything past it is shared. A format that reached a page by any other path would be the second back end the JSON route was shaped to avoid
+  - `DATA_PROPERTIES` is already the contract, so an XML attribute and a JSON property name the same thing or the contract has become three. Two shapes are worth deciding deliberately rather than discovering: a property is an attribute or a child element in XML and neither is obviously right, and in HTML the material is already markup, which is the one format where a block needs no escaping at all
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Decide and record whether the generated site is published as a section of an existing site or as its own subdomain
+  - Answerable now in a way it was not before 2026.11.19: there is a generated site to look at, and `cheatsheet-menu.html` is what a data file site has instead of a page of the site's own to reach it from
+  - The two routes pull opposite ways, which is the whole of what the decision has to settle. A crawled site is a section of something by construction - the output folder is resolved under the site root and a menu is spliced into the site's own pages. A data file site has nothing to be a section of. So the answer is probably both with a stated default, and the item is to write that down where a reader of the folder finds it rather than leave it to be inferred
+  - From: Dedicated cheatsheet website `->` Building on the API
+- [x] Compose every new cheatsheet from its `sheet.json` through the API rather than capturing a screenshot by hand
+  - The one open item of its section, and what the ten `## New Cheatsheets` categories are waiting on: each of those is content to be written, and how a new sheet's image is produced is what decides the cost of writing one
+  - It reaches the catalog rather than the site tooling, so it does not compete with the two items above for the same files. The eleven original JPEGs stay as they are - they are evidence the design language was measured off, per `javaScriptArrays/README.md`, not output to be regenerated
+  - From: Cheatsheet Composition Language `->` The Composition Algorithm
 
 </details>

@@ -556,6 +556,70 @@ slugged the way the surface slugs a render's file name - a stem is a site
 owner's own file or folder name, and an <code>id</code> may hold no
 whitespace.</p>
 
+<h2 id="where-it-is-published">Where the generated folder is published</h2>
+
+<p><strong>Both ways are supported: a section of an existing site, and a site
+of its own on a subdomain.</strong> Which one is the default is decided by the
+route that generated the folder rather than by taste, because the two routes
+can promise different things.</p>
+
+<div class="table-scroll" tabindex="0">
+<table>
+ <tr><th>Route</th><th>Default</th><th>Why that one</th></tr>
+ <tr>
+  <td>A crawled site, <code>tools/cheatsheet-site.mjs</code></td>
+  <td>A section of that site</td>
+  <td>The output folder is resolved under the site root, the menu is spliced
+   into the site's own pages, and a relative URL in carried material is
+   rewritten to point from the generated page at what it pointed at. The folder
+   is a subtree of the site by construction</td>
+ </tr>
+ <tr>
+  <td>A data file, <code>tools/cheatsheet-data.mjs</code></td>
+  <td>Its own root</td>
+  <td>There is no site to be a section of, which is the whole reason the route
+   exists. <code>cheatsheet-menu.html</code> is written as the front door
+   precisely because there is no page of anybody else's for a menu to go in</td>
+ </tr>
+ <tr>
+  <td>The browser route, <code>api/cheatsheet/site.mjs</code></td>
+  <td>Neither - it is the page</td>
+  <td>It hands a section back into a page that is already loaded, so there is
+   no folder to publish and nothing to decide</td>
+ </tr>
+</table>
+</div>
+
+<p><strong>Either folder may be published the other way, on one condition.</strong>
+A generated page is self-contained: one stylesheet, written into its own head;
+one inline <code>&lt;svg&gt;</code> per cheatsheet, with no image file behind
+it; no script at all; and every link from one generated page to another a bare
+file name, because the folder is flat. So the only thing that ties a folder to
+a host is a URL the <em>source material</em> carried, and the condition is that
+there are none left pointing out of the folder.</p>
+
+<p>That is checkable rather than a matter of faith, because a reference that
+leaves the folder is the only thing in it written with <code>../</code>:</p>
+
+<pre><code>grep -r '="\.\./' cheatsheets/</code></pre>
+
+<p>Nothing found means the folder is portable - serve it as the document root
+of a subdomain, from a bucket, from anywhere. Anything found is material that
+expects the site it came from, named with the path it wants, and there are two
+honest answers: publish the folder where it was generated, or copy those files
+in beside it and keep the folder self-contained. The tool will not inline them
+for you - a site's own assets are a site's own, and a generated folder that
+quietly grew a copy of them would be a second place to update them.</p>
+
+<p><strong>A crawled site published to a subdomain gives up its menu.</strong>
+The splice writes a link from a page of the site to a file in the folder, and
+if the folder is on another host that link is wrong - so a site that will
+publish its cheatsheets elsewhere should not mark a
+<code>data-cheatsheet-menu</code> element and should link to the subdomain in
+its own words. Passing <code>--out</code> a folder outside the site already
+refuses the splice and the URL carry for the same reason, with a finding each
+naming the page.</p>
+
 <h2>The browser route, for a site with no build step</h2>
 
 <p>The scanner reads files, so a marker a script wrote at run time is invisible

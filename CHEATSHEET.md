@@ -14,14 +14,16 @@ node tools/build-manifest.mjs --check       # the same walk as a gate
 node api/napkin-sketch/VENDOR-CHECK.mjs     # hash the vendored copy against its record
 node tools/cheatsheet.mjs --list            # what there is
 node tools/cheatsheet.mjs --generate <slug> # compose and render one
+node tools/cheatsheet.mjs --all             # compose and render every one
 node tools/cheatsheet-site.mjs <site>       # read a site, write cheatsheets out of it
-node tools/cheatsheet-data.mjs <file>       # the same, out of one JSON file
+node tools/cheatsheet-data.mjs <file>       # the same, out of one data file
 ```
 
 ## `tools/cheatsheet.mjs`
 
 ```text
 --generate <slug>      compose by manifest slug or folder path
+--all                  compose every catalog sheet, each from its own sheet.json
 --document <path>      compose a JSON document instead of a catalog slug
 --check [<slug>]       check without rendering
 --list                 name what there is
@@ -43,6 +45,14 @@ node tools/cheatsheet-data.mjs <file>       # the same, out of one JSON file
 A publishable render goes beside its `sheet.json`; one that is not goes to
 `.tmp/`. A `--document` render has no catalog folder, so it goes to `.tmp/`
 either way.
+
+`--all` is the whole catalog in one act, which is what decides the cost of
+writing a new sheet: it composes each entry from its own `sheet.json` by the
+same path a single `--generate` takes, so the two write the same bytes to the
+same place. A sheet that cannot be composed is reported against its own id and
+the rest still run, the exit code saying some failed. It takes no `--out`,
+`--seed` or `--data-only`: each of those means one sheet, and a batch has one
+destination per cheatsheet.
 
 ## `tools/cheatsheet-site.mjs`
 
@@ -95,14 +105,15 @@ two renders of one composition.
 ## `tools/cheatsheet-data.mjs`
 
 ```text
-<data file>   the JSON file to read (required)
---out <dir>   write here instead of resolving cheatsheets/ beside the file
---dry-run     report the folder and the pages, touch nothing
+<data file>    the file to read (required)
+--format <f>   json, xml, html; read from the extension when not given
+--out <dir>    write here instead of resolving cheatsheets/ beside the file
+--dry-run      report the folder and the pages, touch nothing
 ```
 
 For a site that is not written yet, so there is no page to mark. The same back
-end: a data file says in JSON what a marked up page says in an attribute or a
-comment, and nothing past the read is different.
+end: a data file says in one file what a marked up page says in an attribute or
+a comment, and nothing past the read is different.
 
 ```json
 {
@@ -134,7 +145,33 @@ the two an entry cannot be written without. A block is markup, or
 `{ "tag": "table", "markup": "<table>..." }` where the element is worth
 recording - markup alone is recorded as a `<section>`. The menu is a page here,
 `cheatsheet-menu.html`, since there is no page of the site's own to splice one
-into. A finding names the property's path in the file, as `entries[2].heading`.
+into. A finding names the property's path in the file, as `entries[2].heading`,
+whichever format the file is written in.
+
+**Three formats, one contract.** A property is the same word, means the same
+thing and takes the same values in JSON, in XML and in HTML; only where the
+value sits changes. In the two markup formats a property that holds a list is an
+element carrying one child per item, and every other property is an attribute -
+because a list of records has nowhere to go in an attribute, and neither has
+markup. The outermost element is the file itself and its name is yours; HTML
+steps over `<html>`, `<head>` and `<body>` to reach it.
+
+```xml
+<cheatsheets menu="dropdown">
+  <entries>
+    <entry page="guide/arrays.html" title="Working with arrays">
+      <material>
+        <block><![CDATA[<h2>splice</h2><p>Removes and inserts in place.</p>]]></block>
+      </material>
+    </entry>
+  </entries>
+</cheatsheets>
+```
+
+A block's markup is what its element holds. XML carries it escaped or in a CDATA
+section; HTML carries it exactly as written, trimmed at its ends and never
+re-indented - which is HTML's one advantage here and a large one for a file
+somebody writes by hand, since a block of material *is* markup.
 
 ## `api/cheatsheet/site.mjs`
 

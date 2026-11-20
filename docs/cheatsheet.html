@@ -57,12 +57,14 @@ node tools/build-manifest.mjs --check       # the same walk as a gate
 node api/napkin-sketch/VENDOR-CHECK.mjs     # hash the vendored copy against its record
 node tools/cheatsheet.mjs --list            # what there is
 node tools/cheatsheet.mjs --generate &lt;slug&gt; # compose and render one
+node tools/cheatsheet.mjs --all             # compose and render every one
 node tools/cheatsheet-site.mjs &lt;site&gt;       # read a site, write cheatsheets out of it
-node tools/cheatsheet-data.mjs &lt;file&gt;       # the same, out of one JSON file</code></pre>
+node tools/cheatsheet-data.mjs &lt;file&gt;       # the same, out of one data file</code></pre>
 
 <h2>tools/cheatsheet.mjs</h2>
 
 <pre><code>--generate &lt;slug&gt;      compose by manifest slug or folder path
+--all                  compose every catalog sheet, each from its own sheet.json
 --document &lt;path&gt;      compose a JSON document instead of a catalog slug
 --check [&lt;slug&gt;]       check without rendering
 --list                 name what there is
@@ -83,6 +85,15 @@ node tools/cheatsheet-data.mjs &lt;file&gt;       # the same, out of one JSON fi
 <p>A publishable render goes beside its <code>sheet.json</code>; one that is
 not goes to <code>.tmp/</code>. A <code>--document</code> render has no catalog
 folder, so it goes to <code>.tmp/</code> either way.</p>
+
+<p><code>--all</code> is the whole catalog in one act, which is what decides the
+cost of writing a new sheet: it composes each entry from its own
+<code>sheet.json</code> by the same path a single <code>--generate</code> takes,
+so the two write the same bytes to the same place. A sheet that cannot be
+composed is reported against its own id and the rest still run, the exit code
+saying some failed. It takes no <code>--out</code>, <code>--seed</code> or
+<code>--data-only</code>: each of those means one sheet, and a batch has one
+destination per cheatsheet.</p>
 
 <h2>tools/cheatsheet-site.mjs</h2>
 
@@ -130,13 +141,14 @@ two renders of one composition.</p>
 
 <h2>tools/cheatsheet-data.mjs</h2>
 
-<pre><code>&lt;data file&gt;   the JSON file to read (required)
---out &lt;dir&gt;   write here instead of resolving cheatsheets/ beside the file
---dry-run     report the folder and the pages, touch nothing</code></pre>
+<pre><code>&lt;data file&gt;    the file to read (required)
+--format &lt;f&gt;   json, xml, html; read from the extension when not given
+--out &lt;dir&gt;    write here instead of resolving cheatsheets/ beside the file
+--dry-run      report the folder and the pages, touch nothing</code></pre>
 
 <p>For a site that is not written yet, so there is no page to mark. The same
-back end: a data file says in JSON what a marked up page says in an attribute
-or a comment, and nothing past the read is different.</p>
+back end: a data file says in one file what a marked up page says in an
+attribute or a comment, and nothing past the read is different.</p>
 
 <pre><code>{
   "menu": "dropdown",
@@ -171,7 +183,32 @@ markup, or
 is worth recording - markup alone is recorded as a <code>&lt;section&gt;</code>.
 The menu is a page here, <code>cheatsheet-menu.html</code>, since there is no
 page of the site's own to splice one into. A finding names the property's path
-in the file, as <code>entries[2].heading</code>.</p>
+in the file, as <code>entries[2].heading</code>, whichever format the file is
+written in.</p>
+
+<p><strong>Three formats, one contract.</strong> A property is the same word,
+means the same thing and takes the same values in JSON, in XML and in HTML; only
+where the value sits changes. In the two markup formats a property that holds a
+list is an element carrying one child per item, and every other property is an
+attribute - because a list of records has nowhere to go in an attribute, and
+neither has markup. The outermost element is the file itself and its name is
+yours; HTML steps over <code>&lt;html&gt;</code>, <code>&lt;head&gt;</code> and
+<code>&lt;body&gt;</code> to reach it.</p>
+
+<pre><code>&lt;cheatsheets menu="dropdown"&gt;
+  &lt;entries&gt;
+    &lt;entry page="guide/arrays.html" title="Working with arrays"&gt;
+      &lt;material&gt;
+        &lt;block&gt;&lt;![CDATA[&lt;h2&gt;splice&lt;/h2&gt;&lt;p&gt;Removes and inserts in place.&lt;/p&gt;]]&gt;&lt;/block&gt;
+      &lt;/material&gt;
+    &lt;/entry&gt;
+  &lt;/entries&gt;
+&lt;/cheatsheets&gt;</code></pre>
+
+<p>A block's markup is what its element holds. XML carries it escaped or in a
+CDATA section; HTML carries it exactly as written, trimmed at its ends and never
+re-indented - which is HTML's one advantage here and a large one for a file
+somebody writes by hand, since a block of material <em>is</em> markup.</p>
 
 <h2>api/cheatsheet/site.mjs</h2>
 

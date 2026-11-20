@@ -3957,6 +3957,15 @@ export const USAGE = [
   "generated folder, which is what the page menu links to and the first entry",
   "of the dropdown. A link is relative to the page it is written into, and an",
   "entry reads the generated file's name as prose.",
+  "",
+  "The folder this writes is published as a section of the site it was crawled",
+  "from, which is the default because it is what this route can promise: the",
+  "folder sits under the site root, the menu links into it from the site's own",
+  "pages, and carried URLs are rewritten relative to it. A site of its own on a",
+  "subdomain is supported too, on the condition that nothing in the folder",
+  "points out of it - grep it for '=\"../' to see. The whole rule is under",
+  "\"Where the generated folder is published\" in",
+  "docs/generating-from-a-site.html.",
 ].join("\n");
 
 /**

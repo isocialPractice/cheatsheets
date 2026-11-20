@@ -115,7 +115,19 @@ node tools/cheatsheet.mjs --generate <slug> --format webp
 It reports which of the two raster routes answered, because a file that does
 not say that cannot be reviewed against the design language. A sheet does not
 have to be in the catalog to be rendered: `--document <path>` reads a JSON
-document from anywhere in place of a slug. `--help` has the rest.
+document from anywhere in place of a slug.
+
+The whole catalog is one act rather than one invocation per sheet, which is what
+decides the cost of writing a new one:
+
+```bash
+node tools/cheatsheet.mjs --all
+```
+
+Every cheatsheet composed from its own `sheet.json` by the same path a single
+`--generate` takes, so the two write the same bytes to the same place. A sheet
+that cannot be composed is reported against its own id and the rest still run.
+`--help` has the rest.
 
 ## [Generating Cheatsheets From Another Site](https://isocialpractice.github.io/cheatsheets/docs/generating-from-a-site.html)
 
@@ -154,7 +166,7 @@ carries a signature, which is how a run tells its own work from a hand written
 menu left there as a fallback.
 
 A site that is not written yet has no page to mark, so it has a front end of its
-own - one JSON file, and the whole site out of it:
+own - one data file, and the whole site out of it:
 
 ```bash
 node tools/cheatsheet-data.mjs <data file>
@@ -166,6 +178,33 @@ second copy of it. A page per entry, `all-cheatsheets.html` carrying all of them
 `cheatsheet-menu.html` to move between them, and the manifest. Nothing past the
 read is different, so a cheatsheet generated from a data file and the same
 cheatsheet generated from marked up pages are the same bytes.
+
+The file may be JSON, XML or HTML, read from its extension or named with
+`--format`. One contract under all three: a property is the same word, means the
+same thing and takes the same values whichever format it is written in, and only
+where the value sits changes. In XML and HTML a property that holds a list is an
+element carrying one child per item and every other property is an attribute -
+because a list of records has nowhere to go in an attribute, and neither has
+markup. HTML's one advantage is exactly that: a block of material is markup, so
+HTML is the format where it needs no escaping at all.
+
+```xml
+<cheatsheets>
+  <entries>
+    <entry page="guide/arrays.html" title="Working with arrays">
+      <material>
+        <block><![CDATA[<h2>splice</h2><p>Removes and inserts in place.</p>]]></block>
+      </material>
+    </entry>
+  </entries>
+</cheatsheets>
+```
+
+Where the generated folder is published is written down rather than left to be
+inferred: a crawled site's folder is a section of that site, a data file site's
+folder is a site of its own, and either may be published the other way as long
+as nothing in it points out of it. The rule, and the one command that checks it,
+are on the page this section links.
 
 A site that will not run a build step has the other route, which needs no
 checkout and nothing installed:
