@@ -1,7 +1,8 @@
-// Writes a whole cheatsheet site out of one JSON data file: a page per entry,
-// the master page carrying all of them, the manifest, and the menu.
+// Writes a whole cheatsheet site out of one data file: a page per entry, the
+// master page carrying all of them, the manifest, and the menu.
 //
 //     node tools/cheatsheet-data.mjs <data file>
+//     node tools/cheatsheet-data.mjs <data file> --format json|xml|html
 //     node tools/cheatsheet-data.mjs <data file> --out <dir>
 //     node tools/cheatsheet-data.mjs <data file> --dry-run
 //     node tools/cheatsheet-data.mjs --help
@@ -28,12 +29,38 @@
 // **the same bytes**, which is a property of there being one writer rather
 // than a coincidence two code paths are keeping up.
 //
-// What this file holds is therefore two things and no more: the contract a
-// data file is written against, in {@link DATA_PROPERTIES}, and the walk from
-// a file that satisfies it to the `SitePage` objects the pipeline already
-// reads.
+// What this file holds is therefore three things and no more: the contract a
+// data file is written against, in {@link DATA_PROPERTIES}; the three readers
+// that turn one of the three formats into a record satisfying it, in
+// {@link DATA_FORMATS} and {@link readData}; and the walk from such a record to
+// the `SitePage` objects the pipeline already reads, in {@link sitePages}.
 //
-// ## The data file is the comment method, said in JSON
+// ## Three formats, one contract - and where the line between them falls
+//
+// JSON, XML and HTML are read, and a format decides exactly one thing: where a
+// value is written. A property is the same word in all three, means the same
+// thing, takes the same values, and is reported with the same path in a
+// finding. {@link readData} hands back one record whichever file it read, so
+// the contract, the findings, the pages, the render, the manifest and the menu
+// are reached by one path - a format that produced `SitePage` objects of its
+// own would be the second back end this route was shaped to avoid, and a third
+// would be the third.
+//
+// In the two markup formats the shape follows from what an attribute can hold
+// rather than from taste, which is what makes it a decision and not a
+// preference: **a property that holds a list is an element, and every other
+// property is an attribute**, because a list of records has nowhere to go in an
+// attribute and neither has markup. The element one item of a list is written
+// as is named by the contract as well - `entries` is `[ <entry>, ... ]` - so
+// `<entries>` holding `<entry>` is read off the object rather than chosen here.
+//
+// The one difference of substance between the two markup formats is the one the
+// item asking for them named: a block of material **is** markup, so XML carries
+// it escaped or in a CDATA section and HTML carries it as written. That is
+// HTML's whole advantage here, and for a file somebody writes by hand it is a
+// large one.
+//
+// ## The data file is the comment method, said as data
 //
 // That is the sentence the whole mapping follows from. A page has two ways of
 // saying what its material is - an attribute on the element wrapping it, and a
@@ -77,6 +104,7 @@ import {
   MENU_MODES,
   NAME_PATTERN,
   OUTPUT_NAME,
+  PAGE_EXTENSIONS,
   cheatsheetDocument,
   commentOption,
   headingFor,
@@ -553,6 +581,715 @@ function blockOf(tag, content, properties, line, at) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// ## The three formats, and the one contract under all of them
+// ---------------------------------------------------------------------------
+
+/**
+ * The formats a data file may be written in.
+ *
+ * **One contract, three spellings of it.** {@link DATA_PROPERTIES} does not
+ * fork per format: a property is the same word in all three, means the same
+ * thing, takes the same values, and is reported with the same path in a
+ * finding. A format decides only *where a value is written*, which is what
+ * `holds` says - and if it decided anything more there would be three
+ * contracts, which is the failure this route was shaped to rule out on the day
+ * it had one.
+ *
+ * `markup` is the one field whose difference is substance rather than syntax,
+ * and it is why a second and a third format were worth having at all: a block
+ * of material **is** markup, and markup inside markup has to be escaped in JSON
+ * and in XML and does not have to be escaped in HTML. That is HTML's whole
+ * advantage here, and it is a large one for a file somebody writes by hand.
+ *
+ * `extensions` is what a file is read as when `--format` does not say. HTML's
+ * are {@link PAGE_EXTENSIONS}, the scanner's own, rather than a second list
+ * that agrees with it.
+ */
+export const DATA_FORMATS = {
+  json: {
+    extensions: [".json"],
+    holds: "a property is a key, and a list property is an array",
+    markup: "a string, with the < and the \" of it escaped",
+  },
+  xml: {
+    extensions: [".xml"],
+    holds: "a property is an attribute, and a list property is an element",
+    markup: "the element's own text, escaped or in a CDATA section",
+  },
+  html: {
+    extensions: PAGE_EXTENSIONS,
+    holds: "a property is an attribute, and a list property is an element",
+    markup: "the element's own markup, carried exactly as it was written",
+  },
+};
+
+/**
+ * The elements a document wraps its content in, which an HTML data file is read
+ * through rather than against.
+ *
+ * A data file is read and never served, so the file element below is the one a
+ * writer chose - but somebody writing HTML by hand reaches for a document, and
+ * refusing one would be refusing the format's own habit. So these three are
+ * stepped over on the way in, and a file written as a fragment and the same
+ * file written as a page read identically.
+ */
+export const WRAPPER_ELEMENTS = ["html", "head", "body"];
+
+/**
+ * The wrapper that is stepped past rather than into.
+ *
+ * `<head>` is the half of a document that carries no content, and it is the one
+ * wrapper whose children must not be looked at: a page's `<title>` is not a
+ * wrapper, so the search below would take it as the file element and read a
+ * data file out of the document's title.
+ */
+const DOCUMENT_HEAD = "head";
+
+/** The entities XML defines, which is all five of them. */
+const XML_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+/** Spans that look like markup and are not, in either markup format. */
+const DATA_OPAQUE = [
+  { open: "<!--", close: "-->" },
+  { open: "<![CDATA[", close: "]]>" },
+];
+
+/**
+ * The format a path is read as, or `null` where its extension names none.
+ *
+ * @param {string} path
+ * @returns {string | null}
+ */
+export function formatOf(path) {
+  const lower = path.toLowerCase();
+  for (const [name, one] of Object.entries(DATA_FORMATS)) {
+    if (one.extensions.some((ext) => lower.endsWith(ext))) return name;
+  }
+  return null;
+}
+
+/**
+ * What one item of a list property is called, read out of the property's shape.
+ *
+ * The singular is already in the contract: `entries` is written
+ * `[ <entry>, ... ]` and `material` is written `[ <block>, ... ]`, so the
+ * element a markup format nests inside the list is named by the object rather
+ * than by a second list beside it. `<entries>` holding `<entry>` is the shape a
+ * reader of the JSON would have guessed, and it is that shape because the JSON
+ * says so.
+ *
+ * @param {string | undefined} shape
+ * @returns {string | null}
+ */
+function itemName(shape) {
+  const match = /<([A-Za-z]+)>/.exec(shape ?? "");
+  return match === null ? null : match[1];
+}
+
+/**
+ * The list properties of one scope, each with the element one item of it is.
+ *
+ * A list property is one whose shape opens a bracket, which is the contract
+ * saying it holds items rather than a value - and holding items is the whole
+ * of why a markup format writes it as an element. An attribute carries one
+ * string: a list of records has nowhere to go in one, and neither has markup.
+ *
+ * @param {string} scope
+ * @returns {Array<{ name: string, item: string | null }>}
+ */
+function listProperties(scope) {
+  return Object.entries(DATA_PROPERTIES)
+    .filter(([, one]) => one.scope === scope && typeof one.shape === "string" && one.shape.startsWith("["))
+    .map(([name, one]) => ({ name, item: itemName(one.shape) }));
+}
+
+/**
+ * Whether an element holds one of the file scope's list elements, which is what
+ * tells the file element apart from anything written beside it.
+ *
+ * Read off {@link DATA_PROPERTIES} like every other question about shape, so a
+ * list property added to the contract is one more thing that identifies a file
+ * without this being edited.
+ *
+ * The findings the probe produces are thrown away deliberately. This asks what
+ * an element *is*, and an element that turns out not to be the file is not a
+ * fault in the file - a heading above the data is a heading, and reporting the
+ * contract at it would be reporting the wrong element.
+ *
+ * @param {string} text
+ * @param {{ from: number, to: number }} element
+ * @param {string} format
+ * @returns {boolean}
+ */
+function holdsFileList(text, element, format) {
+  const lists = listProperties("file");
+  return elementsIn(text, element.from, element.to, format, "", []).some((child) =>
+    lists.some((list) => list.name === child.name)
+  );
+}
+
+/**
+ * Where an opaque span opening at `at` ends, or `null` where none opens there.
+ *
+ * An unclosed opener swallows the rest of the file, which is what a browser
+ * does with an unclosed comment and is the reading that cannot invent content:
+ * whatever followed was never going to be read as markup.
+ *
+ * @param {string} text
+ * @param {number} at
+ * @returns {number | null}
+ */
+function opaqueAt(text, at) {
+  for (const { open, close } of DATA_OPAQUE) {
+    if (!text.startsWith(open, at)) continue;
+    const end = text.indexOf(close, at + open.length);
+    return end === -1 ? text.length : end + close.length;
+  }
+  return null;
+}
+
+/**
+ * The start tag opening at `at`, scanned rather than searched for.
+ *
+ * `startTagAt` in the scanner, for the reason that one exists: a `>` inside a
+ * quoted attribute value is a character of the value and not the end of the
+ * tag, and `indexOf(">")` reads `<entry title="a>b" page="x.html">` as two
+ * elements and loses the page.
+ *
+ * @param {string} text
+ * @param {number} at Offset of the `<`.
+ * @returns {{ start: number, end: number } | null} `null` where the tag never ends.
+ */
+function scanTag(text, at) {
+  if (text[at] !== "<") return null;
+  /** The quote character of the value being scanned, or `""` outside one. */
+  let quote = "";
+  /** An `=` has been read and the value it introduces has not started yet. */
+  let awaiting = false;
+  for (let i = at + 1; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote !== "") {
+      if (char === quote) quote = "";
+      continue;
+    }
+    if (char === ">") return { start: at, end: i };
+    if (char === "=") {
+      awaiting = true;
+      continue;
+    }
+    if (awaiting && (char === '"' || char === "'")) {
+      quote = char;
+      awaiting = false;
+      continue;
+    }
+    if (!/\s/.test(char)) awaiting = false;
+  }
+  return null;
+}
+
+/**
+ * The element name of the tag at `at`, lower cased, or `""` where there is none.
+ *
+ * @param {string} text
+ * @param {number} at
+ * @returns {string}
+ */
+function nameAt(text, at) {
+  const match = /^<\/?([A-Za-z][A-Za-z0-9:._-]*)/.exec(text.slice(at, at + 80));
+  return match === null ? "" : match[1].toLowerCase();
+}
+
+/**
+ * The tag that closes an element named `name`, counting nesting.
+ *
+ * Opaque spans are skipped on both sides of the count, which is the half that
+ * matters for this route rather than a precaution: a block of material in XML
+ * is written `<![CDATA[...]]>` precisely so it can hold the markup a data file
+ * is about, and that markup may hold the word this is counting. A commented out
+ * entry is the same case from the other end.
+ *
+ * @param {string} text
+ * @param {string} name Lower cased.
+ * @param {number} from
+ * @param {number} to
+ * @returns {{ start: number, end: number } | null}
+ */
+function closeOf(text, name, from, to) {
+  let depth = 1;
+  let at = from;
+  while (at < to) {
+    const open = text.indexOf("<", at);
+    if (open === -1 || open >= to) return null;
+    const opaque = opaqueAt(text, open);
+    if (opaque !== null) {
+      at = opaque;
+      continue;
+    }
+    if (text.startsWith("</", open)) {
+      const closing = /^<\/([A-Za-z][A-Za-z0-9:._-]*)\s*>/.exec(text.slice(open, open + 80));
+      if (closing !== null && closing[1].toLowerCase() === name) {
+        depth -= 1;
+        if (depth === 0) return { start: open, end: open + closing[0].length };
+      }
+      at = open + (closing === null ? 2 : closing[0].length);
+      continue;
+    }
+    // A doctype, a processing instruction, or anything else opening `<!` or
+    // `<?`: not an element, and never a nesting level.
+    if (text.startsWith("<!", open) || text.startsWith("<?", open)) {
+      const end = text.indexOf(">", open);
+      at = end === -1 ? to : end + 1;
+      continue;
+    }
+    const tag = scanTag(text, open);
+    if (tag === null) return null;
+    // `<entry/>` opens and closes in one tag, so it is not a level either.
+    if (nameAt(text, open) === name && text[tag.end - 1] !== "/") depth += 1;
+    at = tag.end + 1;
+  }
+  return null;
+}
+
+/**
+ * The element children of a span, in the order they are written.
+ *
+ * Direct children only: a nested element belongs to whichever child holds it,
+ * and the walk steps over that child's whole span rather than into it. Which is
+ * what keeps a block of material out of the structure entirely - the content of
+ * a `<block>` is markup and is never scanned for elements, so an `<entry>` in a
+ * code sample is a code sample.
+ *
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {string} format
+ * @param {string} where The path of the holder, for a finding.
+ * @param {string[]} findings Appended to.
+ * @returns {Array<{ name: string, tag: { start: number, end: number }, from: number, to: number }>}
+ */
+function elementsIn(text, from, to, format, where, findings) {
+  /** @type {Array<{ name: string, tag: { start: number, end: number }, from: number, to: number }>} */
+  const found = [];
+  let at = from;
+  while (at < to) {
+    const open = text.indexOf("<", at);
+    if (open === -1 || open >= to) break;
+    const opaque = opaqueAt(text, open);
+    if (opaque !== null) {
+      at = opaque;
+      continue;
+    }
+    // A closing tag *inside* the span, which is always a stray one: the holder's
+    // own sits at `to`, and the check above has already ended the walk on it.
+    // Reported rather than broken on quietly, because everything after it goes
+    // unread - a second `<entry>` below a mismatched `</wrong>` would be a page
+    // missing from the generated site with nothing said about it, which is the
+    // one failure this reader is not allowed to have. It is the same loss an
+    // element that is never closed causes, and that one has always said so.
+    if (text.startsWith("</", open)) {
+      const name = nameAt(text, open);
+      findings.push(
+        `${where}${name === "" ? "a closing tag" : `</${name}>`}: the tag at line ${lineOf(text, open)} ` +
+          `closes an element that was not opened here, so everything from it was left unread. A data ` +
+          `file written in ${format} opens every element it closes - there is no recovery here, because ` +
+          `the structure is the contract.`
+      );
+      break;
+    }
+    if (text.startsWith("<!", open) || text.startsWith("<?", open)) {
+      const end = text.indexOf(">", open);
+      at = end === -1 ? to : end + 1;
+      continue;
+    }
+    const tag = scanTag(text, open);
+    const name = nameAt(text, open);
+    if (tag === null || name === "") {
+      findings.push(
+        `${where}a tag opens at line ${lineOf(text, open)} and is never ended, so everything from it ` +
+          `was left unread.`
+      );
+      break;
+    }
+    if (text[tag.end - 1] === "/") {
+      found.push({ name, tag, from: tag.end + 1, to: tag.end + 1 });
+      at = tag.end + 1;
+      continue;
+    }
+    const close = closeOf(text, name, tag.end + 1, to);
+    if (close === null) {
+      findings.push(
+        `${where}<${name}>: the element opened at line ${lineOf(text, open)} is never closed, so ` +
+          `everything from it was left unread. A data file written in ${format} closes every element it ` +
+          `opens - there is no recovery here, because the structure is the contract.`
+      );
+      break;
+    }
+    found.push({ name, tag, from: tag.end + 1, to: close.start });
+    at = close.end;
+  }
+  return found;
+}
+
+/**
+ * The line an offset falls on, counting from 1.
+ *
+ * `lineAt` in the scanner, which this does not import for the one reason worth
+ * a copy: the scanner's is about a page the generated site links back to, and
+ * this is about a file the reader is being sent to edit. They answer the same
+ * question and are owed to different readers.
+ *
+ * @param {string} text
+ * @param {number} at
+ * @returns {number}
+ */
+function lineOf(text, at) {
+  let line = 1;
+  for (let i = 0; i < Math.min(at, text.length); i += 1) if (text[i] === "\n") line += 1;
+  return line;
+}
+
+/**
+ * XML's five entities and its numeric references, decoded.
+ *
+ * Five rather than HTML's whole table, because five is what XML defines and a
+ * data file is not a page: a `&nbsp;` in an attribute of a data file is a file
+ * written against a vocabulary that does not exist, and leaving it as written
+ * is what lets the reader see that. The markup **inside** a block is never
+ * touched by this at all.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function decodeXml(text) {
+  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (whole, body) => {
+    const numeric = body.startsWith("#x") || body.startsWith("#X") ? 16 : body.startsWith("#") ? 10 : 0;
+    if (numeric !== 0) {
+      const code = Number.parseInt(body.slice(numeric === 16 ? 2 : 1), numeric);
+      return Number.isInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    // `Object.hasOwn`, because `XML_ENTITIES` is an object literal and
+    // `&constructor;` would otherwise reach a function and be interpolated into
+    // the file's content as its source.
+    const named = body.toLowerCase();
+    return Object.hasOwn(XML_ENTITIES, named) ? XML_ENTITIES[named] : whole;
+  });
+}
+
+/**
+ * The text content of an XML element, as the markup it stands for.
+ *
+ * CDATA is taken literally and everything outside it is decoded, which is the
+ * difference between the two ways XML lets a writer carry markup through text.
+ * An unclosed CDATA section takes the rest of the content, for the reason
+ * {@link opaqueAt} gives.
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+function decodeXmlContent(raw) {
+  let out = "";
+  let at = 0;
+  while (at < raw.length) {
+    const open = raw.indexOf("<![CDATA[", at);
+    if (open === -1) {
+      out += decodeXml(raw.slice(at));
+      break;
+    }
+    out += decodeXml(raw.slice(at, open));
+    const close = raw.indexOf("]]>", open + 9);
+    if (close === -1) {
+      out += raw.slice(open + 9);
+      break;
+    }
+    out += raw.slice(open + 9, close);
+    at = close + 3;
+  }
+  return out;
+}
+
+/**
+ * One block's markup, out of the element that holds it.
+ *
+ * **Trimmed at its ends and nowhere else.** A block of material is markup and
+ * whitespace inside markup is sometimes the content - a `<pre>` listing is the
+ * case this route exists to carry - so nothing is re-indented and nothing
+ * inside is collapsed. The ends are trimmed because an element written over
+ * several lines holds the newline after its start tag, and a writer who put a
+ * block on its own line did not mean to add one.
+ *
+ * @param {string} text
+ * @param {{ from: number, to: number }} element
+ * @param {string} format
+ * @returns {string}
+ */
+function markupOf(text, element, format) {
+  const raw = text.slice(element.from, element.to).trim();
+  return format === "html" ? raw : decodeXmlContent(raw);
+}
+
+/**
+ * One element's attributes, in the order they are written.
+ *
+ * **The case is kept**, unlike a browser's reading of an HTML attribute, for
+ * one reason: `dataVersion` has some. The contract names a property one way and
+ * a file that spells it another way is a file written against a vocabulary that
+ * is not this one, which is a finding rather than something to guess at.
+ *
+ * An attribute written with no value at all is `""`, which is also what
+ * `page=""` is - and both reach the same finding, since an entry that names no
+ * page names none either way.
+ *
+ * @param {string} tag The whole start tag, angle brackets included.
+ * @returns {Array<[string, string]>}
+ */
+function attributesOf(tag) {
+  /** @type {Array<[string, string]>} */
+  const found = [];
+  let at = 1;
+  // The element name, which is not an attribute and ends at the first thing
+  // that could start one.
+  while (at < tag.length && !/[\s/>]/.test(tag[at])) at += 1;
+  while (at < tag.length) {
+    // A `/` between attributes is legal and is not part of a name, which keeps
+    // `<entry page="x.html" />` reading as one attribute rather than two.
+    while (at < tag.length && /[\s/]/.test(tag[at])) at += 1;
+    if (at >= tag.length || tag[at] === ">") break;
+    const nameFrom = at;
+    while (at < tag.length && !/[\s=/>]/.test(tag[at])) at += 1;
+    const name = tag.slice(nameFrom, at);
+    if (name === "") {
+      at += 1;
+      continue;
+    }
+    let after = at;
+    while (after < tag.length && /\s/.test(tag[after])) after += 1;
+    if (tag[after] !== "=") {
+      found.push([name, ""]);
+      continue;
+    }
+    at = after + 1;
+    while (at < tag.length && /\s/.test(tag[at])) at += 1;
+    const quote = tag[at] === '"' || tag[at] === "'" ? tag[at] : "";
+    const from = quote === "" ? at : at + 1;
+    at = from;
+    if (quote === "") while (at < tag.length && !/[\s>]/.test(tag[at])) at += 1;
+    else while (at < tag.length && tag[at] !== quote) at += 1;
+    found.push([name, decodeXml(tag.slice(from, at))]);
+    if (quote !== "") at += 1;
+  }
+  return found;
+}
+
+/**
+ * An element written where the contract wants an attribute, or an element the
+ * contract has no property for at all, reported.
+ *
+ * Both sentences are read off {@link DATA_PROPERTIES}, as every other finding
+ * about a property is: a message that named a shape the reader does not accept
+ * is a message that sends somebody to write a file this will report again.
+ *
+ * @param {string} where
+ * @param {string} name Lower cased, as the element was read.
+ * @param {string} scope
+ * @param {Array<{ name: string, item: string | null }>} lists
+ * @param {string} format
+ * @returns {string}
+ */
+function shapeFinding(where, name, scope, lists, format) {
+  const one = Object.hasOwn(DATA_PROPERTIES, name) ? DATA_PROPERTIES[name] : undefined;
+  if (one !== undefined && one.scope === scope) {
+    return (
+      `${where}${name}: this property carries a value rather than a list, so in ${format} it is the ` +
+      `attribute ${name}="..." and the element was ignored. It sets ${one.sets}.`
+    );
+  }
+  const held = lists.map((list) => `<${list.name}>`).join(" and ");
+  const valued = Object.entries(DATA_PROPERTIES)
+    .filter(([one, held]) => held.scope === scope && !lists.some((list) => list.name === one))
+    .map(([one]) => one)
+    .join(", ");
+  return (
+    `${where}<${name}>: ${scope === "file" ? "a data file" : "an entry"} holds ` +
+    `${held.length === 0 ? "no elements" : held} and nothing else as an element, so this was ignored. ` +
+    `The properties written as attributes are ${valued}.`
+  );
+}
+
+/**
+ * One element read as a record of the properties the contract gives its scope.
+ *
+ * The record is built on a null prototype, which is the one place a markup
+ * format needs care that JSON does not: `JSON.parse` makes a `__proto__` key an
+ * ordinary own property, and assigning the same name onto an object literal
+ * sets that object's prototype instead - so the property would vanish from
+ * `Object.keys`, go unreported as one the contract does not know, and leave the
+ * reader with a record it could not see the fault in.
+ *
+ * @param {string} text
+ * @param {{ tag: { start: number, end: number }, from: number, to: number }} element
+ * @param {string} scope
+ * @param {string} where The record's path in the data file, for the findings.
+ * @param {string} format
+ * @param {string[]} findings Appended to.
+ * @returns {object}
+ */
+function recordOf(text, element, scope, where, format, findings) {
+  const record = Object.create(null);
+  const lists = listProperties(scope);
+  for (const [name, value] of attributesOf(text.slice(element.tag.start, element.tag.end + 1))) {
+    const list = lists.find((one) => one.name === name);
+    if (list !== undefined) {
+      findings.push(
+        `${where}${name}: this property holds a list, so in ${format} it is the element <${name}> ` +
+          `carrying one <${list.item}> per item, and the attribute was ignored.`
+      );
+      continue;
+    }
+    const one = Object.hasOwn(DATA_PROPERTIES, name) ? DATA_PROPERTIES[name] : undefined;
+    // The one conversion a markup format needs. Every attribute is text, and
+    // the contract has exactly one property whose value is a number - which
+    // `sitePages` compares against `DATA_VERSION` with `!==`, so `"1"` read as
+    // text would refuse a file declaring the version this tool reads.
+    const numeric = one?.shape === "<number>" && value.trim() !== "" && Number.isFinite(Number(value));
+    record[name] = numeric ? Number(value) : value;
+  }
+  for (const child of elementsIn(text, element.from, element.to, format, where, findings)) {
+    const list = lists.find((one) => one.name === child.name);
+    if (list === undefined) {
+      findings.push(shapeFinding(where, child.name, scope, lists, format));
+      continue;
+    }
+    record[list.name] = itemsOf(text, child, list, scope, where, format, findings);
+  }
+  return record;
+}
+
+/**
+ * The items one list element holds, as the records the contract reads.
+ *
+ * Two kinds, because the contract has two list properties and they hold
+ * different things: `entries` holds records of the entry scope, and `material`
+ * holds blocks, which are not a scope of the contract at all but the two
+ * properties {@link blockOf} needs.
+ *
+ * @param {string} text
+ * @param {{ from: number, to: number }} holder
+ * @param {{ name: string, item: string | null }} list
+ * @param {string} scope The scope the list belongs to.
+ * @param {string} where
+ * @param {string} format
+ * @param {string[]} findings Appended to.
+ * @returns {object[]}
+ */
+function itemsOf(text, holder, list, scope, where, format, findings) {
+  /** @type {object[]} */
+  const items = [];
+  for (const child of elementsIn(text, holder.from, holder.to, format, `${where}${list.name}: `, findings)) {
+    if (list.item === null || child.name !== list.item.toLowerCase()) {
+      findings.push(
+        `${where}${list.name}: <${child.name}> is not one of these, so it was ignored. ` +
+          `${list.name} carries one <${list.item}> per item.`
+      );
+      continue;
+    }
+    const spot = `${where}${list.name}[${items.length}]`;
+    if (scope === "file") {
+      items.push(recordOf(text, child, "entry", `${spot}.`, format, findings));
+      continue;
+    }
+    const block = Object.create(null);
+    for (const [name, value] of attributesOf(text.slice(child.tag.start, child.tag.end + 1))) {
+      if (name === MATERIAL_MARKUP) {
+        findings.push(
+          `${spot}.${MATERIAL_MARKUP}: the markup of a block is what the element holds in ${format}, not ` +
+            `an attribute of it, so the attribute was ignored. The markup is ` +
+            `${DATA_FORMATS[format].markup}.`
+        );
+        continue;
+      }
+      block[name] = value;
+    }
+    block[MATERIAL_MARKUP] = markupOf(text, child, format);
+    items.push(block);
+  }
+  return items;
+}
+
+/**
+ * A data file's text read into the record {@link sitePages} reads.
+ *
+ * **This is the whole of what a format is.** Three readers hand back the same
+ * record, and everything after it - the contract, the findings, the pages, the
+ * render, the manifest, the menu - is reached by one path. A format that
+ * produced `SitePage` objects of its own would be the second back end the JSON
+ * route was shaped to avoid, and a third would be the third.
+ *
+ * `refused` is a file nothing could be read out of at all, worded to follow the
+ * file's own path in a message. It is not a finding: a finding is something
+ * wrong with part of a file a site was still written out of.
+ *
+ * @param {string} text
+ * @param {string} format One of {@link DATA_FORMATS}.
+ * @returns {{ data: unknown, findings: string[], refused: string | null }}
+ */
+export function readData(text, format) {
+  /** @type {string[]} */
+  const findings = [];
+  if (format === "json") {
+    try {
+      return { data: JSON.parse(text), findings, refused: null };
+    } catch (error) {
+      // The parser's own message, which names the offset it gave up at and is
+      // more use than anything this could say instead.
+      return { data: null, findings, refused: `is not JSON. ${error.message}` };
+    }
+  }
+  let children = elementsIn(text, 0, text.length, format, "", findings);
+  /** @type {{ tag: { start: number, end: number }, from: number, to: number } | null} */
+  let file = null;
+  // The file element is the outermost one a writer chose, which in HTML means
+  // stepping over the document's own wrappers to find it. Bounded rather than
+  // recursive: `html > body > the file` is two levels and a file that needs
+  // four is not a document, it is a mistake worth reporting as one.
+  for (let depth = 0; depth < 3 && file === null && children.length > 0; depth += 1) {
+    const candidates =
+      format === "html"
+        ? children.filter((one) => !WRAPPER_ELEMENTS.includes(one.name))
+        : children.slice(0, 1);
+    // Among them the file element is the one holding the file's own list, not
+    // simply the first. A document's body holds whatever prose a writer put
+    // around the data, and `<h1>The cheatsheets</h1>` above it is the ordinary
+    // case rather than a stretch - taking the first non-wrapper there reads the
+    // heading as the file and reports that `entries` is not set, about a file
+    // that plainly sets it. The first is the fallback, so a document holding no
+    // list at all still reaches that finding against the element a writer meant
+    // as the file. XML has one root and so has one candidate, which this leaves
+    // exactly as it was.
+    const chosen = candidates.find((one) => holdsFileList(text, one, format)) ?? candidates[0];
+    if (chosen !== undefined) {
+      file = chosen;
+      break;
+    }
+    children = children
+      .filter((one) => one.name !== DOCUMENT_HEAD)
+      .flatMap((one) => elementsIn(text, one.from, one.to, format, "", findings));
+  }
+  if (file === null) {
+    const holding = listProperties("file")
+      .map((list) => `<${list.name}>`)
+      .join(" and ");
+    return {
+      data: null,
+      findings,
+      refused:
+        `is not ${format}: no element was found to read a data file out of. The outermost element is the ` +
+        `file itself, whatever it is named, and it holds ${holding}.`,
+    };
+  }
+  return { data: recordOf(text, file, "file", "", format, findings), findings, refused: null };
+}
+
 /**
  * A data file read into the pages of the site it describes.
  *
@@ -688,22 +1425,44 @@ export function renderMenuPage(mode, entries, where, sources) {
   ]);
 }
 
+/**
+ * The flags that take a value, so the one positional can be told from them.
+ *
+ * A list rather than a test on the next token, because the next token after
+ * `--format` is a word with no dash on it and so is the data file: without
+ * this, `--format xml site.xml` reads `xml` as the file and reports that it
+ * could not be read.
+ */
+const VALUE_FLAGS = ["--out", "--format"];
+
 /** What `--help` prints. */
 export const USAGE = [
-  "Usage: node tools/cheatsheet-data.mjs <data file> [--out <dir>] [--dry-run]",
+  "Usage: node tools/cheatsheet-data.mjs <data file> [--format <fmt>] [--out <dir>] [--dry-run]",
   "",
-  "Reads one JSON data file and writes a whole cheatsheet site out of it: a page",
+  "Reads one data file and writes a whole cheatsheet site out of it: a page",
   `per entry, ${MASTER_NAME} carrying all of them, ${MENU_PAGE} to move`,
   "between them, and the manifest that records the folder.",
   "",
-  "  <data file>   The JSON file to read. Required.",
+  "  <data file>   The file to read. Required.",
+  `  --format <f>  ${Object.keys(DATA_FORMATS).join(", ")}. Read from the extension when not given.`,
   `  --out <dir>   Write here instead of resolving ${OUTPUT_NAME}/ beside the file.`,
   "  --dry-run     Report the folder and the pages it would write, and touch nothing.",
   "  --help        Print this.",
   "",
   "The pages are the same pages tools/cheatsheet-site.mjs writes, by the same",
-  "functions: a data file says in JSON what a marked up page says in an attribute",
-  "or a comment, and nothing past the read is different.",
+  "functions: a data file says in one file what a marked up page says in an",
+  "attribute or a comment, and nothing past the read is different.",
+  "",
+  "The three formats, and where each writes a value:",
+  "",
+  ...formatLines(),
+  "",
+  "One contract under all three. A property is the same word, means the same",
+  "thing, takes the same values and is reported with the same path whichever",
+  "format it is written in; only where the value sits changes. In xml and html a",
+  "property that holds a list is an element carrying one child per item, and",
+  "every other property is an attribute - because a list of records has nowhere",
+  "to go in an attribute, and neither has markup.",
   "",
   "A data file:",
   "",
@@ -716,6 +1475,27 @@ export const USAGE = [
   "      }",
   "    ]",
   "  }",
+  "",
+  "The same file in xml, and in html, where the markup needs no escaping:",
+  "",
+  '  <cheatsheets>',
+  `    <${ENTRIES_PROPERTY}>`,
+  `      <${itemName(DATA_PROPERTIES[ENTRIES_PROPERTY].shape)} page="guide/arrays.html" title="Working with arrays">`,
+  "        <material>",
+  `          <${itemName(DATA_PROPERTIES.material.shape)}><h2>splice</h2><p>Removes and inserts in place.</p></${itemName(DATA_PROPERTIES.material.shape)}>`,
+  "        </material>",
+  `      </${itemName(DATA_PROPERTIES[ENTRIES_PROPERTY].shape)}>`,
+  `    </${ENTRIES_PROPERTY}>`,
+  "  </cheatsheets>",
+  "",
+  "The outermost element is the file itself and its name is yours; html steps",
+  `over ${WRAPPER_ELEMENTS.map((one) => `<${one}>`).join(", ")} to reach it, so a fragment and a whole page read the same.`,
+  `In html the file is the element holding ${listProperties("file")
+    .map((list) => `<${list.name}>`)
+    .join(" and ")}, so a heading or a paragraph written`,
+  "around the data in a document's body is prose and is stepped over too.",
+  "In xml a block's markup is escaped or wrapped in a CDATA section; in html it",
+  "is carried exactly as written, trimmed at its ends and not re-indented.",
   "",
   "The properties of the file:",
   "",
@@ -739,6 +1519,15 @@ export const USAGE = [
   `A property this does not know, or a value it does not take, is reported with`,
   "its path in the file and ignored. An entry that names no page, or names one",
   "twice, is reported and dropped.",
+  "",
+  "The folder this writes is published as a site of its own - the document root",
+  "of a subdomain, say - which is the default because a data file site has no",
+  `site to be a section of, and ${MENU_PAGE} is its front door.`,
+  "Publishing it as a section of a site works too, on the condition that nothing",
+  "in the folder points out of it: grep it for '=\"../' to see, since a flat",
+  "folder of self-contained pages writes nothing else that way. The whole rule",
+  'is under "Where the generated folder is published" in',
+  "docs/generating-from-a-site.html.",
 ].join("\n");
 
 /**
@@ -755,6 +1544,23 @@ function propertyLines(scope) {
   const named = Object.entries(DATA_PROPERTIES).filter(([, one]) => one.scope === scope);
   const widest = Math.max(...named.map(([name, one]) => writtenAs(name, one).length));
   return named.map(([name, one]) => `  ${writtenAs(name, one).padEnd(widest + 3)}${one.sets}`);
+}
+
+/**
+ * The formats, as the column `--help` prints.
+ *
+ * Read off {@link DATA_FORMATS} for the reason {@link propertyLines} is read
+ * off the contract: a format added to the object and not to this text is a
+ * format nobody is told about.
+ *
+ * @returns {string[]}
+ */
+function formatLines() {
+  const named = Object.entries(DATA_FORMATS);
+  const widest = Math.max(...named.map(([name, one]) => `${name} (${one.extensions.join(", ")})`.length));
+  return named.map(
+    ([name, one]) => `  ${`${name} (${one.extensions.join(", ")})`.padEnd(widest + 3)}${one.holds}`
+  );
 }
 
 /**
@@ -780,12 +1586,36 @@ export async function main(argv) {
     return 0;
   }
   const flag = (name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined);
-  const positional = argv.filter((arg, at) => !arg.startsWith("-") && argv[at - 1] !== "--out");
+  const positional = argv.filter(
+    (arg, at) => !arg.startsWith("-") && !VALUE_FLAGS.includes(argv[at - 1])
+  );
   if (positional.length === 0) {
     process.stderr.write(`cheatsheet-data: name the data file to read.\n\n${USAGE}\n`);
     return 2;
   }
   const file = resolve(positional[0]);
+  // The format before the read, because it decides what the read is. `--format`
+  // wins over the extension rather than being checked against it: a file named
+  // `.txt`, or named nothing recognisable, is the case the flag is for, and a
+  // flag that had to agree with the name would answer nothing.
+  const asked = flag("--format");
+  const format = asked === undefined ? formatOf(file) : String(asked).toLowerCase();
+  if (format === null) {
+    process.stderr.write(
+      `cheatsheet-data: ${file} has no extension this reads, so there is nothing to say which format it ` +
+        `is written in. The extensions it reads are ${Object.values(DATA_FORMATS)
+          .flatMap((one) => one.extensions)
+          .join(", ")}; --format ${Object.keys(DATA_FORMATS).join("|")} says it outright.\n`
+    );
+    return 2;
+  }
+  if (!Object.hasOwn(DATA_FORMATS, format)) {
+    process.stderr.write(
+      `cheatsheet-data: ${format} is not a format this reads. It reads ` +
+        `${Object.keys(DATA_FORMATS).join(", ")}.\n`
+    );
+    return 2;
+  }
   /** @type {string} */
   let text;
   try {
@@ -794,16 +1624,13 @@ export async function main(argv) {
     process.stderr.write(`cheatsheet-data: ${file} could not be read.\n`);
     return 2;
   }
-  /** @type {unknown} */
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (error) {
-    // The parser's own message, which names the offset it gave up at and is
-    // more use than anything this could say instead.
-    process.stderr.write(`cheatsheet-data: ${file} is not JSON. ${error.message}\n`);
+  const parsed = readData(text, format);
+  if (parsed.refused !== null) {
+    for (const finding of parsed.findings) process.stderr.write(`cheatsheet-data: ${finding}\n`);
+    process.stderr.write(`cheatsheet-data: ${file} ${parsed.refused}\n`);
     return 2;
   }
+  const data = parsed.data;
 
   // The data file's own folder is the site, which is what makes the output
   // folder the same question it is for a crawled site: the ladder, the manifest
@@ -822,12 +1649,18 @@ export async function main(argv) {
 
   const read = sitePages(data, file);
   if (read.refused !== null) {
-    for (const finding of read.findings) process.stderr.write(`cheatsheet-data: ${finding}\n`);
+    for (const finding of [...parsed.findings, ...read.findings])
+      process.stderr.write(`cheatsheet-data: ${finding}\n`);
     process.stderr.write(`cheatsheet-data: ${read.refused}\n`);
     return 2;
   }
   const pages = read.pages;
-  const findings = [...read.findings, ...nameCollisions(pages), ...namingFindings(pages)];
+  const findings = [
+    ...parsed.findings,
+    ...read.findings,
+    ...nameCollisions(pages),
+    ...namingFindings(pages),
+  ];
   const planned = plannedPages(pages);
   const manifest = planned.length > 0 ? manifestFor(where, planned) : null;
 
@@ -870,6 +1703,10 @@ export async function main(argv) {
       `${pages.length} entr${pages.length === 1 ? "y" : "ies"} read from ` +
         `${relative(root, file).split(sep).join("/")}, ` +
         `${pages.filter((page) => page.blocks.length > 0).length} with material`,
+      // Which of the three readers answered, because `--format` overrides the
+      // extension and a file read as the wrong format is the one fault whose
+      // findings every one of them read as the file being wrong instead.
+      `read as          ${format}${asked === undefined ? "" : "  (--format)"}`,
       `output folder    ${where}`,
       ...(out.recorded ? [`                 read from ${MANIFEST_NAME}`] : []),
       ...(out.tried.length > 1 ? [`names tried      ${out.tried.join(", ")}`] : []),

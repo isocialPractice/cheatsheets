@@ -37,6 +37,114 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.12.0]
+
+Three items that each close the last open question of a section. Two of them are
+what was left of **Dedicated cheatsheet website** `->` **Building on the API** -
+the two formats a data file may also be written in, and the decision about where
+a generated folder is published - and the third is the one open item of
+**Cheatsheet Composition Language** `->` **The Composition Algorithm**, which is
+how a new cheatsheet's picture is produced.
+
+A minor rather than a patch, for the reason `1.0.0-alpha.1.11.0` was: there is
+new published surface. `DATA_FORMATS`, `formatOf`, `readData` and
+`WRAPPER_ELEMENTS` on the data route, `--format` on its command line, `--all` on
+`tools/cheatsheet.mjs`, and `composeEach` and `reportOfAll` exported for it.
+
+### Added
+
+- **A data file may be written in XML or in HTML as well as JSON**, read from
+  the file's extension or named with `--format`. The whole of what a format
+  decides is *where a value is written*: a property is the same word in all
+  three, means the same thing, takes the same values, and is reported with the
+  same path in a finding. `readData` hands back one record whichever file it
+  read, so the contract, the findings, the pages, the render, the manifest and
+  the menu are still reached by one path - *the three formats read the same
+  material into the same record*, *and therefore into the same pages*, and *a
+  run reads xml and html, and writes the same folder the json writes* are the
+  three cases that hold it, the last of them comparing the generated folders
+  file by file rather than by count.
+- **In the two markup formats the shape follows from what an attribute can
+  hold**, which is what makes it a decision rather than a preference: a
+  property that holds a list is an element carrying one child per item, and
+  every other property is an attribute. A list of records has nowhere to go in
+  an attribute and neither has markup. **The element one item of a list is
+  written as is named by the contract too** - `entries` is `[ <entry>, ... ]`
+  and `material` is `[ <block>, ... ]` - so `<entries>` holding `<entry>` is
+  read off `DATA_PROPERTIES` rather than chosen beside it, which is the same
+  reading `heading`, `group` and `name` already get from `COMMENT_PROPERTIES`.
+  A value written the other way round is reported with the shape it should
+  have had and the file is still read.
+- **HTML is the one format where a block of material needs no escaping at
+  all**, which is the reason it is worth having beside XML: a block *is*
+  markup, so XML carries it escaped or in a CDATA section and HTML carries it
+  exactly as written, trimmed at its ends and never re-indented. The markup
+  inside a block is never scanned, so an `<entry>` in a code sample is a code
+  sample - and in XML a CDATA section may hold the closing tag of the element
+  holding it, which is what a cheatsheet about data files would carry and what
+  an `indexOf` would have closed the block on.
+- **The outermost element is the file itself and its name is the writer's**,
+  since nothing in the contract names a file. HTML steps over `<html>`,
+  `<head>` and `<body>` on the way to it, so a fragment and a whole page read
+  identically; `<head>` is the one wrapper never descended into, or a page's
+  `<title>` would be read as the file element.
+- **`tools/cheatsheet.mjs --all` composes every cheatsheet in the catalog from
+  its own `sheet.json`.** `--generate <slug>` has composed one through this
+  layer since 2026.10.27 and `--check` has read all of them since the same day,
+  but there was no way to *write* all of them - so the answer to how a new
+  sheet's picture is produced was 28 invocations or a screenshot taken by hand,
+  and for a catalog meant to grow from one category to ten that figure is what
+  decides the cost of writing one sheet. It composes by the path a single
+  `--generate` takes - `compose`, then `renderSubject`, with one settings object
+  for the call - and *and composes each of them exactly as --generate of that
+  slug would* holds the two together across the whole catalog rather than a
+  sample. One sheet that cannot be composed is reported against its own id and
+  the rest still run, the exit code saying some failed. `--out`, `--seed` and
+  `--data-only` are refused with it rather than ranked: each means one sheet,
+  and a batch has one of each per cheatsheet.
+- **Where a generated folder is published is written down.** Both ways are
+  supported and the default is decided by the route rather than by taste,
+  because the two routes promise different things: a crawled site's folder is a
+  section of that site - resolved under the site root, menu spliced into the
+  site's own pages, carried URLs rewritten relative to it - and a data file
+  site's folder is a site of its own, which is why `cheatsheet-menu.html` is
+  written as its front door. Either may be published the other way on one
+  condition, and the condition is checkable rather than advice: a generated page
+  is self-contained - one stylesheet in its own head, one inline `<svg>` per
+  cheatsheet, no script, and every link between generated pages a bare file name
+  - so the only thing tying a folder to a host is a URL the source material
+  carried, and those are the only references in the folder written with `../`.
+  `grep -r '="\.\./' cheatsheets/` lists them, and an empty result means the
+  folder can be served from anywhere. It is under **Where the generated folder
+  is published** in `docs/generating-from-a-site.html`, and both tools' `--help`
+  names it, which a case holds so the record and the pointers cannot come apart.
+
+### Fixed
+
+- **A record read out of a markup format is built on a null prototype**, which
+  is the one place those two formats need care that `JSON.parse` does not:
+  `JSON.parse` makes a `__proto__` key an ordinary own property, and assigning
+  the same name onto an object literal sets that object's prototype instead - so
+  the property would vanish from the reading that reports a property the contract
+  does not know, and the file's fault would be invisible rather than named.
+- **The file element of an HTML data file is the element holding `<entries>`**,
+  rather than the first thing in the body that is not a wrapper. A document with
+  a heading above its data - `<h1>The cheatsheets this folder is written from</h1>`
+  and then the file element, which is the habit stepping over `<html>`, `<head>`
+  and `<body>` exists to accommodate - read the heading as the file and reported
+  that `entries` was not set, about a file that set it on the next line. The
+  first non-wrapper element is now the fallback instead, so a document holding no
+  list at all still reports the contract against the element its writer meant as
+  the file.
+- **A closing tag that opened nothing is reported rather than quietly ending the
+  list it is in.** A mismatched `</wrong>` between two `<entry>` elements left
+  the second one unread, with no finding and no refusal - a page missing from the
+  generated site, and a run that exited 0 having written a site with a hole in
+  it. It is the same loss an element that is never closed causes, and that one
+  has reported itself with its line since the day it was written. A block's own
+  markup is still never read as structure, so a cheatsheet carrying an HTML
+  sample is a cheatsheet carrying an HTML sample.
+
 ## [1.0.0-alpha.1.11.0]
 
 The data file route, which is the two items of **Dedicated cheatsheet website**
