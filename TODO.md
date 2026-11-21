@@ -17,14 +17,34 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
 
 ## Current
 
-- [ ] Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
+- [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
-- [ ] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
+- [ ] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
   - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
+
+### UI/UX Override - the third set composition on the page
+
+#### Resolve Issues
+
+- [ ] Amber Heading 1
+  - **Issue**: the title and the subtitle of the third composition are set one `STEP` apart measured from the title's baseline, which is less than the descender of a 272.601 cap, so their ink collides. Read off the raster at the sheet's own 3600px with each run drawn alone and scanned column by column: **Errors and Debugging** at -8 units over 14 columns, **Comparing Values** at -1 over 4. The other seven clear by 18 to 46 units where the recorded composition clears by 75 to 96, so any retitling moves a sheet across the line. `getBBox` and `getExtentOfChar` both report the face's ascent and descent and say the same 40.4 on all nine, so neither can see it
+  - **Goal**: Resolve to [amber-heading-descender.prompt.md](.claude/prompts/amber-heading-descender.prompt.md)
+  - From: New Cheatsheets `->` JavaScript
+
+#### Found Issues
+
+- [ ] The brand footer strip is letterboxed on all nine sheets of the third composition
+  - **Issue**: the third composition narrowed the right margin from six steps to five, so its footer slot widened to 3360 x 336 - aspect 10.0 against the strip's 9.8642. `placeBrand` draws the strip `xMidYMid meet`, so it is centred and its mark square starts 22.81 units in from the left trim, while the divider directly above runs 0 to 3600 and the rail starts at 0. Sampled at (8, 3400): `#FFFFFF` on a new sheet, `#000133` on a recorded one
+  - **Goal**: Resolve to [third-composition-footer-letterbox.prompt.md](.claude/prompts/third-composition-footer-letterbox.prompt.md)
+  - From: UI/UX Override - the third set composition on the page
+- [ ] Promote the set composition browser test into `tools/`
+  - **Issue**: nothing in the suite can see either defect above. `tools/test-set-compositions.mjs` passes 47 of 47 on the new composition because it measures the record, and both defects are in what an engine does with that record - a glyph collision and a raster's letterbox. The check that found them is at `.tmp/ui-ux-11-21/sheet-set-composition.mjs`, which is gitignored scratch and runs only when this agent runs
+  - **Goal**: once both fixes land, rewrite that file to the conventions of `tools/test-*-browser.mjs` - the `loadChromium` resolution and per-engine skip the folder already uses, the `node:http` server on an ephemeral port from `tools/test-sheet-accent-arrival-browser.mjs`, no screenshots, no project dependency - and commit it as `tools/test-set-composition-browser.mjs`. It should assert, over every sheet naming a composition: that no two display runs' ink shares a column, measured off the raster rather than off `getBBox`; that the footer strip's drawn left edge sits on the trim with the divider; that the title leads the wordmark and is drawn at one cap across the set; and that panel top, left inset and line spacing stay inside the set's own `panelFreedom`
+  - From: UI/UX Override - the third set composition on the page
 
 ### Create and Deploy GitHub Pages Override
 
@@ -391,13 +411,14 @@ are now written, so an item here whose examples are JavaScript needs neither -
 only one in a **fourth** language does. Both are recorded in
 `DESIGN_LANGUAGE-html-css.md`.
 
-Two things an item here should know rather than rediscover. **The page does not
-frame an `embed` payload yet** - `index.html` branches on `run` alone, so the
-five demos are committed, correct and unopened, which is queued under
-**Cheatsheet Catalog** rather than here. And **a code line's run count is
-bounded**, per the limit measured into `DESIGN_LANGUAGE.md` on the same day: a
-line split into six accent runs drew 1.026 px out of place and had to be
-shortened, while every seam in it measured clean.
+Two things an item here should know rather than rediscover. **An `embed`
+payload is framed** - it was not when the five demos landed, and this paragraph
+said so until 2026.11.21; from 2026.10.27 the page frames `demo/index.html`
+under the sheet, per **What the Page Does With a Payload** under **Cheatsheet
+Catalog**, which also holds the grant a demo may rely on. And **a code line's
+run count is bounded**, per the limit measured into `DESIGN_LANGUAGE.md` on the
+same day: a line split into six accent runs drew 1.026 px out of place and had
+to be shortened, while every seam in it measured clean.
 
 - **HTML APIs** is a group at `html-css/html-apis/`, carrying its own `meta.json`. Its cheatsheets follow
 
@@ -434,17 +455,40 @@ The `javascript/` category. Built first: the existing eleven array examples
 migrate into it as the `arrays` sub group, so building this category is the
 migration and the pipeline's acceptance test.
 
-Its first two subjects - **General JavaScript Overview** and **JS Dates** -
-were queued into `## Current` on 2026.11.20, together because they are one
-batch and `## Design Composition per Set` counts a set by the batch. The rest
-follow in the order below.
+**Its first two subjects landed together on 2026.11.21** - **General
+JavaScript Overview** as six cheatsheets and **JS Dates** as three - because
+they are one batch, and `## Design Composition per Set` counts a set by the
+batch rather than by the subject. Three things they settled hold for every item
+left in this section.
 
-- [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
-  - Create `4` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
-- [ ] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
-  - Create `3` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
+**A set names the composition it is drawn in**, and there was nowhere to put
+that before: `composeSheet` took a theme and a layout from its caller and the
+page passes neither, so a design could reach one sheet from a command line and
+no sheet from the catalog. `api/cheatsheet/compositions.mjs` holds the record, a
+`sheet.json` names an id out of it, and `tools/test-set-compositions.mjs` fails
+a sheet that names none. The third composition is `javascript-general` - amber
+on indigo with the title leading its type scale - recorded in full under **Set
+compositions** in `DESIGN_LANGUAGE.md`. **A new batch here is a new set and
+needs a composition of its own**; a further subject taken alongside one already
+drawn is more of that set and names the same id.
+
+**A composition narrows the panel's freedom, so a sheet is written to its set's
+line count.** `javascript-general` runs its code panel at 72 to 96 px of line
+spacing against the recorded 56 to 116, which is what makes nine sheets read as
+one batch, and it means an example of 20 to 26 lines composes clean while 28
+does not. Write the example to that rather than to whatever length it came out
+at.
+
+**Every sheet here is held to the `javascript` per-line role rule**, by
+`tools/test-javascript-sheet-roles.mjs`, which is new and was the gap this batch
+found: `tools/test-sheet-syntax-roles.mjs` reads `html-css` only, and the rule
+belongs to a language. The eleven `javaScriptArrays` sheets are the one
+exemption on record, because they transcribe artwork that predates the mapping.
+
+The rest of the section follows in the order below. **Control flow and the
+object model are deliberately not in the overview** - they are **JS Statements**
+and **JS Objects**, which are items of their own further down.
+
 - [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
   - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
@@ -2360,5 +2404,13 @@ generate ideas about generating ideas.
   - The one open item of its section, and what the ten `## New Cheatsheets` categories are waiting on: each of those is content to be written, and how a new sheet's image is produced is what decides the cost of writing one
   - It reaches the catalog rather than the site tooling, so it does not compete with the two items above for the same files. The eleven original JPEGs stay as they are - they are evidence the design language was measured off, per `javaScriptArrays/README.md`, not output to be regenerated
   - From: Cheatsheet Composition Language `->` The Composition Algorithm
+- [x] **Amber Heading**: Add the **General JavaScript Overview** cheatsheet at `javascript/general-javascript-overview/`, `kind: run`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
+- [x] Add the **JS Dates** cheatsheet at `javascript/dates/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
 
 </details>
