@@ -109,6 +109,7 @@ import { createComposition, placeBrand } from "../napkin-sketch/graphic-design/i
 
 import { accentRoles } from "./accents.mjs";
 import { footerLinkAreas, FOOTER_LINKS, PRACTICING_HREF } from "./brand.mjs";
+import { compositionOf } from "./compositions.mjs";
 import { checkPaints, checkPairings, readableInk } from "./contrast.mjs";
 import { isFormalDocument, readDocument } from "./document.mjs";
 import {
@@ -345,8 +346,8 @@ function widestLine(lines, cap, face) {
  *
  * @typedef {object} ComposeOptions
  * @property {number | string} [seed] Selects the variation. Identical seeds compose identically.
- * @property {Partial<import('./theme.mjs').SheetTheme>} [theme] Whole or partial; a partial is laid over the recorded theme.
- * @property {import('./layout.mjs').SheetLayout} [layout]
+ * @property {Partial<import('./theme.mjs').SheetTheme>} [theme] Whole or partial; a partial is laid over the theme the document's set composition names, or over the recorded theme where it names none.
+ * @property {import('./layout.mjs').SheetLayout} [layout] Replaces the layout the document's set composition names, or the recorded one where it names none.
  * @property {import('./brand.mjs').SheetBrand} [brand] Assets for the two brand slots. Each is optional.
  */
 
@@ -394,24 +395,45 @@ export function composeSheet(doc, options = {}) {
   // it instead, and a hand written check per field does not reach that far.
   readDocument(doc);
 
-  // A theme arrives whole or partial and is laid over the recorded theme either
+  // The set composition the document names, which is where the theme and the
+  // layout come from when the caller names neither. It is resolved before both
+  // because it supplies both, and it is read off the **document** rather than
+  // the options on purpose: a set composition is a property of the batch a
+  // sheet belongs to, so it has to reach the page - which composes whatever
+  // `sheet.json` it fetched and passes no theme at all - as readily as it
+  // reaches a command line. `compositions.mjs` states that at length.
+  //
+  // A document naming none resolves to `undefined` and everything below is what
+  // it was: the recorded theme, the recorded record and the recorded layout,
+  // shared objects included.
+  const set = compositionOf(doc);
+  const base = set === undefined ? SHEET_THEME : set.theme;
+  const record = set === undefined ? SHEET_LANGUAGE : set.language;
+  // A theme arrives whole or partial and is laid over the set's theme either
   // way, so a caller moves one colour without restating the palette. The
   // validation happens after the merge rather than instead of it: omission is
   // filled, and a misspelt field is still named back by path.
-  const theme = options.theme === undefined ? SHEET_THEME : themeOver(options.theme);
+  //
+  // The base is the **set's** theme rather than always the recorded one, which
+  // is what makes an option and a composition compose rather than compete: a
+  // `--theme` naming one colour over a sheet of the third set moves that colour
+  // and leaves the other ten where that set put them.
+  const theme = options.theme === undefined ? base : themeOver(options.theme, base);
   // The design language is the record's positions with the theme's paints and
   // metrics written into it. It is derived rather than given: a caller handing
   // over the whole record was handed every coordinate on the sheet along with
   // the six colours they came for, which is how a "theme" ends up carrying a
   // band at the wrong row.
-  const language = theme === SHEET_THEME ? SHEET_LANGUAGE : languageFor(theme);
+  const language = theme === base ? record : languageFor(theme, record);
   const layout =
     options.layout === undefined
-      ? // The recorded layout rather than a fresh derivation of it, so the
-        // common case allocates nothing and two compositions of the default
-        // share one object.
-        language === SHEET_LANGUAGE
-        ? SHEET_LAYOUT
+      ? // The set's layout rather than a fresh derivation of it, so the common
+        // case allocates nothing and two compositions of one set share one
+        // object.
+        language === record
+        ? set === undefined
+          ? SHEET_LAYOUT
+          : set.layout
         : layoutFor(language)
       : readLayout(options.layout);
 

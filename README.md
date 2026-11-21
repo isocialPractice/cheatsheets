@@ -59,6 +59,11 @@ category gets a design language of its own, recorded at the root as
 `DESIGN_LANGUAGE-<category>.md` - the first is
 [DESIGN_LANGUAGE-html-css.md](DESIGN_LANGUAGE-html-css.md).
 
+A **set** - the cheatsheets one batch makes for one subject - gets a design
+composition of its own: its own layout, type treatment and colour, named in each
+sheet's own `sheet.json` as `composition` and recorded under **Set
+compositions** in [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md).
+
 ## [The Three Models](https://isocialpractice.github.io/cheatsheets/docs/three-models.html)
 
 A caller describes a cheatsheet in three objects, each with a schema of its

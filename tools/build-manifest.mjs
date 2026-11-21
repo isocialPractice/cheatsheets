@@ -179,6 +179,7 @@ export const NOT_CATALOG = new Set(["api", "tools", "examples", "test-results", 
  * @property {number} width Composed width, in sheet pixels.
  * @property {number} height Composed height, in sheet pixels.
  * @property {number | string} [seed] The seed the document composes at, when it names one.
+ * @property {string} [composition] The set composition the document names, when it names one.
  * @property {number} [order]
  */
 
@@ -569,6 +570,12 @@ export async function readCatalog(from) {
     };
     if (folder.segments.length === MAX_DEPTH) sheet.group = folder.segments[1];
     if (doc.seed !== undefined) sheet.seed = doc.seed;
+    // Carried for the same reason the seed is: it is a property of the document
+    // that decides what the picture looks like, so a reader of the catalog can
+    // see which set a sheet belongs to without opening nine `sheet.json` files.
+    // A sheet naming none is the recorded composition, and the field is simply
+    // absent, as the seed's is.
+    if (doc.composition !== undefined) sheet.composition = doc.composition;
     if (own.order !== undefined) sheet.order = own.order;
 
     sheets.push(sheet);
@@ -691,6 +698,7 @@ export function buildManifest(sheets, levels) {
           entry.width = sheet.width;
           entry.height = sheet.height;
           if (sheet.seed !== undefined) entry.seed = sheet.seed;
+          if (sheet.composition !== undefined) entry.composition = sheet.composition;
           if (sheet.order !== undefined) entry.order = sheet.order;
           return entry;
         })

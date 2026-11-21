@@ -161,6 +161,7 @@ export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string"
  * @property {string} [kind] What sits beside the sheet in the catalog: `read`, `embed`, `run` or `copy`.
  * @property {string} [language] A highlight.js language id or alias, `auto`, or `none`.
  * @property {string | number} [seed] Selects the variation. Identical seeds compose identically.
+ * @property {string} [composition] The set composition the sheet is drawn in, by id; absent is the recorded one.
  * @property {string} [wordmark]
  * @property {string} [leadIn]
  * @property {string} [followLine]
@@ -176,6 +177,7 @@ export const CODE_ROLES = ["plain", "comment", "identifier", "keyword", "string"
  * @property {string} [kind]
  * @property {string} [language]
  * @property {string | number} [seed]
+ * @property {string} [composition]
  * @property {string} [wordmark]
  * @property {string} [leadIn]
  * @property {string} [followLine]
@@ -231,6 +233,18 @@ function sharedFields() {
       message: "must be a language id, an alias, or absent",
     },
     seed: { type: "any", optional: true, check: isSeed },
+    // The set composition the sheet is drawn in, by the id `compositions.mjs`
+    // records it under. Held to a string here and no further, for the reason
+    // `kind` is: the authority on which ids exist is that file, and
+    // `compositionNamed` refuses an unknown one with the whole list in the
+    // message. A `oneOf` here would be a second list to keep in step, and it
+    // would refuse the sheet before the refusal that can name the alternatives
+    // ever ran.
+    //
+    // **Absent is the recorded composition**, which is what the twenty-eight
+    // documents written before set compositions existed carry, so the field is
+    // optional in the plain sense rather than defaulted.
+    composition: { type: "string", optional: true, notEmpty: true },
     /** What the catalog shows beside the sheet, resolved by `tools/build-manifest.mjs`. */
     payload: { type: "string", optional: true, nullable: true },
     wordmark: { type: "string", optional: true },

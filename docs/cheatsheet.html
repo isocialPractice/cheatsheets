@@ -272,6 +272,15 @@ listing:</p>
 <p>A theme may be <strong>partial</strong>: laid over the recorded theme, then
 validated, then held to being readable before anything is drawn.</p>
 
+<p>A document may name a <strong>composition</strong>: the set composition it is
+drawn in, by the id <code>api/cheatsheet/compositions.mjs</code> records it
+under. <code>composeSheet</code> resolves that to the set's own theme and
+layout, so a sheet is drawn in its set's design wherever it is composed rather
+than wherever a caller remembered to pass one, and a <code>theme</code> or
+<code>layout</code> option is laid over the set's rather than over the recorded
+one. Naming none is the recorded composition, which is what every sheet written
+before compositions existed carries.</p>
+
 <h2>Rendering</h2>
 
 <pre><code>const render = await renderSheet(doc, { format: "webp", route: "browser" });

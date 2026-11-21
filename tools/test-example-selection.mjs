@@ -90,6 +90,19 @@ test("the examples are offered in the order they are taught", () => {
       "Random Sort Array",
       "Max and Min Value Array",
       "Max and Min Function and Sort Object",
+      // Then General JavaScript Overview, which `meta.json` orders second in
+      // the category, and JS Dates, ordered third. The nine of them are one
+      // batch and so one set, drawn in the third set composition - the first
+      // sheets of the catalog to name a `composition` at all.
+      "Values and Types",
+      "Comparing Values",
+      "Functions and Scope",
+      "Strings and Templates",
+      "Destructuring",
+      "Errors and Debugging",
+      "Making a Date",
+      "Reading a Date",
+      "Date Arithmetic",
     ],
     "html-css": [
       // General HTML Overview, which `meta.json` orders first in the category.

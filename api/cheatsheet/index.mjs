@@ -110,6 +110,13 @@
 export { composeSheet, CAP_SHARE } from "./compose.mjs";
 
 export {
+  compositionNamed,
+  compositionOf,
+  SET_COMPOSITION_IDS,
+  SET_COMPOSITIONS,
+} from "./compositions.mjs";
+
+export {
   cheatsheetSection,
   collectFromDocument,
   headingOf,

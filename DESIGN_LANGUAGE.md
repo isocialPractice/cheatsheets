@@ -1228,6 +1228,195 @@ out: a model may not contain a number the artwork did not give. A palette with
 the hexes typed into it would look as measured as everything beside it and be
 measured by nothing.
 
+## Set compositions
+
+Everything above this heading is one design: the record measured off the eleven
+images, and the algorithm that draws a new sheet to it. This section is what
+happens when a second design is wanted, and it is a different question from
+anything above - not *what are the sheets*, but *how many answers to that may
+the repository hold at once*.
+
+The answer is one per **set**. A set is the cheatsheets one batch makes for one
+subject, and this repository is maintained under a standing rule that every new
+set is drawn in a design of its own - its own layout, type treatment and colour
+- rather than in the one the set before it used, so a reader meeting two sets
+side by side can tell which batch each belongs to before reading a word of
+either. The sets are read three to a row on a profile grid as well as one at a
+time, which is where that reads as a rhythm rather than as inconsistency.
+
+A sheet names its composition in its own document, as `composition`, and
+`api/cheatsheet/compositions.mjs` is what the name resolves to. **A sheet naming
+none is the recorded composition**, which is what the twenty-eight documents
+written before compositions existed carry.
+
+### The three, in the order the sets were drawn
+
+| Id | Set | Drawn | Composition |
+| --- | --- | --- | --- |
+| `javascript-arrays` | The eleven `javaScriptArrays` sheets | 2026.09.16 | The recorded composition |
+| `html-css` | The seventeen `html-css` sheets | 2026.10.19 | The recorded composition |
+| `javascript-general` | The nine **General JavaScript Overview** and **JS Dates** sheets | 2026.11.21 | Amber on indigo, titled |
+
+The first two share one composition, and that is history rather than a reading
+of the rule: both sets were drawn before there was any way for a document to
+name a composition at all, so what the repository can say about them is what
+they were actually drawn in. Re-drawing seventeen published sheets in a design
+chosen for a different batch would not be a correction - it would be a different
+set.
+
+### An entry is a design language record, not a theme and a layout
+
+A composition carries a design language record, and its theme and its layout are
+**derived** from that one record by `themeFrom` and `layoutFor` - the same two
+functions `SHEET_THEME` and `SHEET_LAYOUT` are derived by. So a composition
+cannot be internally inconsistent: a band moved in the record moves the row, the
+slots on it and the runs placed against it together, because there is one
+statement of where that band is.
+
+It may move anything the record holds that either half reads - the palette and
+the six syntax inks, the type scale, the bands and divisions, the rules that
+flank the title, the runs' baselines, the insets, the mark square, the brand
+slots and the panel's freedoms. **It may not move the floors.** Each of the three
+is derived from a figure measured off the artwork and each bounds what any seed
+may do to any sheet, so a set that lowered one would be a set permitted to be
+unreadable, which is not a design decision. A composition that wants a roomier
+panel states a roomier panel freedom instead.
+
+### javascript-general: amber on indigo, titled
+
+#### The palette, and the ratio each pairing is drawn at
+
+This is the one half of a composition that is **chosen** rather than derived,
+because a colour is: there is no figure to measure a hue off when the set has no
+artwork. What is not chosen is whether it may be used. `assertReadable` measures
+every pairing of ink and ground this palette and this layout imply against the
+4.5:1 text floor before a sheet composes, and these are the ratios it reports.
+
+| Role | Colour | On | Reaches |
+| --- | --- | --- | --- |
+| `navy`, the ground and the ink on paper | `#1A1033` | `#FFFFFF` | 18.01:1 |
+| `white`, the paper | `#FFFFFF` | `#1A1033` | 18.01:1 |
+| `green`, the accent | `#F2A33C` | `#FFFFFF` | 2.08:1 |
+| `greenOnWhite`, the substitution | `#8A4B06` | `#FFFFFF` | 6.80:1 |
+| `heading`, display type on paper | `#2E2740` | `#FFFFFF` | 14.19:1 |
+
+The accent moves from green to amber, and the rest of the palette follows from
+that: it is the furthest a warm accent gets from the recorded green while
+staying an accent, the ground is an indigo rather than the recorded near-black
+navy so the amber sits on a ground of its own temperature, and the display ink
+takes the ground's violet cast for the same reason.
+
+**The substitution is live here for exactly the reason it is live in the
+recorded palette.** The accent reaches 2.08:1 on the paper, under the 4.5:1 text
+floor and under the 3:1 boundary floor, so on white it carries fills and nothing
+a reader has to read; `#8A4B06` is the same amber darkened until it clears the
+text floor, and `readableInk` swaps it in for any run of the accent set on
+paper. The recorded palette's green is at 2.65:1 and its substitution at 5.33:1,
+so this is the same decision taken twice rather than a new one.
+
+The six inks of the code panel, each measured on the `#1A1033` ground:
+
+| Role | Colour | Reaches |
+| --- | --- | --- |
+| `plain` | `#F5F1FF` | 16.22:1 |
+| `comment` | `#9B93B8` | 6.23:1 |
+| `identifier` | `#FFD08A` | 12.56:1 |
+| `keyword` | `#A8D8FF` | 11.95:1 |
+| `string` | `#FFAFC7` | 10.47:1 |
+| `number` | `#B7EFA0` | 13.61:1 |
+
+The set is a tint of the accent and a tint of its complement either side of a
+near-white plain: an identifier is the accent's own light tint, a keyword the
+azure opposite it, and the three remaining roles sit between them. **The plain
+ink is a warm off-white rather than the recorded pure white**, and that is the
+one colour here chosen for a reason that is not hue: a long listing set in
+`#FFFFFF` on a dark ground haloes, and this composition's panel carries more
+lines than the recorded one does.
+
+#### The type scale, and what leads it
+
+Every cap is the lead-in's 112 at a stated factor, and every stem is that cap
+times the share the recorded role already carries, so nothing in the scale is a
+figure that was chosen. The weights are the recorded weights: a weight is a
+property of the face, and moving one would be a claim about the stack this
+composition has not measured.
+
+| Role | Factor | Cap | Recorded cap | Stem share | Stem | Weight |
+| --- | --- | --- | --- | --- | --- | --- |
+| `leadIn` | 1 | 112 | 112 | 0.125 | 14 | 400 |
+| `followLine` | 1.25 | 140 | 154 | 0.123 | 17 | 400 |
+| `masthead` | 1.5 | 168 | 220 | 0.086 | 14 | 300 |
+| `title` | 1.75 | 196 | 141 | 0.128 | 25 | 400 |
+
+**The title leads it, which is the treatment.** The recorded scale is led by the
+masthead at 220 - the brand wordmark is the largest thing on an original sheet
+and the sheet's own title is third - and that is right for artwork read one sheet
+at a time. This set is read three to a row on a profile grid, where what has to
+carry at a thumbnail's size is which cheatsheet a tile is, so the title takes
+the top of the scale and the masthead comes down to second.
+
+The lead-in is the one of the four the scale keeps: it is the body of a sheet, it
+is the smallest, and re-anchoring on anything else would move the one size a
+reader reads most of.
+
+#### The grid, and the steps it conserves
+
+The canvas and the 48 px step are the record's and do not move. What moves is
+how the 75 steps are divided, and both totals hold:
+
+| Moved | Recorded | Here | Where the steps went |
+| --- | --- | --- | --- |
+| Masthead band | 11 steps | 10 | to the code field |
+| Heading band | 14 steps | 13 | to the code field |
+| Code band | 42 steps | 44 | the two above |
+| Divider band | 1 step | 1 | unmoved |
+| Footer band | 7 steps | 7 | unmoved |
+| Spine column | 5 steps | 3 | to the panel |
+| Panel column | 64 steps | 67 | the rail and the right margin |
+| Right margin | 6 steps | 5 | to the panel |
+
+So the sheet is a narrower green rail beside a wider panel, with two more steps
+of code field than the artwork has, and a mark square that narrows with the rail
+to five steps so the footer reads as the same sheet as the panel above it.
+
+**The bars flanking the title are a matched pair rather than the recorded
+thick-over-thin**, both half a step deep, and both are short - five steps against
+the recorded nine. That length is not a free choice: the title's measure is the
+canvas less a bar and a gutter either side, derived the way the recorded measure
+is, so a longer bar is a narrower measure and a narrower measure is a title
+stepped down to fit it. At ten steps every title of the set but two was stepped
+down from the 196 cap the scale had just put at the top, one of them to 145. At
+five the measure is 2928 and nothing is stepped down anywhere in the set.
+
+#### The panel's freedom, narrowed
+
+| What varies | Recorded range | Here | In steps |
+| --- | --- | --- | --- |
+| The code panel's top padding | 37 to 152 px | 96 to 120 | 2 to 2.5 |
+| The leftmost code line's inset | 85 to 414 px | 96 to 144 | 2 to 3 |
+| The code line spacing | 56 to 116 px | 72 to 96 | 1.5 to 2 |
+
+**This is where the set's consistency is bought.** The recorded ranges are what
+eleven hand composed sheets happened to span, and reproducing that span is right
+for reproducing the artwork and wrong for a batch meant to read as one set.
+Every bound here is a multiple of the step and every one of them is **inside**
+the recorded range rather than outside it, so this is a narrowing of what the
+artwork left free and not a new freedom.
+
+Measured across the nine sheets of the set on 2026.11.21: line spacing 73.1 to
+76.0 px, panel fill 0.858 to 0.899, and not one display run stepped down.
+
+### Where this record is held
+
+`tools/test-set-compositions.mjs` reads this section and
+`api/cheatsheet/compositions.mjs` against each other, the way
+`tools/test-composition-algorithm.mjs` does for the algorithm above: every
+colour, every ratio, every cap, every stem and both step tables are compared, so
+a figure edited in one and not the other fails rather than drifts. It also holds
+the two rules this section states rather than measures - that every composition
+carries the recorded floors, and that a composition drawn after the mechanism
+landed is not one an earlier set already used.
+
 ## Graphics
 
 No stock imagery. The cheatsheet sheets are the repository's own content and

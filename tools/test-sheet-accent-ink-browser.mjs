@@ -60,7 +60,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { composeSheet, prepareAccents } from "../api/cheatsheet/index.mjs";
+import { composeSheet, compositionOf, prepareAccents, SYNTAX } from "../api/cheatsheet/index.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -124,7 +124,7 @@ const CANVAS = 3600;
  */
 const SCALE = PAGE_CAP / CANVAS;
 
-/** The six the palette carries, from `SYNTAX` in `api/cheatsheet/language.mjs`. */
+/** The six the recorded palette carries, from `SYNTAX` in `api/cheatsheet/language.mjs`. */
 const PALETTE = {
   plain: "#FFFFFF",
   comment: "#B4BEC8",
@@ -133,6 +133,35 @@ const PALETTE = {
   string: "#FDC83A",
   number: "#8DE632",
 };
+
+/**
+ * The six a document is actually drawn in, which its set composition decides.
+ *
+ * **There is more than one answer since 2026.11.21**, and the case at the
+ * bottom of this file was wrong the day there was: it held every sheet in the
+ * catalog to the recorded six, so the nine sheets of the third set - amber on
+ * indigo, with a palette of its own - reported six unknown inks each and the
+ * assertion named a colour drift that was the design.
+ *
+ * A document naming no composition is the recorded six, which is what the
+ * twenty-eight sheets written before compositions existed carry.
+ *
+ * @param {{ composition?: string }} doc
+ * @returns {Record<string, string>}
+ */
+function paletteFor(doc) {
+  const set = compositionOf(doc);
+  return set === undefined ? PALETTE : set.theme.syntax;
+}
+
+test("the recorded six this file pins are the six the record carries", () => {
+  // The literals above are pinned rather than imported, so a palette edited in
+  // `language.mjs` fails here instead of silently becoming the expectation.
+  // This is what keeps the pin honest; `paletteFor` reads a composition's own
+  // six off the record, because those are not a pin and there will be more of
+  // them with every set.
+  assert.deepEqual(PALETTE, SYNTAX);
+});
 
 /** Every cheatsheet the committed catalog holds, in the order it lists them. */
 async function catalogPaths() {
@@ -423,30 +452,48 @@ test("the full size route lays the same lines out the same way at 3600px", { ski
   );
 });
 
-test("the code panel is drawn in the six colours the palette carries, and in no others", { skip }, async () => {
+test("the code panel is drawn in the six colours its own palette carries, and in no others", { skip }, async () => {
   // The accent colours are not what **Token Accents 1** changed, which is why
   // this is here: a placement fix that moved a paint moved something it had no
   // business moving, and nothing else in the suite reads the fills off a drawn
   // sheet.
-  const seen = new Set();
+  //
+  // Which six is the sheet's own question since the third set composition
+  // landed, so the inks are collected per palette rather than against one list.
+  // The coverage claim is per palette too: every one of a composition's six has
+  // to be drawn by some sheet drawn in it, which is the claim that was being
+  // made about the catalog and is only true of a set.
+  /** @type {Map<string, { palette: Record<string, string>, seen: Set<string> }>} */
+  const byPalette = new Map();
   const unknown = new Set();
   for (const path of paths) {
+    const doc = JSON.parse(await readFile(join(root, ...path.split("/"), "sheet.json"), "utf8"));
+    const palette = paletteFor(doc);
+    const id = doc.composition ?? "the recorded composition";
+    if (!byPalette.has(id)) byPalette.set(id, { palette, seen: new Set() });
+    const group = byPalette.get(id);
     const sheet = await sheetAt(path, PAGE_CAP);
     for (const line of sheet.lines) {
       for (const fill of line.fills) {
         const hex = String(fill ?? "").toUpperCase();
-        if (Object.values(PALETTE).includes(hex)) seen.add(hex);
+        const known = Object.values(palette).map((value) => value.toUpperCase());
+        if (known.includes(hex)) group.seen.add(hex);
         else unknown.add(`${hex} in ${path}`);
       }
     }
   }
-  const named = Object.fromEntries(Object.entries(PALETTE).map(([role, hex]) => [hex, role]));
-  console.log(`  drawn: ${[...seen].map((hex) => `${named[hex]} ${hex}`).join(", ")}`);
-  assert.deepEqual([...unknown].slice(0, 5), [], "the code panel drew an ink the syntax palette does not carry");
-  assert.equal(
-    seen.size,
-    Object.keys(PALETTE).length,
-    `only ${seen.size} of the six syntax colours are drawn across the catalog: ` +
-      `${[...seen].map((hex) => named[hex]).join(", ")}`
-  );
+  assert.deepEqual([...unknown].slice(0, 5), [], "a code panel drew an ink its own syntax palette does not carry");
+  const thin = [];
+  for (const [id, { palette, seen }] of byPalette) {
+    const named = Object.fromEntries(
+      Object.entries(palette).map(([role, hex]) => [hex.toUpperCase(), role])
+    );
+    console.log(`  ${id}: ${[...seen].map((hex) => `${named[hex]} ${hex}`).join(", ")}`);
+    if (seen.size !== Object.keys(palette).length) {
+      thin.push(
+        `${id} drew ${seen.size} of its six: ${[...seen].map((hex) => named[hex]).join(", ")}`
+      );
+    }
+  }
+  assert.deepEqual(thin, [], "a set composition has a syntax colour no sheet drawn in it ever draws");
 });

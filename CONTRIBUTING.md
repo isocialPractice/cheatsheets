@@ -447,7 +447,8 @@ that floor works out at 1200 px on this canvas.
 1. Make the folder and write its `meta.json` with an `order`.
 2. Write the payload - the example, as a reader would meet it.
 3. Write `sheet.json`: the `title`, a `subtitle`, the `kind`, the `language`
-   the example is written in, a `seed`, and the `code` lines.
+   the example is written in, a `seed`, the `composition` its set is drawn in,
+   and the `code` lines.
 4. Regenerate the catalog and gate it:
 
    ```bash
@@ -505,6 +506,41 @@ run:
   does.
 
 A blank line carries no `role`. A role on one would be a colour on nothing.
+
+### A new set names the composition it is drawn in
+
+The cheatsheets one batch makes for one subject are a **set**, and this
+repository is maintained under a standing rule that every new set is drawn in a
+design of its own - its own layout, type treatment and colour - rather than in
+the one the set before it used. So a sheet names its set's composition in its
+own `sheet.json`, as `composition`, by the id
+`api/cheatsheet/compositions.mjs` records it under.
+
+| | |
+| --- | --- |
+| What a composition is, and the three the repository holds | **Set compositions** in `DESIGN_LANGUAGE.md` |
+| Where the ids live | `api/cheatsheet/compositions.mjs` |
+| What holds a set to its composition | `tools/test-set-compositions.mjs` |
+
+Three things about it are worth knowing before writing a sheet, because each
+has a consequence a contributor meets:
+
+- **A composition is a design language record**, and its theme and layout are
+  derived from that one record. So a new composition is written as the part that
+  differs from `SHEET_LANGUAGE` and the rest follows, and it cannot be
+  internally inconsistent - a band moved in the record moves the row, the slots
+  on it and the runs placed against it together.
+- **A sheet naming none is drawn in the recorded composition**, which is what
+  the twenty-eight sheets written before compositions existed carry. That is not
+  a default to rely on: `tools/test-set-compositions.mjs` pins the count of
+  sheets naming none at twenty-eight, so a new sheet that forgot the field fails
+  rather than composing in a design another set already used.
+- **The panel's freedom is where a set's consistency is bought.** The recorded
+  ranges are what eleven hand composed sheets happened to span, and a
+  composition narrows them so its own sheets sit beside each other without one
+  looking mis-set. A sheet written for a set should therefore be written to the
+  line count that fills the set's panel - 20 to 26 lines for
+  `javascript-general` - rather than to whatever length the example came out at.
 
 ### What a `kind: embed` demo may rely on
 
@@ -607,7 +643,9 @@ way so far.
    category nothing holds to a rule.
 
 5. **Write the cheatsheets**, per the section above: `meta.json` at every
-   level, then one `sheet.json` and one payload each.
+   level, then one `sheet.json` and one payload each. A category's first batch
+   is a set, so it also needs a composition of its own, per **A new set names
+   the composition it is drawn in** above.
 
 6. **Regenerate and gate the catalog**, then run the suite.
 

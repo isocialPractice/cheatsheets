@@ -76,6 +76,26 @@ temporary SVG and the helper under <code>ai-helper/graphic-designer/</code>
 measures that. <code>javascript</code> is the exception and needs no file,
 because <code>DESIGN_LANGUAGE.md</code> was measured off its own images.</p>
 
+<h2>A set gets a composition of its own</h2>
+
+<p>A <strong>set</strong> is the cheatsheets one batch makes for one subject,
+and every new one is drawn in a design of its own - its own layout, type
+treatment and colour - rather than in the one the set before it used, so a
+reader meeting two sets side by side can tell which batch each belongs to. The
+sets are read three to a row on a profile grid as well as one at a time, which
+is where that reads as a rhythm rather than as inconsistency.</p>
+
+<p>A sheet names its composition in its own document, as
+<code>composition</code>, and <code>api/cheatsheet/compositions.mjs</code> is
+what the name resolves to. Each entry carries a design language record and its
+theme and layout are <em>derived</em> from that one record, the way
+<code>SHEET_THEME</code> and <code>SHEET_LAYOUT</code> are, so a band moved in
+an entry moves the row, the slots on it and the runs placed against it together.
+What an entry may not move is the three floors, which bound what any seed may do
+to any sheet. A sheet naming no composition is drawn in the recorded one. The
+three the repository holds are recorded under
+<a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE.md">Set compositions</a>.</p>
+
 <h2>The footer links out</h2>
 
 <p>A sheet's footer is drawn one of two ways, and each links what it draws.</p>

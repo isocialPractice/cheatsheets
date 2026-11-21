@@ -231,6 +231,14 @@ exactly a formal document of one untitled listing:
 A theme may be **partial**: laid over the recorded theme, then validated, then
 held to being readable before anything is drawn.
 
+A document may name a **composition**: the set composition it is drawn in, by
+the id `api/cheatsheet/compositions.mjs` records it under. `composeSheet`
+resolves that to the set's own theme and layout, so a sheet is drawn in its
+set's design wherever it is composed rather than wherever a caller remembered
+to pass one, and a `theme` or `layout` option is laid over the set's rather than
+over the recorded one. Naming none is the recorded composition, which is what
+every sheet written before compositions existed carries.
+
 ## Rendering
 
 ```js
