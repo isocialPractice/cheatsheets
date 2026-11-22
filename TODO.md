@@ -26,25 +26,26 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
 
-### UI/UX Override - the third set composition on the page
-
-#### Resolve Issues
-
-- [ ] Amber Heading 1
-  - **Issue**: the title and the subtitle of the third composition are set one `STEP` apart measured from the title's baseline, which is less than the descender of a 272.601 cap, so their ink collides. Read off the raster at the sheet's own 3600px with each run drawn alone and scanned column by column: **Errors and Debugging** at -8 units over 14 columns, **Comparing Values** at -1 over 4. The other seven clear by 18 to 46 units where the recorded composition clears by 75 to 96, so any retitling moves a sheet across the line. `getBBox` and `getExtentOfChar` both report the face's ascent and descent and say the same 40.4 on all nine, so neither can see it
-  - **Goal**: Resolve to [amber-heading-descender.prompt.md](.claude/prompts/amber-heading-descender.prompt.md)
-  - From: New Cheatsheets `->` JavaScript
+### UI/UX Override - the redrawn javascript-general sheets
 
 #### Found Issues
 
-- [ ] The brand footer strip is letterboxed on all nine sheets of the third composition
-  - **Issue**: the third composition narrowed the right margin from six steps to five, so its footer slot widened to 3360 x 336 - aspect 10.0 against the strip's 9.8642. `placeBrand` draws the strip `xMidYMid meet`, so it is centred and its mark square starts 22.81 units in from the left trim, while the divider directly above runs 0 to 3600 and the rail starts at 0. Sampled at (8, 3400): `#FFFFFF` on a new sheet, `#000133` on a recorded one
-  - **Goal**: Resolve to [third-composition-footer-letterbox.prompt.md](.claude/prompts/third-composition-footer-letterbox.prompt.md)
-  - From: UI/UX Override - the third set composition on the page
-- [ ] Promote the set composition browser test into `tools/`
-  - **Issue**: nothing in the suite can see either defect above. `tools/test-set-compositions.mjs` passes 47 of 47 on the new composition because it measures the record, and both defects are in what an engine does with that record - a glyph collision and a raster's letterbox. The check that found them is at `.tmp/ui-ux-11-21/sheet-set-composition.mjs`, which is gitignored scratch and runs only when this agent runs
-  - **Goal**: once both fixes land, rewrite that file to the conventions of `tools/test-*-browser.mjs` - the `loadChromium` resolution and per-engine skip the folder already uses, the `node:http` server on an ephemeral port from `tools/test-sheet-accent-arrival-browser.mjs`, no screenshots, no project dependency - and commit it as `tools/test-set-composition-browser.mjs`. It should assert, over every sheet naming a composition: that no two display runs' ink shares a column, measured off the raster rather than off `getBBox`; that the footer strip's drawn left edge sits on the trim with the divider; that the title leads the wordmark and is drawn at one cap across the set; and that panel top, left inset and line spacing stay inside the set's own `panelFreedom`
-  - From: UI/UX Override - the third set composition on the page
+- [ ] The design language calls this set's rail green where the set draws it amber
+  - **Issue**: In `DESIGN_LANGUAGE.md`, under `### javascript-general: amber on
+    indigo, titled`, the grid paragraph reads "So the sheet is a narrower green
+    rail beside a wider panel". The same section's palette table gives the
+    accent as `#F2A33C` and says "The accent moves from green to amber", and the
+    rail is drawn amber: it samples `#F2A33C` at x 2, y 3200 on all nine sheets,
+    against `#4DAE51` on the eleven the recorded composition draws. The word is
+    a carry-over from the recorded composition's description, and the line
+    carrying it was rewritten this turn, so a reader of the section that defines
+    the amber set is told its rail is green.
+  - **Goal**: In that sentence only, write "a narrower amber rail" for "a
+    narrower green rail". The theme's role token stays named `green` - it is the
+    accent slot, not a colour claim - so nothing in `compositions.mjs` or
+    `theme.mjs` changes, and `tools/test-set-compositions.mjs` holds the value
+    already.
+  - From: UI/UX Override - the redrawn javascript-general sheets
 
 ### Create and Deploy GitHub Pages Override
 
@@ -818,6 +819,29 @@ cheatsheet in the catalog from its own `sheet.json`, by the path a single
 else. Nothing a batch writes is committed - the page composes its own sheet in
 the browser, so a render is on demand here as it is anywhere else - and the
 eleven original JPEGs are untouched by it, being reference rather than output.
+
+### Brand Rasters on a New Set's Ground
+
+The two brand assets a sheet carries are rasters baked in the brand's own navy
+`#000133`: the masthead logo and the footer strip. A composition chooses its own
+ground, so the first set drawn on a ground that is not that navy reads them as a
+slightly different dark - visible at the logo's panel in the masthead and at the
+mark square in the footer of the nine `javascript-general` sheets, on their
+`#1A1033` indigo.
+
+**It is a fixed asset meeting a new ground rather than a fault in the
+composition**, which is why it is queued here and not as an issue. Both assets
+are named under **Brand Resouces** in `.claude/constants.md` and are drawn by
+the other twenty-eight sheets, so neither can be edited in place.
+
+- [ ] **User only**: decide whether the third set wants a footer strip and a
+  masthead mark of its own, drawn on its own ground, or keeps the committed
+  pair. Raised by the UI/UX tester on 2026.11.21 while it was finding the
+  letterbox beside it, and a design decision for the operator with
+  `graphic-designer` per `## Collaborators`. A set of its own means a second
+  pair of assets and a composition that names which pair it draws, which is
+  work to queue once the decision is made; keeping the pair means the shift is
+  accepted and this item closes
 
 ### Rendering and Conversion
 
@@ -2412,5 +2436,17 @@ generate ideas about generating ideas.
   - Create `3` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
+- [x] Amber Heading 1
+  - **Issue**: the title and the subtitle of the third composition are set one `STEP` apart measured from the title's baseline, which is less than the descender of a 272.601 cap, so their ink collides. Read off the raster at the sheet's own 3600px with each run drawn alone and scanned column by column: **Errors and Debugging** at -8 units over 14 columns, **Comparing Values** at -1 over 4. The other seven clear by 18 to 46 units where the recorded composition clears by 75 to 96, so any retitling moves a sheet across the line. `getBBox` and `getExtentOfChar` both report the face's ascent and descent and say the same 40.4 on all nine, so neither can see it
+  - **Goal**: Resolve to [amber-heading-descender.prompt.md](.claude/prompts/amber-heading-descender.prompt.md)
+  - From: New Cheatsheets `->` JavaScript
+- [x] The brand footer strip is letterboxed on all nine sheets of the third composition
+  - **Issue**: the third composition narrowed the right margin from six steps to five, so its footer slot widened to 3360 x 336 - aspect 10.0 against the strip's 9.8642. `placeBrand` draws the strip `xMidYMid meet`, so it is centred and its mark square starts 22.81 units in from the left trim, while the divider directly above runs 0 to 3600 and the rail starts at 0. Sampled at (8, 3400): `#FFFFFF` on a new sheet, `#000133` on a recorded one
+  - **Goal**: Resolve to [third-composition-footer-letterbox.prompt.md](.claude/prompts/third-composition-footer-letterbox.prompt.md)
+  - From: UI/UX Override - the third set composition on the page
+- [x] Promote the set composition browser test into `tools/`
+  - **Issue**: nothing in the suite can see either defect above. `tools/test-set-compositions.mjs` passes 47 of 47 on the new composition because it measures the record, and both defects are in what an engine does with that record - a glyph collision and a raster's letterbox. The check that found them is at `.tmp/ui-ux-11-21/sheet-set-composition.mjs`, which is gitignored scratch and runs only when this agent runs
+  - **Goal**: once both fixes land, rewrite that file to the conventions of `tools/test-*-browser.mjs` - the `loadChromium` resolution and per-engine skip the folder already uses, the `node:http` server on an ephemeral port from `tools/test-sheet-accent-arrival-browser.mjs`, no screenshots, no project dependency - and commit it as `tools/test-set-composition-browser.mjs`. It should assert, over every sheet naming a composition: that no two display runs' ink shares a column, measured off the raster rather than off `getBBox`; that the footer strip's drawn left edge sits on the trim with the divider; that the title leads the wordmark and is drawn at one cap across the set; and that panel top, left inset and line spacing stay inside the set's own `panelFreedom`
+  - From: UI/UX Override - the third set composition on the page
 
 </details>
