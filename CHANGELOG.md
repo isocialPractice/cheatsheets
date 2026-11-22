@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> 16 earlier entries in `CHANGELOG-2026.md`, newest first.
+> 17 earlier entries in `CHANGELOG-2026.md`, newest first.
 
 ## The versioning changed on 2026.11.02
 
@@ -38,6 +38,97 @@ design language was measured, how the catalog was built and how the API was
 written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
+
+## [1.0.0-alpha.1.13.1]
+
+The two faults the UI/UX tester found in `javascript-general` the day it
+shipped, and the check that found them, promoted out of a working folder and
+into the suite.
+
+Both were differences between a figure and what an engine draws from it, which
+is why `tools/test-set-compositions.mjs` passed 47 of 47 against a composition
+that was collapsing its own title into its own subtitle on two of nine sheets.
+That file reads the record against `DESIGN_LANGUAGE.md`, and the record was
+right. A patch rather than a minor: no published surface moves, nothing a
+caller writes against changes shape, and what is new is what the repository can
+see when a set is composed.
+
+### Fixed
+
+- **A display run is stepped by the descender it has to clear, not by a flat
+  step.** The three runs of the third composition's heading band are a stack,
+  and each sat a `STEP` of 48 px under the baseline above it - a constant, where
+  the thing it has to clear is a share of the cap above it. At that set's 196 px
+  title cap a descender reaches 59.70 px, so whether a sheet's title collided
+  with its own subtitle was decided by whether that title happened to carry a
+  `g`, `y`, `p` or `j`. Measured off the raster at the sheet's own 3600 px, with
+  each run drawn alone and scanned column by column, **Errors and Debugging**
+  ran 8 px of descender into the ascenders below it over 14 columns and
+  **Comparing Values** touched over 4; the seven that cleared did so by 18 to 46
+  px against the recorded composition's 75 to 96. The gap is now the descent the
+  run's own cap implies - the face's 219 unit descender over its 719 unit cap
+  height, so 0.3046 of any cap - plus 0.2699 of that cap of clear paper, which
+  is the narrower of the two clearances the recorded stack leaves below a display
+  run and therefore the one the artwork proves is enough. 112.60 px under the
+  title and 64.34 px under the subtitle, and the clearance now holds whatever a
+  title says and whatever cap a later composition puts it at.
+- **The heading band takes the two steps that stack needs, and the masthead pays
+  for them.** The band was 13 steps and the stack now reaches 1135.05 px from a
+  band starting at 432, so it is 15. The alternative was stepping the title down
+  to fit, and all nine titles drawn at one cap is the treatment the set exists
+  for. The masthead gives up two of its ten - it holds a 242 px lockup in what
+  the artwork gives 528 - one to the heading band and one to the code field,
+  which goes from 44 steps to 43. Both totals still hold at 75 steps, so the
+  bands tile the canvas and the columns do. The masthead's lockup comes up half a
+  step, to `2.5`, so the paper above and below it keeps very nearly the
+  proportion it had: 120 px and 70 against 144 and 94. Where the steps came from
+  was measured rather than chosen - at 42 steps of code field five of the nine
+  set their lines at 68.8 to 71.6 px, under the 72 px floor the set's own panel
+  freedom allows, and at 41 all nine do. The nine now measure 72.2 to 74.4 px of
+  line spacing and 0.863 to 0.899 of panel fill, with nothing stepped down.
+- **The footer slot's width is the brand strip's own aspect, not a column of the
+  grid.** `placeBrand` draws every brand raster `xMidYMid meet`, so a slot whose
+  aspect is wider than the strip's centres the strip and leaves bare paper down
+  the trim. The slot was the canvas less a right margin this composition had
+  narrowed from six steps to five, which widened it to 3360 x 336 against the
+  799 x 81 strip's 9.8642 and stood the brand mark 22.81 px off the left trim -
+  a notch of paper under a divider that runs 0 to 3600 and beside a rail that
+  starts at 0, on all nine sheets. Sampled off the raster at (8, 3400) it read
+  `#FFFFFF` on a sheet of this set against `#000133` on a recorded one. The width
+  is now the strip's aspect at the band's height rounded **down** to the step,
+  which comes to the same 3312 the recorded composition arrives at from its own
+  six step margin and is why the artwork's footer sits flush. Down rather than
+  nearest because the mark sits on the trim only while the slot is no wider in
+  aspect than the strip. `footerLinkAreas` reads the same letterbox off the same
+  slot, so the four footer links followed the strip and needed no change.
+
+### Added
+
+- **`tools/test-set-composition-browser.mjs`**, which composes every sheet
+  naming a set composition in a real engine and measures what was drawn. Four
+  claims per set: that no two display runs' ink shares a column, and that the
+  record's own gaps clear the descent of the run above them; that a brand
+  raster's drawn left edge sits on the trim with the divider and the rail; that
+  the title leads the wordmark and every title of the set is drawn at one cap;
+  and that the panel's top padding, leftmost inset and line spacing all stay
+  inside the set's own `panelFreedom`. It takes its subjects from
+  `cheatsheets.json` rather than from a list, so a new set reaches it by
+  existing.
+- **The ink is read off a raster, because the boxes cannot see a collision.**
+  Each display run is serialised alone over the paper, rasterised at the sheet's
+  own 3600 px and scanned for the topmost and bottommost inked row in all 3600
+  columns, and the answer per pair is the narrowest gap in any column where both
+  runs have ink. Neither `getBBox` nor `getExtentOfChar` can answer it: both
+  report the face's full ascent and descent, so both said the title and the
+  subtitle overlapped by the same 40.4 px on all nine sheets whatever words were
+  set, and that constancy is the tell. Reverting either fix puts the case red
+  with the figure the tester reported - 22.81 px of letterbox, and
+  **Comparing Values** touching over 4 columns at x=1974.
+- The record carries both in `DESIGN_LANGUAGE.md` under **javascript-general**:
+  **The display stack, and the descender each gap clears**, and **The footer
+  slot, which the strip's aspect sets**, each with the table of figures it was
+  measured at. `CONTRIBUTING.md` and `docs/adding-to-the-catalog.html` name the
+  second check beside the first, with what a new set finds out from it.
 
 ## [1.0.0-alpha.1.13.0]
 
@@ -4000,60 +4091,3 @@ fold it in, which this is.
   as expected output rather than written outside the folder, and `<name>` is
   `sheet` for a cheatsheet folder, which is what `.claude/constants.md` already
   expects of `<category>/<cheatsheet>/sheet.webp`.
-
-## [2026.09.22]
-
-### Fixed
-
-- **`--report` prints at the scale its own figures were read at, and says so.**
-  The flag documented itself as printing "the comparison at any scale" while
-  `run()` called `reportShares` with no scale at all, so it only ever printed
-  the 0.25 default - which put the heading grey 0.09 points off the census and
-  the comment grey 0.06, against the "within 0.03 points" the same file's header
-  and the `2026.09.21` entry below both record. Neither set of numbers was
-  wrong: 0.03 is the full size reading and the drift a quarter-size raster adds
-  is the antialiasing of its own downsample. What was wrong is that the only
-  command a reader had printed the other one, unlabelled, and the two read as a
-  three-fold drift in the asset. There is now a `--scale` flag reaching the
-  argument `reportShares` always took, it defaults to full size, and the report
-  heading carries the scale beside the pixel size so two readings cannot be
-  compared at cross purposes.
-- **A theme's census follows the theme's palette.** `CENSUS` was a field on
-  `SHEET_LANGUAGE`, and a theme is a spread copy of that object with `colors`
-  and `syntax` replaced - so `emberTheme.census` named four colours the ember
-  theme never draws, while the object declared itself `typeof SHEET_LANGUAGE`.
-  Nothing read it yet, which is the only reason nothing had failed; the first
-  consumer to compose an asset for a themed category would have got the sheets'
-  palette back and no way to tell, because a palette measured off the wrong
-  asset still looks measured.
-
-  The two halves are now separated by what they are evidence of.
-  `CENSUS_SHARES` holds the six shares, which were counted off this artwork and
-  cannot be re-counted for a palette nobody has drawn. `censusFor(language)`
-  pairs them with the hexes of whatever language it is handed, so a theme's
-  census is the recorded proportions in the theme's own colors - the only
-  reading of it that invents no figure. `CENSUS` is what that returns for the
-  eleven sheets, and it is no longer a field on `SHEET_LANGUAGE`, so the spread
-  that caused this cannot happen again.
-- **`NOTICE` credits a port note to a file that now carries one.** The
-  `ai-helper/graphic-designer/` paragraph said the four files under
-  `skills/design-language/scripts/` each name their upstream file and record
-  what changed on the way in. Three did. The fourth, `template.md`, is a
-  fill-in procedure rather than a script - and the port had changed a path in
-  it exactly as in the other three, rewriting its import block to reach
-  `api/graphic-design/` because there is no package here to import. So it
-  needed the line rather than an exemption from it, and it now carries the same
-  upstream-and-commit note. `NOTICE` names the directory it is counting instead
-  of a bare figure, since that file is what scopes the CC0 waiver and its
-  claims should be checkable against the tree.
-
-### Changed
-
-- `composeLanguageAsset` takes a `language`, defaulting to `SHEET_LANGUAGE`,
-  and reads every figure off it rather than off module imports. Composing the
-  asset for a theme was the case the census fix was found in, and half of it -
-  regions themed, panel ink not - would have been worse than none. It returns
-  the census it composed against, so `measureShares` and `reportShares` can be
-  handed the same one instead of reaching for the module.
-- `DESIGN_LANGUAGE.md` and `examples/README.md` record where a census belongs
-  and why it is the one table `SHEET_LANGUAGE` does not carry.

@@ -520,9 +520,10 @@ own `sheet.json`, as `composition`, by the id
 | --- | --- |
 | What a composition is, and the three the repository holds | **Set compositions** in `DESIGN_LANGUAGE.md` |
 | Where the ids live | `api/cheatsheet/compositions.mjs` |
-| What holds a set to its composition | `tools/test-set-compositions.mjs` |
+| What holds a set to its record | `tools/test-set-compositions.mjs` |
+| What holds a set to what an engine draws from it | `tools/test-set-composition-browser.mjs` |
 
-Three things about it are worth knowing before writing a sheet, because each
+Four things about it are worth knowing before writing a sheet, because each
 has a consequence a contributor meets:
 
 - **A composition is a design language record**, and its theme and layout are
@@ -541,6 +542,15 @@ has a consequence a contributor meets:
   looking mis-set. A sheet written for a set should therefore be written to the
   line count that fills the set's panel - 20 to 26 lines for
   `javascript-general` - rather than to whatever length the example came out at.
+- **Two checks, because a correct record is not a correct sheet.** The first
+  reads the record against `DESIGN_LANGUAGE.md`; the second composes every sheet
+  naming a composition in a real engine and measures what was drawn. It passed
+  47 of 47 against the third composition on the day that composition shipped
+  with a glyph collision and a letterboxed footer raster in it, and it was right
+  to: both were in what an engine does with figures that were themselves
+  correct. The browser case is where a new set finds out whether its type
+  collides at the cap it chose and whether its brand slots have the aspect their
+  rasters need.
 
 ### What a `kind: embed` demo may rely on
 

@@ -66,6 +66,18 @@ a composition is, and the three the repository holds, are under
 <a href="drawing-a-sheet.html">Drawing a sheet</a> and in
 <a href="https://github.com/isocialPractice/cheatsheets/blob/main/DESIGN_LANGUAGE.md">DESIGN_LANGUAGE.md</a>.</p>
 
+<p><strong>Two checks hold a set, because a correct record is not a correct
+sheet.</strong> The one above reads the record against
+<code>DESIGN_LANGUAGE.md</code>;
+<code>tools/test-set-composition-browser.mjs</code> composes every sheet naming
+a composition in a real engine and measures what was drawn - whether any two
+display runs' ink shares a column, read off a raster rather than off
+<code>getBBox</code>; whether a brand raster's slot has the aspect the raster
+needs, so nothing is letterboxed off the trim; whether the set's titles are all
+drawn at one cap; and whether the panel's top padding, inset and line spacing
+stay inside the set's own freedom. A new set finds out there whether the cap it
+chose collides at the words its sheets are titled with.</p>
+
 <h2>What is in javaScriptArrays/</h2>
 
 <p>The eleven images in

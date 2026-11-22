@@ -1366,18 +1366,96 @@ how the 75 steps are divided, and both totals hold:
 
 | Moved | Recorded | Here | Where the steps went |
 | --- | --- | --- | --- |
-| Masthead band | 11 steps | 10 | to the code field |
-| Heading band | 14 steps | 13 | to the code field |
-| Code band | 42 steps | 44 | the two above |
+| Masthead band | 11 steps | 9 | one each to the heading band and the code field |
+| Heading band | 14 steps | 15 | the masthead's step |
+| Code band | 42 steps | 43 | the masthead's other step |
 | Divider band | 1 step | 1 | unmoved |
 | Footer band | 7 steps | 7 | unmoved |
 | Spine column | 5 steps | 3 | to the panel |
 | Panel column | 64 steps | 67 | the rail and the right margin |
 | Right margin | 6 steps | 5 | to the panel |
 
-So the sheet is a narrower green rail beside a wider panel, with two more steps
-of code field than the artwork has, and a mark square that narrows with the rail
-to five steps so the footer reads as the same sheet as the panel above it.
+So the sheet is a narrower green rail beside a wider panel, with a step more
+code field than the artwork has, and a mark square that narrows with the rail to
+five steps so the footer reads as the same sheet as the panel above it.
+
+**The masthead pays for the heading band, and the type scale is why.** A title
+at the top of the scale needs a taller band than a title third in it: the stack
+below reaches 1135.05 px from a band that starts at 432, which is fifteen steps
+and not the thirteen this composition was first drawn at. The only other band
+with paper to spare is the masthead, which holds a 242 px lockup in the
+artwork's 528. Two of its steps go - one to the heading band and one to the code
+field - and its lockup comes up half a step, to `2.5`, so the paper above and
+below it keeps very nearly the proportion it had: 120 px and 70 against 144 and
+94.
+
+Where the steps came from was measured rather than chosen. The code field cannot
+go below 43: at 42 five of the nine sheets set their lines at 68.8 to 71.6 px,
+under the 72 px floor the panel's freedom narrows to below, and at 41 all nine
+do.
+
+#### The display stack, and the descender each gap clears
+
+The three display runs of the heading band are a stack: the title is placed a
+step and a half into the band, and each run below it follows the one above by
+the descent that run's cap implies plus a share of that cap of clear paper.
+
+| Gap | Cap above | Descent it clears | Paper | Gap |
+| --- | --- | --- | --- | --- |
+| Title to subtitle | 196 | 59.70 | 52.90 | 112.60 |
+| Subtitle to lead-in | 112 | 34.11 | 30.23 | 64.34 |
+
+The descent is the committed face's own - its 219 unit descender over its 719
+unit cap height, so 0.3046 of any cap - and the paper is 0.2699 of the cap,
+which is the narrower of the two clearances the recorded stack leaves below a
+display run. The recorded composition's `title` to `subtitle` gap is 81 px under
+a 141 cap, of which 42.95 px is descender and so 0.2699 of the cap is paper; its
+`subtitle` to `leadIn` gap is 98 px under a 112 cap, so 0.5704 of that cap is.
+Those are two independent measurements off hand composed artwork rather than one
+ratio, and the narrower of them governs the whole stack here: it is the one the
+artwork proves is enough.
+
+**A flat step was the fault this replaced.** Until 2026.11.22 each run sat a
+`STEP` of 48 px under the baseline above it, which is a constant where the thing
+it has to clear is a share of the cap above it. At a 196 px title cap a
+descender reaches 59.70 px, so whether a sheet's title collided with its own
+subtitle was decided by whether that title happened to carry a `g`, `y`, `p` or
+`j`. Measured off the raster at the sheet's own 3600 px, with each run drawn
+alone and scanned column by column, **Errors and Debugging** ran 8 px of
+descender into the ascenders below it over 14 columns and **Comparing Values**
+touched over 4, while the seven that cleared did so by 18 to 46 px against the
+recorded composition's 75 to 96. Neither `getBBox` nor `getExtentOfChar` can see
+it: both report the face's full ascent and descent, so both say the title and
+the subtitle overlap by the same 40.4 px on all nine sheets whatever words are
+set, and that constancy is the tell.
+
+#### The footer slot, which the strip's aspect sets
+
+The footer strip is a 799 x 81 raster and `placeBrand` draws every brand raster
+`xMidYMid meet`, so a slot wider in aspect than the strip letterboxes it and
+centres what is left. The slot's width is therefore the strip's own aspect at
+the band's height, rounded **down** to the step: 3312 px.
+
+| Composition | Footer slot | Slot aspect | Strip aspect | Mark's left edge |
+| --- | --- | --- | --- | --- |
+| recorded | 3312 x 336 | 9.8571 | 9.8642 | 0.00 |
+| third, as first drawn | 3360 x 336 | 10.0000 | 9.8642 | 22.81 |
+| third | 3312 x 336 | 9.8571 | 9.8642 | 0.00 |
+
+The recorded slot is the canvas less a six step right margin, which comes to the
+same 3312 and is why the artwork's footer sits flush. Deriving the width that
+way here, from a right margin this composition narrowed to five steps, widened
+the slot to 3360 and stood the mark 22.81 px off the left trim - a notch of bare
+paper down the footer band, under a divider that runs 0 to 3600 and beside a
+rail that starts at 0. Sampled off the raster at (8, 3400) it read `#FFFFFF` on a
+sheet of this set against `#000133` on a recorded one.
+
+The right margin is a column of the grid; the slot is a frame for a raster of a
+fixed aspect, and nothing said so until the two disagreed. The rounding is down
+rather than nearest for the same reason: the mark sits on the trim only while
+the slot is no wider in aspect than the strip. `footerLinkAreas` reads the same
+letterbox off the same slot, so the four links follow the strip wherever it
+lands.
 
 **The bars flanking the title are a matched pair rather than the recorded
 thick-over-thin**, both half a step deep, and both are short - five steps against
@@ -1403,8 +1481,11 @@ Every bound here is a multiple of the step and every one of them is **inside**
 the recorded range rather than outside it, so this is a narrowing of what the
 artwork left free and not a new freedom.
 
-Measured across the nine sheets of the set on 2026.11.21: line spacing 73.1 to
-76.0 px, panel fill 0.858 to 0.899, and not one display run stepped down.
+Measured across the nine sheets of the set on 2026.11.22, after the heading band
+took its fifteenth step and the code field its forty-third: line spacing 72.2 to
+74.4 px, panel fill 0.863 to 0.899, and not one display run stepped down. On
+2026.11.21, at thirteen and forty-four steps, the same nine measured 73.1 to
+76.0 px and 0.858 to 0.899.
 
 ### Where this record is held
 
