@@ -1,3 +1,5 @@
 .tmp 
 test-results/
 mcp-todo/
+CHANGELOG-*.md 
+TODO-archive.md 
