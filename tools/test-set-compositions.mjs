@@ -425,6 +425,80 @@ test("the panel's freedom is narrowed inside the recorded ranges, in whole half 
   }
 });
 
+// ## The record's prose, where it names a colour
+
+/**
+ * The word the record writes an accent in prose as, and the region of the
+ * record each word governs.
+ *
+ * The recorded composition's word is the accent role's own name. The palette
+ * role is called `green` because the colour measured off the artwork is one,
+ * so the token and the word are the same string for that composition and for
+ * no other. A set composition keeps the role name and changes the colour,
+ * which is why its word comes from its title instead - `Amber on indigo,
+ * titled` says `amber`, and the heading of its record section says it again.
+ *
+ * @returns {{ word: string, body: string, what: string }[]}
+ */
+function regionsNamingAnAccent() {
+  // Everything above the heading is the recorded composition's record.
+  const cut = record.indexOf("\n## Set compositions\n");
+  assert.ok(cut > 0, "DESIGN_LANGUAGE.md holds no Set compositions heading");
+  const regions = [{ word: "green", body: record.slice(0, cut), what: "the recorded composition" }];
+  for (const id of SET_COMPOSITION_IDS) {
+    const { title } = compositionNamed(id);
+    const heading = `${id}: ${title.toLowerCase()}`;
+    // A composition drawn in the recorded design has no section of its own:
+    // the region above is its record, and it is already in the list.
+    const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!new RegExp(`^#{2,6} ${escaped}\\s*$`, "m").test(record)) continue;
+    regions.push({ word: title.split(" ")[0].toLowerCase(), body: sectionOf(heading), what: id });
+  }
+  return regions;
+}
+
+test("the record names each composition's own accent where it says what the accent draws", () => {
+  // The defect this holds, found on 11-22-26: the third composition's grid
+  // paragraph was written by editing the recorded composition's, and the
+  // sentence describing the rail kept the word `green` while the rail is drawn
+  // `#F2A33C`. Every table in that section was right, because a table holds the
+  // hex and a paragraph holds the word, and nothing read the word.
+  //
+  // So every accent word the record attaches to a shape the accent fills - the
+  // rail or spine, the divider, the rules flanking the title - has to be the
+  // word for that region's own accent. The words it looks for are the accents
+  // the repository has, which is the whole of what a carry-over can bring: a
+  // paragraph copied from one composition's record into another's arrives
+  // carrying the first one's word.
+  const regions = regionsNamingAnAccent();
+  const words = new Set(regions.map((region) => region.word));
+  assert.ok(words.size >= 2, `the record holds ${words.size} accent words and a carry-over needs two`);
+  const painted = /(.)([A-Za-z]+) (rail|spine|divider|rules?)\b/g;
+  const wrong = [];
+  const read = new Set();
+  for (const { word, body, what } of regions) {
+    // Paragraph by paragraph, each wrapped to one line, so a pair the record's
+    // own wrapping split across two lines is still read as a pair and two
+    // paragraphs either side of a blank line are never read as one.
+    for (const paragraph of body.split(/\n[ \t]*\n/)) {
+      for (const [, before, found, shape] of paragraph.replace(/\s+/g, " ").matchAll(painted)) {
+        // A backticked `green` is the palette role, which every composition
+        // carries under that name, and not a claim about a colour.
+        if (before === "`") continue;
+        const named = found.toLowerCase();
+        if (!words.has(named)) continue;
+        read.add(what);
+        if (named !== word) wrong.push(`${what}: a ${named} ${shape}, where its accent is ${word}`);
+      }
+    }
+  }
+  assert.deepEqual(wrong, [], "the record names a colour a composition does not draw");
+  // Asserted so the case cannot pass by matching nothing: a pattern that had
+  // gone stale against how the record words these sentences would report a
+  // clean record it never read.
+  assert.equal(read.size, regions.length, `${read.size} of ${regions.length} regions say what colour their accent draws`);
+});
+
 // ## The catalog
 
 test("every sheet of the set names the composition, and composes with nothing stepped down", () => {

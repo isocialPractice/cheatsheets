@@ -1375,7 +1375,7 @@ how the 75 steps are divided, and both totals hold:
 | Panel column | 64 steps | 67 | the rail and the right margin |
 | Right margin | 6 steps | 5 | to the panel |
 
-So the sheet is a narrower green rail beside a wider panel, with a step more
+So the sheet is a narrower amber rail beside a wider panel, with a step more
 code field than the artwork has, and a mark square that narrows with the rail to
 five steps so the footer reads as the same sheet as the panel above it.
 
@@ -1497,6 +1497,14 @@ a figure edited in one and not the other fails rather than drifts. It also holds
 the two rules this section states rather than measures - that every composition
 carries the recorded floors, and that a composition drawn after the mechanism
 landed is not one an earlier set already used.
+
+It reads one thing here that is not a figure, and that one was added because
+figures are all the rest of it reads: where a section of this record says in
+prose what colour the accent draws - the rail or spine, the divider, the rules
+flanking the title - the word has to be the word for that section's own
+accent. A paragraph written by editing another composition's arrives carrying
+that composition's word, and every table either side of it can be right while
+the sentence is wrong.
 
 ## Graphics
 

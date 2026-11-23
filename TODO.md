@@ -26,27 +26,6 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
 
-### UI/UX Override - the redrawn javascript-general sheets
-
-#### Found Issues
-
-- [ ] The design language calls this set's rail green where the set draws it amber
-  - **Issue**: In `DESIGN_LANGUAGE.md`, under `### javascript-general: amber on
-    indigo, titled`, the grid paragraph reads "So the sheet is a narrower green
-    rail beside a wider panel". The same section's palette table gives the
-    accent as `#F2A33C` and says "The accent moves from green to amber", and the
-    rail is drawn amber: it samples `#F2A33C` at x 2, y 3200 on all nine sheets,
-    against `#4DAE51` on the eleven the recorded composition draws. The word is
-    a carry-over from the recorded composition's description, and the line
-    carrying it was rewritten this turn, so a reader of the section that defines
-    the amber set is told its rail is green.
-  - **Goal**: In that sentence only, write "a narrower amber rail" for "a
-    narrower green rail". The theme's role token stays named `green` - it is the
-    accent slot, not a colour claim - so nothing in `compositions.mjs` or
-    `theme.mjs` changes, and `tools/test-set-compositions.mjs` holds the value
-    already.
-  - From: UI/UX Override - the redrawn javascript-general sheets
-
 ### Create and Deploy GitHub Pages Override
 
 ## GitHub Pages Deployment
@@ -2448,5 +2427,21 @@ generate ideas about generating ideas.
   - **Issue**: nothing in the suite can see either defect above. `tools/test-set-compositions.mjs` passes 47 of 47 on the new composition because it measures the record, and both defects are in what an engine does with that record - a glyph collision and a raster's letterbox. The check that found them is at `.tmp/ui-ux-11-21/sheet-set-composition.mjs`, which is gitignored scratch and runs only when this agent runs
   - **Goal**: once both fixes land, rewrite that file to the conventions of `tools/test-*-browser.mjs` - the `loadChromium` resolution and per-engine skip the folder already uses, the `node:http` server on an ephemeral port from `tools/test-sheet-accent-arrival-browser.mjs`, no screenshots, no project dependency - and commit it as `tools/test-set-composition-browser.mjs`. It should assert, over every sheet naming a composition: that no two display runs' ink shares a column, measured off the raster rather than off `getBBox`; that the footer strip's drawn left edge sits on the trim with the divider; that the title leads the wordmark and is drawn at one cap across the set; and that panel top, left inset and line spacing stay inside the set's own `panelFreedom`
   - From: UI/UX Override - the third set composition on the page
+- [x] The design language calls this set's rail green where the set draws it amber
+  - **Issue**: In `DESIGN_LANGUAGE.md`, under `### javascript-general: amber on
+    indigo, titled`, the grid paragraph reads "So the sheet is a narrower green
+    rail beside a wider panel". The same section's palette table gives the
+    accent as `#F2A33C` and says "The accent moves from green to amber", and the
+    rail is drawn amber: it samples `#F2A33C` at x 2, y 3200 on all nine sheets,
+    against `#4DAE51` on the eleven the recorded composition draws. The word is
+    a carry-over from the recorded composition's description, and the line
+    carrying it was rewritten this turn, so a reader of the section that defines
+    the amber set is told its rail is green.
+  - **Goal**: In that sentence only, write "a narrower amber rail" for "a
+    narrower green rail". The theme's role token stays named `green` - it is the
+    accent slot, not a colour claim - so nothing in `compositions.mjs` or
+    `theme.mjs` changes, and `tools/test-set-compositions.mjs` holds the value
+    already.
+  - From: UI/UX Override - the redrawn javascript-general sheets
 
 </details>

@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> 17 earlier entries in `CHANGELOG-2026.md`, newest first.
+> 18 earlier entries in `CHANGELOG-2026.md`, newest first.
 
 ## The versioning changed on 2026.11.02
 
@@ -38,6 +38,54 @@ design language was measured, how the catalog was built and how the API was
 written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
+
+## [1.0.0-alpha.1.13.2]
+
+The word `green` in the section that defines the amber set, and the reason
+nothing in 47 cases over that section noticed it.
+
+A patch, and for a plainer reason than the two before it: a reader of the
+record was told the wrong colour for one sheet element. No published surface
+moves, nothing a caller writes against changes shape, and no sheet is drawn
+differently. What is new is that the record's prose is now read against the
+composition, where before only its tables were.
+
+### Fixed
+
+- **The third composition's record calls its rail amber, which is the colour
+  it is drawn in.** Under `### javascript-general: amber on indigo, titled` in
+  `DESIGN_LANGUAGE.md`, the paragraph that divides the 75 steps closed on *"So
+  the sheet is a narrower green rail beside a wider panel"*. The rail is the
+  spine, the spine is painted the `green` role, and that role is `#F2A33C` in
+  this composition - so the one sentence a reader of that section reaches for
+  to know what the sheet looks like named the colour of a different set. The
+  word is a carry-over: the paragraph was written by editing the recorded
+  composition's, where the rail is `#4DAE51` and *green* is right. The role
+  token keeps its name, since it is the accent slot rather than a claim about a
+  hue, so `api/cheatsheet/compositions.mjs` and `api/cheatsheet/theme.mjs` are
+  untouched and the palette table in the same section already gave the hex.
+
+### Added
+
+- **`tools/test-set-compositions.mjs` reads the record's prose where it says
+  what the accent draws.** Every case in that file compares a figure against a
+  table, which is why all 47 passed over a section whose palette table was
+  right and whose paragraph was wrong: a table holds the hex and a paragraph
+  holds the word, and nothing read the word. The new case takes each region of
+  the record that has an accent of its own - everything above `## Set
+  compositions` for the recorded composition, and each set composition's own
+  record section - and holds every accent word the record attaches to a shape
+  the accent fills, the rail or spine, the divider and the rules flanking the
+  title, to that region's own accent. The word for a set composition comes from
+  its title, which already states it; the recorded composition's is the palette
+  role's own name, which is the one composition where the token and the colour
+  are the same string. A backticked `green` is skipped, being the role every
+  composition carries. The words it looks for are the accents the repository
+  has, because a carry-over can only bring a word that is already one of them,
+  and it asserts that both regions were matched, so a pattern gone stale
+  against how the record words these sentences cannot report a clean record it
+  never read. Against the sentence as it stood it fails with *`javascript-general:
+  a green rail, where its accent is amber`*.
 
 ## [1.0.0-alpha.1.13.1]
 
@@ -4001,93 +4049,3 @@ fold it in, which this is.
   Seven of the nine new cases need no browser; the two that do are the reserved
   box measured while the document is still in flight, and the abandoned
   selection above.
-
-## [2026.09.23]
-
-### Added
-
-- **`tools/build-manifest.mjs`, the catalog pipeline.** A dependency free Node
-  script that walks the cheatsheet tree and writes `cheatsheets.json` at the
-  repository root. A folder holding `sheet.json` is a cheatsheet and nothing
-  else marks one; `meta.json` at each level carries the human readable title
-  and the order, so no display text is ever reverse engineered out of a path.
-  The payload is detected by extension and recorded as a path the page can
-  fetch.
-
-  Every document is actually composed, through `api/cheatsheet/`, and the
-  composition's own width and height go into the manifest. That is what the
-  page reserves before it composes into it, which is the job the image
-  element's `width` and `height` did while a sheet was still a file the page
-  fetched. A document the API refuses stops the build rather than being written
-  without its box: a manifest that quietly omitted one entry's dimensions would
-  ship exactly the layout shift the dimensions exist to prevent.
-
-  The file is committed rather than built when the site deploys, so a local
-  `php -S localhost:8000` still needs no Node. It carries no generation
-  timestamp, for a narrower reason: `--check` compares the committed bytes
-  against freshly generated output, and a timestamp would fail that comparison
-  every run on a tree nobody had touched.
-- **`--check`, the same walk as a gate.** It exits non zero on a missing,
-  unparsable or invalid `sheet.json` or a missing title; a `kind` that
-  contradicts what is in the folder; a path segment that is not lower case
-  kebab ASCII, or a payload whose on disk casing differs byte for byte from
-  what the document named; a cheatsheet sitting less than two levels below the
-  root, having no category to be listed under; a duplicate id; a composition
-  that will not fit its own margins; an
-  unreferenced file or folder in a cheatsheet folder; a level holding a
-  cheatsheet and no title of its own; and a `cheatsheets.json` that differs
-  from freshly generated output.
-
-  The casing rule is the one that earns the gate. Pages serves from a case
-  sensitive filesystem while the work happens on Windows, so a mismatch
-  resolves on the machine that made it and 404s only in production. Every path
-  the manifest records comes from `readdir` rather than from what a file said
-  it was called, and a payload a document names by hand is resolved a segment
-  at a time against a real listing: `Src/example.js` is the same failure one
-  folder up as `Example.js` is in the folder itself, and a stat would confirm
-  both on Windows. A payload that climbs out of its own folder is refused
-  before any of that, since what the manifest hands the page to fetch is
-  inside the cheatsheet.
-
-  The unreferenced rule covers folders for the same reason it covers files.
-  The walk stops descending at a cheatsheet folder, so a subfolder is the one
-  place no other rule looks, and a `sheet.json` inside one is not a second
-  cheatsheet. Only `demo/` and the folder a named payload sits in are expected
-  there.
-
-  Two of the rules are deliberately not what they could have been. A sparse
-  code panel is a **warning** and not a failure: a short cheatsheet is inside
-  every margin, it is just emptier than the eleven measured sheets were, and
-  failing it would refuse a short sheet for being short. And `sheet.*` is
-  reserved in a cheatsheet folder, so `sheet.json` is the document while
-  `sheet.webp`, `sheet.png`, `sheet.jpg` and `sheet.svg` are renders the
-  unreferenced rule lets through by name. Naming them is what makes that rule
-  give one answer everywhere - a render is untracked, so a rule that asked git
-  what was committed would pass on the machine that rendered it and fail on the
-  runner.
-- **The Pages deploy waits on the check.** `.github/workflows/pages.yml` gained
-  a `manifest` job that runs `node tools/build-manifest.mjs --check`, and
-  `build` now carries `needs: manifest`, so a broken catalog cannot publish.
-  The job installs nothing: the script imports Node builtins and relative paths
-  only, which is the same no-build-step constraint the port was written under,
-  and `tools/test-build-manifest.mjs` holds both halves of that - no install
-  step in the workflow, and no bare specifier in the script.
-- `cheatsheets.json`, committed. It is empty today, because no folder holds a
-  `sheet.json` until the eleven array examples are migrated to
-  `javascript/arrays/`. An empty catalog is a state the pipeline handles rather
-  than a gap: it is what `--check` runs against on every push until then.
-- 51 cases in `tools/test-build-manifest.mjs`, covering the walk, the manifest
-  shape and its determinism, payload detection, all nine check rules, the
-  command line, the repository's own tree, and the workflow wiring. The last of
-  those is the easiest thing to lose: a job can be added, pass on every push,
-  and gate nothing at all, because nothing downstream needs it.
-
-### Changed
-
-- `README.md` gained a **The Catalog** paragraph, naming the convention, the
-  two commands and when to regenerate.
-- **Raster Export and Example Images** in `TODO.md` now records where a render
-  goes, which is the question the `--check` item asked it. The render is named
-  as expected output rather than written outside the folder, and `<name>` is
-  `sheet` for a cheatsheet folder, which is what `.claude/constants.md` already
-  expects of `<category>/<cheatsheet>/sheet.webp`.

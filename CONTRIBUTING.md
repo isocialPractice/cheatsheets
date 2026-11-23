@@ -543,7 +543,11 @@ has a consequence a contributor meets:
   line count that fills the set's panel - 20 to 26 lines for
   `javascript-general` - rather than to whatever length the example came out at.
 - **Two checks, because a correct record is not a correct sheet.** The first
-  reads the record against `DESIGN_LANGUAGE.md`; the second composes every sheet
+  reads the record against `DESIGN_LANGUAGE.md` - every figure, and, since
+  `1.0.0-alpha.1.13.2`, the one thing in that record that is not a figure: where
+  a section says in prose what colour its accent draws, the word has to be its
+  own accent's rather than the word a paragraph copied from another
+  composition's record brought with it. The second composes every sheet
   naming a composition in a real engine and measures what was drawn. It passed
   47 of 47 against the third composition on the day that composition shipped
   with a glyph collision and a letterboxed footer raster in it, and it was right
