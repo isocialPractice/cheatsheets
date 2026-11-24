@@ -17,14 +17,30 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
 
 ## Current
 
-- [ ] Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
+- [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
   - Create `4` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
-- [ ] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
-  - Create `3` new cheatsheets, each with a different area of focus for the subject
+- [ ] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
+
+### UI/UX Override - the fourth composition and the four JS Elements demos
+
+#### Resolve Issues
+
+- [ ] Demo Narration 1
+  - **Issue**: two of the demos the **JS Elements** item delivered print a line the document does not bear out, and the suite cannot see either because `tools/test-demo-pages-browser.mjs` frames every demo at one width and presses each control once. **Measuring and Styling**: `#panel` carries `max-width: 100%`, so past the body's content box the used width stops following the write, while `#grow` keeps reading `before` off the clamped box - at a 390px viewport (frame inner 356px, content box 308px) press 2 reports `width 296.00px then 308.00px` under `the write landed: "312px"`, and from press 3 it freezes at `width 308.00px then 308.00px` with the inline width stuck at `324px`, still printing "each read after a write lays the page out again"; at 320px it is wrong on the first press. 1400px and 768px are clean through six presses, and `#restore` still recovers the panel, so it is the narration that is false rather than the page that is broken. **Creating and Inserting**: `#markup` hardcodes `child element`, so press 2 reads `and holds 2 child element`
+  - **Goal**: Resolve to [js-elements-demo-narration.prompt.md](.claude/prompts/js-elements-demo-narration.prompt.md)
+  - From: New Cheatsheets `->` JavaScript
+
+#### Found Issues
+
+- [ ] Press the framed demos twice, and at the narrow frame width, in `tools/test-demo-pages-browser.mjs`
+  - **Issue**: the framed pass fixes `FRAME_BOX = { width: 736, height: 672 }`, walks the controls once each, and asserts only that a press wrote something into the log. Both defects above sit outside that: one needs the 288px frame the page's own CSS produces below its 768px breakpoint, the other needs a second press. The readings that found them are in `.tmp/ui-ux-11-24/`, gitignored scratch that runs only when this agent runs
+  - **Goal**: frame every demo at 288px as well as 736px and press every control twice at each, then assert no press leaves the log contradicting the document - for **Measuring and Styling** that the width a line says landed is the width `#panel` measures within half a pixel, or the line names the clamp; and generally that a line reporting a count agrees with the count in the document, which is what catches the plural. Keep the file's own conventions: the `loadChromium` resolution and per-engine skip, the `node:http` server on an ephemeral port, no screenshots, no project dependency
+  - From: UI/UX Override - the fourth composition and the four JS Elements demos
 
 ### Create and Deploy GitHub Pages Override
 
@@ -248,8 +264,9 @@ category to exist and then for a second subject going into one.
 **Intent**: give the repository the records the automation and a reader both
 expect to find.
 
-What is left here is one standing constant nothing can currently follow, whose
-fix is outside this repository. Measured again on 2026.11.02: every
+What is left here is two items whose fix is outside this repository: a standing
+constant nothing can currently follow, and a trailer the rule for it asks a
+committer to add that no commit carries. Measured again on 2026.11.02: every
 `cross-os-social` call, `--version` included, still exits with `The build is
 older than the source it came from`. `doctor`, the drift check and
 `run --dry-run` have all been attempted on 2026.10.15, 2026.10.27 and
@@ -276,6 +293,12 @@ The walk now sweeps what the command sweeps and `.gitignore` answers what the
 repository owns rather than what is in the suite, with a third case failing on
 any discovered file that is a working artifact and naming the remedy.
 
+- [ ] Get the drawing commit's `Co-Authored-By` trailer actually written
+  - **Issue**: measured 2026.11.24, and it is the one half of **What "collaborator" means here** nothing closed. That section settles the text - `Co-Authored-By: graphic-designer <noreply@anthropic.com>` - and says whoever writes the commit adds it, "a contributor committing by hand, or the automation that commits on a run's behalf". `git log --grep=graphic-designer -i` returns **0 commits**, which is the same figure the section was written to fix on 2026.11.02: the commit that created the nine `javascript-general` sheets on 2026.11.21 carries no trailer, and neither will the one carrying the seven of `javascript-elements`. So 44 sheet documents have been drawn and credited nowhere
+  - **Goal**: give the automation somewhere to put it, or record that it will not have one. `.claude/commit-mode.request` is two lines, a mode and a description, with nowhere to carry a trailer - which `CONTRIBUTING.md` already says - so a run cannot close this from inside this repository however the rule is worded. Either the commit step gains a trailer it adds when the run's diff creates or rewrites a `sheet.json`, or the constant and the CONTRIBUTING section are rewritten to say the trailer is a hand committer's and the automation's commits carry none. The second is a smaller change and is honest; the first is what the section as written promises
+  - Filed here rather than as a found issue under `## Current` for the reason the item below it is, and it is the same reason: the fix is outside this repository, so an override header carrying it would suppress the regular queue every run until someone changed a tool this repository does not own
+  - `tools/test-drawing-credit.mjs` is not what is short. It holds the trailer's exact text against the section, refuses the collaborator reading, and fails any queued item that lists adding the collaborator among its own steps - all three of which pass. What it cannot read is the commit log, because a test that failed on the trailer's absence would fail on every clone before the commit it is about was written
+  - From: version.control = null
 - [ ] Settle the `## Social Media Posting` constant, which nothing can currently follow
   - **Issue**: measured 2026.10.15. The rule asks every run to record this session's routes with `cross-os-social doctor --workspace mcp-todo --json`, and to check the recipe for drift before drafting. Every command, `--version` included, exits with `The build is older than the source it came from, so this would run the previous behaviour without saying so. Run \`npm run build\` first.` The shim on `PATH` resolves to the globally linked `cross-os-automation-mcp`, so the stale build is in that package and not in this repository
   - **Goal**: rebuild that package, then confirm from here that `doctor` reports `availableDrives` and that `recipes --from .claude/constants.md --heading "Recipe: cheatsheet-post" --json` reports `drift.differs`. If the toolbox is not going to be rebuilt, turn the constant off instead - a standing rule no run can follow is worse than no rule, because each run spends a step discovering it again
@@ -459,22 +482,51 @@ one batch, and it means an example of 20 to 26 lines composes clean while 28
 does not. Write the example to that rather than to whatever length it came out
 at.
 
+**Its next two subjects landed together on 2026.11.24** - **JS Elements** as
+four cheatsheets and **JS Math** as three - and they are the second batch here
+and so the second set. Their composition is `javascript-elements`, cyan on slate
+with the masthead receding, and three further things they settled hold for every
+item left in this section.
+
+**Each set has a line-count window of its own, and the window is its top
+padding's doing.** `javascript-elements` composes clean at 19 to 24 rows where
+`javascript-general` does at 20 to 26, because this one sets its top padding at
+2.5 to 3 steps against the third's 2 to 2.5 - and the two bounds of a window are
+where the fill floor stops being reachable and where the spacing floor is
+crossed, so a padding that moves moves both. Measure a new set's window by
+composing a document at each length and reading `variation.notes`; do not carry
+the set before it over.
+
+**The `javascript` category now carries `embed` payloads.** The four **JS
+Elements** sheets are the first, so a sheet here may bring a `demo/index.html`
+and is then held by `tools/test-demo-pages-browser.mjs` to the seven claims a
+demo answers - directly and again inside the sandbox the page frames one in.
+**What a demo may rely on** in `CONTRIBUTING.md` is the brief; the frame's two
+fixed heights are recorded there too, and a demo added since they were measured
+is measured against them rather than reopening them.
+
+**A check that names a treatment is held per set.** Which display run leads a
+scale is the composition's decision, so `tools/test-set-composition-browser.mjs`
+reads the order off the set's own scale and `tools/test-set-compositions.mjs`
+carries one entry per composed set naming the claim that set's factors make. A
+new set adds that entry, and reads its own record section rather than a heading
+looked up across the whole document - two sections head their palette table with
+the same words.
+
 **Every sheet here is held to the `javascript` per-line role rule**, by
 `tools/test-javascript-sheet-roles.mjs`, which is new and was the gap this batch
 found: `tools/test-sheet-syntax-roles.mjs` reads `html-css` only, and the rule
 belongs to a language. The eleven `javaScriptArrays` sheets are the one
 exemption on record, because they transcribe artwork that predates the mapping.
 
-The rest of the section follows in the order below. **Control flow and the
-object model are deliberately not in the overview** - they are **JS Statements**
-and **JS Objects**, which are items of their own further down.
+**JS Statements** and **JS Objects** were queued into `## Current` on
+2026.11.24 and are no longer listed below: control flow and the object model
+were deliberately kept out of the overview, so each is a subject of its own, and
+the two are taken as one batch for the reason every batch here is taken as one -
+nine sheets is a set, and a set is one composition.
 
-- [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
-  - Create `4` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
-- [ ] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
-  - Create `5` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
+The rest of the section follows in the order below.
+
 - [ ] Add the **JS DOM** cheatsheet at `javascript/dom/`, `kind: embed`
   - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
@@ -2443,5 +2495,13 @@ generate ideas about generating ideas.
     `theme.mjs` changes, and `tools/test-set-compositions.mjs` holds the value
     already.
   - From: UI/UX Override - the redrawn javascript-general sheets
+- [x] **Demo Narration**: Add the **JS Elements** cheatsheet at `javascript/elements/`, `kind: embed`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
+- [x] Add the **JS Math** cheatsheet at `javascript/math/`, `kind: run`
+  - Create `3` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
 
 </details>
