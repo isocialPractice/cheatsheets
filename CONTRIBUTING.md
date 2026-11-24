@@ -518,12 +518,12 @@ own `sheet.json`, as `composition`, by the id
 
 | | |
 | --- | --- |
-| What a composition is, and the three the repository holds | **Set compositions** in `DESIGN_LANGUAGE.md` |
+| What a composition is, and the ones the repository holds | **Set compositions** in `DESIGN_LANGUAGE.md` |
 | Where the ids live | `api/cheatsheet/compositions.mjs` |
 | What holds a set to its record | `tools/test-set-compositions.mjs` |
 | What holds a set to what an engine draws from it | `tools/test-set-composition-browser.mjs` |
 
-Four things about it are worth knowing before writing a sheet, because each
+Five things about it are worth knowing before writing a sheet, because each
 has a consequence a contributor meets:
 
 - **A composition is a design language record**, and its theme and layout are
@@ -541,20 +541,40 @@ has a consequence a contributor meets:
   composition narrows them so its own sheets sit beside each other without one
   looking mis-set. A sheet written for a set should therefore be written to the
   line count that fills the set's panel - 20 to 26 lines for
-  `javascript-general` - rather than to whatever length the example came out at.
+  `javascript-general`, 19 to 24 for `javascript-elements` - rather than to
+  whatever length the example came out at. **Each set has its own window and
+  the window is its top padding's doing**: the two bounds are where the fill
+  floor stops being reachable and where the spacing floor is crossed, so a
+  composition that moves its padding moves both. Measure it rather than
+  assuming the set before it, by composing a document of each length and
+  reading `variation.notes`.
+- **A treatment is the set's own, so a check that names one is held per set.**
+  Which display run leads the scale is the composition's decision - the
+  recorded composition leads with the brand wordmark, `javascript-general` with
+  the title, `javascript-elements` with nothing much - and the two checks below
+  read the ordering off the set's own scale rather than holding every set to
+  one. `tools/test-set-compositions.mjs` carries a `TREATMENT` entry per
+  composed set naming the claim its factors are chosen to make, and a new set
+  adds one: without it the case fails rather than passing a scale whose
+  treatment nothing states.
 - **Two checks, because a correct record is not a correct sheet.** The first
   reads the record against `DESIGN_LANGUAGE.md` - every figure, and, since
   `1.0.0-alpha.1.13.2`, the one thing in that record that is not a figure: where
   a section says in prose what colour its accent draws, the word has to be its
   own accent's rather than the word a paragraph copied from another
-  composition's record brought with it. The second composes every sheet
-  naming a composition in a real engine and measures what was drawn. It passed
-  47 of 47 against the third composition on the day that composition shipped
-  with a glyph collision and a letterboxed footer raster in it, and it was right
-  to: both were in what an engine does with figures that were themselves
-  correct. The browser case is where a new set finds out whether its type
-  collides at the cap it chose and whether its brand slots have the aspect their
-  rasters need.
+  composition's record brought with it. **It reads a composition's
+  figures inside that composition's own record section**, since `1.0.0-alpha.1.14.0`:
+  two sections head their palette table with the same words, so a heading
+  looked up across the whole document would check the fourth composition's
+  palette against the third's table and report it correct.
+
+  The second composes every sheet naming a composition in a real engine and
+  measures what was drawn. It passed 47 of 47 against the third composition on
+  the day that composition shipped with a glyph collision and a letterboxed
+  footer raster in it, and it was right to: both were in what an engine does
+  with figures that were themselves correct. The browser case is where a new set
+  finds out whether its type collides at the cap it chose and whether its brand
+  slots have the aspect their rasters need.
 
 ### What a `kind: embed` demo may rely on
 
@@ -598,13 +618,21 @@ A demo that throws instead shows a reader nothing. Under the frame the page
 offers a link to the same demo in its own tab, which is where a reader goes for
 the half the sandbox withholds.
 
-**Fit the frame.** Its height is fixed, measured from all five committed demos
-at every width the page can give them: **672px** on the wide layout, where the
-frame is 736px across at its narrowest, and **832px** below the 768px
-breakpoint, where it narrows to 288px on the smallest phone. Both are the
-tallest demo rounded up to the page's 8px step. A taller demo scrolls inside the frame rather than
-being clipped, which is the fallback and not the intention - a demo that needs
-more room is better split than scrolled.
+**Fit the frame.** Its height is fixed, measured from the five demos that
+existed when it was fixed, at every width the page can give them: **672px** on
+the wide layout, where the frame is 736px across at its narrowest, and
+**832px** below the 768px breakpoint, where it narrows to 288px on the smallest
+phone. Both are the tallest demo rounded up to the page's 8px step. A taller
+demo scrolls inside the frame rather than being clipped, which is the fallback
+and not the intention - a demo that needs more room is better split than
+scrolled.
+
+**A demo added since is measured against those two heights rather than
+reopening them.** The four of **JS Elements**, committed 2026.11.24, reach 514px
+wide and 753px narrow at their tallest, both inside the figures, so
+`element-observers` is still the demo that set them. Measure a new demo the same
+way before committing it, and say so where the figures are recorded if it is
+ever the tallest.
 
 `node --test tools/test-example-selection.mjs` holds all of it: the grant, that
 the markup ships no frame for a `src` to be rewritten on, that an `embed` sheet

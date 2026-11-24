@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attributes and Properties</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ .field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--edge);
+  border-radius: 6px;
+ }
+ input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ .is-open { text-decoration: underline; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 6rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Attributes and Properties</h1>
+<p>
+ Click the box yourself between presses. The property follows what you did and
+ the attribute stays where the markup left it, which is the whole distinction.
+</p>
+<div class="field">
+ <input type="checkbox" id="terms">
+ <label for="terms">I have read the terms</label>
+</div>
+<div class="row">
+ <button id="attribute">Set the attribute</button>
+ <button id="property">Move the property</button>
+ <button id="data">Write a data-* value</button>
+ <button id="classes">Edit the class list</button>
+ <button id="boolean">Toggle disabled</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+ const box = document.querySelector("#terms");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * Built and filled with `textContent` rather than interpolated into markup.
+  * Most of what is reported here is read back off an attribute, which is to
+  * say off the markup, and markup read back into markup is the one shape this
+  * demo must not take.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /** Both readings of the same fact, which is what there is to see. */
+ function both() {
+  report(`attribute: ${JSON.stringify(box.getAttribute("checked"))}`);
+  report(`property: ${box.checked}`);
+ }
+
+ document.querySelector("#attribute").addEventListener("click", () => {
+  log.textContent = "";
+  // The attribute is the markup's starting value, and a checkbox takes that
+  // start value until something writes the live one: the dirty checkedness
+  // flag is false until a click or a `.checked` write sets it, and while it is
+  // false adding the attribute still initialises the property. So which of the
+  // two things this control shows depends on whether the box has been touched
+  // yet, and it reports the case the reader is actually looking at.
+  const before = box.checked;
+  box.setAttribute("checked", "");
+  both();
+  if (box.checked === before) {
+   report("the attribute is the start value, so the box did not move");
+  } else {
+   warn("the box had not been touched yet, so the start value still set it");
+   report("press again, or click the box first, and the attribute stops following");
+  }
+ });
+
+ document.querySelector("#property").addEventListener("click", () => {
+  log.textContent = "";
+  // The property is the live state, which is what a reader sees and what a
+  // form submits.
+  box.checked = !box.checked;
+  both();
+  report("the property moved the box, and the attribute did not follow");
+ });
+
+ document.querySelector("#data").addEventListener("click", () => {
+  log.textContent = "";
+  // `dataset` camel cases the name and the attribute keeps the dashes. An
+  // unknown property, by contrast, is set on the object and reaches no markup.
+  box.dataset.rowId = "7";
+  box.rowCount = 3;
+  report(`dataset.rowId: ${JSON.stringify(box.dataset.rowId)}`);
+  report(`data-row-id: ${JSON.stringify(box.getAttribute("data-row-id"))}`);
+  report(`rowCount: ${box.rowCount}, as an attribute: ${box.hasAttribute("rowcount")}`);
+ });
+
+ document.querySelector("#classes").addEventListener("click", () => {
+  log.textContent = "";
+  // `classList` edits one entry. Writing `className` would rewrite the lot,
+  // which is how a class another stylesheet put there disappears.
+  box.classList.add("is-open");
+  const still = box.classList.toggle("is-open");
+  report(`class attribute: ${JSON.stringify(box.getAttribute("class"))}`);
+  report(`toggle returned ${still}, so the class is ${still ? "on" : "off"}`);
+ });
+
+ document.querySelector("#boolean").addEventListener("click", () => {
+  log.textContent = "";
+  // A boolean attribute is present or absent. `setAttribute("disabled",
+  // "false")` sets it, which is the trap this control is here for.
+  const on = box.toggleAttribute("disabled");
+  report(`disabled attribute present: ${box.hasAttribute("disabled")}`);
+  report(`disabled property: ${box.disabled}`);
+  if (on) {
+   report("absent is the only way to say no, so a \"false\" value would still disable it");
+  } else {
+   warn("the attribute is gone, which is the only off there is");
+  }
+ });
+</script>
+</body>
+</html>
