@@ -527,7 +527,27 @@ for (const set of SETS) {
     await context.close();
   });
 
-  test(`${set.id}: the title leads the wordmark, at one cap across the set`, { skip }, async () => {
+  test(`${set.id}: the display runs are drawn in its own order, at one cap across the set`, { skip }, async () => {
+    // **Which run leads is the set's to say, and until 2026.11.24 this case
+    // said it.** It asserted that the title leads the wordmark, which is the
+    // third composition's treatment and not a property of a composition: the
+    // fourth brings the masthead down to second and leaves the title third,
+    // as the artwork has it, so a case holding every set to one ordering
+    // failed a correct composition for being a different design.
+    //
+    // What generalises is that the drawn sizes follow the set's **own** scale.
+    // A run stepped down to fit its measure, or a scale that reached the page
+    // half applied, breaks that whatever the ordering is - and the ordering is
+    // then read off `theme.scale` rather than written down here, so a fifth
+    // set is covered by existing.
+    const scale = compositionNamed(set.id).theme.scale;
+    /** The two runs whose size the page carries, with the role each is set at. */
+    const SIZED = [
+      { key: "wordmark", role: "masthead" },
+      { key: "title", role: "title" },
+      { key: "subtitle", role: "leadIn" },
+      { key: "leadIn", role: "leadIn" },
+    ];
     const { context, page } = await openPage();
     const caps = [];
     for (const sheet of set.sheets) {
@@ -539,11 +559,25 @@ for (const set of SETS) {
         assert.ok(run, `${sheet.slug}: ${name} is drawn`);
         assert.ok(run.text?.trim().length, `${sheet.slug}: ${name} carries text`);
       }
-      assert.ok(
-        m.runs.title.fontSize > m.runs.wordmark.fontSize,
-        `${sheet.slug}: the title (${m.runs.title.fontSize}) does not lead the wordmark ` +
-          `(${m.runs.wordmark.fontSize})`
-      );
+      // Pairwise, because a size in the DOM is a font size and a cap in the
+      // scale is a cap height: the two are a fixed share apart, so they can be
+      // compared for order and not for value.
+      const wrong = [];
+      for (const one of SIZED) {
+        for (const other of SIZED) {
+          if (one.key === other.key) continue;
+          const drawn = Math.sign(m.runs[one.key].fontSize - m.runs[other.key].fontSize);
+          const recorded = Math.sign(scale[one.role].cap - scale[other.role].cap);
+          if (drawn !== recorded) {
+            wrong.push(
+              `${one.key} (${m.runs[one.key].fontSize}) against ${other.key} ` +
+                `(${m.runs[other.key].fontSize}), where the scale sets ${one.role} ` +
+                `${scale[one.role].cap} and ${other.role} ${scale[other.role].cap}`
+            );
+          }
+        }
+      }
+      assert.deepEqual(wrong, [], `${sheet.slug}: a display run is not drawn in the order its scale sets`);
       caps.push({ slug: sheet.slug, size: m.runs.title.fontSize });
     }
 

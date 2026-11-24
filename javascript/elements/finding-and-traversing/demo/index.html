@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finding and Traversing</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ form {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--edge);
+  border-radius: 6px;
+ }
+ .line { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+ .line + .line { margin-top: 0.5rem; }
+ input, select {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+  max-width: 9rem;
+ }
+ input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ .found { border-color: var(--accent); }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 6rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Finding and Traversing</h1>
+<p>
+ The form below is the tree every control reads. Nothing here changes it, so
+ each answer is about where a node sits rather than about what it holds.
+</p>
+<form class="signup" action="#" novalidate>
+ <div class="line" data-row="name">
+  <label for="who">Name</label>
+  <input id="who" name="who" value="Jane Doe">
+ </div>
+ <div class="line" data-row="plan">
+  <label for="plan">Plan</label>
+  <select id="plan" name="plan">
+   <option>Monthly</option>
+   <option>Yearly</option>
+  </select>
+  <input id="code" name="code" value="DEMO" disabled>
+ </div>
+</form>
+<div class="row">
+ <button id="first">First match</button>
+ <button id="all">Every match</button>
+ <button id="up">Closest row</button>
+ <button id="asks">Ask without moving</button>
+ <button id="kids">Children or nodes</button>
+ <button id="none">Match nothing</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+ const form = document.querySelector("form.signup");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * Built and filled with `textContent`, as every demo in this repository does
+  * it: a line here carries a node's own id, tag name or value, none of which
+  * is this page's text to parse as markup.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /** The accent outline, kept to one node at a time. */
+ function mark(node) {
+  for (const seen of form.querySelectorAll(".found")) seen.classList.remove("found");
+  if (node) node.classList.add("found");
+ }
+
+ document.querySelector("#first").addEventListener("click", () => {
+  log.textContent = "";
+  // The first match in tree order, which is not the first in the selector.
+  const field = form.querySelector("select, input");
+  mark(field);
+  report(`matched ${field.tagName} #${field.id}`);
+  report("tree order decides it, not the order inside the selector");
+ });
+
+ document.querySelector("#all").addEventListener("click", () => {
+  log.textContent = "";
+  // A static list. Adding a field after this line would not join it, which is
+  // the difference from `getElementsByTagName`.
+  const fields = form.querySelectorAll("input, select");
+  const added = document.createElement("input");
+  form.append(added);
+  report(`matched ${fields.length}: ${[...fields].map((field) => field.id).join(", ")}`);
+  report(`a field added after the call joins the list: ${fields.length > 3}`);
+  added.remove();
+ });
+
+ document.querySelector("#up").addEventListener("click", () => {
+  log.textContent = "";
+  const field = form.querySelector("#code");
+  // `closest` starts at the node itself and walks up, so a node that matches
+  // its own selector is its own answer.
+  const row = field.closest("[data-row]");
+  mark(row);
+  report(`from #${field.id} up to the row ${JSON.stringify(row.dataset.row)}`);
+  report(`the node itself counts: ${row.closest("[data-row]") === row}`);
+ });
+
+ document.querySelector("#asks").addEventListener("click", () => {
+  log.textContent = "";
+  // The same question as a selector, asked of one node, answered without
+  // moving anywhere.
+  const fields = [...form.querySelectorAll("input, select")];
+  const disabled = fields.filter((field) => field.matches(":disabled"));
+  mark(disabled[0] ?? null);
+  report(`${disabled.length} of ${fields.length} match :disabled`);
+  report(`#${fields[0].id} matches :disabled: ${fields[0].matches(":disabled")}`);
+ });
+
+ document.querySelector("#kids").addEventListener("click", () => {
+  log.textContent = "";
+  // `children` are elements. `childNodes` count the whitespace between them,
+  // which is why the two never agree on a document written by hand.
+  report(`children: ${form.children.length}`);
+  report(`childNodes: ${form.childNodes.length}`);
+  const kinds = new Set([...form.childNodes].map((node) => node.nodeName));
+  report(`node names among them: ${[...kinds].join(", ")}`);
+ });
+
+ document.querySelector("#none").addEventListener("click", () => {
+  log.textContent = "";
+  const missing = form.querySelector("#nowhere");
+  mark(null);
+  // `null`, not an error and not an empty list. A call chained onto this is
+  // where the error would be.
+  if (missing === null) {
+   report("querySelector returned null rather than throwing");
+  } else {
+   warn("something matched #nowhere, which this page does not hold");
+  }
+  report(`querySelectorAll gives an empty list instead: ${form.querySelectorAll("#nowhere").length}`);
+ });
+</script>
+</body>
+</html>

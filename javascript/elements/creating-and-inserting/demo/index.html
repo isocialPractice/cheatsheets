@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Creating and Inserting</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ ul {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem 0.5rem 2rem;
+  border: 1px dashed var(--edge);
+  border-radius: 6px;
+  min-height: 2rem;
+ }
+ li { font: 0.875rem/1.6 ui-monospace, monospace; }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 6rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Creating and Inserting</h1>
+<p>
+ Watch the list as well as the panel. A node built here is in no document until
+ something attaches it, and attaching one twice moves it rather than copying it.
+</p>
+<div class="row">
+ <button id="one">Append one</button>
+ <button id="batch">Append a batch</button>
+ <button id="markup">Insert markup</button>
+ <button id="move">Move the first</button>
+ <button id="reset">Empty the list</button>
+</div>
+<ul id="basket" aria-label="the list the controls build"></ul>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+ const list = document.querySelector("#basket");
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * The span is built and filled with `textContent` rather than interpolated
+  * into markup, which is the same reason `insertAdjacentHTML` is kept for the
+  * one control that is about it: a line here can carry the text content of a
+  * node, and that is not this page's own text.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /** The next unused label, so repeated presses do not all read the same. */
+ let made = 0;
+ const names = ["Flour", "Apples", "Sugar", "Butter", "Salt", "Yeast"];
+ const nextName = () => names[made++ % names.length];
+
+ document.querySelector("#one").addEventListener("click", () => {
+  log.textContent = "";
+  // The node exists and is in no document. `isConnected` is the question, and
+  // it is false until something attaches it.
+  const row = document.createElement("li");
+  row.textContent = nextName();
+  report(`created ${row.tagName}, connected: ${row.isConnected}`);
+  list.append(row);
+  report(`appended, connected: ${row.isConnected}, items: ${list.children.length}`);
+ });
+
+ document.querySelector("#batch").addEventListener("click", () => {
+  log.textContent = "";
+  // A fragment is a holder the document never sees: appending it moves its
+  // children in and leaves the fragment empty, so the page lays out once.
+  const batch = document.createDocumentFragment();
+  for (const name of [nextName(), nextName()]) {
+   const item = document.createElement("li");
+   item.textContent = name;
+   batch.append(item);
+  }
+  report(`fragment holds ${batch.children.length}`);
+  list.append(batch);
+  report(`fragment holds ${batch.children.length} after the append`);
+  report(`items: ${list.children.length}`);
+ });
+
+ document.querySelector("#markup").addEventListener("click", () => {
+  log.textContent = "";
+  const first = list.firstElementChild;
+  if (!first) {
+   warn("nothing in the list yet, so there is nothing to insert into");
+   return;
+  }
+  // Markup, parsed. Everything in the string here is this page's own, which is
+  // the only condition under which this call is the right one.
+  first.insertAdjacentHTML("beforeend", " <em>on the list</em>");
+  report(`first item is now: ${first.textContent}`);
+  report(`and holds ${first.children.length} child element`);
+ });
+
+ document.querySelector("#move").addEventListener("click", () => {
+  log.textContent = "";
+  const first = list.firstElementChild;
+  if (!first || list.children.length < 2) {
+   warn("two items are needed before a move is visible");
+   return;
+  }
+  const before = list.children.length;
+  // The same node, appended again. A tree holds a node once, so this takes it
+  // out of where it was on the way in.
+  list.append(first);
+  report(`moved ${JSON.stringify(first.textContent)} to the end`);
+  report(`items before ${before}, after ${list.children.length}`);
+ });
+
+ document.querySelector("#reset").addEventListener("click", () => {
+  log.textContent = "";
+  const taken = [...list.children];
+  // `remove` takes a node out and leaves it usable, which is why the detached
+  // nodes can still be read after the loop.
+  for (const node of taken) node.remove();
+  made = 0;
+  report(`removed ${taken.length}, items: ${list.children.length}`);
+  report(`the removed nodes are still readable: ${taken.every((node) => node.tagName === "LI")}`);
+ });
+</script>
+</body>
+</html>

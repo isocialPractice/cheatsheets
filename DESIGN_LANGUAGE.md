@@ -1249,13 +1249,20 @@ A sheet names its composition in its own document, as `composition`, and
 none is the recorded composition**, which is what the twenty-eight documents
 written before compositions existed carry.
 
-### The three, in the order the sets were drawn
+### The compositions, in the order the sets were drawn
 
 | Id | Set | Drawn | Composition |
 | --- | --- | --- | --- |
 | `javascript-arrays` | The eleven `javaScriptArrays` sheets | 2026.09.16 | The recorded composition |
 | `html-css` | The seventeen `html-css` sheets | 2026.10.19 | The recorded composition |
 | `javascript-general` | The nine **General JavaScript Overview** and **JS Dates** sheets | 2026.11.21 | Amber on indigo, titled |
+| `javascript-elements` | The seven **JS Elements** and **JS Math** sheets | 2026.11.24 | Cyan on slate, receding masthead |
+
+**The heading counts nothing on purpose.** It read *The three* until 2026.11.24,
+when a fourth set made it wrong - and the heading is what
+`tools/test-set-compositions.mjs` finds this table by, so a count in it is a
+figure that goes stale in the one place a stale figure also breaks the check.
+The table says how many there are.
 
 The first two share one composition, and that is history rather than a reading
 of the rule: both sets were drawn before there was any way for a document to
@@ -1487,6 +1494,205 @@ took its fifteenth step and the code field its forty-third: line spacing 72.2 to
 2026.11.21, at thirteen and forty-four steps, the same nine measured 73.1 to
 76.0 px and 0.858 to 0.899.
 
+### javascript-elements: cyan on slate, receding masthead
+
+#### The palette, and the ratio each pairing is drawn at
+
+Chosen rather than derived, as the third composition's is and for the same
+reason: there is no figure to measure a hue off when a set has no artwork. What
+is not chosen is whether it may be used. `assertReadable` measures every pairing
+of ink and ground this palette and this layout imply against the 4.5:1 text
+floor before a sheet composes, and these are the ratios it reports.
+
+| Role | Colour | On | Reaches |
+| --- | --- | --- | --- |
+| `navy`, the ground and the ink on paper | `#0B2026` | `#FFFFFF` | 16.82:1 |
+| `white`, the paper | `#FFFFFF` | `#0B2026` | 16.82:1 |
+| `green`, the accent | `#2FD4C8` | `#FFFFFF` | 1.85:1 |
+| `greenOnWhite`, the substitution | `#0A6B64` | `#FFFFFF` | 6.36:1 |
+| `heading`, display type on paper | `#20333A` | `#FFFFFF` | 13.16:1 |
+
+**The accent is a cyan, and the three sets are then three temperatures rather
+than three hues.** The recorded accent is the warm-neutral middle of the wheel
+and the third's amber is its warm end, so the cool end is what is left and it is
+the furthest this set's tiles get from either on a profile grid. The ground is a
+slate of the same temperature, so the cyan sits on a ground of its own, and the
+display ink on paper takes that slate's cast.
+
+**The substitution is live here for the reason it is live in both palettes
+before it.** The accent reaches 1.85:1 on the paper, under the 4.5:1 text floor
+and under the 3:1 boundary floor, so on white it carries fills and nothing a
+reader has to read; `#0A6B64` is the same cyan darkened until it clears the text
+floor, and `readableInk` swaps it in for any run of the accent set on paper. The
+recorded palette's green is at 2.65:1 and the third's amber at 2.08:1, so this is
+the same decision taken a third time rather than a new one.
+
+The six inks of the code panel, each measured on the `#0B2026` ground:
+
+| Role | Colour | Reaches |
+| --- | --- | --- |
+| `plain` | `#EAF4F6` | 15.03:1 |
+| `comment` | `#8FA3A9` | 6.39:1 |
+| `identifier` | `#8AE8DE` | 11.75:1 |
+| `keyword` | `#FFC48A` | 10.82:1 |
+| `string` | `#F7A8BF` | 9.06:1 |
+| `number` | `#C9E88A` | 12.33:1 |
+
+The set is built outward from the accent rather than across it: an identifier is
+the accent's own light tint, a keyword and a string are the two warm complements
+either side of it, and a comment is the ground's own hue lightened until it
+clears the text floor. **The plain ink is a cool off-white**, for the reason the
+third's is a warm one - a long listing set in `#FFFFFF` on a dark ground haloes,
+and the panels of this set are the longest of the three at 24 rows each.
+
+#### The type scale, and what recedes in it
+
+Every cap is the lead-in's 112 at a stated factor, and every stem is that cap
+times the share the recorded role already carries, so nothing in the scale is a
+figure that was chosen. The weights are the recorded weights.
+
+| Role | Factor | Cap | Recorded cap | Stem share | Stem | Weight |
+| --- | --- | --- | --- | --- | --- | --- |
+| `leadIn` | 1 | 112 | 112 | 0.125 | 14 | 400 |
+| `title` | 1.25 | 140 | 141 | 0.128 | 18 | 400 |
+| `followLine` | 1.375 | 154 | 154 | 0.123 | 19 | 400 |
+| `masthead` | 1.5 | 168 | 220 | 0.086 | 14 | 300 |
+
+**The masthead recedes, which is the treatment.** The order is the recorded one
+- masthead, follow line, title, lead-in - and what changes is how far apart the
+four sit. The recorded scale spans 112 to 220 and the third 112 to 196, where
+this one spans 112 to 168: the brand wordmark comes down from 1.96 of the anchor
+to 1.5 and stops being the largest thing on the sheet by a margin, and the three
+runs under it land on the artwork's own lead-in and follow line and a point off
+its title.
+
+So this is the third treatment of three rather than a second. The recorded
+composition leads with the brand, the third leads with the title, and this one
+leads with nothing much - which is what a reference sheet wants. **JS Elements**
+and **JS Math** are gone to for a call signature rather than read at a glance,
+so the head says which sheet this is and then gets out of the way.
+
+#### The grid, and the steps it conserves
+
+The canvas and the 48 px step are the record's and do not move. What moves is
+how the 75 steps are divided, and both totals hold:
+
+| Moved | Recorded | Here | Where the steps went |
+| --- | --- | --- | --- |
+| Masthead band | 11 steps | 11 | unmoved |
+| Heading band | 14 steps | 13 | one to the code field |
+| Code band | 42 steps | 43 | the heading band's step |
+| Divider band | 1 step | 1 | unmoved |
+| Footer band | 7 steps | 7 | unmoved |
+| Spine column | 5 steps | 7 | two from the panel |
+| Panel column | 64 steps | 62 | two to the rail |
+| Right margin | 6 steps | 6 | unmoved |
+
+So the sheet is a wider cyan rail beside a narrower panel, with a step more code
+field than the artwork has and the artwork's own masthead above it. **The rail is
+the one region that gains anything here**, where every other difference in this
+composition gives something to the code field or takes something off the display
+stack: a reference sheet is read down its left edge, and a rail at seven steps is
+the widest thing on the sheet that is not type.
+
+One step moves vertically against the third composition's two, and that is the
+receding masthead paying for itself. A title at the top of a scale needs a taller
+heading band than the artwork's fourteen steps; a title below the follow line
+needs less, so the band gives a step away instead of taking two, and the masthead
+keeps every one of its eleven.
+
+#### The display stack, and the descender each gap clears
+
+The three display runs of the heading band are a stack, built the way the third
+composition's is: each run below the one above follows it by the descent that
+run's cap implies plus a share of that cap of clear paper, 0.2699 of it, which is
+the narrower of the two clearances the recorded stack leaves below a display run.
+
+| Gap | Cap above | Descent it clears | Paper | Gap |
+| --- | --- | --- | --- | --- |
+| Title to subtitle | 140 | 42.64 | 37.78 | 80.43 |
+| Subtitle to lead-in | 112 | 34.11 | 30.23 | 64.34 |
+
+**The title is placed one step into the band rather than a step and a half**, and
+the band is thirteen steps rather than fifteen. The stack's lowest descender then
+reaches 1118.88 px against a band foot at 1152, so it clears by 33.12 px - the
+recorded composition clears by 32.89 and the third by 16.95, so this stack sits
+at very nearly the artwork's own proportion.
+
+`tools/test-set-composition-browser.mjs` rasterises each run alone and scans the
+band column by column, so what is held is the glyphs rather than the face's
+ascent and descent. No two runs of this set share an inked column.
+
+#### The footer band, which does not move at all
+
+The footer is the one band this composition leaves as the artwork has it, and
+that follows from the type scale rather than being a separate decision. The
+follow line is set at the artwork's own 154 px cap, where the third sets it at
+140, so it is the one run on the sheet with no room to give.
+
+| Figure | Recorded | Third | Here |
+| --- | --- | --- | --- |
+| Footer slot | 3312 x 336 | 3312 x 336 | 3312 x 336 |
+| Mark square | 6 steps | 5 steps | 6 steps |
+| Follow line cap | 154 | 140 | 154 |
+| Follow line measure | 2736 | 2784 | 2832 |
+| Follow line stepped down | to 150 | no | no |
+
+The slot's width is the strip's own aspect at the band's height, rounded down to
+the step, which is how the third composition's is derived and which comes out at
+the recorded 3312 here because this composition keeps the artwork's six step
+right margin. The derivation is kept rather than the figure: what puts the mark
+flush on the trim is the slot being no wider in aspect than the strip, and that
+is a property of the strip rather than of any one composition's margins.
+
+**What does move is one inset, and the artwork is why.** Six steps between the
+mark square and the follow line leaves 2736 px of measure; `Follow along at
+practicing.xyz` measures 2797.27 px at a 154 px cap, so every sheet of the first
+two sets carries a note saying it was stepped down to 150 to get in. This composition keeps the cap and buys the room
+instead - four steps off the mark rather than six, which is 2832 px and fits. The
+alternative was narrowing the mark square, and it is the wrong one: the square is
+the footer's own link area, so a sheet whose follow line fitted would be a sheet
+whose brand was harder to press.
+
+**The bars flanking the title are a matched pair of hairlines**, both a quarter
+step deep against the recorded thick-over-thin and the third's half step pair,
+and both nine steps long, which is the artwork's length. That length is not a
+free choice: the title's measure is the canvas less a bar and a gutter either
+side, so a longer bar is a narrower measure, and at nine steps and a two step
+gutter the measure comes out at the recorded 2544. A title below the follow line
+fits that measure with nothing stepped down - which is what the third composition
+had to shorten its bars to five steps to buy. They are placed half a step above
+the title's ink and half a step below its baseline rather than at figures of
+their own in the band, so they move with the title the way the stack does.
+
+#### The panel's freedom, narrowed
+
+| What varies | Recorded range | Here | In steps |
+| --- | --- | --- | --- |
+| The code panel's top padding | 37 to 152 px | 120 to 144 | 2.5 to 3 |
+| The leftmost code line's inset | 85 to 414 px | 96 to 120 | 2 to 2.5 |
+| The code line spacing | 56 to 116 px | 72 to 96 | 1.5 to 2 |
+
+Every bound is a multiple of the step and every one of them is **inside** the
+recorded range, so this is a narrowing of what the artwork left free rather than
+a new freedom. Against the third composition's bounds the top padding is half a
+step more generous at both ends and the left inset reaches half a step less far,
+which is what keeps a longer line inside a panel five steps narrower.
+
+The line spacing is the third's, and that is not a choice either: the recorded
+range is 56 to 116 px, so the only bounds that are whole half steps inside it are
+1.5 and 2. Every set that narrows this figure to the half step narrows it to the
+same pair.
+
+**The top padding is what sets how long an example here may be.** At three steps
+of padding the panel has 1776 px for the block, so 24 rows sit at 74.6 px of
+spacing and 25 fall under the 72 px floor; nineteen is the other end of the
+window, where the 85% fill floor stops being reachable at all. The set is written
+at the top of that window - every one of the seven is 24 rows - and measured on
+2026.11.24 the seven compose at 74.34 to 76.01 px of spacing and 0.851 to 0.870
+of fill, with every title at the 140 px cap the scale names and no display run
+stepped down anywhere in the set.
+
 ### Where this record is held
 
 `tools/test-set-compositions.mjs` reads this section and
@@ -1497,6 +1703,21 @@ a figure edited in one and not the other fails rather than drifts. It also holds
 the two rules this section states rather than measures - that every composition
 carries the recorded floors, and that a composition drawn after the mechanism
 landed is not one an earlier set already used.
+
+It reads each composition's figures **inside that composition's own section**
+rather than by heading text alone, and that is not a detail. Two sections here
+head their palette table with the same words, so a reader that searched the whole
+record for a heading would check the fourth composition's palette against the
+third's table and report it correct - a check that passes by reading the wrong
+half of the document. The composition's own section is found first, by the id and
+title in its heading, and every figure is read within it.
+
+What an engine does with a correct record is a different question, and
+`tools/test-set-composition-browser.mjs` is where it is asked: the display runs
+drawn in the order the set's own scale sets them, no two of them sharing an inked
+column, the footer strip's mark on the trim, and the panel inside the set's own
+freedom. Which run leads is the set's to say, so that file reads the ordering off
+the scale rather than holding every set to one.
 
 It reads one thing here that is not a figure, and that one was added because
 figures are all the rest of it reads: where a section of this record says in

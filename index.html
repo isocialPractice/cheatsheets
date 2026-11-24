@@ -209,16 +209,21 @@
     wide one. Beside the sheet the frame would have been at its tallest
     exactly where the page had least room for it.
 
-    The two heights are measured rather than chosen, from all five demos at
-    every width the frame can take, after pressing every control each one
-    ships - a log panel's "min-height: 7rem" absorbs most of what the output
-    adds, so the used height is within 64px of the arrival height everywhere.
-    Wide, the frame is 736px across at its narrowest - a 768px viewport, less
-    the page's 32px of gutter - and the tallest of the five is
-    "element-observers" at 670px, measured at 735, 736, 1292 alike. Narrow, the
-    frame is 288px across at the smallest phone and that same demo reaches
-    831px. 672 and 832 are those two figures at the next 8px step, so nothing
-    scrolls inside the frame at any width.
+    The two heights are measured rather than chosen, from the five demos that
+    existed when the frame was fixed, at every width the frame can take, after
+    pressing every control each one ships - a log panel's "min-height: 7rem"
+    absorbs most of what the output adds, so the used height is within 64px of
+    the arrival height everywhere. Wide, the frame is 736px across at its
+    narrowest - a 768px viewport, less the page's 32px of gutter - and the
+    tallest of the five is "element-observers" at 670px, measured at 735, 736,
+    1292 alike. Narrow, the frame is 288px across at the smallest phone and that
+    same demo reaches 831px. 672 and 832 are those two figures at the next 8px
+    step, so nothing scrolls inside the frame at any width.
+
+    A demo added since is measured against those two heights rather than
+    reopening them. The four of "JS Elements", committed 2026.11.24, reach 514px
+    wide and 753px narrow at their tallest, so both figures still hold and
+    "element-observers" is still the demo that set them.
 
     A demo taller than its figure scrolls rather than being clipped, which is
     the honest fallback and not the intended case: `CONTRIBUTING.md` records
@@ -495,7 +500,7 @@ let injected = null;
  * this repository's own today and the catalog takes contributions, so that is
  * a property to withhold from the mechanism rather than from each demo.
  *
- * What the strict frame costs, measured across all five committed demos: an
+ * What the strict frame costs, measured across every committed demo: an
  * opaque origin has no storage and is not a secure context, so `localStorage`
  * throws and `navigator.clipboard` is undefined. Both are already reported
  * rather than thrown - "no storage on this origin, so nothing was written" is

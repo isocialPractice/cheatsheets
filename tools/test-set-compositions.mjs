@@ -65,15 +65,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const record = readFileSync(join(root, "DESIGN_LANGUAGE.md"), "utf8");
 const manifest = JSON.parse(readFileSync(join(root, "cheatsheets.json"), "utf8"));
 
-/** The composition this run's new set is drawn in. */
-const THIRD = "javascript-general";
-
 /**
  * The sets whose sheets were drawn before a document could name a composition,
  * and which therefore resolve to the recorded one.
  *
  * **A record of one decision, not a list that grows.** Every set from
- * `javascript-general` on has a composition of its own, so a fourth id added
+ * `javascript-general` on has a composition of its own, so a third id added
  * here would be a set being drawn in a design another set already used - which
  * is the one thing the rule forbids. The case below fails such an id rather
  * than reading this as permission.
@@ -81,20 +78,86 @@ const THIRD = "javascript-general";
 const DREW_THE_RECORDED_COMPOSITION = ["javascript-arrays", "html-css"];
 
 /**
- * The body of a section of the record, by its heading, to the next heading of
- * the same depth or shallower.
+ * Every composition with a design of its own, and the set drawn in each.
+ *
+ * **Derived, rather than one id this file happens to be about.** Until
+ * 2026.11.24 that is what it was: a `THIRD` constant, and every figure case
+ * below read that one composition's record. A fourth set then arrived carrying
+ * a full record of its own that nothing read, which is the one state a record
+ * check must not reach - the figures look held because the cases over the set
+ * before them are green.
+ *
+ * So the composed sets are whatever `SET_COMPOSITIONS` holds that is not on
+ * record as having been drawn before the mechanism existed, and the per-figure
+ * cases are generated per set. A fifth set reaches them by existing.
+ */
+const COMPOSED = SET_COMPOSITION_IDS.filter((id) => !DREW_THE_RECORDED_COMPOSITION.includes(id));
+
+/** The count of sheets each composed set was drawn as, from the record of it. */
+const SET_SIZE = { "javascript-general": 9, "javascript-elements": 7 };
+
+/**
+ * The one claim each composed set's factors are chosen to make.
+ *
+ * A treatment is the set's own, so it cannot be a shared assertion: the third
+ * composition puts its title at the top of the scale, and the fourth brings its
+ * masthead down and leaves the title third, as the artwork has it. Held per set
+ * rather than dropped, because the factors are the whole of why either
+ * composition exists and a scale that lost its treatment would still pass every
+ * figure in the table above it.
+ *
+ * @type {Record<string, (scale: Record<string, { cap: number }>) => void>}
+ */
+const TREATMENT = {
+  "javascript-general": (scale) => {
+    assert.ok(scale.title.cap > scale.masthead.cap, "the title leads the scale");
+    assert.ok(scale.masthead.cap > scale.followLine.cap, "and the masthead is second in it");
+  },
+  "javascript-elements": (scale) => {
+    assert.ok(scale.masthead.cap > scale.followLine.cap, "the masthead leads the scale");
+    assert.ok(scale.followLine.cap > scale.title.cap, "the follow line is second and the title third");
+    assert.ok(
+      scale.masthead.cap / scale.leadIn.cap < TYPE_ROLES.masthead.cap / TYPE_ROLES.leadIn.cap,
+      "and the four sit closer together than the artwork's four do, which is the receding"
+    );
+  },
+};
+
+/**
+ * The body of a section, by its heading, to the next heading of the same depth
+ * or shallower.
+ *
+ * **`within` is what makes a per-set figure readable at all.** Two compositions
+ * head their palette table with the same words, so searching the whole record
+ * for that heading finds the first and checks the second composition's palette
+ * against the first's table. Passing by reading the wrong half of the document
+ * is worse than failing, so a per-set case passes {@link recordOf} here and the
+ * heading is resolved inside that set's own section.
  *
  * @param {string} heading The heading text, without its hashes.
+ * @param {string} [within] The body to search, defaulting to the whole record.
  * @returns {string}
  */
-function sectionOf(heading) {
-  const found = new RegExp(`^(#{2,6}) ${heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "m").exec(record);
+function sectionOf(heading, within = record) {
+  const found = new RegExp(`^(#{2,6}) ${heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "m").exec(within);
   assert.ok(found, `DESIGN_LANGUAGE.md holds no heading ${JSON.stringify(heading)}`);
   const depth = found[1].length;
   const from = found.index + found[0].length;
-  const rest = record.slice(from);
+  const rest = within.slice(from);
   const next = new RegExp(`^#{1,${depth}} `, "m").exec(rest);
   return next ? rest.slice(0, next.index) : rest;
+}
+
+/**
+ * One composition's whole record section, found by the id and the title it is
+ * headed with.
+ *
+ * @param {string} id
+ * @returns {string}
+ */
+function recordOf(id) {
+  const { title } = compositionNamed(id);
+  return sectionOf(`${id}: ${title.toLowerCase()}`);
 }
 
 /**
@@ -150,19 +213,29 @@ function rowsOf(body) {
 /** A cell's backticks and bold markers removed, so a value compares as a value. */
 const plain = (cell) => cell.replace(/[`*]/g, "").trim();
 
-// ## The record of the three
+// ## The record of them all
+
+/**
+ * The heading the record lists the compositions under.
+ *
+ * It counted them until 2026.11.24 - *The three* - and a fourth set made it
+ * wrong. A count in this heading is a figure that goes stale in the one place
+ * where going stale also breaks this file, so the heading names no number and
+ * the table below it is what says how many there are.
+ */
+const LISTING = "The compositions, in the order the sets were drawn";
 
 test("the record lists every composition the repository holds, in the order drawn", () => {
-  const listed = rowsOf(sectionOf("The three, in the order the sets were drawn")).map((cells) => plain(cells[0]));
+  const listed = rowsOf(sectionOf(LISTING)).map((cells) => plain(cells[0]));
   assert.deepEqual(listed, SET_COMPOSITION_IDS);
-  // Three as of 2026.11.21. Asserted as a floor so a fourth set does not fail
+  // Four as of 2026.11.24. Asserted as a floor so a fifth set does not fail
   // this case for existing, and asserted at all so a record that listed none
   // could not pass every case below by having nothing to compare.
-  assert.ok(listed.length >= 3, `the record lists ${listed.length} compositions`);
+  assert.ok(listed.length >= 4, `the record lists ${listed.length} compositions`);
 });
 
 test("and says of each what set it was drawn for and when", () => {
-  for (const cells of rowsOf(sectionOf("The three, in the order the sets were drawn"))) {
+  for (const cells of rowsOf(sectionOf(LISTING))) {
     const entry = compositionNamed(plain(cells[0]));
     assert.equal(plain(cells[1]).replace(/\s+/g, " "), entry.set, `${entry.id} set`);
     assert.equal(plain(cells[2]), entry.drawn, `${entry.id} drawn`);
@@ -171,9 +244,18 @@ test("and says of each what set it was drawn for and when", () => {
 });
 
 test("an id nothing records is refused with the whole list in the message", () => {
+  // The expectation is built from the list rather than typed out, which is the
+  // one place in this file that is right: what the message has to carry is
+  // **every** id, and an expectation naming three of them by hand is a case
+  // that fails on the day a fourth set lands and says nothing about the
+  // message. The ids are still asserted - by the case above, against the
+  // record - so this is not a check comparing a value with itself.
   assert.throws(
     () => compositionNamed("javascript-general-v2"),
-    /is not a set composition this repository records\. It has javascript-arrays, html-css, javascript-general\./
+    new RegExp(
+      `is not a set composition this repository records\\. ` +
+        `It has ${SET_COMPOSITION_IDS.join(", ")}\\.`
+    )
   );
 });
 
@@ -220,42 +302,46 @@ test("a document naming no composition composes through the recorded theme and l
   assert.equal(SHEET_LAYOUT.name, "sheet");
 });
 
-test("a document naming one composes through that composition's theme and layout", () => {
-  const entry = compositionNamed(THIRD);
-  const { variation } = composeSheet({ ...ONE_LINE, composition: THIRD }, { seed: 1 });
-  assert.equal(drawn(variation, "wordmark").ground, entry.theme.colors.navy);
-  assert.notEqual(drawn(variation, "wordmark").ground, SHEET_THEME.colors.navy);
-  assert.equal(drawn(variation, "title").ink, entry.theme.colors.heading);
-  assert.equal(variation.titleCap, entry.theme.scale.title.cap);
-  assert.equal(entry.theme.name, THIRD);
-  assert.equal(entry.layout.name, THIRD);
-  // And the composition's own geometry, which the layout is what carries: the
-  // rail is two steps narrower than the recorded one.
-  assert.notEqual(entry.layout.grid.columns[0].width, SHEET_LAYOUT.grid.columns[0].width);
-});
+for (const id of COMPOSED) {
+  test(`a document naming ${id} composes through that composition's theme and layout`, () => {
+    const entry = compositionNamed(id);
+    const { variation } = composeSheet({ ...ONE_LINE, composition: id }, { seed: 1 });
+    assert.equal(drawn(variation, "wordmark").ground, entry.theme.colors.navy);
+    assert.notEqual(drawn(variation, "wordmark").ground, SHEET_THEME.colors.navy);
+    assert.equal(drawn(variation, "title").ink, entry.theme.colors.heading);
+    assert.equal(variation.titleCap, entry.theme.scale.title.cap);
+    assert.equal(entry.theme.name, id);
+    assert.equal(entry.layout.name, id);
+    // And the composition's own geometry, which the layout is what carries.
+    // Every composed set moves the grid - the third narrows its rail by two
+    // steps and the fourth widens its by two - so this is the layout having
+    // reached the drawing rather than a figure one of them happens to hold.
+    assert.notDeepEqual(entry.layout.grid, SHEET_LAYOUT.grid);
+  });
 
-test("a theme option lays over the set's theme, not over the recorded one", () => {
-  // The behaviour that makes an option and a composition compose rather than
-  // compete. Were the recorded theme the base, a caller moving one colour over
-  // a sheet of the third set would silently get the recorded palette back for
-  // the other ten - which is the failure `compose.mjs` refuses `options.language`
-  // to avoid, arriving by a different door.
-  const entry = compositionNamed(THIRD);
-  const { variation } = composeSheet(
-    { ...ONE_LINE, composition: THIRD },
-    { seed: 1, theme: { colors: { ...entry.theme.colors, heading: "#241E33" } } }
-  );
-  assert.equal(drawn(variation, "title").ink, "#241E33", "the option moved the colour it named");
-  assert.equal(
-    drawn(variation, "wordmark").ground,
-    entry.theme.colors.navy,
-    "and left the rest where the set's composition put them"
-  );
-  assert.notEqual(drawn(variation, "wordmark").ground, SHEET_THEME.colors.navy);
-  // The type scale is the set's too, which a partial theme naming only colours
-  // has to leave alone rather than reset to the recorded one.
-  assert.equal(variation.titleCap, entry.theme.scale.title.cap);
-});
+  test(`a theme option lays over ${id}, not over the recorded theme`, () => {
+    // The behaviour that makes an option and a composition compose rather than
+    // compete. Were the recorded theme the base, a caller moving one colour over
+    // a sheet of a composed set would silently get the recorded palette back for
+    // the other ten - which is the failure `compose.mjs` refuses `options.language`
+    // to avoid, arriving by a different door.
+    const entry = compositionNamed(id);
+    const { variation } = composeSheet(
+      { ...ONE_LINE, composition: id },
+      { seed: 1, theme: { colors: { ...entry.theme.colors, heading: "#241E33" } } }
+    );
+    assert.equal(drawn(variation, "title").ink, "#241E33", "the option moved the colour it named");
+    assert.equal(
+      drawn(variation, "wordmark").ground,
+      entry.theme.colors.navy,
+      "and left the rest where the set's composition put them"
+    );
+    assert.notEqual(drawn(variation, "wordmark").ground, SHEET_THEME.colors.navy);
+    // The type scale is the set's too, which a partial theme naming only colours
+    // has to leave alone rather than reset to the recorded one.
+    assert.equal(variation.titleCap, entry.theme.scale.title.cap);
+  });
+}
 
 test("every composition is readable on the grounds its own layout pairs it with", () => {
   // Up front, for every entry, rather than once for the one in hand. A set
@@ -305,125 +391,154 @@ test("a composition drawn after the mechanism landed is not one an earlier set u
   assert.deepEqual(reused, [], "a set composition repeats a design an earlier set was drawn in");
 });
 
-// ## The third composition, figure by figure
+// ## Each composed composition, figure by figure
+//
+// Generated per set, and every heading resolved inside that set's own record
+// section: two of them head their palette table with the same words, so a
+// heading looked up across the whole document would check the fourth
+// composition's figures against the third's tables and report them correct.
 
-test("the palette is the record's, and every pairing reaches the ratio recorded", () => {
-  const theme = compositionNamed(THIRD).theme;
-  const [palette, inks] = tablesOf(sectionOf("The palette, and the ratio each pairing is drawn at"));
-  assert.equal(palette.length, 5, "the palette table holds a row per colour role");
-  for (const [role, colour, ground, reaches] of palette) {
-    const name = plain(role).split(",")[0];
-    assert.equal(plain(colour), theme.colors[name], `${name} colour`);
-    const ratio = contrastRatio(plain(colour), plain(ground));
-    assert.equal(ratio.toFixed(2), plain(reaches).replace(":1", ""), `${name} ratio`);
-  }
-  assert.equal(inks.length, SYNTAX_ROLES.length, "the ink table holds a row per syntax role");
-  for (const [role, colour, reaches] of inks) {
-    const name = plain(role);
-    assert.ok(SYNTAX_ROLES.includes(name), `${name} is a syntax role`);
-    assert.equal(plain(colour), theme.syntax[name], `${name} ink`);
-    assert.equal(contrastRatio(plain(colour), theme.colors.navy).toFixed(2), plain(reaches).replace(":1", ""));
-  }
-});
+/**
+ * The heading a set's type scale table sits under, which names its treatment.
+ *
+ * The one sub-heading of a composition's record that is not the same text in
+ * every section, because a treatment is what the factors are chosen for and
+ * the heading says which one it is. Found by its opening words rather than
+ * listed per id, so a fifth set is read by heading its table the same way.
+ *
+ * @param {string} body One composition's record section.
+ * @returns {string}
+ */
+function scaleHeading(body) {
+  const found = /^#{2,6} (The type scale, [^\n]*?)\s*$/m.exec(body);
+  assert.ok(found, "the composition's record holds no type scale heading");
+  return found[1];
+}
 
-test("the accent is under both floors on paper, so the substitution is live", () => {
-  // The claim the record makes in prose, held as the measurement it is: an
-  // accent that cleared the text floor would make the substitution dead code
-  // and the paragraph about it wrong.
-  const { colors, contrast } = compositionNamed(THIRD).theme;
-  assert.ok(contrastRatio(colors.green, colors.white) < contrast.boundary);
-  assert.ok(contrastRatio(colors.greenOnWhite, colors.white) >= contrast.text);
-  assert.equal(readableInk(colors.green, colors.white, { colors, contrast }), colors.greenOnWhite);
-  // And on its own ground the accent is drawn as it is, as the recorded green is.
-  assert.equal(readableInk(colors.green, colors.navy, { colors, contrast }), colors.green);
-});
+for (const id of COMPOSED) {
+  const own = recordOf(id);
 
-test("the type scale is the anchor at the factors recorded, and the stems derive", () => {
-  const theme = compositionNamed(THIRD).theme;
-  const rows = rowsOf(sectionOf("The type scale, and what leads it"));
-  assert.equal(rows.length, TYPE_SCALE_ROLES.length, "the scale table holds a row per type role");
-  const anchor = TYPE_ROLES.leadIn.cap;
-  for (const [role, factor, cap, recordedCap, share, stem, weight] of rows) {
-    const name = plain(role);
-    assert.ok(TYPE_SCALE_ROLES.includes(name), `${name} is a type role`);
-    assert.equal(Number(plain(cap)), anchor * Number(plain(factor)), `${name} cap is the anchor at its factor`);
-    assert.equal(theme.scale[name].cap, Number(plain(cap)), `${name} cap`);
-    assert.equal(TYPE_ROLES[name].cap, Number(plain(recordedCap)), `${name} recorded cap`);
-    assert.equal(TYPE_ROLES[name].stemShare, Number(plain(share)), `${name} stem share`);
-    assert.equal(theme.strokes.type[name], Number(plain(stem)), `${name} stem`);
-    assert.equal(
-      Math.round(theme.scale[name].cap * TYPE_ROLES[name].stemShare),
-      theme.strokes.type[name],
-      `${name} stem is its cap at the recorded share`
-    );
-    assert.equal(theme.scale[name].weight, Number(plain(weight)), `${name} weight`);
-    assert.equal(theme.scale[name].weight, TYPE_ROLES[name].fontWeight, `${name} keeps the recorded weight`);
-  }
-  // The treatment itself, which is the one thing the factors are chosen for.
-  assert.ok(theme.scale.title.cap > theme.scale.masthead.cap, "the title leads the scale");
-  assert.equal(theme.scale.leadIn.cap, anchor, "the lead-in is the anchor and does not move");
-});
-
-test("the grid moves the steps the record says, and conserves both totals", () => {
-  const language = compositionNamed(THIRD).language;
-  const rows = rowsOf(sectionOf("The grid, and the steps it conserves"));
-  const held = { bands: language.bands, divisions: language.divisions };
-  const recorded = { bands: BANDS, divisions: DIVISIONS };
-  let read = 0;
-  for (const [what, before, here] of rows) {
-    const found = /^(\w+) (band|column|margin)$/i.exec(plain(what).replace("Right margin", "rightMargin margin"));
-    assert.ok(found, `the row ${JSON.stringify(plain(what))} does not name a band or a column`);
-    const key = found[1] === "rightMargin" ? "rightMargin" : found[1].charAt(0).toLowerCase() + found[1].slice(1);
-    const group = found[2].toLowerCase() === "band" ? "bands" : "divisions";
-    const steps = Number(plain(here));
-    assert.equal(Number(plain(before).replace(/ steps?$/, "")), recorded[group][key].steps, `${key} recorded steps`);
-    assert.equal(held[group][key].steps, steps, `${key} steps`);
-    const span = group === "bands" ? held[group][key].height : held[group][key].width;
-    assert.equal(span, steps * STEP, `${key} span is its steps at the step`);
-    read += 1;
-  }
-  assert.equal(read, 8, "the table holds a row per band and per column");
-  const sum = (group, span) => Object.values(group).reduce((total, one) => total + one[span], 0);
-  assert.equal(sum(language.bands, "height"), SHEET_LANGUAGE.canvas, "the bands tile the canvas");
-  assert.equal(sum(language.divisions, "width"), SHEET_LANGUAGE.canvas, "the columns tile the canvas");
-  // And the bands and columns chain rather than merely summing, which a table
-  // of totals cannot say.
-  let y = 0;
-  for (const band of Object.values(language.bands)) {
-    assert.equal(band.y, y, "a band starts where the one above it ends");
-    y += band.height;
-  }
-  let x = 0;
-  for (const column of Object.values(language.divisions)) {
-    assert.equal(column.x, x, "a column starts where the one left of it ends");
-    x += column.width;
-  }
-});
-
-test("the panel's freedom is narrowed inside the recorded ranges, in whole half steps", () => {
-  const freedom = compositionNamed(THIRD).language.panelFreedom;
-  const rows = rowsOf(sectionOf("The panel's freedom, narrowed"));
-  assert.equal(rows.length, 3, "the freedom table holds a row per figure");
-  const byRow = {
-    "The code panel's top padding": "topPadding",
-    "The leftmost code line's inset": "leftInset",
-    "The code line spacing": "lineSpacing",
-  };
-  for (const [what, before, here, steps] of rows) {
-    const key = byRow[plain(what)];
-    assert.ok(key, `the row ${JSON.stringify(plain(what))} names no panel freedom`);
-    const [lowWas, highWas] = plain(before).replace(" px", "").split(" to ").map(Number);
-    const [low, high] = plain(here).split(" to ").map(Number);
-    const [lowSteps, highSteps] = plain(steps).split(" to ").map(Number);
-    assert.deepEqual([PANEL_FREEDOM[key].min, PANEL_FREEDOM[key].max], [lowWas, highWas], `${key} recorded range`);
-    assert.deepEqual([freedom[key].min, freedom[key].max], [low, high], `${key} range`);
-    assert.deepEqual([low / STEP, high / STEP], [lowSteps, highSteps], `${key} in steps`);
-    assert.ok(low >= lowWas && high <= highWas, `${key} is a narrowing of the recorded range, not a new freedom`);
-    for (const bound of [low, high]) {
-      assert.equal((bound / STEP) % 0.5, 0, `${key} bound ${bound} is a whole half step`);
+  test(`${id}: the palette is the record's, and every pairing reaches the ratio recorded`, () => {
+    const theme = compositionNamed(id).theme;
+    const [palette, inks] = tablesOf(sectionOf("The palette, and the ratio each pairing is drawn at", own));
+    assert.equal(palette.length, 5, "the palette table holds a row per colour role");
+    for (const [role, colour, ground, reaches] of palette) {
+      const name = plain(role).split(",")[0];
+      assert.equal(plain(colour), theme.colors[name], `${name} colour`);
+      const ratio = contrastRatio(plain(colour), plain(ground));
+      assert.equal(ratio.toFixed(2), plain(reaches).replace(":1", ""), `${name} ratio`);
     }
-  }
-});
+    assert.equal(inks.length, SYNTAX_ROLES.length, "the ink table holds a row per syntax role");
+    for (const [role, colour, reaches] of inks) {
+      const name = plain(role);
+      assert.ok(SYNTAX_ROLES.includes(name), `${name} is a syntax role`);
+      assert.equal(plain(colour), theme.syntax[name], `${name} ink`);
+      assert.equal(contrastRatio(plain(colour), theme.colors.navy).toFixed(2), plain(reaches).replace(":1", ""));
+    }
+  });
+
+  test(`${id}: the accent is under both floors on paper, so the substitution is live`, () => {
+    // The claim each record makes in prose, held as the measurement it is: an
+    // accent that cleared the text floor would make the substitution dead code
+    // and the paragraph about it wrong.
+    const { colors, contrast } = compositionNamed(id).theme;
+    assert.ok(contrastRatio(colors.green, colors.white) < contrast.boundary);
+    assert.ok(contrastRatio(colors.greenOnWhite, colors.white) >= contrast.text);
+    assert.equal(readableInk(colors.green, colors.white, { colors, contrast }), colors.greenOnWhite);
+    // And on its own ground the accent is drawn as it is, as the recorded green is.
+    assert.equal(readableInk(colors.green, colors.navy, { colors, contrast }), colors.green);
+  });
+
+  test(`${id}: the type scale is the anchor at the factors recorded, and the stems derive`, () => {
+    const theme = compositionNamed(id).theme;
+    const rows = rowsOf(sectionOf(scaleHeading(own), own));
+    assert.equal(rows.length, TYPE_SCALE_ROLES.length, "the scale table holds a row per type role");
+    const anchor = TYPE_ROLES.leadIn.cap;
+    for (const [role, factor, cap, recordedCap, share, stem, weight] of rows) {
+      const name = plain(role);
+      assert.ok(TYPE_SCALE_ROLES.includes(name), `${name} is a type role`);
+      assert.equal(Number(plain(cap)), anchor * Number(plain(factor)), `${name} cap is the anchor at its factor`);
+      assert.equal(theme.scale[name].cap, Number(plain(cap)), `${name} cap`);
+      assert.equal(TYPE_ROLES[name].cap, Number(plain(recordedCap)), `${name} recorded cap`);
+      assert.equal(TYPE_ROLES[name].stemShare, Number(plain(share)), `${name} stem share`);
+      assert.equal(theme.strokes.type[name], Number(plain(stem)), `${name} stem`);
+      assert.equal(
+        Math.round(theme.scale[name].cap * TYPE_ROLES[name].stemShare),
+        theme.strokes.type[name],
+        `${name} stem is its cap at the recorded share`
+      );
+      assert.equal(theme.scale[name].weight, Number(plain(weight)), `${name} weight`);
+      assert.equal(theme.scale[name].weight, TYPE_ROLES[name].fontWeight, `${name} keeps the recorded weight`);
+    }
+    // The treatment itself, which is the one thing the factors are chosen for,
+    // and the one claim here that is the set's own rather than every set's.
+    const treatment = TREATMENT[id];
+    assert.ok(treatment, `${id} has no treatment recorded in this file to hold its factors to`);
+    treatment(theme.scale);
+    assert.equal(theme.scale.leadIn.cap, anchor, "the lead-in is the anchor and does not move");
+  });
+
+  test(`${id}: the grid moves the steps the record says, and conserves both totals`, () => {
+    const language = compositionNamed(id).language;
+    const rows = rowsOf(sectionOf("The grid, and the steps it conserves", own));
+    const held = { bands: language.bands, divisions: language.divisions };
+    const recorded = { bands: BANDS, divisions: DIVISIONS };
+    let read = 0;
+    for (const [what, before, here] of rows) {
+      const found = /^(\w+) (band|column|margin)$/i.exec(plain(what).replace("Right margin", "rightMargin margin"));
+      assert.ok(found, `the row ${JSON.stringify(plain(what))} does not name a band or a column`);
+      const key = found[1] === "rightMargin" ? "rightMargin" : found[1].charAt(0).toLowerCase() + found[1].slice(1);
+      const group = found[2].toLowerCase() === "band" ? "bands" : "divisions";
+      const steps = Number(plain(here));
+      assert.equal(Number(plain(before).replace(/ steps?$/, "")), recorded[group][key].steps, `${key} recorded steps`);
+      assert.equal(held[group][key].steps, steps, `${key} steps`);
+      const span = group === "bands" ? held[group][key].height : held[group][key].width;
+      assert.equal(span, steps * STEP, `${key} span is its steps at the step`);
+      read += 1;
+    }
+    assert.equal(read, 8, "the table holds a row per band and per column");
+    const sum = (group, span) => Object.values(group).reduce((total, one) => total + one[span], 0);
+    assert.equal(sum(language.bands, "height"), SHEET_LANGUAGE.canvas, "the bands tile the canvas");
+    assert.equal(sum(language.divisions, "width"), SHEET_LANGUAGE.canvas, "the columns tile the canvas");
+    // And the bands and columns chain rather than merely summing, which a table
+    // of totals cannot say.
+    let y = 0;
+    for (const band of Object.values(language.bands)) {
+      assert.equal(band.y, y, "a band starts where the one above it ends");
+      y += band.height;
+    }
+    let x = 0;
+    for (const column of Object.values(language.divisions)) {
+      assert.equal(column.x, x, "a column starts where the one left of it ends");
+      x += column.width;
+    }
+  });
+
+  test(`${id}: the panel's freedom is narrowed inside the recorded ranges, in whole half steps`, () => {
+    const freedom = compositionNamed(id).language.panelFreedom;
+    const rows = rowsOf(sectionOf("The panel's freedom, narrowed", own));
+    assert.equal(rows.length, 3, "the freedom table holds a row per figure");
+    const byRow = {
+      "The code panel's top padding": "topPadding",
+      "The leftmost code line's inset": "leftInset",
+      "The code line spacing": "lineSpacing",
+    };
+    for (const [what, before, here, steps] of rows) {
+      const key = byRow[plain(what)];
+      assert.ok(key, `the row ${JSON.stringify(plain(what))} names no panel freedom`);
+      const [lowWas, highWas] = plain(before).replace(" px", "").split(" to ").map(Number);
+      const [low, high] = plain(here).split(" to ").map(Number);
+      const [lowSteps, highSteps] = plain(steps).split(" to ").map(Number);
+      assert.deepEqual([PANEL_FREEDOM[key].min, PANEL_FREEDOM[key].max], [lowWas, highWas], `${key} recorded range`);
+      assert.deepEqual([freedom[key].min, freedom[key].max], [low, high], `${key} range`);
+      assert.deepEqual([low / STEP, high / STEP], [lowSteps, highSteps], `${key} in steps`);
+      assert.ok(low >= lowWas && high <= highWas, `${key} is a narrowing of the recorded range, not a new freedom`);
+      for (const bound of [low, high]) {
+        assert.equal((bound / STEP) % 0.5, 0, `${key} bound ${bound} is a whole half step`);
+      }
+    }
+  });
+}
 
 // ## The record's prose, where it names a colour
 
@@ -501,29 +616,33 @@ test("the record names each composition's own accent where it says what the acce
 
 // ## The catalog
 
-test("every sheet of the set names the composition, and composes with nothing stepped down", () => {
-  const sheets = manifest.categories
-    .flatMap((category) => category.cheatsheets)
-    .filter((sheet) => sheet.composition === THIRD);
-  assert.equal(sheets.length, 9, `the set holds ${sheets.length} sheets and was drawn as nine`);
-  const noted = [];
-  const spacings = [];
-  const fills = [];
-  for (const sheet of sheets) {
-    const doc = JSON.parse(readFileSync(join(root, ...sheet.path.split("/"), "sheet.json"), "utf8"));
-    assert.equal(doc.composition, THIRD, `${sheet.path} document`);
-    const { variation } = composeSheet(doc, { seed: doc.seed });
-    if (variation.notes.length > 0) noted.push(`${sheet.path}: ${variation.notes.join(" ")}`);
-    spacings.push(variation.lineSpacing);
-    fills.push(variation.panelFill);
-  }
-  // The claim the record closes on, and the whole point of narrowing the panel's
-  // freedom: nine sheets that compose the same way rather than nine whose
-  // display type is sized by how long each one's title happens to be.
-  assert.deepEqual(noted, [], "a sheet of the set did not compose clean");
-  assert.ok(Math.max(...spacings) - Math.min(...spacings) <= STEP / 2, "the set's line spacing spans half a step");
-  assert.ok(Math.min(...fills) >= FLOORS.panelFill, "every panel of the set is filled to the floor");
-});
+for (const id of COMPOSED) {
+  test(`${id}: every sheet of the set names it, and composes with nothing stepped down`, () => {
+    const sheets = manifest.categories
+      .flatMap((category) => category.cheatsheets)
+      .filter((sheet) => sheet.composition === id);
+    const drawnAs = SET_SIZE[id];
+    assert.ok(drawnAs, `${id} has no sheet count recorded in this file`);
+    assert.equal(sheets.length, drawnAs, `the set holds ${sheets.length} sheets and was drawn as ${drawnAs}`);
+    const noted = [];
+    const spacings = [];
+    const fills = [];
+    for (const sheet of sheets) {
+      const doc = JSON.parse(readFileSync(join(root, ...sheet.path.split("/"), "sheet.json"), "utf8"));
+      assert.equal(doc.composition, id, `${sheet.path} document`);
+      const { variation } = composeSheet(doc, { seed: doc.seed });
+      if (variation.notes.length > 0) noted.push(`${sheet.path}: ${variation.notes.join(" ")}`);
+      spacings.push(variation.lineSpacing);
+      fills.push(variation.panelFill);
+    }
+    // The claim each record closes on, and the whole point of narrowing the
+    // panel's freedom: a set that composes the same way throughout rather than
+    // one whose display type is sized by how long each title happens to be.
+    assert.deepEqual(noted, [], "a sheet of the set did not compose clean");
+    assert.ok(Math.max(...spacings) - Math.min(...spacings) <= STEP / 2, "the set's line spacing spans half a step");
+    assert.ok(Math.min(...fills) >= FLOORS.panelFill, "every panel of the set is filled to the floor");
+  });
+}
 
 test("every sheet added since the mechanism landed names a composition", () => {
   // The rule in the form a new sheet meets it. A sheet of a new set that forgot

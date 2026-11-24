@@ -511,6 +511,297 @@ const THIRD_LANGUAGE = {
 };
 
 /**
+ * The factor each role of the fourth composition's scale takes the anchor at.
+ *
+ * **The masthead recedes, which is the treatment.** The order is the recorded
+ * one - masthead, follow line, title, lead-in - and what changes is how far
+ * apart the four sit: the recorded scale spans 112 to 220 and the third 112 to
+ * 196, where this one spans 112 to 168. The brand wordmark comes down from 1.96
+ * of the anchor to 1.5 and stops being the largest thing on the sheet by a
+ * margin, and the three runs under it land on 112, 140 and 154 - which are the
+ * artwork's own lead-in and follow line and a point off its title.
+ *
+ * So this is the third treatment of three rather than a second: the recorded
+ * composition leads with the brand, the third leads with the title, and this
+ * one leads with nothing much. The set it was drawn for is why. **JS Elements**
+ * and **JS Math** are reference sheets a reader goes to for a call signature
+ * rather than posters read at a glance, so what has to carry is the listing -
+ * the head says which sheet this is and then gets out of the way, and the step
+ * the heading band gives up goes to the code field.
+ */
+const FOURTH_FACTORS = { leadIn: 1, title: 1.25, followLine: 1.375, masthead: 1.5 };
+
+/**
+ * The fourth composition's type scale: the anchor at the four factors above.
+ *
+ * Derived exactly as {@link THIRD_SCALE} is, and for the same reason - a cap
+ * written down beside a factor is a second claim that can disagree with the
+ * first. The follow line comes out at the recorded 154 rather than near it:
+ * 1.375 of 112 is 154, so the one run of the five this scale leaves at the
+ * artwork's own cap is the one that sits on the footer.
+ */
+const FOURTH_SCALE = Object.fromEntries(
+  Object.entries(FOURTH_FACTORS).map(([role, factor]) => {
+    const cap = ANCHOR_CAP * factor;
+    return [
+      role,
+      {
+        cap,
+        stem: Math.round(cap * TYPE_ROLES[role].stemShare),
+        stemShare: TYPE_ROLES[role].stemShare,
+        fontWeight: TYPE_ROLES[role].fontWeight,
+      },
+    ];
+  })
+);
+
+/**
+ * The heading band of the fourth composition, and the masthead above it.
+ *
+ * **Both are the artwork's, and that is what a receding masthead buys.** The
+ * third composition had to take two steps off the masthead to hold a title at
+ * the top of its scale; a title below the follow line needs less room than the
+ * artwork's fourteen steps rather than more, so the masthead keeps its eleven,
+ * the heading band gives a step to the code field, and nothing else moves.
+ */
+const FOURTH_HEADING = { y: STEP * 11, height: STEP * 13 };
+
+/**
+ * The three display runs of the fourth composition's heading band.
+ *
+ * The same stack {@link STACK} builds, with two differences, both of which
+ * follow from the narrower scale. The title is placed one step into the band
+ * rather than a step and a half, and the band is thirteen steps rather than
+ * fifteen: the stack's lowest descender then clears the band's foot by
+ * 33.12 px, against the recorded composition's 32.89 and the third's 16.95.
+ */
+const FOURTH_STACK = (() => {
+  const titleInkTop = FOURTH_HEADING.y + STEP;
+  const titleBaseline = titleInkTop + FOURTH_SCALE.title.cap;
+  const subtitleInkTop = titleBaseline + GAP_BELOW(FOURTH_SCALE.title.cap);
+  const subtitleBaseline = subtitleInkTop + ANCHOR_CAP;
+  const leadInInkTop = subtitleBaseline + GAP_BELOW(ANCHOR_CAP);
+  return {
+    titleInkTop,
+    titleBaseline,
+    subtitleInkTop,
+    subtitleBaseline,
+    leadInInkTop,
+    leadInBaseline: leadInInkTop + ANCHOR_CAP,
+  };
+})();
+
+/** The rail, the panel and the right margin of the fourth composition. */
+const FOURTH_COLUMNS = {
+  spine: { x: 0, width: STEP * 7, steps: 7 },
+  panel: { x: STEP * 7, width: STEP * 62, steps: 62 },
+  rightMargin: { x: STEP * 69, width: STEP * 6, steps: 6 },
+};
+
+/**
+ * The bars flanking the fourth composition's title: a pair of hairlines.
+ *
+ * **Nine steps long, which is the artwork's length, and a quarter step deep,
+ * which is nobody's.** The length is not a free choice - the title's measure is
+ * the canvas less a bar and a gutter either side, so a bar's length sets how
+ * much room a title has - and at nine steps and a two step gutter the measure
+ * comes out at the recorded 2544. A title below the follow line fits that
+ * measure with nothing stepped down, so the geometry and the treatment agree
+ * here without either giving way, which is what the third composition had to
+ * shorten its bars to buy.
+ *
+ * What differs is the weight. The recorded pair is thick over thin, 45 px over
+ * 20; the third's is a matched pair at half a step. These are a matched pair at
+ * a quarter step, bracketing the title half a step above its ink and half a
+ * step below its baseline rather than sitting at figures of their own in the
+ * band - so they move with the title the way the stack below it does.
+ */
+const FOURTH_BAR = { width: STEP * 9, gutter: STEP * 2 };
+
+/**
+ * The fourth composition's footer slot, derived the way the third's is.
+ *
+ * It comes out at the recorded 3312 px rather than near it, because this
+ * composition keeps the artwork's six step right margin and the recorded slot
+ * is the canvas less exactly that. The derivation is kept rather than the
+ * figure: what makes the mark sit flush on the trim is the slot's aspect being
+ * no wider than the strip's, and that is a property of the strip rather than of
+ * any one composition's margins.
+ */
+const FOURTH_FOOTER_SLOT = (() => {
+  const height = STEP * 7;
+  const aspect = FOOTER_LINKS.width / FOOTER_LINKS.height;
+  return { x: 0, y: STEP * 68, width: Math.floor((aspect * height) / STEP) * STEP, height };
+})();
+
+/**
+ * The fourth composition's design language record.
+ *
+ * A delta over `SHEET_LANGUAGE`, as {@link THIRD_LANGUAGE} is, and a smaller
+ * one: this composition moves one step vertically and two horizontally, where
+ * the third moved two and three.
+ *
+ * | Moved | Recorded | Here | Where the steps went |
+ * | --- | --- | --- | --- |
+ * | Heading band | 14 steps | 13 | one to the code field |
+ * | Code band | 42 steps | 43 | the heading band's step |
+ * | Spine column | 5 steps | 7 | two from the panel |
+ * | Panel column | 64 steps | 62 | two to the rail |
+ *
+ * Both totals hold at 75 steps, so the bands still tile the canvas top to
+ * bottom and the columns still tile it left to right.
+ *
+ * **The rail is the one region that gains here**, where every other difference
+ * in this composition gives something to the code field or takes something off
+ * the display stack. A reference sheet is read down its left edge, and a rail
+ * at seven steps is the widest thing on the sheet that is not type.
+ */
+const FOURTH_LANGUAGE = {
+  ...SHEET_LANGUAGE,
+  // The palette, chosen for the same reason the third's is and under the same
+  // constraint: `assertReadable` measures every pairing of ink and ground this
+  // palette and this layout imply against the 4.5:1 text floor before a sheet
+  // composes, and the ratios it reports are in `DESIGN_LANGUAGE.md` under the
+  // record of this composition.
+  //
+  // The accent is a cyan, which is the decision the rest follows from: it is
+  // the cool side of the wheel, where the recorded green is the warm-neutral
+  // middle of it and the third's amber the warm end, so the three designs read
+  // as three temperatures rather than three hues. The ground is a slate of the
+  // same temperature, and the display ink on paper takes that slate's cast.
+  colors: {
+    navy: "#0B2026",
+    white: "#FFFFFF",
+    green: "#2FD4C8",
+    heading: "#20333A",
+    // The substitution, live here for the reason it is live in both palettes
+    // before it: the accent reaches 1.85:1 on the paper, under both floors, so
+    // on white it carries fills and nothing a reader has to read. This is the
+    // same cyan darkened until it clears the text floor, at 6.36:1.
+    greenOnWhite: "#0A6B64",
+  },
+  // The six inks of the code panel, each measured on the ground above. The set
+  // is built outward from the accent rather than across it: an identifier is
+  // the accent's own light tint, a keyword and a string are the two warm
+  // complements either side of it, and the comment is the ground's own hue
+  // lightened until it clears the text floor. The plain ink is a cool off-white
+  // for the reason the third's is a warm one - a long listing set in `#FFFFFF`
+  // on a dark ground haloes, and the panels of this set are the longest of the
+  // three.
+  syntax: {
+    plain: "#EAF4F6",
+    comment: "#8FA3A9",
+    identifier: "#8AE8DE",
+    keyword: "#FFC48A",
+    string: "#F7A8BF",
+    number: "#C9E88A",
+  },
+  // The bands: the masthead is the artwork's, the heading band gives its step
+  // to the code field, and the divider and the footer do not move.
+  bands: {
+    masthead: { y: 0, height: STEP * 11, steps: 11 },
+    heading: { y: FOURTH_HEADING.y, height: FOURTH_HEADING.height, steps: 13 },
+    code: { y: STEP * 24, height: STEP * 43, steps: 43 },
+    divider: { y: STEP * 67, height: STEP, steps: 1 },
+    footer: { y: STEP * 68, height: STEP * 7, steps: 7 },
+  },
+  // The columns: a wider rail, a narrower panel, and the artwork's own right
+  // margin.
+  divisions: FOURTH_COLUMNS,
+  rules: {
+    width: FOURTH_BAR.width,
+    gap: STEP,
+    upper: { height: STEP / 4, y: FOURTH_STACK.titleInkTop - STEP / 2 },
+    lower: { height: STEP / 4, y: FOURTH_STACK.titleBaseline + STEP / 2 },
+    gutter: FOURTH_BAR.gutter,
+    measure: SHEET_LANGUAGE.canvas - 2 * (FOURTH_BAR.width + FOURTH_BAR.gutter),
+  },
+  // The five fixed runs. The two outside the heading band keep the artwork's
+  // baselines and take their caps from the scale, so a smaller cap starts lower
+  // rather than dragging a lockup or a footer line up with it - which is how the
+  // third composition places its follow line, arrived at here for both.
+  runs: {
+    wordmark: {
+      inkTop: SHEET_LANGUAGE.runs.wordmark.baseline - FOURTH_SCALE.masthead.cap,
+      cap: FOURTH_SCALE.masthead.cap,
+      baseline: SHEET_LANGUAGE.runs.wordmark.baseline,
+      left: SHEET_LANGUAGE.runs.wordmark.left,
+      width: SHEET_LANGUAGE.runs.wordmark.width,
+    },
+    title: {
+      inkTop: FOURTH_STACK.titleInkTop,
+      cap: FOURTH_SCALE.title.cap,
+      baseline: FOURTH_STACK.titleBaseline,
+      width: SHEET_LANGUAGE.runs.title.width,
+    },
+    subtitle: {
+      inkTop: FOURTH_STACK.subtitleInkTop,
+      cap: ANCHOR_CAP,
+      baseline: FOURTH_STACK.subtitleBaseline,
+    },
+    leadIn: {
+      inkTop: FOURTH_STACK.leadInInkTop,
+      cap: ANCHOR_CAP,
+      baseline: FOURTH_STACK.leadInBaseline,
+      left: FOURTH_COLUMNS.spine.x + FOURTH_COLUMNS.spine.width + INSETS.leadInFromSpine,
+      width: SHEET_LANGUAGE.runs.leadIn.width,
+    },
+    followLine: {
+      inkTop: SHEET_LANGUAGE.runs.followLine.baseline - FOURTH_SCALE.followLine.cap,
+      cap: FOURTH_SCALE.followLine.cap,
+      baseline: SHEET_LANGUAGE.runs.followLine.baseline,
+      left: MARK_SQUARE.width + STEP * 4,
+      width: SHEET_LANGUAGE.runs.followLine.width,
+    },
+  },
+  // Unmoved, and with it the whole footer band. The third composition narrowed
+  // the mark square with its rail; widening it with this one would take 48 px
+  // off the measure the follow line is fitted to, and the follow line is set at
+  // the artwork's own 154 px cap rather than the third's 140 - so it is the one
+  // run on the sheet that has no room to give. The rail is a column of the code
+  // band and the mark square is a frame in the footer, which is the same
+  // distinction the footer slot turns on.
+  markSquare: { ...MARK_SQUARE },
+  brandSlots: {
+    logo: { ...SHEET_LANGUAGE.brandSlots.logo },
+    footer: FOURTH_FOOTER_SLOT,
+  },
+  insets: {
+    ...INSETS,
+    // **The one inset this composition moves, and the artwork is why.** The
+    // follow line is set at the artwork's own 154 px cap, and the artwork does
+    // not fit it: six steps off the mark square leaves 2736 px of measure, the
+    // line measures 2797.27 at that cap, and every sheet of the first two sets
+    // carries a note saying it was stepped down to 150 to get in. This
+    // composition keeps the cap and buys the room instead - four steps off the
+    // mark rather than six, which is 2832 px and fits.
+    //
+    // The alternative was to narrow the mark square, and that is the wrong one:
+    // the square is the footer's own link area, so a sheet whose follow line
+    // fitted would be a sheet whose brand was harder to press.
+    followLineFromMark: STEP * 4,
+  },
+  // The panel's own freedom, narrowed as the third's is and to different
+  // bounds. The code field is the same 43 steps and the panel is five steps
+  // narrower, so the listing is set lower in the band and held nearer the rail:
+  // the top padding is half a step more generous than the third's at both ends,
+  // and the left inset reaches half a step less far, which is what keeps a
+  // longer line inside a narrower panel.
+  //
+  // The line spacing is the third's, and that is not a choice either. The
+  // recorded range is 56 to 116 px, so the only bounds that are whole half
+  // steps inside it are 1.5 and 2 - every set that narrows this figure to the
+  // half step narrows it to the same pair.
+  panelFreedom: {
+    topPadding: { min: STEP * 2.5, max: STEP * 3 },
+    leftInset: { min: STEP * 2, max: STEP * 2.5 },
+    lineSpacing: { min: STEP * 1.5, max: STEP * 2 },
+  },
+  // Not moved, and the header says why.
+  floors: { ...FLOORS },
+};
+
+/**
  * A composition entry whose theme and layout are derived from its record.
  *
  * @param {{ id: string, title: string, set: string, drawn: string, language: typeof SHEET_LANGUAGE, scale?: Record<string, { cap: number, stem: number, fontWeight: number }> }} entry
@@ -555,6 +846,14 @@ export const SET_COMPOSITIONS = {
     drawn: "2026.11.21",
     language: THIRD_LANGUAGE,
     scale: THIRD_SCALE,
+  }),
+  "javascript-elements": derived({
+    id: "javascript-elements",
+    title: "Cyan on slate, receding masthead",
+    set: "The seven JS Elements and JS Math sheets",
+    drawn: "2026.11.24",
+    language: FOURTH_LANGUAGE,
+    scale: FOURTH_SCALE,
   }),
 };
 

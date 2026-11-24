@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-> 18 earlier entries in `CHANGELOG-2026.md`, newest first.
+> 19 earlier entries in `CHANGELOG-2026.md`, newest first.
 
 ## The versioning changed on 2026.11.02
 
@@ -38,6 +38,123 @@ design language was measured, how the catalog was built and how the API was
 written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
+
+## [1.0.0-alpha.1.14.0]
+
+The next two content items of **New Cheatsheets** `->` **JavaScript**, taken
+together because they are one batch: **JS Elements** at `javascript/elements/`
+as four cheatsheets, and **JS Math** at `javascript/math/` as three. The catalog
+goes from 37 cheatsheets in two categories to 44, and the `javascript` category
+carries its first `embed` payloads.
+
+A minor rather than a patch, for the reason `1.0.0-alpha.1.13.0` was one: a
+batch is a **set**, and the repository is maintained under a standing rule that
+every new set is drawn in a design of its own rather than in the one the set
+before it used. So there is a fourth entry in `SET_COMPOSITIONS` -
+`javascript-elements`, cyan on slate - and it is published surface in the same
+sense the third was: a caller naming that id in a document gets that design.
+
+**Two of the three checks over a composition were the third composition's
+rather than any composition's**, and a fourth set is what made that visible.
+Neither was wrong about the third; both would have passed the fourth while
+reading nothing of it, or failed it for being a different design. Both are now
+generated per composed set.
+
+### Added
+
+- **`javascript-elements`, the fourth set composition: cyan on slate, receding
+  masthead.** Its own palette, type scale, grid and panel freedom, recorded in
+  full under **Set compositions** in `DESIGN_LANGUAGE.md` with the measured
+  contrast ratio of every pairing. The accent is a cyan at 1.85:1 on paper, so
+  the substitution is live as it is in both palettes before it - `#0A6B64` is
+  that cyan darkened to 6.36:1. The ground is a slate of the accent's own
+  temperature, which puts the three designs at three temperatures rather than
+  three hues: the recorded green is the warm-neutral middle of the wheel, the
+  third's amber its warm end, and this its cool one. The six panel inks are
+  built outward from the accent rather than across it, the lowest of them
+  reaching 6.39:1 against the 4.5:1 text floor.
+- **The masthead recedes in its type scale, which is the treatment.** Every cap
+  is the lead-in's 112 at a stated factor - 1, 1.25, 1.375, 1.5 - so nothing in
+  the scale is chosen. The order is the artwork's own, masthead to lead-in, and
+  what changes is the span: the recorded scale runs 112 to 220 and the third 112
+  to 196, where this runs 112 to 168. The brand wordmark stops being the largest
+  thing on the sheet by a margin, which is what a reference sheet wants - these
+  are gone to for a call signature rather than read at a glance.
+- **A wider rail, and one step more code field.** The rail takes two steps from
+  the panel, to seven, and is the one region in this composition that gains
+  anything: a reference sheet is read down its left edge. The heading band gives
+  a step to the code field rather than taking two from the masthead as the third
+  did, because a title below the follow line needs less room than the artwork's
+  fourteen steps rather than more - so the masthead band, the divider, the
+  footer and the right margin are all the artwork's, untouched.
+- **The footer band does not move at all, and one inset does.** The follow line
+  is set at the artwork's own 154 px cap, where the third sets it at 140, so it
+  is the one run on the sheet with no room to give: six steps between the mark
+  square and the follow line leaves 2736 px of measure, the line measures
+  2797.27 at that cap, and every sheet of the first two sets carries a note
+  saying it was stepped down to 150 to get in. This composition keeps the cap and buys the room - four steps
+  off the mark rather than six, which is 2832 px and fits. Narrowing the mark
+  square was the alternative and is the wrong one: the square is the footer's
+  own link area, so a sheet whose follow line fitted would be a sheet whose
+  brand was harder to press.
+- **Four cheatsheets under JS Elements** - *Creating and Inserting*,
+  *Attributes and Properties*, *Finding and Traversing* and *Measuring and
+  Styling* - and **three under JS Math** - *Rounding and Precision*, *Random and
+  Ranges* and *Powers and Logs*. The four are `kind: embed`, which this category
+  had none of: each carries a `demo/index.html` a reader presses, held by
+  `tools/test-demo-pages-browser.mjs` to the seven claims a demo answers,
+  directly and again inside the sandbox the page frames one in. The three are
+  `kind: run`, so every output claim in them is checked against what the example
+  logs.
+- **Every one of the seven is 24 rows, and the figure is the composition's.** At
+  the widest top padding a seed may choose, this panel has 1776 px for the
+  block: 24 rows sit at 74.6 px of spacing and 25 fall under the 72 px floor,
+  while nineteen is the other end of the window, where the 85% fill floor stops
+  being reachable. The seven compose at 74.34 to 76.01 px of spacing and 0.851 to
+  0.870 of fill, with every title at the 140 px cap the scale names and no
+  display run stepped down anywhere in the set.
+
+### Changed
+
+- **`tools/test-set-compositions.mjs` reads every composed set's record, not
+  one set's.** It held a `THIRD` constant and every figure case read that one
+  composition's section, so a fourth set arrived carrying a full record of its
+  own that nothing read - the one state a record check must not reach, because
+  the figures look held while the cases that are green are over the set before
+  them. The composed sets are now derived from `SET_COMPOSITIONS` and the cases
+  are generated per set, so a fifth reaches them by existing.
+- **And it resolves each heading inside that set's own record section.** Two
+  compositions head their palette table with the same words, so a heading looked
+  up across the whole document finds the first: the fourth composition's palette
+  would have been checked against the third's table and reported correct.
+  Passing by reading the wrong half of a document is worse than failing, so the
+  composition's section is found first, by the id and title it is headed with,
+  and every figure is read within it.
+- **`tools/test-set-composition-browser.mjs` reads the display order off the
+  set's own scale.** It asserted that the title leads the wordmark, which is the
+  third composition's treatment and not a property of a composition - so it
+  failed the fourth for bringing its masthead down to second, which is that
+  set's whole point. What generalises is that the drawn sizes follow the scale
+  the set records, pairwise, which still catches a run stepped down to fit its
+  measure or a scale that reached the page half applied.
+- **A treatment is held per set rather than dropped.** The factors are the whole
+  of why either composed composition exists, and a scale that lost its treatment
+  would pass every figure in the table above it. So the record check carries one
+  entry per composed set naming the claim that set's factors make, and a new set
+  adds one: without it the case fails rather than passing a scale nothing states
+  a treatment for. `CONTRIBUTING.md` and `docs/adding-to-the-catalog.html` say
+  so where a contributor reads them.
+- **The record's listing heading no longer counts the compositions.** It read
+  *The three*, and it is the heading the record check finds that table by, so a
+  count in it is a figure that goes stale in the one place where going stale
+  also breaks the check. The table below it is what says how many there are.
+- **The frame heights are recorded as measured from the five demos that set
+  them, and a demo added since is measured against them.** `index.html` and
+  `CONTRIBUTING.md` both read as though every committed demo had been measured
+  for the figures, which was true of five and is not of nine. The four new ones
+  reach 514 px wide and 753 px narrow at their tallest, both inside the 672 and
+  832 the frame is fixed at, so `element-observers` is still the demo that set
+  them and neither figure moves.
 
 ## [1.0.0-alpha.1.13.2]
 
@@ -3897,155 +4014,3 @@ fold it in, which this is.
   entry below repeats the miscount, calling the arc refusal the second local
   change to a ported module when it was the third; that sentence is queued as
   a found issue rather than corrected here.
-
-## [2026.09.24]
-
-### Added
-
-- **The catalog has content: the eleven array examples are migrated.** Each is
-  now a folder under `javascript/arrays/<kebab-name>/` holding a `sheet.json`
-  and the example script it always had, with `meta.json` carrying the title at
-  the category and the group level. `javascript` is titled `JavaScript` and
-  `arrays` is titled `Arrays`, which is the whole reason a title lives in a
-  `meta.json` rather than being read off a path.
-
-  The eleven documents are transcribed from the payload each folder ships, by
-  one rule for all of them: the leading statements of the script, blank rows
-  kept, the source's own spelling and quote characters left alone so a document
-  and its payload stay in lockstep. Where a script runs past the panel's row
-  budget the excerpt stops early, and where a line runs past the panel's width
-  its trailing output comment is shortened. Every one of the eleven composes
-  clean and fills 85% to 94% of the code panel, against the 85% floor the
-  eleven hand composed sheets were measured at - the figure that says a
-  migrated document did not lose content on the way in. `node
-  tools/build-manifest.mjs --check` passes on the tree and on the committed
-  manifest.
-
-- **The page builds both dropdowns from `cheatsheets.json`.** The manifest is
-  fetched by relative path, so it resolves under the `/cheatsheets/` project
-  base path on Pages and at the root of a local server alike. Every option is
-  keyed by its slug id and labelled from a manifest title, which is what ends
-  the one arrangement this page has always had backwards: `removeSpaceInVariable`
-  took the label `Shift And Unshift` apart to reach `shiftAndUnshift.js`, so
-  rewording a label renamed a file that nobody had renamed. It and the two case
-  helpers beside it are gone with the hand maintained `optgroup`.
-
-- **The sheet is composed in the browser.** This is the first time the page
-  imports `api/cheatsheet/`, which is what the port was for. A selection
-  reserves the frame's box from the entry's recorded width and height, fetches
-  that folder's `sheet.json`, composes it, and injects the result as an inline
-  `svg` with its own `width` and `height` stripped so the element scales off its
-  `viewBox`. The box is reserved before the document is fetched rather than
-  after, which is the job the image element's dimensions used to do.
-
-### Changed
-
-- **`index.html` is a module.** `import` and a top level `await fetch` are what
-  the two items above needed, and both are refused a `file://` document under
-  the same CORS rule, so a local server stopped being optional. The `README.md`
-  line claiming the page works from disk said the opposite and now says that.
-  A catalog that cannot be read shows a line saying so rather than leaving an
-  empty dropdown to be interpreted.
-
-- **The injected example is a module too, and only one is ever in the body.**
-  Every selection used to append another `script` and never remove the last, so
-  a reader who looked at four examples left four elements behind and each new
-  example ran against the previous one's globals - which `console.clear()` hid
-  rather than fixed. The previous element is now removed before the next goes
-  in, the payload is injected with `type="module"` so its `var fruits` and
-  `var A` are its own, and `console.clear()` is gone. The injected URL carries
-  a per selection counter, because a module is registered once per URL per
-  document and without it the second visit to an example would execute nothing.
-
-- **Changing the category hides the group that was shown before.**
-  `selectCheatsheet()` set one `optgroup` to `display: block` and set none back,
-  which was correct while there was one category and would have shown the first
-  category's examples under the second the moment there were two. Every group is
-  now hidden and the chosen one shown, and a selection belonging to the category
-  being left is cleared with its sheet rather than left on screen under a
-  dropdown that no longer offers it.
-
-### Fixed
-
-- **The `javaScriptArrays/.jpg` placeholder `src` is gone**, along with the
-  `javaScriptArrays/.js` reference beside it. Both files were deleted on
-  2026.09.09 in `cec3805` while the markup kept pointing at one, so loading the
-  page at all requested a file that answers 404 on the published site. The
-  endpoint is no `src` attribute rather than an empty one: the element is now a
-  container the page draws into, and there is no raster left for a `src` to
-  name.
-
-- **Four undeclared loop counters and one octal literal**, all of them forced
-  into the open by injecting payloads as modules. Module scope is strict mode,
-  so `for (i in cars)` in `max-and-min-function-and-sort-object.js` and
-  `for (i in one)` and `for (i in tempArr)` in `max-and-min-value-array.js`
-  stopped being global leaks and became `ReferenceError`s; the `optgroup` loop
-  in `index.html` went out with the `optgroup` itself. `sort-numbers-array.js`
-  carried the legacy octal literal `01`, which is a parse error in a module
-  rather than a run time one, so that payload would not have loaded at all. It
-  already evaluated to `1`, which is what it says now, in the payload and in
-  the document transcribed from it.
-
-- **The `XMLHttpRequest` probe is deleted rather than replaced**, which the
-  queued item's own last bullet named as the likelier ending. Composing the
-  sheet in the page removed the image request, so there is no response status
-  to read, no broken icon to pre-empt, and no stalled request to leave an empty
-  box behind. Three days of measurements - 09.08, 09.09, 09.10 - are kept in
-  the **Preview Links and Example Loading** prose, because they are what the
-  change of course was decided against.
-
-- `tools/test-page-structure-browser.mjs` and
-  `tools/test-theme-rendering-browser.mjs` serve `.mjs` as `text/javascript` and
-  `.json` as `application/json`. Their servers needed neither until the page
-  imported a module and fetched a manifest; a module script served as
-  `application/octet-stream` is refused outright, so without this the page under
-  test rendered nothing and eighteen browser cases timed out rather than one
-  saying why.
-
-- `tools/test-example-selection.mjs` is rewritten. It used to slice the page's
-  script out of the HTML and run it in a `node:vm` sandbox against a hand built
-  DOM, which is not possible for a module with imports and a top level `await`.
-  Ten cases that can be read off the source text still are, so a bare clone
-  holds the page to them; fourteen more drive a real engine, including one that
-  selects all eleven examples in turn and fails on any page error, which is what
-  the strict mode fixes above are held to. Hiding the previously shown
-  `optgroup` needs two categories and the catalog has one, so the test server
-  answers the manifest under `/two/` with the real eleven split across two
-  synthetic categories.
-
-- **Three migrated documents drew something the example does not do.**
-  `splicing-arrays` drew `fruits.splice(2, 2, "Lemon", "Kiwi")` returning
-  `['Apple']` and `sorting-arrays` drew `ONE[1].sort()` returning
-  `['Apple', 'Banana']`; both really return the two and four elements the
-  payload's own comment names. Each had lost the `(n)` element count that marks
-  every other shortened comment in the eleven as partial, so they read as
-  complete rather than as elided, and the console the page tells the reader to
-  open prints the real thing beside the sheet that disagreed.
-
-  `changing-elements` shortened a statement rather than a comment, which no
-  other document does: it declared `nestArrayToChange` with `[1.0, 2.0]` where
-  the example declares `[1.0, 2.0, 3.0, 4.0]`, and then drew
-  `console.log(nestArrayToChange[1])` giving `(4) [1, 22.2, 3, 4]` three rows
-  below. A reader typing what that sheet shows gets a two element array and a
-  two element log.
-
-  All three restored from the payload. Measured after: the same code cap, the
-  same 93.8%, 90.6% and 85.4% panel fill and `codeFits` still true on each, so
-  nothing was traded for the correction, and every statement the eleven draw is
-  now its payload's own line.
-
-- **A cheatsheet the reader moved on from no longer lands on top of the one
-  they chose.** `showSheet()` awaits the document and then its body, so the
-  order two documents answer in is not the order they were asked in: selecting
-  Sorting Arrays and then Splicing Arrays before the first answered left the
-  Sorting Arrays graphic in the frame under the name, the footnote and the
-  dropdown of Splicing Arrays. Reachable by arrowing through the list, since a
-  closed `select` fires `change` on every key. Each selection now carries a
-  token and every step past an await checks it, so an abandoned composition
-  draws nothing, and a late failure no longer takes down the sheet that
-  replaced it.
-
-- The suite is 352 cases, up from 343, all passing with a browser present.
-  Seven of the nine new cases need no browser; the two that do are the reserved
-  box measured while the document is still in flight, and the abandoned
-  selection above.

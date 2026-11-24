@@ -103,6 +103,16 @@ test("the examples are offered in the order they are taught", () => {
       "Making a Date",
       "Reading a Date",
       "Date Arithmetic",
+      // Then JS Elements, ordered fourth, and JS Math, ordered fifth. Those
+      // seven are the next batch and so the next set, drawn in the fourth set
+      // composition - and the first `embed` payloads this category carries.
+      "Creating and Inserting",
+      "Attributes and Properties",
+      "Finding and Traversing",
+      "Measuring and Styling",
+      "Rounding and Precision",
+      "Random and Ranges",
+      "Powers and Logs",
     ],
     "html-css": [
       // General HTML Overview, which `meta.json` orders first in the category.

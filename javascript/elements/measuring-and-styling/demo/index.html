@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Measuring and Styling</title>
+<style>
+ :root {
+  color-scheme: dark;
+  --ground: #020433;
+  --ink: #F8F8F9;
+  --accent: #4CAE50;
+  --edge: #6F6F8C;
+ }
+ body {
+  margin: 0;
+  padding: 1.5rem;
+  background: var(--ground);
+  color: var(--ink);
+  font: 1rem/1.5 system-ui, sans-serif;
+ }
+ h1 { font-size: 1.25rem; margin: 0 0 0.5rem; }
+ p { margin: 0 0 1rem; max-width: 46ch; }
+ .row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+ button {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+ }
+ button:hover { border-color: var(--accent); }
+ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+ #panel {
+  --gap: 0px;
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 17.5rem;
+  margin: 0 0 1rem var(--gap);
+  padding: 0.75rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  color: var(--accent);
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ pre {
+  margin: 0;
+  padding: 0.75rem;
+  min-height: 6rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 0.875rem/1.6 ui-monospace, monospace;
+ }
+ .ok { color: var(--accent); }
+ .no { color: #FDC83A; }
+</style>
+</head>
+<body>
+<h1>Measuring and Styling</h1>
+<p>
+ The panel below is what every control reads and writes. Its width, its colour
+ and its gap are each read from a different place, and the three disagree.
+</p>
+<div id="panel">the panel under measurement</div>
+<div class="row">
+ <button id="rect">Read the rect</button>
+ <button id="offset">Read offsetWidth</button>
+ <button id="inline">Inline or computed</button>
+ <button id="token">Write a token</button>
+ <button id="grow">Grow, then measure</button>
+ <button id="restore">Put it back</button>
+</div>
+<pre id="log" aria-live="polite"></pre>
+<script type="module">
+ const log = document.querySelector("#log");
+ const panel = document.querySelector("#panel");
+ const used = getComputedStyle(panel);
+
+ /**
+  * One line into the panel, in the tone the sender chose.
+  *
+  * Built and filled with `textContent`. Several of these lines carry a value
+  * the cascade resolved rather than one this page wrote, and a resolved value
+  * is not markup to be parsed.
+  */
+ function line(tone, text) {
+  const span = document.createElement("span");
+  span.className = tone;
+  span.textContent = text;
+  log.append(span, "\n");
+ }
+
+ /** One line into the panel, the way the cheatsheet's `report` does. */
+ function report(text) {
+  line("ok", text);
+ }
+
+ /** The same, for the line a refusal leaves. */
+ function warn(text) {
+  line("no", text);
+ }
+
+ /** Two decimal places, so a fractional box reads as one. */
+ const px = (value) => `${value.toFixed(2)}px`;
+
+ document.querySelector("#rect").addEventListener("click", () => {
+  log.textContent = "";
+  // Viewport coordinates, and fractional: a rect is what the layout actually
+  // produced rather than what any stylesheet asked for.
+  const box = panel.getBoundingClientRect();
+  report(`width ${px(box.width)}, height ${px(box.height)}`);
+  report(`top ${px(box.top)} from the viewport, ${px(box.top + window.scrollY)} from the page`);
+  report(`fractional: ${box.width % 1 !== 0 || box.height % 1 !== 0}`);
+ });
+
+ document.querySelector("#offset").addEventListener("click", () => {
+  log.textContent = "";
+  // The same box, rounded to an integer, and blind to a transform. The two
+  // differ by under a pixel here and by the scale factor under one.
+  const box = panel.getBoundingClientRect();
+  report(`offsetWidth ${panel.offsetWidth}, rect width ${px(box.width)}`);
+  panel.style.transform = "scale(2)";
+  const scaled = panel.getBoundingClientRect();
+  report(`under scale(2): offsetWidth ${panel.offsetWidth}, rect ${px(scaled.width)}`);
+  panel.style.transform = "";
+  report("offsetWidth never saw the transform, and the rect did");
+ });
+
+ document.querySelector("#inline").addEventListener("click", () => {
+  log.textContent = "";
+  // `style` is the inline attribute, so it is empty until something writes
+  // one. The cascade's answer is somewhere else entirely.
+  report(`style.color: ${JSON.stringify(panel.style.color)}`);
+  report(`computed color: ${used.color}`);
+  if (panel.style.color === "") {
+   report("the inline attribute holds no colour, and the panel is still green");
+  } else {
+   warn("something wrote an inline colour, so the two now agree");
+  }
+ });
+
+ document.querySelector("#token").addEventListener("click", () => {
+  log.textContent = "";
+  // A custom property is read and written under its own name, dashes and all,
+  // and the value comes back as the string that was written.
+  panel.style.setProperty("--gap", "24px");
+  report(`--gap now: ${JSON.stringify(used.getPropertyValue("--gap").trim())}`);
+  report(`the margin the cascade made of it: ${used.marginLeft}`);
+  report(`style.getPropertyValue reads the inline one: ${JSON.stringify(panel.style.getPropertyValue("--gap"))}`);
+ });
+
+ document.querySelector("#grow").addEventListener("click", () => {
+  log.textContent = "";
+  // Read, write, read. The second read cannot be served from the last layout,
+  // so this is the shape that costs a page its frame when it is in a loop.
+  const before = panel.getBoundingClientRect().width;
+  panel.style.width = `${before + 16}px`;
+  const after = panel.getBoundingClientRect().width;
+  report(`width ${px(before)} then ${px(after)}`);
+  report(`the write landed: ${JSON.stringify(panel.style.width)}`);
+  report("each read after a write lays the page out again, so batch the writes");
+ });
+
+ document.querySelector("#restore").addEventListener("click", () => {
+  log.textContent = "";
+  // Removing an inline value hands the question back to the cascade, which is
+  // not the same as writing the value the cascade would have given.
+  panel.style.removeProperty("width");
+  panel.style.removeProperty("--gap");
+  report(`inline style left: ${JSON.stringify(panel.getAttribute("style"))}`);
+  report(`width is the stylesheet's again: ${px(panel.getBoundingClientRect().width)}`);
+  report(`--gap is back to ${JSON.stringify(used.getPropertyValue("--gap").trim())}`);
+ });
+</script>
+</body>
+</html>
