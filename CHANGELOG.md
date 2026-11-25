@@ -39,6 +39,78 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.14.1]
+
+Two of the four **JS Elements** demos printed a line the document did not bear
+out, and the 19 cases over them were green because each pressed every control
+once, at one width.
+
+A patch, for the reason `1.0.0-alpha.1.13.2` was one: a reader was told
+something untrue. No published surface moves, nothing a caller writes against
+changes shape, and no sheet is drawn differently. What is new is that a demo's
+log panel is now read against the document it describes, where before a line
+was held only to existing, in one of the two tones, with nothing thrown.
+
+### Fixed
+
+- **"Grow, then measure" reported a width `max-width: 100%` had clamped away.**
+  `#panel` in `javascript/elements/measuring-and-styling/demo/index.html` is
+  `width: 17.5rem` with `max-width: 100%`, and `#grow` read the box, wrote
+  sixteen pixels onto it and read it back. Once the write passed the body's
+  content box the used width stopped following it, and because the next press
+  read `before` off the clamped box, `before + 16` was the same figure every
+  time: at a 390px viewport press 2 reported `width 296.00px then 308.00px`
+  under `the write landed: "312px"`, and from press 3 it printed `width 308.00px
+  then 308.00px` with the inline width stuck at `324px`, still closing on *each
+  read after a write lays the page out again*. At 320px it was wrong on the
+  first press. The control's lesson - read, write, read, and the second read
+  cannot be served from the last layout - read as a demonstration that a write
+  changes nothing. The next width is now asked for from the last value asked
+  for rather than from the box just measured, and where the two part company the
+  panel says so in the refusal amber: `asked for 254.00px and got 238.00px:
+  max-width clamped it`. A clamp reported is worth more than a clamp avoided,
+  since the used width not being the specified width is the same lesson one
+  layer in and the reason a rect is being read there at all. Measured at all
+  four widths the page frames the demo at, six presses each: no press reports a
+  figure it did not measure, and `#restore` still recovers the panel.
+- **"Insert markup" reported `2 child element`.** `#markup` in
+  `javascript/elements/creating-and-inserting/demo/index.html` hardcoded the
+  singular, so press 1 read `and holds 1 child element` and was right while
+  press 2 read `and holds 2 child element` and press 3 `and holds 3 child
+  element`. The noun is read off the count.
+
+### Added
+
+- **`tools/test-demo-pages-browser.mjs` presses twice, at both of the frame's
+  widths, and reads the panel against the document.** The eighth claim a demo
+  answers, and the first that is about what a press *said* rather than that it
+  answered at all. Neither defect above was reachable from the two walks already
+  there: both frame a demo at `736` by `672`, the wide layout's box, and press
+  each control once. The file now carries both boxes the page produces - the
+  wide one and `288` by `832`, which is the frame below the 768px breakpoint on
+  the smallest phone the page is drawn for - with the box named in the harness
+  route's query, so one route serves both and a request naming none still gets
+  the wide layout the framed walk has always used. Each control is pressed twice
+  at each box and held to two claims, neither of them about a particular demo:
+  a width a line says landed is a width something in the document measures,
+  within half a pixel, or a line says the write was clamped; and where one
+  press's count is 1 and the next press's is not, the words after the figure
+  have to have changed. The widths are read off whichever element bears an
+  inline pixel width rather than off a selector the file names, and only off an
+  element this press wrote, so a clamped width an earlier control left behind is
+  not reported once per control after it. The count is read across two presses
+  rather than against the document because `and holds 2 child element` reports
+  the count the document holds: what was wrong was the agreement, and watching
+  one line's count cross 1 is the only way to see that without a dictionary of
+  every noun a demo might count. Against the two defects it fails with
+  *`grow press 1 says "the write landed: \"256px\"", and nothing in the document
+  measures 256px`* and *`markup reports "and holds 1 child element" then "and
+  holds 2 child element", so the count went from 1 to 2 and "child" did not
+  follow it`*, and with them fixed the file is 28 of 28. Two more page loads per
+  demo, both in series and each closed, which took this file from 47s to 128s;
+  the contention recorded further up it was pages open at once rather than a
+  file's length, so what the rest of the suite sees is unchanged.
+
 ## [1.0.0-alpha.1.14.0]
 
 The next two content items of **New Cheatsheets** `->` **JavaScript**, taken

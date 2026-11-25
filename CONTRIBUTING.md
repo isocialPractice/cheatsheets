@@ -640,6 +640,21 @@ frames the payload the manifest records and every other kind frames nothing,
 that the frame comes down on the next selection and on a category change, and
 that the demo inside it answers its own controls.
 
+**Say only what the page did.** A demo teaches through the lines it writes into
+its log panel, so a line that reads fluently and is not true of the document is
+the one defect a reader cannot tell from the lesson. Two of the four **JS
+Elements** demos shipped with one on 2026.11.24: `#grow` in **Measuring and
+Styling** reported a width `max-width: 100%` had clamped away, and `#markup` in
+**Creating and Inserting** reported `2 child element`. Both are now held by
+`node --test tools/test-demo-pages-browser.mjs`, which presses every control
+twice at each of the frame's two widths and reads what the panel said against
+the document behind it: a width a line says landed is a width something
+measures, or the line says the write was clamped, and a count that crosses one
+takes its wording with it. Two things follow for a new demo - **report the
+clamp, the refusal or the figure the layout actually produced** rather than the
+one that was asked for, and **write a count's noun off the count** rather than
+hardcoding either number.
+
 ## Adding a new category
 
 A category is a folder at the repository root, and the work that is easy to

@@ -158,10 +158,22 @@
   // Read, write, read. The second read cannot be served from the last layout,
   // so this is the shape that costs a page its frame when it is in a loop.
   const before = panel.getBoundingClientRect().width;
-  panel.style.width = `${before + 16}px`;
+  // The next width is asked for from the last value asked for, never from the
+  // box that was just measured. The panel is `max-width: 100%`, so once the
+  // writes reach the body's content box the measured width stops following
+  // them - and growing from the measured box then asks for the same figure
+  // every press, which reads as a write that changes nothing.
+  const asked = (parseFloat(panel.style.width) || before) + 16;
+  panel.style.width = `${asked}px`;
   const after = panel.getBoundingClientRect().width;
   report(`width ${px(before)} then ${px(after)}`);
-  report(`the write landed: ${JSON.stringify(panel.style.width)}`);
+  if (Math.abs(after - asked) > 0.5) {
+   // The used width is not the specified width, which is the same lesson one
+   // layer in and the reason a rect is being read here at all.
+   warn(`asked for ${px(asked)} and got ${px(after)}: max-width clamped it`);
+  } else {
+   report(`the write landed: ${JSON.stringify(panel.style.width)}`);
+  }
   report("each read after a write lays the page out again, so batch the writes");
  });
 

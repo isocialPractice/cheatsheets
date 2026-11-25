@@ -12,7 +12,7 @@
 //
 // ## What a demo is held to
 //
-// Seven claims, none of them about a particular demo, so the next `embed` sheet
+// Eight claims, none of them about a particular demo, so the next `embed` sheet
 // is covered by writing its folder rather than by editing this file:
 //
 // - **Every control answers.** Pressing a control either writes a line into the
@@ -45,6 +45,12 @@
 //   submission and not `allow-top-navigation`, so a submission resolves inside
 //   the frame; this reads the behaviour rather than the grant, which
 //   `tools/test-example-selection.mjs` pins on its own.
+// - **It says only what the document bears out.** Pressed twice at each of the
+//   two widths the page frames a demo at, no line claims a width nothing
+//   measures and no count crosses one while its wording stands still. The six
+//   claims above all read a press as a press; this one reads what the press
+//   said against the document it describes. See **The narration walk** at the
+//   foot of this file.
 //
 // ## Settling, rather than waiting for the first change
 //
@@ -153,19 +159,40 @@ const DEMO_SANDBOX = pageSandbox();
 const FRAME_ROUTE = "/__framed/";
 
 /**
- * The box the page gives a frame on its wide layout, from **Fit the frame** in
- * `CONTRIBUTING.md`.
+ * The two boxes the page gives a frame, from **Fit the frame** in
+ * `CONTRIBUTING.md`: 736 by 672 on the wide layout, and 288 by 832 below the
+ * 768px breakpoint, where the frame narrows to the smallest phone the page is
+ * drawn for.
  *
  * The figures are here so a demo lays out under the walk the way it lays out
  * for a reader, and not because this file holds them - whether a demo fits is
- * measured in the record under `test-results/ui-ux-tester.agent/`. 672px is the
- * tallest of the committed demos rounded up to the page's 8px step, so nothing
- * should scroll inside the frame at this width.
+ * measured in the record under `test-results/ui-ux-tester.agent/`. Each height
+ * is the tallest of the committed demos at that width rounded up to the page's
+ * 8px step, so nothing should scroll inside either.
+ *
+ * **Both are here because one of them was all this file had until 2026.11.25.**
+ * What a demo reports can depend on how much room the frame gives it: `#panel`
+ * in **Measuring and Styling** carries `max-width: 100%`, so its `#grow`
+ * control reaches the clamp on the first press at 288px and not inside six at
+ * 736px. A walk at one width walks past every defect the other width is what
+ * produces.
  */
-const FRAME_BOX = { width: 736, height: 672 };
+const FRAME_BOXES = {
+  wide: { width: 736, height: 672 },
+  narrow: { width: 288, height: 832 },
+};
 
-/** A top level page holding one demo in a frame, sandboxed as the page does it. */
-function frameHarness(payload) {
+/** The box a frame is given where a request names none: the wide layout's. */
+const FRAME_BOX = FRAME_BOXES.wide;
+
+/**
+ * A top level page holding one demo in a frame, sandboxed as the page does it.
+ *
+ * The box is a parameter rather than a constant, so one route serves both of
+ * {@link FRAME_BOXES} and a request naming none still gets the wide layout the
+ * framed walk below has always used.
+ */
+function frameHarness(payload, box = FRAME_BOX) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,8 +202,8 @@ function frameHarness(payload) {
  html, body { margin: 0; background: #020433; }
  iframe {
   display: block;
-  width: ${FRAME_BOX.width}px;
-  height: ${FRAME_BOX.height}px;
+  width: ${box.width}px;
+  height: ${box.height}px;
   border: 0;
  }
 </style>
@@ -209,13 +236,22 @@ const TYPES = {
  * and the repository has no such file. It is served from the same origin as
  * the demos so the harness is as close to the page as a test can get without
  * loading the page.
+ *
+ * A `box` in the query names one of {@link FRAME_BOXES}; a request carrying
+ * none gets {@link FRAME_BOX}. The query decides it rather than a second route
+ * so that the path a frame is loaded from stays the payload's own, which is
+ * what the demos' relative references are resolved against.
  */
 function serveRepository() {
   const server = createServer(async (request, response) => {
-    const requested = decodeURIComponent(request.url.split("?")[0]);
+    const [path, query] = request.url.split("?");
+    const requested = decodeURIComponent(path);
     if (requested.startsWith(FRAME_ROUTE)) {
+      const named = new URLSearchParams(query).get("box");
       response.writeHead(200, { "content-type": TYPES[".html"] });
-      response.end(frameHarness(requested.slice(FRAME_ROUTE.length)));
+      response.end(
+        frameHarness(requested.slice(FRAME_ROUTE.length), FRAME_BOXES[named] ?? FRAME_BOX)
+      );
       return;
     }
     const file = join(root, requested === "/" ? "index.html" : requested);
@@ -373,8 +409,12 @@ async function press(page, handle) {
  * too, which is what makes a withheld permission visible at all: the engine
  * reports one on the top level console, and the demo then reports it again in
  * a line of its own.
+ *
+ * `box` names one of {@link FRAME_BOXES} and defaults to the wide layout, so a
+ * caller that does not care about the width gets the one the framed walk below
+ * has always used.
  */
-async function openFramed(payload, viewport = { width: 1000, height: 800 }) {
+async function openFramed(payload, viewport = { width: 1000, height: 800 }, box = "wide") {
   const page = await browser.newPage({ viewport });
   const consoleErrors = [];
   const pageErrors = [];
@@ -384,7 +424,9 @@ async function openFramed(payload, viewport = { width: 1000, height: 800 }) {
     }
   });
   page.on("pageerror", (error) => pageErrors.push(`${error.name}: ${error.message}`));
-  await page.goto(`${site.base}${FRAME_ROUTE.slice(1)}${payload}`, { waitUntil: "load" });
+  await page.goto(`${site.base}${FRAME_ROUTE.slice(1)}${payload}?box=${box}`, {
+    waitUntil: "load",
+  });
   const element = await page.waitForSelector("iframe", { state: "attached" });
   const frame = await element.contentFrame();
   await frame.waitForSelector("#log", { state: "attached" });
@@ -739,5 +781,225 @@ for (const demo of demos) {
     assert.equal(page.url(), landed, `${demo.id} moved the address bar of the page holding it`);
 
     await page.close();
+  });
+}
+
+// **The narration walk: two widths, two presses, and the document in hand.**
+//
+// The two walks above press every control once, at one width, and hold the
+// press to having answered at all - a line in the panel, in one of the two
+// tones, with nothing thrown. What neither can see is a line that answers
+// fluently and says something the document does not bear out, and both defects
+// found on 2026.11.24 were exactly that. Nineteen of nineteen were green over
+// them.
+//
+// - **Measuring and Styling** reported `the write landed: "256px"` with
+//   `#panel` measuring 240px. `max-width: 100%` clamps the used width, and the
+//   handler read the box it grows from off the clamped box, so from the clamp
+//   on it reported a figure it had never measured and then froze. At 736px that
+//   is past the sixth press; at 288px it is the first.
+// - **Creating and Inserting** reported `and holds 2 child element`. Press 1
+//   reads `1 child element` and is right, so one press at any width passes it.
+//
+// So this walks the same controls twice at each of {@link FRAME_BOXES} and
+// holds each press to two claims a test can check without being told anything
+// about a particular demo:
+//
+// - **A width a line says landed is a width something measures**, within half a
+//   pixel, or the panel says the write was clamped. Held against whichever
+//   element bears the inline width rather than against a selector named here,
+//   so the next demo that writes one is covered by being written.
+// - **A count that crosses one takes its wording with it.** Pressed twice, a
+//   control that counts answers with two figures; where one of them is 1 and
+//   the other is not, the words after the figure have to have changed.
+//
+// **Why the count is read across two presses rather than off the document.**
+// `and holds 2 child element` reports the count the document holds - two - so
+// comparing the figure with the document passes it. What is wrong is the
+// agreement, and the only way to see that without a dictionary of every noun a
+// demo might count is to watch one line's count cross 1 and ask whether
+// anything after it moved. Two presses is what makes that reading available,
+// and it is why this walk presses twice rather than asserting harder once.
+//
+// Two page loads per demo, sequential and each closed, against the contention
+// noted further up this file: 18 loads for the committed catalog, which took
+// this file from 47s to 128s on 2026.11.25. The loads are one browser's and in
+// series, so what the rest of the suite sees is a longer file rather than more
+// pages open at once - which is what the contention above was.
+
+/**
+ * What a press claimed, and what the document behind it holds.
+ *
+ * The inline widths are read off the document rather than from a selector this
+ * file names, so a demo that writes a width onto something other than a panel
+ * is held to the same claim without this file being edited.
+ */
+const READ_CLAIMS = () => {
+  const log = document.querySelector("#log");
+  return {
+    lines: log ? [...log.querySelectorAll("span")].map((span) => span.textContent) : [],
+    inline: [...document.querySelectorAll("[style]")]
+      .map((element) => ({
+        name: element.id || element.tagName,
+        asked: element.style.width,
+        measured: element.getBoundingClientRect().width,
+      }))
+      .filter((entry) => /^-?[0-9.]+px$/.test(entry.asked)),
+  };
+};
+
+/** A line claiming an inline write took, as in `the write landed: "312px"`. */
+const LANDED = /\blanded\b[^"]*"(-?[0-9.]+)px"/;
+
+/** A line saying the used width is not the width that was asked for. */
+const CLAMPED = /\bclamp(?:ed|s|ing)?\b|\bmax-width\b/i;
+
+/** How far a reported width may sit from a measured one before it is a claim. */
+const HALF_PIXEL = 0.5;
+
+/**
+ * Words that may follow a count without being the thing counted.
+ *
+ * A closed class on purpose - prepositions, conjunctions and the copulas - so
+ * the list never has to grow with the demos' vocabulary. No noun is on it,
+ * which is what leaves {@link countAgreement} able to fail.
+ */
+const NOT_COUNTED = new Set([
+  "after", "and", "are", "as", "at", "before", "but", "by", "did", "does",
+  "during", "for", "from", "had", "has", "have", "in", "into", "is", "of",
+  "on", "or", "out", "over", "past", "per", "since", "than", "then", "through",
+  "to", "under", "until", "up", "was", "were", "will", "with", "within",
+  "without", "would",
+]);
+
+/**
+ * Where two readings of one line differ only in a count that crossed 1, the
+ * word that count is quantifying.
+ *
+ * Both lines are reduced to a skeleton with every run of digits replaced, and a
+ * pair whose skeletons differ is not one line read twice - it is two different
+ * lines, and nothing can be concluded from the pair. Equal skeletons mean
+ * everything but the digits is identical, so a word still standing after a
+ * count that moved from 1 to many, or back, is a word that did not agree.
+ *
+ * Returns `null` where there is nothing to hold: no count moved, more than one
+ * did, neither side is the singular, the count ends the line, or the word after
+ * it is {@link NOT_COUNTED}. A `(s)` ending is the demos' own way of covering
+ * both numbers and is read as agreeing.
+ */
+function countAgreement(one, two) {
+  const digits = /[0-9]+/g;
+  if (one.replace(digits, "#") !== two.replace(digits, "#")) return null;
+  const was = one.match(digits) ?? [];
+  const now = two.match(digits) ?? [];
+  const moved = was
+    .map((figure, at) => ({ at, figure, into: now[at] }))
+    .filter((shift) => shift.figure !== shift.into);
+  if (moved.length !== 1) return null;
+  const [shift] = moved;
+  if ((shift.figure === "1") === (shift.into === "1")) return null;
+  // The text after the count that moved, which equal skeletons make the same in
+  // both lines. Walked rather than indexed, because a run of digits before it
+  // may be a different length in the two.
+  let at = -1;
+  for (let seen = 0; seen <= shift.at; seen += 1) {
+    at = one.indexOf(was[seen], at + 1);
+  }
+  const after = one.slice(at + was[shift.at].length);
+  const word = after.match(/^\s+([A-Za-z][A-Za-z-]*(?:\(s\))?)/);
+  if (!word) return null;
+  if (word[1].endsWith("(s)")) return null;
+  if (NOT_COUNTED.has(word[1].toLowerCase())) return null;
+  return { from: shift.figure, to: shift.into, word: word[1] };
+}
+
+for (const demo of demos) {
+  test(`${demo.title} says only what the document bears out`, { skip }, async () => {
+    const contradictions = [];
+    for (const [name, box] of Object.entries(FRAME_BOXES)) {
+      const { page, frame } = await openFramed(
+        demo.payload,
+        { width: box.width + 48, height: box.height + 48 },
+        name
+      );
+      const controls = await frame.$$("button:not(dialog button)");
+      assert.ok(controls.length > 0, `${demo.id} offers no control in the ${name} frame`);
+      const at = `${demo.id} in the ${name} frame (${box.width}px)`;
+
+      for (const control of controls) {
+        const id = (await control.getAttribute("id")) ?? (await control.textContent());
+        const rounds = [];
+        for (const round of [1, 2]) {
+          // Read before the press, so a width this press did not write is not
+          // laid at its door. A clamped width an earlier control left behind is
+          // still on the element when the next one is pressed, and holding every
+          // press to every inline width in the document would report the one
+          // defect once per control after it.
+          const before = await frame.evaluate(READ_CLAIMS);
+          const result = await press(frame, control);
+          if (result.dialog) {
+            await frame.press("dialog[open]", "Escape");
+            await frame
+              .waitForFunction(() => !document.querySelector("dialog[open]"))
+              .catch(() => {});
+            await frame.waitForTimeout(SETTLE_MS);
+          }
+          const claims = await frame.evaluate(READ_CLAIMS);
+          rounds.push(claims.lines);
+          const namesClamp = claims.lines.some((line) => CLAMPED.test(line));
+
+          // --- A width a line says landed is a width something measures.
+          for (const line of claims.lines) {
+            const found = line.match(LANDED);
+            if (!found) continue;
+            const asked = Number(found[1]);
+            const agrees = claims.inline.some(
+              (entry) => Math.abs(entry.measured - asked) <= HALF_PIXEL
+            );
+            if (agrees || namesClamp) continue;
+            contradictions.push(
+              `${at}: ${id} press ${round} says ${JSON.stringify(line)}, and nothing in ` +
+                `the document measures ${asked}px - ` +
+                claims.inline
+                  .map(
+                    (entry) =>
+                      `${entry.name} asked ${entry.asked} and measures ` +
+                      `${entry.measured.toFixed(2)}px`
+                  )
+                  .join("; ")
+            );
+          }
+
+          // --- A width this press wrote that the layout did not take is said so.
+          for (const entry of claims.inline) {
+            const asked = parseFloat(entry.asked);
+            const had = before.inline.find((seen) => seen.name === entry.name);
+            if (had && had.asked === entry.asked) continue;
+            if (Math.abs(entry.measured - asked) <= HALF_PIXEL) continue;
+            if (namesClamp) continue;
+            contradictions.push(
+              `${at}: ${id} press ${round} wrote ${entry.asked} onto ${entry.name}, which ` +
+                `measures ${entry.measured.toFixed(2)}px, and no line says it was clamped`
+            );
+          }
+        }
+
+        // --- A count that crosses one takes its wording with it.
+        const [first, second] = rounds;
+        for (let line = 0; line < Math.min(first.length, second.length); line += 1) {
+          const shift = countAgreement(first[line], second[line]);
+          if (!shift) continue;
+          contradictions.push(
+            `${at}: ${id} reports ${JSON.stringify(first[line])} then ` +
+              `${JSON.stringify(second[line])}, so the count went from ${shift.from} to ` +
+              `${shift.to} and "${shift.word}" did not follow it`
+          );
+        }
+      }
+
+      await page.close();
+    }
+
+    assert.deepEqual(contradictions, [], `${demo.id} writes a line the document does not bear out`);
   });
 }

@@ -142,7 +142,11 @@
   // the only condition under which this call is the right one.
   first.insertAdjacentHTML("beforeend", " <em>on the list</em>");
   report(`first item is now: ${first.textContent}`);
-  report(`and holds ${first.children.length} child element`);
+  // Pressed again, the same item holds two of them, so the count decides the
+  // noun. A hardcoded singular reads as a line that did not look at the count
+  // it is printing.
+  const kids = first.children.length;
+  report(`and holds ${kids} child ${kids === 1 ? "element" : "elements"}`);
  });
 
  document.querySelector("#move").addEventListener("click", () => {
