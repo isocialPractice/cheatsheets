@@ -39,6 +39,59 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.14.2]
+
+A demo's two tones carry the meaning a reader reads a line by - the accent
+reports, the amber refuses - and nothing in the suite held a refusal to the
+amber. The 28 cases over the nine demos were green with that question entirely
+open.
+
+A patch, for the reason `1.0.0-alpha.1.14.1` was one: what moves is the ground a
+reader stands on. No published surface changes shape, no demo behaves
+differently, and no sheet is drawn differently - the one line in the committed
+catalog that names a clamp was already correct, and the fix is to the check that
+could not see it.
+
+### Added
+
+- **A ninth claim a demo answers: a line that names the clamp is drawn as a
+  refusal.** `READ_CLAIMS` in `tools/test-demo-pages-browser.mjs` now carries
+  each line's tone beside its text, as `READ_LOG` beside it always has, and the
+  narration walk holds every line matching `CLAMPED` to `REFUSED` rather than
+  `REPORTED`. What was missing is that the two walks read a line's tone and its
+  wording in different places and never together. The pressing pass collects
+  `unreported` against both colours at once, so what it rules out is a line
+  drawn in the body ink - a page writing into the panel from somewhere other
+  than its own two reporters - and nothing about which of the two a given line
+  should be. The narration walk reads what a line *says*, and takes a line
+  naming the clamp as the excuse that lets a width the layout did not take pass
+  both of its width claims. So that excuse was granted on wording alone, and a
+  clamp reported in the accent - a refusal drawn as a report of a width that
+  took - was green in all 28. The regex deciding what counts as naming the
+  clamp, both colour constants and the tone reader were already in the file, so
+  the claim adds no vocabulary; the assertion sits ahead of the two width claims
+  it underwrites, because that is what makes their excuse honest. Measured
+  against the defect by writing the line through `report`: it fails twice at the
+  288px frame with *`grow press 1 says "asked for 256.00px and got 240.00px:
+  max-width clamped it" in rgb(76, 174, 80) - a line naming the clamp is a
+  refusal, so it is drawn in rgb(253, 200, 58) and not the accent rgb(76, 174,
+  80)`*, and through `warn` as `#grow` in
+  `javascript/elements/measuring-and-styling/demo/index.html` writes it the file
+  is 28 of 28 again. That is the one line in the committed catalog the regex
+  matches, and it is the clamp the narration walk excused on its first day.
+
+### Changed
+
+- **The brief now says what a new demo does with a refusal, not only that it
+  reports one.** **Say only what the page did** in `CONTRIBUTING.md` carries the
+  third claim the narration walk makes and a third thing that follows for a new
+  demo: write the refusal through the demo's own `warn` rather than its
+  `report`, so the line a reader reads as a refusal is one. The claim count
+  moves from eight to nine where it is stated - the list at the head of
+  `tools/test-demo-pages-browser.mjs`, the narration walk's own list further
+  down it, and **New Cheatsheets** in `TODO.md`, which now names the tone beside
+  the document as what a demo's lines are read against.
+
 ## [1.0.0-alpha.1.14.1]
 
 Two of the four **JS Elements** demos printed a line the document did not bear

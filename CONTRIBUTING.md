@@ -649,11 +649,14 @@ Styling** reported a width `max-width: 100%` had clamped away, and `#markup` in
 `node --test tools/test-demo-pages-browser.mjs`, which presses every control
 twice at each of the frame's two widths and reads what the panel said against
 the document behind it: a width a line says landed is a width something
-measures, or the line says the write was clamped, and a count that crosses one
-takes its wording with it. Two things follow for a new demo - **report the
-clamp, the refusal or the figure the layout actually produced** rather than the
-one that was asked for, and **write a count's noun off the count** rather than
-hardcoding either number.
+measures, or the line says the write was clamped; a line saying so is drawn in
+the refusal amber rather than the accent, since it is what excuses a width the
+layout did not take; and a count that crosses one takes its wording with it.
+Three things follow for a new demo - **report the clamp, the refusal or the
+figure the layout actually produced** rather than the one that was asked for,
+**write that refusal through the demo's own `warn` rather than its `report`**
+so the line a reader reads as a refusal is one, and **write a count's noun off
+the count** rather than hardcoding either number.
 
 ## Adding a new category
 

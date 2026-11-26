@@ -26,15 +26,6 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
 
-### UI/UX Override - the clamp line's tone
-
-#### Found Issues
-
-- [ ] Hold a line that names the clamp to the refusal amber in `tools/test-demo-pages-browser.mjs`
-  - **Issue**: a demo's two tones carry the meaning a reader reads them by - the accent is a report, the amber is a refusal - and nothing in the suite holds a refusal to the amber. The pressing pass collects `unreported` against both `REPORTED` and `REFUSED`, which rules out a line drawn in the body ink and nothing else, so a line may say one thing and be drawn as the other. The clamp line the 11-25 verification passed, `asked for 256.00px and got 240.00px: max-width clamped it` at the 288px frame, is correctly `rgb(253, 200, 58)`; writing it through `report` instead of `warn` leaves all 28 cases green. The narration walk added this turn holds a clamped width to its wording and says nothing about how it is drawn, which is the half of the same defect a reader meets first
-  - **Goal**: carry each line's tone beside its text in `READ_CLAIMS`, and in the narration walk assert that a line matching `CLAMPED` - the regex already deciding there whether a width the layout did not take was excused - is drawn in `REFUSED` rather than `REPORTED`. No new vocabulary: the regex and both colour constants are in the file. It is a ninth claim, so move the prose with it - the claim list at the head of that file, `the eight claims a demo answers` in **New Cheatsheets** below, and **Say only what the page did** in `CONTRIBUTING.md`
-  - From: UI/UX Override - the clamp line's tone
-
 ### Create and Deploy GitHub Pages Override
 
 ## GitHub Pages Deployment
@@ -492,9 +483,10 @@ the set before it over.
 
 **The `javascript` category now carries `embed` payloads.** The four **JS
 Elements** sheets are the first, so a sheet here may bring a `demo/index.html`
-and is then held by `tools/test-demo-pages-browser.mjs` to the eight claims a
+and is then held by `tools/test-demo-pages-browser.mjs` to the nine claims a
 demo answers - directly, inside the sandbox the page frames one in, and twice at
-each of the frame's two widths against the document its lines describe.
+each of the frame's two widths against the document its lines describe and the
+tone each line is drawn in.
 **What a demo may rely on** in `CONTRIBUTING.md` is the brief; the frame's two
 fixed heights are recorded there too, and a demo added since they were measured
 is measured against them rather than reopening them.
@@ -2505,5 +2497,9 @@ generate ideas about generating ideas.
   - **Issue**: the framed pass fixes `FRAME_BOX = { width: 736, height: 672 }`, walks the controls once each, and asserts only that a press wrote something into the log. Both defects above sit outside that: one needs the 288px frame the page's own CSS produces below its 768px breakpoint, the other needs a second press. The readings that found them are in `.tmp/ui-ux-11-24/`, gitignored scratch that runs only when this agent runs
   - **Goal**: frame every demo at 288px as well as 736px and press every control twice at each, then assert no press leaves the log contradicting the document - for **Measuring and Styling** that the width a line says landed is the width `#panel` measures within half a pixel, or the line names the clamp; and generally that a line reporting a count agrees with the count in the document, which is what catches the plural. Keep the file's own conventions: the `loadChromium` resolution and per-engine skip, the `node:http` server on an ephemeral port, no screenshots, no project dependency
   - From: UI/UX Override - the fourth composition and the four JS Elements demos
+- [x] Hold a line that names the clamp to the refusal amber in `tools/test-demo-pages-browser.mjs`
+  - **Issue**: a demo's two tones carry the meaning a reader reads them by - the accent is a report, the amber is a refusal - and nothing in the suite holds a refusal to the amber. The pressing pass collects `unreported` against both `REPORTED` and `REFUSED`, which rules out a line drawn in the body ink and nothing else, so a line may say one thing and be drawn as the other. The clamp line the 11-25 verification passed, `asked for 256.00px and got 240.00px: max-width clamped it` at the 288px frame, is correctly `rgb(253, 200, 58)`; writing it through `report` instead of `warn` leaves all 28 cases green. The narration walk added this turn holds a clamped width to its wording and says nothing about how it is drawn, which is the half of the same defect a reader meets first
+  - **Goal**: carry each line's tone beside its text in `READ_CLAIMS`, and in the narration walk assert that a line matching `CLAMPED` - the regex already deciding there whether a width the layout did not take was excused - is drawn in `REFUSED` rather than `REPORTED`. No new vocabulary: the regex and both colour constants are in the file. It is a ninth claim, so move the prose with it - the claim list at the head of that file, `the eight claims a demo answers` in **New Cheatsheets** below, and **Say only what the page did** in `CONTRIBUTING.md`
+  - From: UI/UX Override - the clamp line's tone
 
 </details>

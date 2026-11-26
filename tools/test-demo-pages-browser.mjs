@@ -12,7 +12,7 @@
 //
 // ## What a demo is held to
 //
-// Eight claims, none of them about a particular demo, so the next `embed` sheet
+// Nine claims, none of them about a particular demo, so the next `embed` sheet
 // is covered by writing its folder rather than by editing this file:
 //
 // - **Every control answers.** Pressing a control either writes a line into the
@@ -51,6 +51,13 @@
 //   claims above all read a press as a press; this one reads what the press
 //   said against the document it describes. See **The narration walk** at the
 //   foot of this file.
+// - **A line that names the clamp is drawn as a refusal.** The two tones carry
+//   the meaning a reader reads a line by - the accent reports and the amber
+//   refuses - and the second claim above holds every line to being one of the
+//   two without holding either to what it says. So the excuse the claim above
+//   grants a width the layout did not take is granted only where the line
+//   making it is drawn in the amber. See **The narration walk** at the foot of
+//   this file.
 //
 // ## Settling, rather than waiting for the first change
 //
@@ -802,13 +809,19 @@ for (const demo of demos) {
 //   reads `1 child element` and is right, so one press at any width passes it.
 //
 // So this walks the same controls twice at each of {@link FRAME_BOXES} and
-// holds each press to two claims a test can check without being told anything
+// holds each press to three claims a test can check without being told anything
 // about a particular demo:
 //
 // - **A width a line says landed is a width something measures**, within half a
 //   pixel, or the panel says the write was clamped. Held against whichever
 //   element bears the inline width rather than against a selector named here,
 //   so the next demo that writes one is covered by being written.
+// - **A line that excuses a clamped width is drawn as a refusal.** The excuse
+//   the claim above grants is the panel saying the write was clamped, and a line
+//   saying so refuses rather than reports, so it carries the amber and not the
+//   accent. Read off the tone {@link READ_CLAIMS} carries beside each line,
+//   which is the only thing in either walk holding a line's drawing to its
+//   wording.
 // - **A count that crosses one takes its wording with it.** Pressed twice, a
 //   control that counts answers with two figures; where one of them is 1 and
 //   the other is not, the words after the figure have to have changed.
@@ -828,16 +841,26 @@ for (const demo of demos) {
 // pages open at once - which is what the contention above was.
 
 /**
- * What a press claimed, and what the document behind it holds.
+ * What a press claimed, how it was drawn, and what the document behind it holds.
  *
  * The inline widths are read off the document rather than from a selector this
  * file names, so a demo that writes a width onto something other than a panel
  * is held to the same claim without this file being edited.
+ *
+ * Each line carries its tone beside its text, as {@link READ_LOG} does, because
+ * the colour is the half of what a line says that a reader meets first: the
+ * accent reports and the amber refuses. The clamp this walk takes as an excuse
+ * is only an excuse where the line making it is drawn as a refusal.
  */
 const READ_CLAIMS = () => {
   const log = document.querySelector("#log");
   return {
-    lines: log ? [...log.querySelectorAll("span")].map((span) => span.textContent) : [],
+    lines: log
+      ? [...log.querySelectorAll("span")].map((span) => ({
+          text: span.textContent,
+          color: getComputedStyle(span).color,
+        }))
+      : [],
     inline: [...document.querySelectorAll("[style]")]
       .map((element) => ({
         name: element.id || element.tagName,
@@ -945,12 +968,26 @@ for (const demo of demos) {
             await frame.waitForTimeout(SETTLE_MS);
           }
           const claims = await frame.evaluate(READ_CLAIMS);
-          rounds.push(claims.lines);
-          const namesClamp = claims.lines.some((line) => CLAMPED.test(line));
+          rounds.push(claims.lines.map((line) => line.text));
+          const namesClamp = claims.lines.some((line) => CLAMPED.test(line.text));
+
+          // --- A line that excuses a clamped width is drawn as a refusal.
+          // Asserted ahead of the two widths below because it is what makes
+          // their excuse honest: `namesClamp` lets a width the layout did not
+          // take pass, and a line drawn in the accent reports that width as
+          // having taken.
+          for (const line of claims.lines) {
+            if (!CLAMPED.test(line.text) || line.color === REFUSED) continue;
+            contradictions.push(
+              `${at}: ${id} press ${round} says ${JSON.stringify(line.text)} in ` +
+                `${line.color} - a line naming the clamp is a refusal, so it is drawn ` +
+                `in ${REFUSED} and not the accent ${REPORTED}`
+            );
+          }
 
           // --- A width a line says landed is a width something measures.
           for (const line of claims.lines) {
-            const found = line.match(LANDED);
+            const found = line.text.match(LANDED);
             if (!found) continue;
             const asked = Number(found[1]);
             const agrees = claims.inline.some(
@@ -958,7 +995,7 @@ for (const demo of demos) {
             );
             if (agrees || namesClamp) continue;
             contradictions.push(
-              `${at}: ${id} press ${round} says ${JSON.stringify(line)}, and nothing in ` +
+              `${at}: ${id} press ${round} says ${JSON.stringify(line.text)}, and nothing in ` +
                 `the document measures ${asked}px - ` +
                 claims.inline
                   .map(
