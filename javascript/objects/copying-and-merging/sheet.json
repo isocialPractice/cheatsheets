@@ -1,0 +1,32 @@
+{
+  "title": "Copying and Merging",
+  "subtitle": "One level deep, and what that costs",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "copying-and-merging",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "const base = { id: 1, tags: [\"a\"], meta: { seen: false } };", "role": "identifier" },
+    { "text": "" },
+    { "text": "// Spread copies one level, so the nested object is still shared", "role": "comment" },
+    { "text": "const spread = { ...base };", "role": "identifier" },
+    { "text": "spread.id = 2;", "role": "identifier" },
+    { "text": "spread.meta.seen = true;", "role": "identifier" },
+    { "text": "console.log(base.id, base.meta.seen); // 1 true", "role": "identifier" },
+    { "text": "" },
+    { "text": "// Object.assign writes into its first argument and returns it", "role": "comment" },
+    { "text": "const into = { id: 0 };", "role": "identifier" },
+    { "text": "const result = Object.assign(into, { id: 9 }, { extra: true });", "role": "identifier" },
+    { "text": "console.log(result === into, into); // true {id: 9, extra: true}", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A later source wins, which is how a default is overridden", "role": "comment" },
+    { "text": "const sizes = { ...{ size: \"small\", loud: false }, ...{ size: \"large\" } };", "role": "identifier" },
+    { "text": "console.log(sizes); // {size: 'large', loud: false}", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A deep copy needs a second pass, which JSON does for plain data", "role": "comment" },
+    { "text": "const deep = JSON.parse(JSON.stringify(base));", "role": "identifier" },
+    { "text": "deep.meta.seen = false;", "role": "identifier" },
+    { "text": "console.log(base.meta.seen, deep.meta.seen); // true false", "role": "identifier" },
+    { "text": "console.log(deep.tags === base.tags); // false", "role": "identifier" }
+  ]
+}

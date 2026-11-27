@@ -1,0 +1,32 @@
+{
+  "title": "Loops",
+  "subtitle": "Five of them, and what each one reads",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "loops",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "// The five loop statements, each over the same three values", "role": "comment" },
+    { "text": "const row = [\"a\", \"b\", \"c\"];", "role": "identifier" },
+    { "text": "" },
+    { "text": "// The counted loop hands you the index, and row[i] is the value", "role": "comment" },
+    { "text": "for (let i = 0; i < row.length; i += 1) console.log(i); // 0, 1, 2", "role": "keyword" },
+    { "text": "" },
+    { "text": "// for...of reads the values of anything iterable", "role": "comment" },
+    { "text": "for (const value of row) console.log(value); // a, b, c", "role": "keyword" },
+    { "text": "" },
+    { "text": "// for...in reads the keys, which for an array are the string indexes", "role": "comment" },
+    { "text": "for (const key in row) console.log(typeof key); // string, string, string", "role": "keyword" },
+    { "text": "" },
+    { "text": "// while tests before the body, so a false test runs it no times at all", "role": "comment" },
+    { "text": "let left = 2;", "role": "identifier" },
+    { "text": "while (left > 0) { console.log(left); left -= 1; } // 2, 1", "role": "keyword" },
+    { "text": "" },
+    { "text": "// do...while tests after, so the body always runs at least once", "role": "comment" },
+    { "text": "let spin = 0;", "role": "identifier" },
+    { "text": "do { console.log(\"ran once\"); spin -= 1; } while (spin > 0); // ran once", "role": "keyword" },
+    { "text": "" },
+    { "text": "// NOTE entries() is what hands for...of the index and the value together", "role": "comment" },
+    { "text": "for (const [at, v] of row.entries()) console.log(at, v); // 0 a, 1 b, 2 c", "role": "keyword" }
+  ]
+}

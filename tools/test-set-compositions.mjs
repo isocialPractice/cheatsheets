@@ -94,7 +94,7 @@ const DREW_THE_RECORDED_COMPOSITION = ["javascript-arrays", "html-css"];
 const COMPOSED = SET_COMPOSITION_IDS.filter((id) => !DREW_THE_RECORDED_COMPOSITION.includes(id));
 
 /** The count of sheets each composed set was drawn as, from the record of it. */
-const SET_SIZE = { "javascript-general": 9, "javascript-elements": 7 };
+const SET_SIZE = { "javascript-general": 9, "javascript-elements": 7, "javascript-statements": 9 };
 
 /**
  * The one claim each composed set's factors are chosen to make.
@@ -119,6 +119,17 @@ const TREATMENT = {
     assert.ok(
       scale.masthead.cap / scale.leadIn.cap < TYPE_ROLES.masthead.cap / TYPE_ROLES.leadIn.cap,
       "and the four sit closer together than the artwork's four do, which is the receding"
+    );
+  },
+  "javascript-statements": (scale) => {
+    assert.ok(scale.masthead.cap > scale.title.cap, "the masthead leads the scale, as the artwork has it");
+    assert.ok(
+      scale.title.cap > scale.followLine.cap,
+      "and the title is second in it, where the artwork and both composed sets before it put it lower"
+    );
+    assert.ok(
+      scale.masthead.cap / scale.leadIn.cap > TYPE_ROLES.masthead.cap / TYPE_ROLES.leadIn.cap,
+      "and the four sit further apart than the artwork's four do, which is the opening up"
     );
   },
 };

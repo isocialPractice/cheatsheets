@@ -541,7 +541,8 @@ has a consequence a contributor meets:
   composition narrows them so its own sheets sit beside each other without one
   looking mis-set. A sheet written for a set should therefore be written to the
   line count that fills the set's panel - 20 to 26 lines for
-  `javascript-general`, 19 to 24 for `javascript-elements` - rather than to
+  `javascript-general`, 19 to 24 for `javascript-elements`, 19 to 26 for
+  `javascript-statements` - rather than to
   whatever length the example came out at. **Each set has its own window and
   the window is its top padding's doing**: the two bounds are where the fill
   floor stops being reachable and where the spacing floor is crossed, so a
@@ -551,7 +552,9 @@ has a consequence a contributor meets:
 - **A treatment is the set's own, so a check that names one is held per set.**
   Which display run leads the scale is the composition's decision - the
   recorded composition leads with the brand wordmark, `javascript-general` with
-  the title, `javascript-elements` with nothing much - and the two checks below
+  the title, `javascript-elements` with nothing much, `javascript-statements`
+  with the brand again and the title promoted to second behind it - and the two
+  checks below
   read the ordering off the set's own scale rather than holding every set to
   one. `tools/test-set-compositions.mjs` carries a `TREATMENT` entry per
   composed set naming the claim its factors are chosen to make, and a new set

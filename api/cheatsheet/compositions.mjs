@@ -802,6 +802,320 @@ const FOURTH_LANGUAGE = {
 };
 
 /**
+ * The factor each role of the fifth composition's scale takes the anchor at.
+ *
+ * **The masthead leads and the title is second, which is the treatment.** The
+ * recorded order is masthead, follow line, title, lead-in; the third promotes
+ * the title to the top of it and the fourth brings the masthead down to lead a
+ * compressed scale. This one keeps the brand at the top where the artwork has
+ * it and promotes the title past the follow line, which is the one reordering
+ * of the recorded four that neither set before it makes.
+ *
+ * It is also the widest of the four. The recorded scale spans 112 to 220, the
+ * third 112 to 196 and the fourth 112 to 168, where this one spans 112 to 224:
+ * the masthead goes to twice the anchor and the follow line comes down to 1.125
+ * of it, so the two ends of the scale move apart rather than together.
+ *
+ * The set it was drawn for is why. **JS Statements** and **JS Objects** are the
+ * two subjects the overview deliberately left out, so they are where a reader
+ * who has met the overview goes next - and what has to carry on a tile is that
+ * these are the same repository's sheets, which is the brand, and then which
+ * subject this one is, which is the title. The follow line is the run a reader
+ * reaches last, and it is the only one that gives anything up.
+ */
+const FIFTH_FACTORS = { leadIn: 1, followLine: 1.125, title: 1.375, masthead: 2 };
+
+/**
+ * The fifth composition's type scale: the anchor at the four factors above.
+ *
+ * Derived exactly as {@link THIRD_SCALE} and {@link FOURTH_SCALE} are, and for
+ * the same reason - a cap written down beside a factor is a second claim that
+ * can disagree with the first. The title comes out at the artwork's own follow
+ * line cap of 154, which is the arithmetic rather than a figure anyone chose:
+ * 1.375 of 112 is 154, and that factor is where a title sits once it is above a
+ * follow line at 1.125 and below a masthead at 2.
+ */
+const FIFTH_SCALE = Object.fromEntries(
+  Object.entries(FIFTH_FACTORS).map(([role, factor]) => {
+    const cap = ANCHOR_CAP * factor;
+    return [
+      role,
+      {
+        cap,
+        stem: Math.round(cap * TYPE_ROLES[role].stemShare),
+        stemShare: TYPE_ROLES[role].stemShare,
+        fontWeight: TYPE_ROLES[role].fontWeight,
+      },
+    ];
+  })
+);
+
+/**
+ * The heading band of the fifth composition, and the masthead above it.
+ *
+ * **The masthead takes a step rather than giving one, and the scale is why.** A
+ * wordmark at twice the anchor is 224 px of cap in a band the artwork sized for
+ * 220, and the third composition's own history says what happens when a band is
+ * left alone under a scale that outgrew it: a run that does not fit is a run
+ * stepped down, and a masthead stepped down on some sheets of a set and not
+ * others is not a set.
+ *
+ * So this is the one composition of the three whose code field is the artwork's
+ * own 42 steps. The step the masthead takes comes out of the heading band,
+ * which can afford it here for the same reason the fourth composition's can - a
+ * title below the top of the scale needs less room than a title at it.
+ */
+const FIFTH_HEADING = { y: STEP * 12, height: STEP * 13 };
+
+/**
+ * Where the fifth composition's masthead lockup starts.
+ *
+ * **Three and a half steps, which centres it.** The lockup is 242 px tall in a
+ * band of 576, so the paper above and below it comes out at 168 and 166 - as
+ * near centred as a half step allows, where the artwork's own lockup sits 133
+ * above and 153 below in a band of 528 and the third composition's keeps that
+ * proportion in a shorter one.
+ *
+ * Centring it is the decision the extra step buys. A masthead leading the widest
+ * of the four scales is the first thing read on the sheet, and a lockup sitting
+ * high in its band reads as a header above the sheet rather than as the top of
+ * it.
+ */
+const FIFTH_LOCKUP_TOP = STEP * 3.5;
+
+/**
+ * The three display runs of the fifth composition's heading band.
+ *
+ * The same stack {@link STACK} builds, placed half a step into the band. At a
+ * 154 px title cap the gaps come out at 88.47 px and 64.34 px and the stack's
+ * lowest descender reaches 1164.92 px against a band foot at 1200, so it clears
+ * by 35.08 px - the roomiest of the four, where the recorded composition clears
+ * by 32.89, the fourth by 33.12 and the third by 16.95.
+ */
+const FIFTH_STACK = (() => {
+  const titleInkTop = FIFTH_HEADING.y + STEP / 2;
+  const titleBaseline = titleInkTop + FIFTH_SCALE.title.cap;
+  const subtitleInkTop = titleBaseline + GAP_BELOW(FIFTH_SCALE.title.cap);
+  const subtitleBaseline = subtitleInkTop + ANCHOR_CAP;
+  const leadInInkTop = subtitleBaseline + GAP_BELOW(ANCHOR_CAP);
+  return {
+    titleInkTop,
+    titleBaseline,
+    subtitleInkTop,
+    subtitleBaseline,
+    leadInInkTop,
+    leadInBaseline: leadInInkTop + ANCHOR_CAP,
+  };
+})();
+
+/** The rail, the panel and the right margin of the fifth composition. */
+const FIFTH_COLUMNS = {
+  spine: { x: 0, width: STEP * 4, steps: 4 },
+  panel: { x: STEP * 4, width: STEP * 65, steps: 65 },
+  rightMargin: { x: STEP * 69, width: STEP * 6, steps: 6 },
+};
+
+/**
+ * The bars flanking the fifth composition's title: thin over thick.
+ *
+ * **The recorded pair inverted, which is the plainest difference between this
+ * head and the artwork's at a glance.** The recorded bars are 45 px over 20,
+ * the third's a matched pair at half a step and the fourth's a matched pair at a
+ * quarter; this one is a quarter step over a half, so the weight gathers under
+ * the title rather than over it and the title reads as sitting on a line rather
+ * than hanging from one. It is the same inversion the type scale makes, where
+ * the run that gains is the one the recorded order puts lower.
+ *
+ * Four steps long, and that is the title's measure talking. The measure is the
+ * canvas less a bar and a gutter either side, so a bar's length is how much room
+ * a title has: at four steps and a two step gutter it comes out at 3024 px,
+ * which is 19.6 times the 154 px cap where the artwork's 2544 is 18.0 times its
+ * 141. A title promoted above the follow line needs the wider measure, and the
+ * bars are what pay for it.
+ */
+const FIFTH_BAR = { width: STEP * 4, gutter: STEP * 2 };
+
+/**
+ * The fifth composition's footer slot, derived the way the other two are.
+ *
+ * It comes out at the recorded 3312 px, because this composition keeps the
+ * artwork's six step right margin as the fourth does. The derivation is kept
+ * rather than the figure, for the reason {@link FOOTER_SLOT} gives at length:
+ * the mark sits flush on the trim only while the slot is no wider in aspect
+ * than the strip, and that is a property of the strip.
+ */
+const FIFTH_FOOTER_SLOT = (() => {
+  const height = STEP * 7;
+  const aspect = FOOTER_LINKS.width / FOOTER_LINKS.height;
+  return { x: 0, y: STEP * 68, width: Math.floor((aspect * height) / STEP) * STEP, height };
+})();
+
+/**
+ * The fifth composition's design language record.
+ *
+ * A delta over `SHEET_LANGUAGE`, as the two before it are, and the smallest of
+ * the three: it moves one step vertically and one horizontally.
+ *
+ * | Moved | Recorded | Here | Where the steps went |
+ * | --- | --- | --- | --- |
+ * | Masthead band | 11 steps | 12 | the heading band's step |
+ * | Heading band | 14 steps | 13 | one to the masthead |
+ * | Spine column | 5 steps | 4 | one to the panel |
+ * | Panel column | 64 steps | 65 | the rail's step |
+ *
+ * Both totals hold at 75 steps, so the bands still tile the canvas top to
+ * bottom and the columns still tile it left to right.
+ *
+ * **The code field is the one thing this composition does not touch**, where
+ * both sets before it took a step for it. That is the difference the table
+ * understates: this set's examples are the shortest of the three, because
+ * control flow and the object model document in short complete fragments rather
+ * than in long transcripts, so the field the artwork drew is the field they
+ * want and the step goes to the run that needed it instead.
+ */
+const FIFTH_LANGUAGE = {
+  ...SHEET_LANGUAGE,
+  // The palette, chosen as both before it are chosen and under the same
+  // constraint: `assertReadable` measures every pairing of ink and ground this
+  // palette and this layout imply against the 4.5:1 text floor before a sheet
+  // composes, and the ratios it reports are in `DESIGN_LANGUAGE.md` under the
+  // record of this composition.
+  //
+  // The accent is a violet, and it is the one hue the three sets before it leave
+  // open: it is where the recorded green's complement lands on the wheel, so
+  // this set is not a fourth temperature beside warm, warm-neutral and cool but
+  // the far side of the first. The ground is a graphite carrying that violet's
+  // own cast, and the display ink on paper takes the same cast.
+  colors: {
+    navy: "#1E1B26",
+    white: "#FFFFFF",
+    green: "#B98CFF",
+    heading: "#2B2733",
+    // The substitution, live here as it is in all three palettes before it: the
+    // accent reaches 2.54:1 on the paper, under both floors, so on white it
+    // carries fills and nothing a reader has to read. This is the same violet
+    // darkened until it clears the text floor, at 6.70:1.
+    greenOnWhite: "#6B3FC4",
+  },
+  // The six inks of the code panel, each measured on the ground above. The set
+  // is built across the accent rather than outward from it: an identifier is the
+  // accent's own light tint, a keyword is the mint directly opposite that
+  // violet, and the string and the number are the warm pair that falls between
+  // the two on the way round. The plain ink and the comment are then one hue at
+  // two distances - the ground's own violet lightened to near-paper, and
+  // lightened to the middle - which is what keeps a panel of this set reading as
+  // one surface rather than as six colours.
+  //
+  // Plain is not `#FFFFFF`, for the reason neither of the two sets before it is
+  // either: a long listing set in pure white on a dark ground haloes.
+  syntax: {
+    plain: "#F4F0FA",
+    comment: "#A096AF",
+    identifier: "#D8BBFF",
+    keyword: "#9BE8C8",
+    string: "#FFC08A",
+    number: "#FFE98A",
+  },
+  // The bands: the masthead takes the heading band's step, and the code field,
+  // the divider and the footer are the artwork's own.
+  bands: {
+    masthead: { y: 0, height: STEP * 12, steps: 12 },
+    heading: { y: FIFTH_HEADING.y, height: FIFTH_HEADING.height, steps: 13 },
+    code: { y: STEP * 25, height: STEP * 42, steps: 42 },
+    divider: { y: STEP * 67, height: STEP, steps: 1 },
+    footer: { y: STEP * 68, height: STEP * 7, steps: 7 },
+  },
+  // The columns: a rail a step narrower than the artwork's, and the panel takes
+  // the step. The rail is the one violet column of the sheet and still runs the
+  // height of the panel.
+  divisions: FIFTH_COLUMNS,
+  rules: {
+    width: FIFTH_BAR.width,
+    gap: STEP,
+    // Thin over thick, bracketing the title half a step above its ink and half a
+    // step below its baseline, so both move with the title the way the stack
+    // under it does. The upper hairline lands on the band's own top edge, which
+    // is the arithmetic of a title placed half a step in rather than a second
+    // decision.
+    upper: { height: STEP / 4, y: FIFTH_STACK.titleInkTop - STEP / 2 },
+    lower: { height: STEP / 2, y: FIFTH_STACK.titleBaseline + STEP / 2 },
+    gutter: FIFTH_BAR.gutter,
+    measure: SHEET_LANGUAGE.canvas - 2 * (FIFTH_BAR.width + FIFTH_BAR.gutter),
+  },
+  // The five fixed runs. The lockup is placed from its own top, as the third
+  // composition's is, because this masthead is taller than the artwork's rather
+  // than shorter and a baseline kept from the record would put its ink above the
+  // top of the canvas. The follow line keeps the artwork's baseline and takes
+  // its cap from the scale, so a smaller cap starts lower.
+  runs: {
+    wordmark: {
+      inkTop: FIFTH_LOCKUP_TOP,
+      cap: FIFTH_SCALE.masthead.cap,
+      baseline: FIFTH_LOCKUP_TOP + FIFTH_SCALE.masthead.cap,
+      left: SHEET_LANGUAGE.runs.wordmark.left,
+      width: SHEET_LANGUAGE.runs.wordmark.width,
+    },
+    title: {
+      inkTop: FIFTH_STACK.titleInkTop,
+      cap: FIFTH_SCALE.title.cap,
+      baseline: FIFTH_STACK.titleBaseline,
+      width: SHEET_LANGUAGE.runs.title.width,
+    },
+    subtitle: {
+      inkTop: FIFTH_STACK.subtitleInkTop,
+      cap: ANCHOR_CAP,
+      baseline: FIFTH_STACK.subtitleBaseline,
+    },
+    leadIn: {
+      inkTop: FIFTH_STACK.leadInInkTop,
+      cap: ANCHOR_CAP,
+      baseline: FIFTH_STACK.leadInBaseline,
+      left: FIFTH_COLUMNS.spine.x + FIFTH_COLUMNS.spine.width + INSETS.leadInFromSpine,
+      width: SHEET_LANGUAGE.runs.leadIn.width,
+    },
+    followLine: {
+      inkTop: SHEET_LANGUAGE.runs.followLine.baseline - FIFTH_SCALE.followLine.cap,
+      cap: FIFTH_SCALE.followLine.cap,
+      baseline: SHEET_LANGUAGE.runs.followLine.baseline,
+      left: MARK_SQUARE.width + INSETS.followLineFromMark,
+      width: SHEET_LANGUAGE.runs.followLine.width,
+    },
+  },
+  // The artwork's own square, and the artwork's own inset beside it. This is the
+  // one composition of the three that needs neither moved: the follow line is
+  // set at 126 px rather than the artwork's 154, so `Follow along at
+  // practicing.xyz` measures 2288.68 px in the 2736 the recorded footer leaves
+  // it. The fourth composition bought that room by moving the inset; this one is
+  // handed it by the type scale.
+  markSquare: { ...MARK_SQUARE },
+  brandSlots: {
+    logo: { ...SHEET_LANGUAGE.brandSlots.logo, top: FIFTH_LOCKUP_TOP },
+    footer: FIFTH_FOOTER_SLOT,
+  },
+  // Not one of them moved, which no composition before this one could say.
+  insets: { ...INSETS },
+  // The panel's own freedom, narrowed as both before it are and to bounds of its
+  // own. The top padding is the tightest of the three at both ends, which is
+  // what a code field left at the artwork's 42 steps has to do to hold a block
+  // of the same length: a step and a half to two steps, against the third's two
+  // to two and a half and the fourth's two and a half to three. The left inset
+  // starts deeper than either of the two before it, which both begin at two
+  // steps - the rail comes in a step and the listing keeps the gap it had.
+  //
+  // The line spacing is the other two's, and that is not a choice: the recorded
+  // range is 56 to 116 px, so the only bounds that are whole half steps inside
+  // it are 1.5 and 2. Every set that narrows this figure to the half step
+  // narrows it to the same pair.
+  panelFreedom: {
+    topPadding: { min: STEP * 1.5, max: STEP * 2 },
+    leftInset: { min: STEP * 2.5, max: STEP * 3 },
+    lineSpacing: { min: STEP * 1.5, max: STEP * 2 },
+  },
+  // Not moved, and the header says why.
+  floors: { ...FLOORS },
+};
+
+/**
  * A composition entry whose theme and layout are derived from its record.
  *
  * @param {{ id: string, title: string, set: string, drawn: string, language: typeof SHEET_LANGUAGE, scale?: Record<string, { cap: number, stem: number, fontWeight: number }> }} entry
@@ -854,6 +1168,14 @@ export const SET_COMPOSITIONS = {
     drawn: "2026.11.24",
     language: FOURTH_LANGUAGE,
     scale: FOURTH_SCALE,
+  }),
+  "javascript-statements": derived({
+    id: "javascript-statements",
+    title: "Violet on graphite, the title second",
+    set: "The nine JS Statements and JS Objects sheets",
+    drawn: "2026.11.27",
+    language: FIFTH_LANGUAGE,
+    scale: FIFTH_SCALE,
   }),
 };
 

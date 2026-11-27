@@ -39,6 +39,118 @@ written, and renumbering them as versions would invent promises that were never
 made. Read the heading form to know which kind you are looking at: a component
 of four digits that scans as a year is a date.
 
+## [1.0.0-alpha.1.15.0]
+
+The next two content items of **New Cheatsheets** `->` **JavaScript**, taken
+together because they are one batch: **JS Statements** at
+`javascript/statements/` as four cheatsheets, and **JS Objects** at
+`javascript/objects/` as five. The catalog goes from 44 cheatsheets in two
+categories to 53, and all nine are `kind: run`, so every output claim in them is
+checked against what the example logs.
+
+A minor rather than a patch, for the reason `1.0.0-alpha.1.14.0` and
+`1.0.0-alpha.1.13.0` were: a batch is a **set**, and the repository is
+maintained under a standing rule that every new set is drawn in a design of its
+own rather than in the one the set before it used. So there is a fifth entry in
+`SET_COMPOSITIONS` - `javascript-statements`, violet on graphite - and it is
+published surface in the same sense the third and fourth were: a caller naming
+that id in a document gets that design.
+
+**The two checks the fourth set generalised were generalised correctly**, which
+is the part of this release with nothing to report. `tools/test-set-compositions.mjs`
+reached the fifth composition by its existence, read its whole record section, and
+needed two lines: the count of sheets the set was drawn as, and the claim its
+factors are chosen to make. Nothing in either file had to be widened.
+
+### Added
+
+- **`javascript-statements`, the fifth set composition: violet on graphite, the
+  title second.** Its own palette, type scale, grid and panel freedom, recorded
+  in full under **Set compositions** in `DESIGN_LANGUAGE.md` with the measured
+  contrast ratio of every pairing. The accent is a violet at 2.54:1 on paper, so
+  the substitution is live as it is in all three palettes before it - `#6B3FC4`
+  is that violet darkened to 6.70:1. **It is not a fourth temperature.** The
+  three sets before it divide the wheel by warmth - the recorded green its
+  warm-neutral middle, the third's amber its warm end, the fourth's cyan its
+  cool one - and there is no fourth end to go to, so this one takes the far side
+  of the first: `#B98CFF` is where the recorded green's complement lands. The
+  ground is a graphite carrying that violet's own cast, and the six panel inks
+  are built across the accent rather than outward from it, the lowest of them
+  reaching 6.03:1 against the 4.5:1 text floor.
+- **The masthead leads and the title is second, which is the treatment.** Every
+  cap is the lead-in's 112 at a stated factor - 1, 1.125, 1.375, 2 - so nothing
+  in the scale is chosen; the title comes out at the artwork's own 154 as the
+  arithmetic of sitting above a follow line at 1.125 and below a masthead at 2.
+  The recorded order is masthead, follow line, title, lead-in, and this is the
+  one reordering of it neither composed set before it makes: the brand stays
+  where the artwork has it and the title is promoted past the follow line. It is
+  also the widest of the four scales - 112 to 224, against the recorded 112 to
+  220, the third's 112 to 196 and the fourth's 112 to 168 - so the two ends move
+  apart where the fourth's move together.
+- **A set may take a step rather than give one.** Both composed sets before this
+  moved a step into the code field, so the direction looked like the rule. A
+  wordmark at twice the anchor is 224 px of cap in a band the artwork sized for
+  220, and a run that does not fit its band is a run stepped down - so the step
+  goes to the masthead instead, the heading band gives it, and the code field
+  stays at the artwork's own 42 steps. The rail comes in a step and the panel
+  takes it, which makes this the smallest grid delta of the three: one step
+  vertically and one horizontally, against the third's two and three and the
+  fourth's one and two.
+- **The lockup is centred in the band it was given**, at three and a half steps,
+  which leaves 168 px of paper above it and 166 below. It is placed from its own
+  top rather than from a baseline carried out of the record, as the third
+  composition's is, and here that is unavoidable rather than tidy: this masthead
+  is taller than the artwork's rather than shorter, so a baseline held at the
+  recorded 353 would start 224 px of cap at 129 and climb towards the trim.
+- **The footer needs nothing moved, and no inset moves at all.** `Follow along
+  at practicing.xyz` measures 2288.68 px at this composition's 126 px cap, in
+  the 2736 px the recorded footer leaves it, so it fits with 447 px to spare -
+  where the same line at the artwork's own 154 measures 2797.27 and does not fit
+  2736 at all. Every sheet of the first two sets carries a note saying it was
+  stepped down to 150 to get in, and the fourth composition bought the room by
+  taking four steps off the mark rather than six; this one is handed it by a
+  follow line that is the smallest thing on the sheet after the lead-in. It is
+  the first composition that leaves every figure in `INSETS` as the artwork has
+  it.
+- **The hairlines flanking the title are thin over thick**, which is the
+  recorded pair inverted: a quarter step over a half, against 45 px over 20, so
+  the weight gathers under the title rather than over it. Both bracket the title
+  half a step above its ink and half a step below its baseline, so they move with
+  it the way the display stack does, and at four steps long with a two step
+  gutter the title's measure comes out at 3024 px - 19.6 times the 154 px cap
+  where the artwork's 2544 is 18.0 times its 141, which is what a title promoted
+  above the follow line needs.
+- **Four cheatsheets under JS Statements** - *Conditionals*, *Loops*, *Jumps and
+  Labels* and *Declarations and Blocks* - and **five under JS Objects** -
+  *Making an Object*, *Reading and Writing*, *Keys and Values*, *Copying and
+  Merging* and *Property Descriptors*. Control flow and the object model were
+  deliberately kept out of **General JavaScript Overview**, so each is a subject
+  of its own. All nine are `kind: run`: the 52 output claims across them are
+  compared against what each example logs, and every line's syntax role is the
+  one the `javascript` per-line rule gives it rather than one written by hand.
+- **Every one of the nine is 22 rows, and the set is written in the middle of
+  its window rather than at the top of it.** The window is 19 to 26 - at the
+  step and a half end of this composition's top padding the 2016 px code field
+  has 1872 px for the block, so 26 rows sit at 72.19 px of spacing and 27 fall
+  under the 72 px floor, while nineteen is where two steps of padding leave 1824
+  px and the 85% fill floor stops being reachable below that count. Measured on
+  2026.11.27 the nine compose at 79.31 to 85.52 px of spacing - a span of 6.21
+  px against the half step the set-wide check allows - and 0.850 to 0.917 of
+  fill, with every title at the 154 px cap the scale names and no display run
+  stepped down anywhere in the set.
+
+### Changed
+
+- **The catalog's taught order carries the two new groups.**
+  `tools/test-example-selection.mjs` holds the order the page offers its
+  examples in, group by group, and `javascript/statements/` and
+  `javascript/objects/` are ordered sixth and seventh in the category by their
+  own `meta.json`.
+- **`CONTRIBUTING.md` names the fifth set's window and its treatment** where it
+  tells a contributor to write a sheet to its set's line count and to add a
+  `TREATMENT` entry for a new set, so neither list reads as though the fourth
+  set were the last one.
+
 ## [1.0.0-alpha.1.14.2]
 
 A demo's two tones carry the meaning a reader reads a line by - the accent

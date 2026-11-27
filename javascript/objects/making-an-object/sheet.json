@@ -1,0 +1,32 @@
+{
+  "title": "Making an Object",
+  "subtitle": "Four constructions, one shape",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "making-an-object",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "// The literal, which is the shortest and the one to reach for", "role": "comment" },
+    { "text": "const literal = { kind: \"literal\", size: 1 };", "role": "identifier" },
+    { "text": "console.log(literal); // {kind: 'literal', size: 1}", "role": "identifier" },
+    { "text": "" },
+    { "text": "// Object.create names the prototype, and null means none at all", "role": "comment" },
+    { "text": "const bare = Object.create(null);", "role": "identifier" },
+    { "text": "bare.kind = \"bare\";", "role": "identifier" },
+    { "text": "console.log(Object.getPrototypeOf(bare)); // null", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A constructor function, which new calls with this bound to a new object", "role": "comment" },
+    { "text": "function Made(kind) { this.kind = kind; }", "role": "keyword" },
+    { "text": "const made = new Made(\"constructed\");", "role": "identifier" },
+    { "text": "console.log(made.kind, made instanceof Made); // constructed true", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A class, which is the same machinery with a declaration of its own", "role": "comment" },
+    { "text": "class Built { constructor(kind) { this.kind = kind; } }", "role": "keyword" },
+    { "text": "const built = new Built(\"class\");", "role": "identifier" },
+    { "text": "console.log(built.kind, typeof Built); // class function", "role": "identifier" },
+    { "text": "" },
+    { "text": "// Every one of the four is an object, whatever made it", "role": "comment" },
+    { "text": "const all = [literal, bare, made, built];", "role": "identifier" },
+    { "text": "console.log(all.length, typeof all[0]); // 4 object", "role": "identifier" }
+  ]
+}

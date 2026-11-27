@@ -1,0 +1,32 @@
+{
+  "title": "Property Descriptors",
+  "subtitle": "What a plain assignment leaves out",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "property-descriptors",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "const record = {};", "role": "identifier" },
+    { "text": "record.open = \"plain assignment\";", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A plain assignment turns all three flags on", "role": "comment" },
+    { "text": "const open = Object.getOwnPropertyDescriptor(record, \"open\");", "role": "identifier" },
+    { "text": "console.log(open.writable, open.enumerable); // true true", "role": "identifier" },
+    { "text": "" },
+    { "text": "// defineProperty defaults every flag it is not given to false instead", "role": "comment" },
+    { "text": "Object.defineProperty(record, \"shut\", { value: \"defined\" });", "role": "identifier" },
+    { "text": "const shut = Object.getOwnPropertyDescriptor(record, \"shut\");", "role": "identifier" },
+    { "text": "console.log(shut.writable, shut.enumerable); // false false", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A non-enumerable key is skipped by keys, and still found by in", "role": "comment" },
+    { "text": "console.log(Object.keys(record), \"shut\" in record); // ['open'] true", "role": "identifier" },
+    { "text": "" },
+    { "text": "// An accessor carries get and set rather than a value", "role": "comment" },
+    { "text": "Object.defineProperty(record, \"loud\", { get: () => record.open });", "role": "identifier" },
+    { "text": "console.log(record.loud); // plain assignment", "role": "identifier" },
+    { "text": "" },
+    { "text": "// freeze turns every own key unwritable, and strict mode throws on one", "role": "comment" },
+    { "text": "Object.freeze(record);", "role": "identifier" },
+    { "text": "try { record.open = \"no\"; } catch (e) { console.log(e.name); } // TypeError", "role": "keyword" }
+  ]
+}

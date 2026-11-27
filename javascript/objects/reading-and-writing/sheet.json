@@ -1,0 +1,32 @@
+{
+  "title": "Reading and Writing",
+  "subtitle": "Dots, brackets, and the absent key",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "reading-and-writing",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "const page = { title: \"Home\", \"data-id\": 7, nested: { depth: 1 } };", "role": "identifier" },
+    { "text": "" },
+    { "text": "// A dot needs a valid name, and brackets take any string or a variable", "role": "comment" },
+    { "text": "console.log(page.title, page[\"data-id\"]); // Home 7", "role": "identifier" },
+    { "text": "const which = \"title\";", "role": "identifier" },
+    { "text": "console.log(page[which]); // Home", "role": "identifier" },
+    { "text": "" },
+    { "text": "// An absent key reads as undefined, and reading through one throws", "role": "comment" },
+    { "text": "console.log(page.missing); // undefined", "role": "identifier" },
+    { "text": "try { page.missing.deeper; } catch (e) { console.log(e.name); } // TypeError", "role": "keyword" },
+    { "text": "" },
+    { "text": "// Optional chaining stops at the absent key instead of throwing", "role": "comment" },
+    { "text": "console.log(page.missing?.deeper); // undefined", "role": "identifier" },
+    { "text": "console.log(page.nested?.depth); // 1", "role": "identifier" },
+    { "text": "" },
+    { "text": "// in asks whether the key is there, which undefined cannot answer", "role": "comment" },
+    { "text": "page.empty = undefined;", "role": "identifier" },
+    { "text": "console.log(\"empty\" in page, page.empty === undefined); // true true", "role": "identifier" },
+    { "text": "" },
+    { "text": "// delete removes the key itself, so in answers false afterwards", "role": "comment" },
+    { "text": "delete page.empty;" },
+    { "text": "console.log(\"empty\" in page, page.title); // false Home", "role": "identifier" }
+  ]
+}

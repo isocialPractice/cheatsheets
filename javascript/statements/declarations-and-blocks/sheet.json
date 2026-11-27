@@ -1,0 +1,32 @@
+{
+  "title": "Declarations and Blocks",
+  "subtitle": "Where a name starts existing",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "declarations-and-blocks",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "// let and const are block scoped, so the block is where the name lives", "role": "comment" },
+    { "text": "let where = \"the function\";", "role": "identifier" },
+    { "text": "{" },
+    { "text": "  let where = \"the block\";", "role": "identifier" },
+    { "text": "  console.log(where); // the block", "role": "identifier" },
+    { "text": "}", "role": "keyword" },
+    { "text": "console.log(where); // the function", "role": "identifier" },
+    { "text": "" },
+    { "text": "// const binds the name and not the value, so an object still mutates", "role": "comment" },
+    { "text": "const held = { count: 0 };", "role": "identifier" },
+    { "text": "held.count += 1;" },
+    { "text": "console.log(held.count); // 1", "role": "identifier" },
+    { "text": "" },
+    { "text": "// var is hoisted and initialised undefined, so typeof answers above it", "role": "comment" },
+    { "text": "console.log(typeof hoisted); // undefined", "role": "identifier" },
+    { "text": "var hoisted = \"set later\";", "role": "identifier" },
+    { "text": "" },
+    { "text": "// let is hoisted too, and reading it above its own line throws instead", "role": "comment" },
+    { "text": "const read = () => early;", "role": "identifier" },
+    { "text": "try { read(); } catch (e) { console.log(e.name); } // ReferenceError", "role": "keyword" },
+    { "text": "let early = \"declared below the call\";", "role": "identifier" },
+    { "text": "console.log(read()); // declared below the call", "role": "identifier" }
+  ]
+}

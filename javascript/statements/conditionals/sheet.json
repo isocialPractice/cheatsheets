@@ -1,0 +1,32 @@
+{
+  "title": "Conditionals",
+  "subtitle": "One branch, and four ways to write it",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "conditionals",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "// if and else if read in order, and the first true branch is the only one", "role": "comment" },
+    { "text": "const score = 72;", "role": "identifier" },
+    { "text": "if (score >= 90) console.log(\"A\");", "role": "keyword" },
+    { "text": "else if (score >= 70) console.log(\"B\"); // B", "role": "keyword" },
+    { "text": "else console.log(\"C\");", "role": "keyword" },
+    { "text": "" },
+    { "text": "// A ternary is the same choice as an expression, so it can be assigned", "role": "comment" },
+    { "text": "const grade = score >= 70 ? \"pass\" : \"fail\";", "role": "identifier" },
+    { "text": "console.log(grade); // pass", "role": "identifier" },
+    { "text": "" },
+    { "text": "// switch compares with ===, so a string case never matches a number", "role": "comment" },
+    { "text": "switch (score) {", "role": "keyword" },
+    { "text": "  case \"72\": console.log(\"string\"); break;", "role": "keyword" },
+    { "text": "  case 72: console.log(\"number\"); break; // number", "role": "keyword" },
+    { "text": "  default: console.log(\"neither\");", "role": "keyword" },
+    { "text": "}", "role": "keyword" },
+    { "text": "" },
+    { "text": "// A falsy value is not an absent one, which is what ?? separates from ||", "role": "comment" },
+    { "text": "const limit = 0;", "role": "identifier" },
+    { "text": "console.log(limit || 10); // 10", "role": "identifier" },
+    { "text": "console.log(limit ?? 10); // 0", "role": "identifier" },
+    { "text": "console.log(limit === 0 && \"zero\"); // zero", "role": "identifier" }
+  ]
+}

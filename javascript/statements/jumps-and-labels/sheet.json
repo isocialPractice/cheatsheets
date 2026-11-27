@@ -1,0 +1,32 @@
+{
+  "title": "Jumps and Labels",
+  "subtitle": "Leaving a block early, and leaving two",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "jumps-and-labels",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "// continue leaves the current turn of a loop, and break leaves the loop", "role": "comment" },
+    { "text": "for (const n of [1, 2, 3, 4]) {", "role": "keyword" },
+    { "text": "  if (n === 2) continue;", "role": "keyword" },
+    { "text": "  if (n === 4) break;", "role": "keyword" },
+    { "text": "  console.log(n); // 1, 3", "role": "identifier" },
+    { "text": "}", "role": "keyword" },
+    { "text": "" },
+    { "text": "// A label names a loop, so break can leave the outer one from inside it", "role": "comment" },
+    { "text": "outer: for (const a of [\"x\", \"y\"]) {", "role": "identifier" },
+    { "text": "  for (const b of [1, 2]) {", "role": "keyword" },
+    { "text": "    if (b === 2) break outer;", "role": "keyword" },
+    { "text": "    console.log(a, b); // x 1", "role": "identifier" },
+    { "text": "  }", "role": "keyword" },
+    { "text": "}", "role": "keyword" },
+    { "text": "" },
+    { "text": "// A label on a plain block makes break an early exit from that block", "role": "comment" },
+    { "text": "check: { console.log(\"reached\"); break check; } // reached", "role": "identifier" },
+    { "text": "" },
+    { "text": "// return leaves the function, and finally runs on the way out of it", "role": "comment" },
+    { "text": "const take = (a) => { try { return a[0]; } finally { a.pop(); } };", "role": "identifier" },
+    { "text": "const held = [\"kept\", \"dropped\"];", "role": "identifier" },
+    { "text": "console.log(take(held), held); // kept ['kept']", "role": "identifier" }
+  ]
+}

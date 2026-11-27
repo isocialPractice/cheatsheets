@@ -17,16 +17,21 @@ it is written `1.0.0-alpha.X.Y.Z`: the core holds at `1.0.0` while the stage is
 
 ## Current
 
-- [ ] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
-  - Create `4` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
-  - From: New Cheatsheets `->` JavaScript
-- [ ] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
-  - Create `5` new cheatsheets, each with a different area of focus for the subject
+- [ ] Add the **JS DOM** cheatsheet at `javascript/dom/`, `kind: embed`
+  - Create `6` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
   - From: New Cheatsheets `->` JavaScript
 
 ### Create and Deploy GitHub Pages Override
+
+### Found Issue Override - the javascript-elements record
+
+#### Found Issues
+
+- [ ] Correct the row-count claim in the `javascript-elements` record
+  - **Issue**: the palette section of **javascript-elements: cyan on slate, receding masthead** in `DESIGN_LANGUAGE.md` closes *"the panels of this set are the longest of the three at 24 rows each"*, and that is false on either reading of it. By rows, the nine sheets of `javascript-general` are 25 and 26 - longer than all seven of `javascript-elements`. By panel height, the two sets' code bands are both 43 steps, so the figure is a tie rather than a maximum. Nothing in the suite reads it: `tools/test-set-compositions.mjs` holds every figure in a record and exactly one non-figure claim, the accent word, so a false comparative in prose passes the way the green rail did on 11-22-26. It was found on 11-27-26 while the fifth set's record was written beside it, and the fifth set's own paragraph states the three counts plainly - 22 rows here, 25 to 26 for the third set, 24 for the fourth - so the two sections now disagree in the same document
+  - **Goal**: correct the clause to say what is true of this set's plain ink without ranking it - the reason the ink is a cool off-white is that a long listing on a dark ground haloes, and 24 rows each is the figure worth keeping. Leave every table in that section alone; they are correct and test-held. Then consider whether the comparative is worth a check of its own: a per-set row-count claim could be read out of the committed documents the way the accent word is read out of the prose, which would make this the second non-figure claim the record check holds rather than the second one to go stale
+  - From: version.control = null
 
 ## GitHub Pages Deployment
 
@@ -290,6 +295,7 @@ any discovered file that is a working artifact and naming the remedy.
   - No draft was lost to it on 2026.10.15: the only image that run touched was `assets/footer.png`, which is a brand asset rather than a cheatsheet, and the recipe watches `jpg` and `webp` only
   - Measured again on 2026.11.09 and unchanged: every command still exits with the stale build sentence, so `doctor` reports no `availableDrives` and the drift check cannot run. The watch pattern matched the eleven original JPEGs and nothing else, all of them already in the ledger, which is the quiet day the recipe describes rather than a pattern gone stale. The run created no cheatsheet image, so no draft was due. One thing worth recording for whoever takes this: the shim prints that sentence and exits **0**, so a run reading the exit code alone would report a healthy tool
   - Measured again on 2026.11.14 and the stale build is gone: `doctor` reports `availableDrives` as `everyday, api, cdp`, the drift check reports `drift.differs: false`, and the backlog draft for `javaScriptArrays/SlicingArrays.jpg` published to all three sites. Both halves of the **Goal** have now been seen to hold from here, so what is left is for the operator to decide whether the item is closed rather than for a run to measure it again
+  - Measured again on 2026.11.27, and a third thing is now worth deciding alongside the first two: **the backlog is empty for good rather than for today.** `doctor` reports the same three routes and the drift check still reports `drift.differs: false`, but `drafts --json` returns 11 drafts and all 11 are `published`, which is every file the watch pattern matches outside its ignore list - the eleven original JPEGs. So `run --dry-run` answers `handled: 0`, and the constant classifies that as the ordinary quiet day on the strength of the pattern having matched something, which it did. What has changed is that the quiet is permanent: every cheatsheet added since the API landed is a `sheet.json` committing no raster, per **Paths** under the **New Cheatsheets** conventions, so nothing the recipe can see will arrive again and no later run can tell this state from the quiet day by the test the constant gives. The mechanism to end it exists and **Raster Export and Example Images** records it - `tools/cheatsheet.mjs` writes a publishable render beside its own `sheet.json` precisely because the recipe globs the working tree - so what is missing is a step that produces one and the decision of whose it is. `cross-os-social seed` is not it: seeding marks images handled, which is the opposite of what is wanted
   - From: version.control = null
 
 ## New Cheatsheets
@@ -505,17 +511,36 @@ found: `tools/test-sheet-syntax-roles.mjs` reads `html-css` only, and the rule
 belongs to a language. The eleven `javaScriptArrays` sheets are the one
 exemption on record, because they transcribe artwork that predates the mapping.
 
-**JS Statements** and **JS Objects** were queued into `## Current` on
-2026.11.24 and are no longer listed below: control flow and the object model
-were deliberately kept out of the overview, so each is a subject of its own, and
-the two are taken as one batch for the reason every batch here is taken as one -
-nine sheets is a set, and a set is one composition.
+**Its next two subjects landed together on 2026.11.27** - **JS Statements** as
+four cheatsheets and **JS Objects** as five - the third batch here and so the
+third set. Control flow and the object model were deliberately kept out of the
+overview, so each is a subject of its own, and the two were taken as one batch
+for the reason every batch here is taken as one: nine sheets is a set, and a set
+is one composition. Theirs is `javascript-statements`, violet on graphite with
+the masthead leading and the title promoted to second, and two further things
+they settled hold for every item left in this section.
+
+**A set may take a step rather than give one, and the type scale is what
+decides.** Both batches before this one moved a step into the code field, so the
+direction looked like the rule; this one has a masthead at twice the lead-in's
+cap, which is 224 px in a band the artwork sized for 220, so its step goes there
+instead and the code field stays at the artwork's own 42. What follows for an
+item here is that a new set's line-count window is read off the set it belongs
+to and never off the trend - `javascript-statements` composes clean at 19 to 26
+rows, against the fourth set's 19 to 24 and the third's 20 to 26.
+
+**The nine are `kind: run`, so every output claim in them is checked.** A line
+holding a `console.log` with a trailing comment is compared against what the
+example actually logs, by `tools/test-example-comments.mjs` - 52 claims over
+this batch - while a comment opening `NOTE` is a remark and is compared against
+nothing. An item here writing a runnable example writes the comment it can
+defend rather than the one that reads well, and runs the check before committing
+it: the sandbox the examples run in has `console` and the language's own
+built-ins and nothing else, so a browser global reads as a failure rather than
+as a skip.
 
 The rest of the section follows in the order below.
 
-- [ ] Add the **JS DOM** cheatsheet at `javascript/dom/`, `kind: embed`
-  - Create `6` new cheatsheets, each with a different area of focus for the subject
-  - Graphic: `sheet.json` required, composed through the API
 - [ ] Add the **JS Versions** cheatsheet at `javascript/versions/`, `kind: read`
   - Create `2` new cheatsheets, each with a different area of focus for the subject
   - Graphic: `sheet.json` required, composed through the API
@@ -2501,5 +2526,13 @@ generate ideas about generating ideas.
   - **Issue**: a demo's two tones carry the meaning a reader reads them by - the accent is a report, the amber is a refusal - and nothing in the suite holds a refusal to the amber. The pressing pass collects `unreported` against both `REPORTED` and `REFUSED`, which rules out a line drawn in the body ink and nothing else, so a line may say one thing and be drawn as the other. The clamp line the 11-25 verification passed, `asked for 256.00px and got 240.00px: max-width clamped it` at the 288px frame, is correctly `rgb(253, 200, 58)`; writing it through `report` instead of `warn` leaves all 28 cases green. The narration walk added this turn holds a clamped width to its wording and says nothing about how it is drawn, which is the half of the same defect a reader meets first
   - **Goal**: carry each line's tone beside its text in `READ_CLAIMS`, and in the narration walk assert that a line matching `CLAMPED` - the regex already deciding there whether a width the layout did not take was excused - is drawn in `REFUSED` rather than `REPORTED`. No new vocabulary: the regex and both colour constants are in the file. It is a ninth claim, so move the prose with it - the claim list at the head of that file, `the eight claims a demo answers` in **New Cheatsheets** below, and **Say only what the page did** in `CONTRIBUTING.md`
   - From: UI/UX Override - the clamp line's tone
+- [x] Add the **JS Statements** cheatsheet at `javascript/statements/`, `kind: run`
+  - Create `4` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
+- [x] Add the **JS Objects** cheatsheet at `javascript/objects/`, `kind: run`
+  - Create `5` new cheatsheets, each with a different area of focus for the subject
+  - Graphic: `sheet.json` required, composed through the API
+  - From: New Cheatsheets `->` JavaScript
 
 </details>

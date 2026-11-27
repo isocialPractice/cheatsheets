@@ -113,6 +113,19 @@ test("the examples are offered in the order they are taught", () => {
       "Rounding and Precision",
       "Random and Ranges",
       "Powers and Logs",
+      // Then JS Statements, ordered sixth, and JS Objects, ordered seventh.
+      // Those nine are the next batch and so the next set, drawn in the fifth
+      // set composition, and both run rather than embed: control flow and the
+      // object model are read in a console.
+      "Conditionals",
+      "Loops",
+      "Jumps and Labels",
+      "Declarations and Blocks",
+      "Making an Object",
+      "Reading and Writing",
+      "Keys and Values",
+      "Copying and Merging",
+      "Property Descriptors",
     ],
     "html-css": [
       // General HTML Overview, which `meta.json` orders first in the category.

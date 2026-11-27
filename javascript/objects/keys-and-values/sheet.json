@@ -1,0 +1,32 @@
+{
+  "title": "Keys and Values",
+  "subtitle": "What an object hands an iterator",
+  "kind": "run",
+  "language": "javascript",
+  "seed": "keys-and-values",
+  "composition": "javascript-statements",
+  "code": [
+    { "text": "const tally = { b: 2, a: 1, c: 3 };", "role": "identifier" },
+    { "text": "" },
+    { "text": "// The three readers, each handing back a plain array", "role": "comment" },
+    { "text": "console.log(Object.keys(tally)); // (3) ['b', 'a', 'c']", "role": "identifier" },
+    { "text": "console.log(Object.values(tally)); // (3) [2, 1, 3]", "role": "identifier" },
+    { "text": "console.log(Object.entries(tally)[0]); // (2) ['b', 2]", "role": "identifier" },
+    { "text": "" },
+    { "text": "// Insertion order is kept for string keys, so b stays first", "role": "comment" },
+    { "text": "console.log(Object.keys(tally).join(\",\")); // b,a,c", "role": "identifier" },
+    { "text": "" },
+    { "text": "// An integer-like key is not a string key, and sorts ahead of them all", "role": "comment" },
+    { "text": "const mixed = { 2: \"two\", b: \"bee\", 1: \"one\" };", "role": "identifier" },
+    { "text": "console.log(Object.keys(mixed)); // (3) ['1', '2', 'b']", "role": "identifier" },
+    { "text": "" },
+    { "text": "// fromEntries is the inverse, so a map over entries rebuilds the object", "role": "comment" },
+    { "text": "const doubled = Object.entries(tally).map(([k, v]) => [k, v * 2]);", "role": "identifier" },
+    { "text": "console.log(Object.fromEntries(doubled)); // {b: 4, a: 2, c: 6}", "role": "identifier" },
+    { "text": "" },
+    { "text": "// NOTE for...in walks inherited keys too, which the three readers do not", "role": "comment" },
+    { "text": "const child = Object.create(tally);", "role": "identifier" },
+    { "text": "child.own = 0;", "role": "identifier" },
+    { "text": "console.log(Object.keys(child), \"own\" in child); // ['own'] true", "role": "identifier" }
+  ]
+}
